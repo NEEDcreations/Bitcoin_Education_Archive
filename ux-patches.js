@@ -424,8 +424,8 @@
 
     // Helper: check if user is forum admin (matches the existing function in forum.js)
     function isForumAdmin() {
-        if (!auth || !auth.currentUser) return false;
-        var _e = (auth.currentUser.email || ''); return _e === 'needcreations@gmail.com' || _e === 'najemchris8@gmail.com';
+        // Firebase custom claim only. Never gate on email client-side.
+        return window._isAdminClaim === true;
     }
 })();
 

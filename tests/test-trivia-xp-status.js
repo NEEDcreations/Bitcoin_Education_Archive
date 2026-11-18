@@ -253,6 +253,90 @@ test('an award total replaces the triviaXpStatus cache instead of being painted 
     assert.strictEqual(text.textContent, '120/1000 XP today', 'a status result that started earlier does not cover the award');
 });
 
+test('today XP paints the saved total before triviaXpStatus returns, then an award previews and the server replaces it', async function () {
+    const RealDate = Date;
+    let clock = 1700000000000;
+    function ClockDate() {
+        var args = Array.prototype.slice.call(arguments);
+        if (args.length) return new (Function.prototype.bind.apply(RealDate, [null].concat(args)))();
+        return new RealDate(clock);
+    }
+    ClockDate.now = function () { return clock; };
+    ClockDate.parse = RealDate.parse;
+    ClockDate.UTC = RealDate.UTC;
+    ClockDate.prototype = RealDate.prototype;
+    const day = new ClockDate(clock - 5 * 3600000).toISOString().slice(0, 10);
+    const store = {
+        btc_daily_xp_v1: JSON.stringify({ uid: 'userUid123456', day: day, dailyXp: 80, at: clock - 5000 })
+    };
+    const text = { textContent: '' };
+    const fill = { style: {} };
+    let release = null;
+    const calls = [];
+    const sandbox = {
+        console: console,
+        setTimeout: function () { return 0; },
+        clearTimeout: function () {},
+        setInterval: function () { return 0; },
+        clearInterval: function () {},
+        Date: ClockDate,
+        document: {
+            readyState: 'complete',
+            getElementById: function (id) {
+                if (id === 'dailyXpMeterText') return text;
+                if (id === 'dailyXpMeterFill') return fill;
+                if (id === 'dailyXpMeter') return { setAttribute: function () {}, querySelector: function () { return null; } };
+                return null;
+            },
+            querySelector: function () { return null; },
+            querySelectorAll: function () { return []; },
+            addEventListener: function () {},
+            createElement: function () { return { style: {}, setAttribute: function () {}, appendChild: function () {} }; }
+        },
+        localStorage: {
+            getItem: function (key) { return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null; },
+            setItem: function (key, value) { store[key] = String(value); },
+            removeItem: function (key) { delete store[key]; }
+        },
+        addEventListener: function () {},
+        removeEventListener: function () {},
+        auth: { currentUser: { uid: 'userUid123456', isAnonymous: false } },
+        firebase: {
+            functions: function () {
+                return {
+                    httpsCallable: function (name) {
+                        return function () {
+                            calls.push(name);
+                            return new Promise(function (resolve) {
+                                release = function () { resolve({ data: { dailyXp: 90, signedIn: true } }); };
+                            });
+                        };
+                    }
+                };
+            }
+        }
+    };
+    sandbox.window = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(fs.readFileSync(path.join(root, 'today-card.js'), 'utf8'), sandbox, { filename: 'today-card.js' });
+    assert.strictEqual(text.textContent, '80/1000 XP today', 'saved XP is on screen before the server answers');
+    assert.strictEqual(calls.length, 1, 'the server reconcile still starts');
+    clock += 20;
+    var preview = sandbox._previewDailyXpGain(40);
+    assert.strictEqual(preview.before, 80);
+    assert.strictEqual(preview.after, 120);
+    assert.strictEqual(text.textContent, '120/1000 XP today', 'an award moves the meter before the callable returns');
+    clock += 30;
+    sandbox._noteServerDailyXp({ signedIn: true, dailyXp: 90, _xpNotedAt: clock });
+    assert.strictEqual(text.textContent, '90/1000 XP today', 'the server total replaces the preview');
+    release();
+    for (var i = 0; i < 8; i++) await Promise.resolve();
+    assert.strictEqual(text.textContent, '90/1000 XP today');
+    const saved = JSON.parse(store.btc_daily_xp_v1);
+    assert.strictEqual(saved.dailyXp, 90);
+    assert.strictEqual(saved.day, day);
+});
+
 Promise.all(pending).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);

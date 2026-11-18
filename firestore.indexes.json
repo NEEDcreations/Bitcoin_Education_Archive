@@ -2689,6 +2689,20 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "public_profiles",
+      "fieldPath": "username_lower",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
       "collectionGroup": "users",
       "fieldPath": "signupSource",
       "indexes": [

@@ -166,7 +166,7 @@ test('claimSats decides from Auth creation time and returns the missing list', (
     assert.ok(!index.includes('assessReward'));
     assert.ok(!index.includes('logReferralVisit'));
     assert.ok(!index.includes('claimReqVisit'));
-    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 8);
+    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 9);
 });
 
 test('watch heartbeat stamps server-side only and no referral-visit pieces remain', () => {

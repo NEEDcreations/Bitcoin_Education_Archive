@@ -60,24 +60,57 @@ service firebase.storage {
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
-    // DM image uploads (private messages)
-    // Read: owner always; anyone else must have an existing DM conversation with the uploader.
-    // Conversation ID is deterministic: smaller_uid + '_' + larger_uid (mirrors getConversationId() in JS).
-    // This prevents a leaked URL from being loaded by arbitrary authenticated users.
+    // DM image uploads (private messages). F-004.
+    // A DM image is readable only by the people in that conversation.
+    //
+    // Legacy layout (every image uploaded so far, and the current client):
+    //   dm-images/{uploaderId}/{fileName}
+    // The path does not say which conversation the image belongs to, so the
+    // rules cannot tell which partner it was sent to. Only the uploader may
+    // read, list, write or delete here. Recipients keep seeing images through
+    // the tokenized download URL stored in the DM message, which only the
+    // conversation's participants can read in Firestore. Download URLs do not
+    // go through these rules, so existing DMs keep loading.
     match /dm-images/{uploaderId}/{fileName} {
       allow read: if request.auth != null
-                  && (request.auth.uid == uploaderId
-                      || firestore.exists(
-                           /databases/(default)/documents/dm_conversations/$(
-                             uploaderId < request.auth.uid
-                               ? uploaderId + '_' + request.auth.uid
-                               : request.auth.uid + '_' + uploaderId
-                           )
-                         ));
-      allow write: if request.auth != null
+                  && request.auth.uid == uploaderId;
+      allow create, update: if request.auth != null
                    && request.auth.uid == uploaderId
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
+      allow delete: if request.auth != null
+                    && request.auth.uid == uploaderId;
+    }
+
+    // Conversation-scoped layout (for a later client change):
+    //   dm-images/{uploaderId}/{convoId}/{fileName}
+    // Read: both participants of dm_conversations/{convoId}, and only when the
+    // uploader is also in that conversation. Write: the uploader, who must be a
+    // participant. The conversation doc must exist first.
+    function dmParticipants(convoId) {
+      return firestore.get(/databases/(default)/documents/dm_conversations/$(convoId)).data.participants;
+    }
+    // The id must also be the sorted uid pair, so an old conversation doc made
+    // under some other id (before the Firestore create check) never counts.
+    function inDm(convoId, uid) {
+      return firestore.exists(/databases/(default)/documents/dm_conversations/$(convoId))
+          && dmParticipants(convoId).size() == 2
+          && uid in dmParticipants(convoId)
+          && convoId == (dmParticipants(convoId)[0] < dmParticipants(convoId)[1]
+                          ? dmParticipants(convoId)[0] + '_' + dmParticipants(convoId)[1]
+                          : dmParticipants(convoId)[1] + '_' + dmParticipants(convoId)[0]);
+    }
+    match /dm-images/{uploaderId}/{convoId}/{fileName} {
+      allow read: if request.auth != null
+                  && inDm(convoId, request.auth.uid)
+                  && inDm(convoId, uploaderId);
+      allow create, update: if request.auth != null
+                   && request.auth.uid == uploaderId
+                   && inDm(convoId, request.auth.uid)
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
+      allow delete: if request.auth != null
+                    && request.auth.uid == uploaderId;
     }
     // Default: deny
     match /{allPaths=**} {

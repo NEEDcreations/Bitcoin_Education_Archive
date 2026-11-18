@@ -52,16 +52,19 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
     const userRef = db.collection('users').doc(uid);
     const presRef = db.collection('tctv_presence').doc(uid);
 
-    // Account age is checked once per pot and cached on the watch doc.
+    // Account age: the creation time is read once and cached on the watch doc,
+    // and the age gate is re-checked on every check-in, so a young account
+    // starts counting once it is old enough instead of staying out all pot.
     const wPeek = await wRef.get();
-    let ageOk = wPeek.exists ? wPeek.data().ageOk : undefined;
-    if (ageOk === undefined) {
+    const peek = wPeek.exists ? (wPeek.data() || {}) : {};
+    let createdMs = Number(peek.acctCreatedMs);
+    if (!(Number.isFinite(createdMs) && createdMs > 0)) {
         try {
             const u = await admin.auth().getUser(uid);
-            const created = new Date(u.metadata.creationTime).getTime();
-            ageOk = Number.isFinite(created) && (nowMs - created) >= cfg.minAccountAgeDays * 86400000;
+            createdMs = new Date(u.metadata.creationTime).getTime();
         } catch (e) { throw HttpsError('unavailable', 'Try again later'); }
     }
+    const ageOk = logic.ageOkAt(createdMs, nowMs, cfg);
 
     return db.runTransaction(async (tx) => {
         const [wSnap, dSnap, uSnap, prSnap] = await Promise.all([tx.get(wRef), tx.get(devRef), tx.get(userRef), tx.get(presRef)]);
@@ -78,7 +81,7 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
             newToken: crypto.randomBytes(12).toString('hex'),
         });
         if (plan.reject) return { ok: false, reason: plan.reason };
-        const base = { uid, potId: pot.potId, ageOk: ageOk === true, updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+        const base = { uid, potId: pot.potId, ageOk: ageOk === true, acctCreatedMs: Number.isFinite(createdMs) ? createdMs : 0, updatedAt: admin.firestore.FieldValue.serverTimestamp() };
         if (plan.patch) {
             // Ineligible-by-age accounts still get a watch doc (for the UI) but never accrue seconds.
             const patch = Object.assign({}, plan.patch);
@@ -125,7 +128,7 @@ async function loadEntries(potId, cfg) {
     snap.docs.forEach((d, i) => {
         const w = d.data() || {};
         const u = userSnaps[i];
-        if (!u.exists || logic.isAgentOrBlocked(u.data()) || w.ageOk !== true) return;
+        if (!u.exists || logic.isAgentOrBlocked(u.data()) || !(w.ageOk === true || logic.ageOkAt(w.acctCreatedMs, Date.now(), cfg))) return;
         entries.push({ uid: w.uid, seconds: Math.min(Number(w.seconds) || 0, cfg.perAccountLimitSeconds) });
     });
     return entries;
@@ -187,15 +190,17 @@ async function refreshProjections(potId, cfg) {
         // Age-ok non-blocked watchers get their projected sats (0 if still under
         // the 30-minute qualify bar). Everyone else gets 0 so the UI never keeps
         // a stale number from an earlier pot state.
-        const sats = (uid && w.ageOk === true && byUid.has(uid)) ? (byUid.get(uid) || 0) : 0;
+        const sats = (uid && byUid.has(uid)) ? (byUid.get(uid) || 0) : 0;
         const prev = Number(w.projectedShareSats);
         const prevWait = w.projectedShareWaiting === true;
-        if (prev === sats && prevWait === plan.waiting && Number(w.projectedSharePot) === Number(cfg.targetSats)) continue;
+        if (prev === sats && prevWait === plan.waiting && Number(w.projectedSharePot) === Number(cfg.targetSats) && Number(w.qualifySeconds) === Number(cfg.minQualifySeconds)) continue;
         batch.set(doc.ref, {
             projectedShareSats: sats,
             projectedShareWaiting: plan.waiting === true,
             projectedSharePot: Math.floor(cfg.targetSats),
             projectedShareAtMs: nowMs,
+            // Lets the UI say how much longer until this viewer qualifies for a share.
+            qualifySeconds: Math.floor(cfg.minQualifySeconds),
         }, { merge: true });
         n++;
         if (n >= 400) await commit();

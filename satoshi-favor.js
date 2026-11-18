@@ -42,7 +42,7 @@
     // Current period (last entry) hashes/luck are loaded live in quests.js _loadDifficultyHistoryBlocks()
     // DIFFICULTY_TARGET / SF_DIFFICULTY_HISTORY above are the fallback. The live
     // target and history come from the server (satoshiFavor/difficultyStats.config,
-    // written by favorDifficultyRetarget every 14 days); see _loadLiveDifficulty().
+    // written by favorDifficultyRetarget when an epoch fills 5/5); see _loadLiveDifficulty().
     let SF_TARGET = DIFFICULTY_TARGET;
     window.SF_DIFFICULTY_TARGET  = DIFFICULTY_TARGET;   // expose for other modules
     window.SF_DIFFICULTY_HISTORY = SF_DIFFICULTY_HISTORY; // expose for difficulty table
@@ -56,12 +56,23 @@
         (Array.isArray(serverRows) ? serverRows : []).forEach(function(h) {
             if (!h || !/^\d{4}-\d{2}-\d{2}$/.test(String(h.date || '')) || !(Number(h.target) > 0)) return;
             var key = h.date + '|' + Number(h.target);
+            var since = h.since;
+            if (since && typeof since.toMillis === 'function') since = since.toMillis();
+            since = Number(since);
+            since = (since > 0 && isFinite(since)) ? since : null;
             if (seen[key]) {
-                out.forEach(function(r) { if (r.date + '|' + r.target === key && h.label) r.label = String(h.label); });
+                out.forEach(function(r) {
+                    if (r.date + '|' + r.target === key) {
+                        if (h.label) r.label = String(h.label);
+                        if (since && r.since == null) r.since = since;
+                    }
+                });
                 return;
             }
             seen[key] = true;
-            out.push({ date: h.date, target: Number(h.target), label: String(h.label || ''), hashes: null, luck: null });
+            var row = { date: h.date, target: Number(h.target), label: String(h.label || ''), hashes: null, luck: null };
+            if (since) row.since = since;
+            out.push(row);
         });
         out.sort(function(a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
         // Rows whose hashes were never frozen read them live from difficultyStats (quests.js).
@@ -82,7 +93,8 @@
             if (!(t >= 1 && t < HASH_MAX)) return;
             SF_TARGET = t;
             window.SF_DIFFICULTY_TARGET = t;
-            window.SF_DIFFICULTY_NEXT_RETARGET_MS = Number(cfg.nextRetargetMs) || null;
+            var _nextEpoch = Math.floor(Number(cfg.nextRetargetEpoch));
+            window.SF_DIFFICULTY_NEXT_RETARGET_EPOCH = _nextEpoch >= 1 ? _nextEpoch : null;
             window.SF_DIFFICULTY_HISTORY = _sfMergeDifficultyHistory(SF_DIFFICULTY_HISTORY, cfg.history);
             try { updateAllUIs(); } catch (e) {}
         }).catch(function() {});

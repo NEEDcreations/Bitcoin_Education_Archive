@@ -1,5 +1,7 @@
 // Homepage Today card. Paint-only: reads existing local state and opens
-// the same screens the Quest Hub used to. The XP meter shows the server total.
+// the same screens the Quest Hub used to. Today's XP paints from the last
+// local total immediately, bumps optimistically when XP is awarded, then
+// reconciles with the server total.
 (function () {
     'use strict';
 
@@ -29,6 +31,21 @@
             if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) return true;
         } catch (e) {}
         return false;
+    }
+
+    // Display cache only. Used so today's XP can paint before Firebase auth settles.
+    function displayUid() {
+        try {
+            if (window.btcAuthDisplay && typeof window.btcAuthDisplay.read === 'function') {
+                var snap = window.btcAuthDisplay.read();
+                if (snap && snap.uid && snap.needs2fa !== true) return String(snap.uid);
+            }
+        } catch (e) {}
+        try {
+            var raw = JSON.parse(localStorage.getItem('btc_auth_display') || 'null');
+            if (raw && raw.uid && raw.needs2fa !== true) return String(raw.uid);
+        } catch (e2) {}
+        return '';
     }
 
     function promptSignIn() {
@@ -365,6 +382,52 @@
         return n;
     }
 
+    // Same tiers as functions/src/dailyXp.js. Floor per tier. No fractional carry.
+    function taperDailyXp(want, used) {
+        var amount = Math.max(0, Math.floor(Number(want) || 0));
+        var cursor = Math.max(0, Math.floor(Number(used) || 0));
+        if (cursor > 1000) cursor = 1000;
+        if (amount <= 0 || cursor >= 1000) return cursor;
+        var tiers = [{ end: 500, divisor: 1 }, { end: 900, divisor: 2 }, { end: 1000, divisor: 4 }];
+        var left = amount;
+        for (var i = 0; i < tiers.length; i++) {
+            if (left <= 0 || cursor >= 1000) break;
+            var tier = tiers[i];
+            if (cursor >= tier.end) continue;
+            var room = tier.end - cursor;
+            var rawNeeded = room * tier.divisor;
+            if (left >= rawNeeded) {
+                cursor += room;
+                left -= rawNeeded;
+            } else {
+                cursor += Math.floor(left / tier.divisor);
+                left = 0;
+            }
+        }
+        return cursor > 1000 ? 1000 : cursor;
+    }
+
+    function readStoredDailyXp(uid) {
+        var rec = safeJSON('btc_daily_xp_v1', null);
+        if (!rec || rec.day !== todayKey()) return null;
+        if (uid && rec.uid && rec.uid !== uid) return null;
+        var n = Number(rec.dailyXp);
+        if (!isFinite(n) || n < 0) return null;
+        return rec;
+    }
+
+    function writeStoredDailyXp(snap, uid) {
+        if (!snap) return;
+        try {
+            localStorage.setItem('btc_daily_xp_v1', JSON.stringify({
+                uid: uid || '',
+                day: todayKey(),
+                dailyXp: meterNumber(snap),
+                at: xpNotedAt(snap) || Date.now()
+            }));
+        } catch (e) {}
+    }
+
     function describeMeter(line) {
         var meter = document.getElementById('dailyXpMeter');
         if (!meter) return;
@@ -441,8 +504,39 @@
         triviaXpCacheAt = xpNotedAt(chosen) || Date.now();
         if (uid) triviaXpCacheUid = uid;
         window._serverDailyXp = chosen;
+        writeStoredDailyXp(chosen, uid || triviaXpCacheUid);
         return chosen;
     }
+
+    // Award paths call this before the server answers so the meter moves now.
+    // Server reconcile (a later _xpNotedAt) replaces this total.
+    window._previewDailyXpGain = function (rawPts, opts) {
+        opts = opts || {};
+        var uid = triviaCallerUid() || displayUid();
+        var base = newerDailyXp(triviaXpCache, window._serverDailyXp);
+        if (!base) {
+            var stored = readStoredDailyXp(uid);
+            base = stored ? { dailyXp: stored.dailyXp, _xpNotedAt: stored.at || 0 } : { dailyXp: 0, _xpNotedAt: 0 };
+        }
+        var used = meterNumber(base);
+        var raw = Math.max(0, Math.round(Number(rawPts) || 0));
+        if (opts.doubled) raw = raw * 2;
+        var at = Date.now();
+        var snap = { signedIn: true, dailyXp: taperDailyXp(raw, used), _xpNotedAt: at, _optimistic: true };
+        rememberDailyXp(snap, uid);
+        window._paintDailyXpMeter(Object.assign({ signedIn: true }, snap));
+        return { before: used, after: snap.dailyXp, at: at, uid: uid };
+    };
+
+    window._revertDailyXpPreview = function (token) {
+        if (!token) return;
+        var server = window._serverDailyXp;
+        if (server && !server._optimistic && xpNotedAt(server) > token.at) return;
+        var snap = { signedIn: true, dailyXp: token.before, _xpNotedAt: (token.at || Date.now()) + 1 };
+        rememberDailyXp(snap, token.uid || triviaCallerUid());
+        triviaXpCacheAt = 0;
+        loadDailyXpMeter();
+    };
 
     // Award paths call this so a 60s status cache cannot paint an older total.
     window._noteServerDailyXp = function (snap) {
@@ -454,13 +548,15 @@
     };
 
     function loadDailyXpMeter() {
-        if (!signedIn()) {
+        var live = signedIn();
+        var uid = triviaCallerUid();
+        if (!uid) uid = displayUid();
+        if (!live && !uid) {
             window._paintDailyXpMeter({ signedIn: false });
             return;
         }
-        var uid = triviaCallerUid();
         var now = Date.now();
-        if (triviaXpCache && triviaXpCacheUid === uid && (now - triviaXpCacheAt) < TRIVIA_XP_TTL_MS) {
+        if (live && triviaXpCache && triviaXpCacheUid === uid && triviaXpCacheAt && (now - triviaXpCacheAt) < TRIVIA_XP_TTL_MS) {
             var chosen = newerDailyXp(triviaXpCache, window._serverDailyXp);
             if (chosen !== triviaXpCache) {
                 triviaXpCache = chosen;
@@ -470,12 +566,33 @@
             window._paintDailyXpMeter(Object.assign({ signedIn: true }, chosen));
             return;
         }
-        if (window._serverDailyXp && triviaXpCacheUid === uid) {
-            window._paintDailyXpMeter(Object.assign({ signedIn: true }, window._serverDailyXp));
-        } else if (window._serverDailyXp && xpNotedAt(window._serverDailyXp)) {
-            window._paintDailyXpMeter(Object.assign({ signedIn: true }, window._serverDailyXp));
-        } else {
+        if (!triviaXpCache || triviaXpCacheUid !== uid) {
+            var stored = readStoredDailyXp(uid);
+            if (stored) {
+                triviaXpCache = { dailyXp: stored.dailyXp, signedIn: true, _xpNotedAt: stored.at || 0 };
+                triviaXpCacheUid = uid || stored.uid || '';
+            } else if (triviaXpCacheUid && triviaXpCacheUid !== uid) {
+                triviaXpCache = null;
+                triviaXpCacheUid = '';
+            }
+        }
+        var chosenNow = newerDailyXp(triviaXpCache, window._serverDailyXp);
+        if (chosenNow && (chosenNow.dailyXp != null || chosenNow.dailyQuizXp != null)) {
+            window._paintDailyXpMeter(Object.assign({ signedIn: true }, chosenNow));
+        } else if (live) {
             window._paintDailyXpMeter({ signedIn: true, dailyXp: 0 });
+        } else {
+            window._paintDailyXpMeter({ signedIn: false });
+        }
+        if (!live) {
+            if (!window._dailyXpAuthRetry) {
+                window._dailyXpAuthRetry = true;
+                setTimeout(function () {
+                    window._dailyXpAuthRetry = false;
+                    if (window._paintTodayCard) window._paintTodayCard();
+                }, 500);
+            }
+            return;
         }
         if (triviaXpInflight) return;
         try {

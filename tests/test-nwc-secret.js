@@ -44,7 +44,7 @@ test('no NWC value is cached at module load', function () {
 });
 
 test('every wallet function binds the secret', function () {
-    const index = read('index.js'), gifting = read('src/gifting.js'), drip = read('tctv-drip.js');
+    const index = read('index.js'), gifting = read('src/gifting.js'), drip = read('tctv-drip.js'), favor = read('src/favorBlockClaimsFns.js');
     const bound = [
         [index, 'exports.claimSats = '],
         [index, 'exports.getFaucetStats = '],
@@ -53,6 +53,7 @@ test('every wallet function binds the secret', function () {
         [gifting, 'const claimCipherSats = '],
         [gifting, 'const adminResolveCipherSatsClaim = '],
         [drip, 'const tctvDripTick = '],
+        [favor, 'const claimFavorBlock = '],
     ];
     for (const [src, marker] of bound) assert.ok(head(src, marker).includes('nwcUrlSecret'), marker);
 });
@@ -64,6 +65,14 @@ test('no other function binds the secret', function () {
         n += m ? m.length : 0;
     }
     assert.strictEqual(n, 7);
+    // claimFavorBlock binds the wallet on live only; staging never gets the secret.
+    let cond = 0;
+    for (const p of walk(root, [])) {
+        const m = fs.readFileSync(p, 'utf8').match(/secrets:\s*staging \? \[[^\]]*\] : \[[^\]]*nwcUrlSecret/g);
+        cond += m ? m.length : 0;
+    }
+    assert.strictEqual(cond, 1);
+    assert.ok(read('src/favorBlockClaimsFns.js').includes('secrets: staging ? [deletionHmacSecret] : [deletionHmacSecret, nwcUrlSecret]'));
 });
 
 test('nwcUrl reads the bound value at call time', function () {

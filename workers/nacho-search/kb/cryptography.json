@@ -17,7 +17,7 @@
     "followUps": [
       "crypto-taproot",
       "crypto-addresses",
-      "crypto-curve"
+      "crypto-public-address"
     ],
     "sources": "UTXO model."
   },
@@ -38,8 +38,8 @@
     ],
     "followUps": [
       "crypto-addresses",
-      "crypto-curve",
-      "crypto-ecdsa"
+      "crypto-public-address",
+      "crypto-curve"
     ],
     "sources": "BIP340, BIP341, BIP342. Activation November 2021."
   },
@@ -59,11 +59,36 @@
       "privacy-nonkyc"
     ],
     "followUps": [
+      "crypto-public-address",
+      "crypto-curve",
+      "crypto-ecdsa"
+    ],
+    "sources": "Address encodings."
+  },
+  {
+    "id": "crypto-public-address",
+    "category": "cryptography",
+    "question": "What is a public address?",
+    "alts": [
+      "What is a bitcoin address?",
+      "What is a receiving address?",
+      "What's a public bitcoin address?",
+      "Define a public address?",
+      "Explain a public address?",
+      "Describe a public address?"
+    ],
+    "answer": "A public address is the shareable string you give someone so they can pay you. It is built from a public key or a script, not from the private key, so sharing it does not give anyone control of the coins. A fresh address for each payment is normal, and it is not an account with a running balance.",
+    "topics": [
+      "cryptography",
+      "utxos",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
       "crypto-curve",
       "crypto-ecdsa",
       "crypto-schnorr"
     ],
-    "sources": "Address encodings."
+    "sources": "Receiving addresses."
   },
   {
     "id": "crypto-curve",
