@@ -80,6 +80,7 @@ const TESTS = [
     { name: 'New-account claim requirements', file: 'test-claim-reqs.js' },
     { name: 'Guest access', file: 'test-guest-access.js' },
     { name: 'Guest reward checks', file: 'test-guest-reward-gates.js' },
+    { name: 'Guest policy (signed-in vs guest)', file: 'test-guest-policy.js' },
     { name: 'Claimable sats cap', file: 'test-claimable-sats.js' },
     { name: 'Quiz And Trivia Rewards', file: 'test-quest-reward.js' },
     { name: 'Trivia tally transaction', file: 'test-answer-trivia.js' },
