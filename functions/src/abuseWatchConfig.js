@@ -1,11 +1,15 @@
 // Server-only abuse-watch lists. The values live in Firestore at
 // private_banks/abuse_watch (Admin SDK only; clients cannot read it) and are
-// read at request time. When the document is missing or malformed, every list
-// is empty, so the admin reports simply show no matches.
+// read at request time and cached per instance for a few minutes. When the
+// document is missing or malformed, every list is empty, so the admin reports
+// simply show no matches.
 'use strict';
 
 const DOC_PATH = ['private_banks', 'abuse_watch'];
 const MAX_ITEMS = 500;
+const CACHE_MS = 5 * 60 * 1000;
+let cache = null;
+let cacheAt = 0;
 
 function strList(v) {
     if (!Array.isArray(v)) return [];
@@ -34,7 +38,7 @@ function normalize(data) {
     };
 }
 
-async function loadAbuseWatchConfig(db) {
+async function readConfig(db) {
     try {
         const snap = await db.collection(DOC_PATH[0]).doc(DOC_PATH[1]).get();
         if (!snap.exists) {
@@ -44,8 +48,20 @@ async function loadAbuseWatchConfig(db) {
         return normalize(snap.data());
     } catch (e) {
         console.warn('[abuseWatchConfig] read failed; using empty lists');
-        return normalize(null);
+        return null;
     }
 }
 
-module.exports = { loadAbuseWatchConfig, normalize, DOC_PATH };
+async function loadAbuseWatchConfig(db) {
+    if (cache && Date.now() - cacheAt < CACHE_MS) return cache;
+    const cfg = await readConfig(db);
+    // A failed read is not cached, so the next request tries again.
+    if (!cfg) return cache || normalize(null);
+    cache = cfg;
+    cacheAt = Date.now();
+    return cfg;
+}
+
+function clearAbuseWatchCache() { cache = null; cacheAt = 0; }
+
+module.exports = { loadAbuseWatchConfig, clearAbuseWatchCache, normalize, DOC_PATH };

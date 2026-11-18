@@ -3,21 +3,23 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const root = path.join(__dirname, '..');
-const { loadAbuseWatchConfig, normalize, DOC_PATH } = require('../functions/src/abuseWatchConfig');
+const { loadAbuseWatchConfig, clearAbuseWatchCache, normalize, DOC_PATH } = require('../functions/src/abuseWatchConfig');
 let passed = 0, failed = 0;
-const pending = [];
+let chain = Promise.resolve();
 function test(name, fn) {
-    pending.push(Promise.resolve().then(fn).then(
+    chain = chain.then(function () { clearAbuseWatchCache(); return fn(); }).then(
         function () { passed++; console.log('  ok  ' + name); },
-        function (e) { failed++; console.log('  FAIL ' + name + ': ' + e.message); }));
+        function (e) { failed++; console.log('  FAIL ' + name + ': ' + e.message); });
 }
 function fakeDb(behavior) {
-    return { collection: function (c) { return { doc: function (d) { return { get: async function () {
+    const db = { reads: 0, collection: function (c) { return { doc: function (d) { return { get: async function () {
+        db.reads++;
         assert.deepStrictEqual([c, d], DOC_PATH);
         if (behavior === 'throw') throw new Error('unavailable');
         if (behavior === null) return { exists: false, data: function () { return undefined; } };
         return { exists: true, data: function () { return behavior; } };
     } }; } }; } };
+    return db;
 }
 const quiet = console.warn; console.warn = function () {};
 
@@ -48,6 +50,18 @@ test('valid doc is passed through', async function () {
     assert.ok(c.knownEmailPatterns[0].test('FOOxBAR@example.test'));
     assert.ok(!c.knownEmailPatterns[0].test('someone@example.test'));
 });
+test('a good read is cached and a failed read is retried', async function () {
+    const good = fakeDb({ watchlistUids: ['uidA'] });
+    await loadAbuseWatchConfig(good);
+    const again = await loadAbuseWatchConfig(good);
+    assert.strictEqual(good.reads, 1);
+    assert.deepStrictEqual(again.watchlistUids, ['uidA']);
+    clearAbuseWatchCache();
+    const bad = fakeDb('throw');
+    await loadAbuseWatchConfig(bad);
+    await loadAbuseWatchConfig(bad);
+    assert.strictEqual(bad.reads, 2);
+});
 test('stateful regex flags are dropped so .test() stays repeatable', function () {
     const c = normalize({ knownEmailPatterns: [{ source: 'abc', flags: 'gi' }] });
     assert.strictEqual(c.knownEmailPatterns[0].flags, 'i');
@@ -74,13 +88,14 @@ test('forum post notifier recipient comes from config, not a literal address', f
     assert.ok(/\bto:\s*functions\.config\(\)\.mail\.to\b/.test(seg));
 });
 test('server-only notes are not in the published tree', function () {
-    for (const f of ['SECURITY-AUDIT-2026-03-24.md', 'SECURITY-AUDIT-INTERNAL-2026-04-10.md', 'functions/find_and_emails.js']) {
+    for (const f of ['SECURITY-AUDIT-2026-03-24.md', 'SECURITY-AUDIT-INTERNAL-2026-04-10.md', 'functions/find_and_emails.js',
+        '.oss-scanner/threat_model.md', 'docs/KILL-SWITCH-RUNBOOK.md']) {
         assert.ok(!fs.existsSync(path.join(root, f)), f + ' should not exist');
     }
     assert.ok(fs.existsSync(path.join(root, 'SECURITY.md')));
 });
 
-Promise.all(pending).then(function () {
+chain.then(function () {
     console.warn = quiet;
     console.log(passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);

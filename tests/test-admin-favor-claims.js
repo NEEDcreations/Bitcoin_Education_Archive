@@ -99,8 +99,8 @@ const btnByText = (doc, re) => doc.find((n) => n.tagName === 'BUTTON' && re.test
 const EPOCH1 = {
     kind: 'epoch_blocks', version: 2, epochNumber: 1,
     blocks: [
-        { block: 0, uid: 'uidAAAAA111', amount: 4200, frozenLn: 'ambro@getalby.com', manualReview: '' },
-        { block: 1, uid: 'uidBBBBB222', amount: 4200, frozenLn: 'nidhun@walletofsatoshi.com', manualReview: 'address_changed_after_close' },
+        { block: 0, uid: 'uidAAAAA111', amount: 4200, frozenLn: 'amtest01@getalby.com', manualReview: '' },
+        { block: 1, uid: 'uidBBBBB222', amount: 4200, frozenLn: 'nitest02@walletofsatoshi.com', manualReview: 'address_changed_after_close' },
     ],
 };
 
@@ -123,7 +123,7 @@ const EPOCH1 = {
         assert.strictEqual(s.review.length, 1);
         assert.strictEqual(s.reviewSats, 4200);
         assert.strictEqual(h.maskUid('abcdefgh'), 'abcde\u2026');
-        assert.strictEqual(h.maskLn('ambro@getalby.com'), 'am\u2026@getalby.com');
+        assert.strictEqual(h.maskLn('amtest01@getalby.com'), 'am\u2026@getalby.com');
     });
 
     await test('the tile is in the Payouts group and refuses without the admin claim', function () {
