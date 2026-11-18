@@ -192,6 +192,7 @@ const TESTS = [
     { name: 'Scholar answer key stays off the client', file: 'test-scholar-answer-key.js' },
     { name: 'Scholar exam server proof', file: 'test-scholar-exam-emulator.js' },
     { name: 'Raid boss emulator', file: 'test-raid-boss-emulator.js' },
+    { name: 'Abuse-watch config off the tree', file: 'test-abuse-watch-config.js' },
 ];
 
 let allPassed = true;

@@ -17,6 +17,7 @@ const {
     turnstileSecretKey,
 } = require('./src/sensitiveSecrets');
 const { runtimeSa } = require('./src/runtimeServiceAccounts');
+const { loadAbuseWatchConfig } = require('./src/abuseWatchConfig');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const admin = require('./src/firebaseAdmin.js');
@@ -934,7 +935,7 @@ exports.onForumPost = onDocumentCreated({
             if (functions.config().mail && functions.config().mail.user) {
                 await transporter.sendMail({
                     from: '"Bitcoin Education Archive" <' + functions.config().mail.user + '>',
-                    to: 'needcreations@gmail.com',
+                    to: functions.config().mail.to || functions.config().mail.user,
                     subject: '🗣️ New Forum Post: ' + (post.title || 'Untitled'),
                     html: '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">' +
                         '<h2 style="color:#f7931a;">🗣️ New Forum Post</h2>' +
@@ -5976,12 +5977,9 @@ exports.dailyActiveUsers = functionsV1.runWith({ secrets: [adminTokenSecret], se
             }
         });
 
-        // Known bad actor email pattern detection (Tadiyos ring + similar)
-        const KNOWN_PATTERNS = [
-            /tadi.*reta|reta.*tadi/i,  // Tadiyos anagram pattern
-            /retata/i,
-            /roberm.*arch|robert.*march/i, // Robert March variants
-        ];
+        // Known bad actor email pattern detection (patterns are server-only config)
+        const abuseCfg = await loadAbuseWatchConfig(db);
+        const KNOWN_PATTERNS = abuseCfg.knownEmailPatterns;
         suspicious.knownPatternMatches = [];
         allUserEmails.forEach(entry => {
             for (const pat of KNOWN_PATTERNS) {
@@ -6197,28 +6195,16 @@ exports.investigateUsers = functionsV1.runWith({ secrets: [adminTokenSecret], se
 
 
 // ===== WATCHLIST MONITOR =====
-// Checks a hardcoded list of suspicious UIDs + anyone in the suspicious_activity
+// Checks the configured watchlist UIDs + anyone in the suspicious_activity
 // collection for recent changes (points gained, new sats withdrawals, new referrals,
 // new giveaway entries). Returns a report for the daily Telegram summary.
-const WATCHLIST_UIDS = [
-    // Tadiyos multi-account ring flagged 2026-04-22
-    '4TbegMVtzYQBgqRSCpqLQwwsgPF2',
-    'AeOAPHTZ2EfRsxlsU6nDCSwTNXo2',
-    'DTXTjDL1K4afriPLcWTI4pD8JeD2',
-    'OZgypkJbY3f6ofTIzbEWKpYKkVu1',      // big account A (10.5k pts)
-    'Ol7JfqLGKJcagmMT529EgULFiYN2',
-    'cKpILLVtDxNuLBcIX8kD9sGEvhj1',
-    'VqLiZRbN0LM6bWeYPcjF6zTZJAk2'       // big account B (11k pts)
-];
-const BLACKLISTED_LN = [
-    'piquantpony23@walletofsatoshi.com',
-    'seedyroute27@walletofsatoshi.com'
-];
-
 exports.watchlistCheck = functionsV1.runWith({ secrets: [adminTokenSecret], serviceAccount: runtimeSa('watchlistCheck') }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
 
     try {
+        const abuseCfg = await loadAbuseWatchConfig(db);
+        const WATCHLIST_UIDS = abuseCfg.watchlistUids;
+        const BLACKLISTED_LN = abuseCfg.blacklistedLn;
         const out = { watchlist: [], suspiciousRecent: [], satsByWatchlist: [], blacklistedLnHits: [], alerts: [] };
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
