@@ -10,17 +10,20 @@
 // 3. Encrypts in memory to the age public recipient(s) in
 //    authBackupConfig.js. No plaintext is written anywhere. No private key
 //    or passphrase exists in the function, the bucket, or the box.
-// 4. Writes gs://<project>-auth-backups/auth/<ET date>.jsonl.age and a small
-//    auth/<ET date>.manifest.json (counts, ciphertext sha256, timestamps).
-//    Both use ifGenerationMatch=0: create-only, never overwrite. The runtime
-//    account has storage.objectCreator on that bucket only (no read/delete).
+// 4. Writes gs://<project>-auth-backups/auth/<ET date>/<HHmmss>Z-<runId>.jsonl.age
+//    and a matching .manifest.json (counts, ciphertext sha256, timestamps).
+//    The UTC time plus a random run id makes each run unique, so a same-day
+//    rerun can succeed and future names cannot be pre-created. Both use
+//    ifGenerationMatch=0: create-only, never overwrite. The runtime account
+//    has storage.objectCreator on that bucket only (no read/delete).
 //
 // Fails closed and loud: on any error, or if the export is incomplete (no
 // hash config, or password users came back without hashes), it writes
-// auth/<ET date>.FAILED.json (no user data) and throws so the run is marked
-// failed in Cloud Scheduler and logs, the same way dailyFirestoreBackup
-// surfaces failures. An incomplete export is still uploaded (encrypted)
-// because a partial backup beats none, but the run still fails.
+// auth/<ET date>/<HHmmss>Z-<runId>.FAILED.json (no user data) and throws so
+// the run is marked failed in Cloud Scheduler and logs, the same way
+// dailyFirestoreBackup surfaces failures. An incomplete export is still
+// uploaded (encrypted) because a partial backup beats none, but the run
+// still fails.
 //
 // Logs counts only. Never logs emails, uids, hashes, salts, or the signer key.
 
@@ -36,11 +39,25 @@ function etDate(now) {
     return new Intl.DateTimeFormat('en-CA', { timeZone: cfg.TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
 }
 
-function objectNames(date) {
+function newRunId() {
+    return crypto.randomBytes(8).toString('hex');
+}
+
+function utcStamp(now) {
+    const iso = now.toISOString(); // YYYY-MM-DDTHH:MM:SS.sssZ
+    return iso.slice(11, 13) + iso.slice(14, 16) + iso.slice(17, 19) + 'Z';
+}
+
+// Per-run names: auth/<ET date>/<HHmmss>Z-<16-hex-runId>.{jsonl.age,manifest.json,FAILED.json}
+function objectNames(date, now, runId) {
+    const stamp = utcStamp(now) + '-' + runId;
+    const base = cfg.PREFIX + date + '/' + stamp;
     return {
-        data: cfg.PREFIX + date + '.jsonl.age',
-        manifest: cfg.PREFIX + date + '.manifest.json',
-        failed: cfg.PREFIX + date + '.FAILED.json',
+        data: base + '.jsonl.age',
+        manifest: base + '.manifest.json',
+        failed: base + '.FAILED.json',
+        stamp: stamp,
+        runId: runId,
     };
 }
 
@@ -119,7 +136,7 @@ function pickHashConfig(json) {
 async function fetchHashConfig(admin, projectId, fetchImpl) {
     const token = await admin.app().options.credential.getAccessToken();
     const res = await fetchImpl('https://identitytoolkit.googleapis.com/admin/v2/projects/' + encodeURIComponent(projectId) + '/config', {
-        headers: { Authorization: 'Bearer ' + token.access_token, 'x-goog-user-project': projectId },
+        headers: { Authorization: 'Bearer ' + token.access_token },
     });
     const json = await res.json();
     if (!res.ok || (json && json.error)) {
@@ -172,11 +189,12 @@ function sha256Hex(buf) {
     return crypto.createHash('sha256').update(buf).digest('hex');
 }
 
-// Strips anything that looks like an email, a long token, or a key from an
-// error message before it goes into a log or the FAILED marker.
+// Strips anything that looks like an email, a phone number, a long token, or
+// a key from an error message before it goes into a log or the FAILED marker.
 function sanitize(msg) {
     return String(msg || 'error')
         .replace(/[^\s@]+@[^\s@]+/g, '<email>')
+        .replace(/\+\d{7,15}/g, '<phone>')
         .replace(/AGE-SECRET-KEY-1[0-9A-Z]+/gi, '<redacted>')
         .replace(/[A-Za-z0-9+/_=-]{24,}/g, '<redacted>')
         .slice(0, 300);
@@ -196,7 +214,8 @@ async function runAuthExport(deps) {
     const log = deps.log || console;
     const now = deps.now || new Date();
     const date = etDate(now);
-    const names = objectNames(date);
+    const runId = deps.runId || newRunId();
+    const names = objectNames(date, now, runId);
     const startedAt = now.toISOString();
     try {
         const recipients = (deps.recipients || []).slice();
@@ -224,9 +243,11 @@ async function runAuthExport(deps) {
             recipients: recipients,
             projectId: deps.projectId,
             date: date,
+            runId: runId,
             startedAt: startedAt,
             finishedAt: new Date().toISOString(),
             object: names.data,
+            manifestObject: names.manifest,
             userCount: summary.users,
             jsonlLines: summary.users + 1,
             passwordUsers: summary.passwordUsers,
@@ -251,7 +272,7 @@ async function runAuthExport(deps) {
         log.error('[AUTH-BACKUP] FAILED', date, reason);
         try {
             await save(deps.bucket, names.failed, Buffer.from(JSON.stringify({
-                date: date, startedAt: startedAt, failedAt: new Date().toISOString(), reason: reason,
+                date: date, runId: runId, startedAt: startedAt, failedAt: new Date().toISOString(), reason: reason, object: names.data,
             }, null, 2) + '\n'), 'application/json');
         } catch (markerErr) {
             log.error('[AUTH-BACKUP] could not write failure marker:', sanitize(markerErr && markerErr.message));
@@ -276,6 +297,8 @@ module.exports = {
     HEADER_TYPE: HEADER_TYPE,
     etDate: etDate,
     objectNames: objectNames,
+    newRunId: newRunId,
+    utcStamp: utcStamp,
     serializeAuthUser: serializeAuthUser,
     pickHashConfig: pickHashConfig,
     fetchHashConfig: fetchHashConfig,

@@ -140,6 +140,19 @@ function captureLog() {
 }
 const HASH_CONFIG = { algorithm: 'SCRYPT', signerKey: Buffer.alloc(64, 7).toString('base64'), saltSeparator: 'Bw==', rounds: 8, memoryCost: 14 };
 const NOW = new Date('2026-11-10T08:30:00Z'); // 3:30 AM ET
+
+function objectsEnding(bucket, suffix) {
+    return Object.keys(bucket.objects).filter(function (k) { return k.endsWith(suffix); }).sort();
+}
+function oneObject(bucket, suffix) {
+    const keys = objectsEnding(bucket, suffix);
+    assert.strictEqual(keys.length, 1, 'expected 1 *' + suffix + ', got ' + Object.keys(bucket.objects).join(', '));
+    return keys[0];
+}
+function assertPerRunName(name, date, utcTime, suffix) {
+    const re = new RegExp('^auth\\/' + date + '\\/' + utcTime + '-[0-9a-f]{16}\\.' + suffix.replace(/\./g, '\\.') + '$');
+    assert.ok(re.test(name), 'bad object name: ' + name);
+}
 function noPii(text, users) {
     users.forEach(function (u) {
         assert.ok(text.indexOf(u.uid) === -1, 'uid leaked');
@@ -207,8 +220,14 @@ test('happy path: pages listUsers, encrypts, writes data + manifest, counts only
     const L = captureLog();
     const m = await ex.runAuthExport({ auth: auth, bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, log: L, getHashConfig: async function () { return HASH_CONFIG; } });
     assert.deepStrictEqual(auth.calls, [1000, 1000, 1000]);
-    assert.deepStrictEqual(Object.keys(bucket.objects).sort(), ['auth/2026-11-10.jsonl.age', 'auth/2026-11-10.manifest.json']);
-    const cipher = bucket.objects['auth/2026-11-10.jsonl.age'].body;
+    const dataName = oneObject(bucket, '.jsonl.age');
+    const manName = oneObject(bucket, '.manifest.json');
+    assertPerRunName(dataName, '2026-11-10', '083000Z', 'jsonl.age');
+    assertPerRunName(manName, '2026-11-10', '083000Z', 'manifest.json');
+    assert.strictEqual(m.object, dataName);
+    assert.strictEqual(m.manifestObject, manName);
+    assert.ok(/^[0-9a-f]{16}$/.test(m.runId));
+    const cipher = bucket.objects[dataName].body;
     assert.ok(cipher.subarray(0, 21).toString() === 'age-encryption.org/v1');
     noPii(cipher.toString('latin1'), users);
     const plain = ageDecrypt(cipher, kp);
@@ -224,7 +243,7 @@ test('happy path: pages listUsers, encrypts, writes data + manifest, counts only
     assert.strictEqual(u0.passwordSalt, users[0].passwordSalt);
     assert.deepStrictEqual(JSON.parse(lines[8]).customClaims, { admin: true });
     assert.strictEqual(JSON.parse(lines[10]).multiFactor.enrolledFactors[0].phoneNumber, '+15555550109');
-    const manText = bucket.objects['auth/2026-11-10.manifest.json'].body.toString();
+    const manText = bucket.objects[manName].body.toString();
     const man = JSON.parse(manText);
     noPii(manText, users);
     assert.strictEqual(man.userCount, 2503);
@@ -246,7 +265,8 @@ test('fail closed: no recipient -> FAILED marker, no data, never lists users', a
     const bucket = fakeBucket();
     const L = captureLog();
     await assert.rejects(ex.runAuthExport({ auth: auth, bucket: bucket, recipients: [], projectId: 'demo', now: NOW, log: L, getHashConfig: async function () { return HASH_CONFIG; } }), /no age recipient/);
-    assert.deepStrictEqual(Object.keys(bucket.objects), ['auth/2026-11-10.FAILED.json']);
+    assertPerRunName(oneObject(bucket, '.FAILED.json'), '2026-11-10', '083000Z', 'FAILED.json');
+    assert.strictEqual(objectsEnding(bucket, '.jsonl.age').length, 0);
     assert.deepStrictEqual(auth.calls, []);
 });
 
@@ -255,8 +275,9 @@ test('fail closed: a pasted secret key is refused as a recipient', async functio
     const bucket = fakeBucket();
     const L = captureLog();
     await assert.rejects(ex.runAuthExport({ auth: fakeAuth(fakeUsers(3)), bucket: bucket, recipients: [kp.identity], projectId: 'demo', now: NOW, log: L, getHashConfig: async function () { return HASH_CONFIG; } }));
-    assert.deepStrictEqual(Object.keys(bucket.objects), ['auth/2026-11-10.FAILED.json']);
-    const marker = bucket.objects['auth/2026-11-10.FAILED.json'].body.toString();
+    const failedName = oneObject(bucket, '.FAILED.json');
+    assertPerRunName(failedName, '2026-11-10', '083000Z', 'FAILED.json');
+    const marker = bucket.objects[failedName].body.toString();
     assert.ok(marker.indexOf(kp.identity) === -1 && L.lines.join('\n').indexOf(kp.identity) === -1);
 });
 
@@ -265,8 +286,13 @@ test('incomplete: hashes missing (no getHashConfig) -> still uploads encrypted, 
     const users = fakeUsers(30, { noHashes: true });
     const bucket = fakeBucket();
     await assert.rejects(ex.runAuthExport({ auth: fakeAuth(users), bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, log: captureLog(), getHashConfig: async function () { return null; } }), /incomplete/);
-    assert.deepStrictEqual(Object.keys(bucket.objects).sort(), ['auth/2026-11-10.FAILED.json', 'auth/2026-11-10.jsonl.age', 'auth/2026-11-10.manifest.json']);
-    const man = JSON.parse(bucket.objects['auth/2026-11-10.manifest.json'].body.toString());
+    const dataName = oneObject(bucket, '.jsonl.age');
+    const manName = oneObject(bucket, '.manifest.json');
+    assertPerRunName(dataName, '2026-11-10', '083000Z', 'jsonl.age');
+    assertPerRunName(manName, '2026-11-10', '083000Z', 'manifest.json');
+    assertPerRunName(oneObject(bucket, '.FAILED.json'), '2026-11-10', '083000Z', 'FAILED.json');
+    const man = JSON.parse(bucket.objects[manName].body.toString());
+    assert.strictEqual(man.object, dataName);
     assert.strictEqual(man.complete, false);
     assert.strictEqual(man.hashConfigIncluded, false);
     assert.strictEqual(man.issues.length, 2);
@@ -277,26 +303,45 @@ test('hash config read error -> FAILED marker, no data, reason sanitized', async
     const bucket = fakeBucket();
     const L = captureLog();
     await assert.rejects(ex.runAuthExport({ auth: fakeAuth(fakeUsers(3)), bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, log: L, getHashConfig: async function () { throw new Error('denied for someone@example.com token ya29.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'); } }));
-    const marker = bucket.objects['auth/2026-11-10.FAILED.json'].body.toString();
+    const marker = bucket.objects[oneObject(bucket, '.FAILED.json')].body.toString();
     assert.ok(marker.indexOf('someone@example.com') === -1 && marker.indexOf('AAAAAAAAAAAAAAAAAAAAAAAA') === -1);
-    assert.ok(!bucket.objects['auth/2026-11-10.jsonl.age']);
+    assert.ok(marker.indexOf('<email>') !== -1);
+    assert.strictEqual(objectsEnding(bucket, '.jsonl.age').length, 0);
 });
 
-test('create-only: a second run the same day fails instead of overwriting', async function () {
+test('same-day rerun writes a new unique object and keeps the first (create-only)', async function () {
     const kp = keypair();
     const bucket = fakeBucket();
     const d = { auth: fakeAuth(fakeUsers(4)), bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, log: captureLog(), getHashConfig: async function () { return HASH_CONFIG; } };
-    await ex.runAuthExport(d);
-    const first = bucket.objects['auth/2026-11-10.jsonl.age'].body;
-    await assert.rejects(ex.runAuthExport(Object.assign({}, d, { auth: fakeAuth(fakeUsers(4)) })));
-    assert.ok(bucket.objects['auth/2026-11-10.jsonl.age'].body.equals(first));
+    const firstMan = await ex.runAuthExport(d);
+    const firstBody = Buffer.from(bucket.objects[firstMan.object].body);
+    const secondMan = await ex.runAuthExport(Object.assign({}, d, { auth: fakeAuth(fakeUsers(4)) }));
+    assert.notStrictEqual(firstMan.object, secondMan.object);
+    assert.notStrictEqual(firstMan.runId, secondMan.runId);
+    assert.ok(bucket.objects[firstMan.object].body.equals(firstBody));
+    assert.strictEqual(objectsEnding(bucket, '.jsonl.age').length, 2);
+    assert.strictEqual(objectsEnding(bucket, '.manifest.json').length, 2);
+    assertPerRunName(firstMan.object, '2026-11-10', '083000Z', 'jsonl.age');
+    assertPerRunName(secondMan.object, '2026-11-10', '083000Z', 'jsonl.age');
+});
+
+test('create-only: writing the same run name twice fails and leaves the first object', async function () {
+    const kp = keypair();
+    const bucket = fakeBucket();
+    const d = { auth: fakeAuth(fakeUsers(4)), bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, runId: 'aaaaaaaaaaaaaaaa', log: captureLog(), getHashConfig: async function () { return HASH_CONFIG; } };
+    const first = await ex.runAuthExport(d);
+    const firstBody = Buffer.from(bucket.objects[first.object].body);
+    await assert.rejects(ex.runAuthExport(Object.assign({}, d, { auth: fakeAuth(fakeUsers(4)) })), /dailyAuthExport failed/);
+    assert.ok(bucket.objects[first.object].body.equals(firstBody));
+    assert.strictEqual(objectsEnding(bucket, '.jsonl.age').length, 1);
 });
 
 test('zero users -> fails, nothing but the marker', async function () {
     const kp = keypair();
     const bucket = fakeBucket();
     await assert.rejects(ex.runAuthExport({ auth: fakeAuth([]), bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, log: captureLog(), getHashConfig: async function () { return HASH_CONFIG; } }), /0 users/);
-    assert.deepStrictEqual(Object.keys(bucket.objects), ['auth/2026-11-10.FAILED.json']);
+    assertPerRunName(oneObject(bucket, '.FAILED.json'), '2026-11-10', '083000Z', 'FAILED.json');
+    assert.strictEqual(objectsEnding(bucket, '.jsonl.age').length, 0);
 });
 
 test('fetchHashConfig reads admin v2 config and errors without echoing the body', async function () {
@@ -305,6 +350,7 @@ test('fetchHashConfig reads admin v2 config and errors without echoing the body'
     const hc = await ex.fetchHashConfig(admin, 'demo', async function (u, o) {
         url = u;
         assert.strictEqual(o.headers.Authorization, 'Bearer t');
+        assert.ok(!Object.prototype.hasOwnProperty.call(o.headers, 'x-goog-user-project'));
         return { ok: true, json: async function () { return { signIn: { hashConfig: HASH_CONFIG }, other: 1 }; } };
     });
     assert.strictEqual(url, 'https://identitytoolkit.googleapis.com/admin/v2/projects/demo/config');
@@ -356,7 +402,7 @@ test('verify script: counts, sha match, 1% drift check, refuses non-staging impo
     const users = fakeUsers(300);
     const bucket = fakeBucket();
     const man = await ex.runAuthExport({ auth: fakeAuth(users), bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, log: captureLog(), getHashConfig: async function () { return HASH_CONFIG; } });
-    const plain = ageDecrypt(bucket.objects['auth/2026-11-10.jsonl.age'].body, kp);
+    const plain = ageDecrypt(bucket.objects[man.object].body, kp);
     const parsed = verify.parse(plain);
     const s = verify.summarize(parsed);
     const sha = crypto.createHash('sha256').update(plain).digest('hex');
@@ -398,6 +444,130 @@ test('verify script: pseudonymized sample keeps hashes but no real uid/email/nam
     assert.strictEqual(opts.hash.algorithm, 'SCRYPT');
     assert.strictEqual(opts.hash.rounds, 8);
     assert.strictEqual(opts.hash.memoryCost, 14);
+});
+
+
+test('sanitize redacts emails, tokens, and E.164 phone numbers', function () {
+    const s = ex.sanitize('denied for someone@example.com phone +15555550109 also +447911123456 token ya29.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+    assert.ok(s.indexOf('someone@example.com') === -1);
+    assert.ok(s.indexOf('+15555550109') === -1);
+    assert.ok(s.indexOf('+447911123456') === -1);
+    assert.ok(s.indexOf('ya29.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA') === -1);
+    assert.ok(s.indexOf('<email>') !== -1);
+    assert.ok(s.indexOf('<phone>') !== -1);
+    assert.ok(s.indexOf('<redacted>') !== -1);
+    assert.strictEqual(ex.sanitize('call +1234567 or +123456789012345'), 'call <phone> or <phone>');
+    assert.ok(ex.sanitize('short +123456 stays').indexOf('+123456') !== -1);
+});
+
+test('hash config error marker also redacts phone numbers', async function () {
+    const kp = keypair();
+    const bucket = fakeBucket();
+    const L = captureLog();
+    await assert.rejects(ex.runAuthExport({ auth: fakeAuth(fakeUsers(3)), bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, log: L, getHashConfig: async function () { throw new Error('denied for someone@example.com phone +15555550100'); } }));
+    const marker = bucket.objects[oneObject(bucket, '.FAILED.json')].body.toString();
+    const logs = L.lines.join('\n');
+    assert.ok(marker.indexOf('+15555550100') === -1 && logs.indexOf('+15555550100') === -1);
+    assert.ok(marker.indexOf('<phone>') !== -1);
+    assert.ok(marker.indexOf('someone@example.com') === -1);
+});
+
+test('objectNames include the UTC stamp and a random id, and two calls differ', function () {
+    const a = ex.objectNames('2026-11-10', NOW, ex.newRunId());
+    const b = ex.objectNames('2026-11-10', NOW, ex.newRunId());
+    assert.strictEqual(ex.utcStamp(NOW), '083000Z');
+    assertPerRunName(a.data, '2026-11-10', '083000Z', 'jsonl.age');
+    assertPerRunName(b.data, '2026-11-10', '083000Z', 'jsonl.age');
+    assert.notStrictEqual(a.data, b.data);
+    assert.notStrictEqual(a.runId, b.runId);
+    assert.ok(a.manifest.startsWith('auth/2026-11-10/083000Z-') && a.failed.startsWith('auth/2026-11-10/083000Z-'));
+});
+
+test('verify script: findLatestComplete picks the newest complete manifest', function () {
+    const older = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/083000Z-aaaaaaaaaaaaaaaa.jsonl.age', finishedAt: '2026-11-10T08:31:00.000Z', startedAt: '2026-11-10T08:30:00.000Z', date: '2026-11-10' };
+    const newer = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/090000Z-bbbbbbbbbbbbbbbb.jsonl.age', finishedAt: '2026-11-10T09:01:00.000Z', startedAt: '2026-11-10T09:00:00.000Z', date: '2026-11-10' };
+    const incomplete = { format: 'bq-auth-export-v2', complete: false, object: 'auth/2026-11-10/100000Z-cccccccccccccccc.jsonl.age', finishedAt: '2026-11-10T10:01:00.000Z', startedAt: '2026-11-10T10:00:00.000Z', date: '2026-11-10' };
+    const latest = verify.findLatestComplete([
+        { manifest: incomplete },
+        { manifest: older },
+        { manifest: newer },
+    ]);
+    assert.strictEqual(latest.manifest.object, newer.object);
+    assert.strictEqual(verify.findLatestComplete([{ manifest: incomplete }]), null);
+    assert.strictEqual(verify.findLatestComplete([]), null);
+});
+
+test('verify script: --latest-from --print-latest selects the newest complete manifest', function () {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'abv-latest-'));
+    try {
+        const day = path.join(dir, '2026-11-10');
+        fs.mkdirSync(day);
+        const older = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/083000Z-aaaaaaaaaaaaaaaa.jsonl.age', finishedAt: '2026-11-10T08:31:00.000Z', plaintextSha256: 'x', date: '2026-11-10' };
+        const newer = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/090000Z-bbbbbbbbbbbbbbbb.jsonl.age', finishedAt: '2026-11-10T09:01:00.000Z', plaintextSha256: 'y', date: '2026-11-10' };
+        const incomplete = { format: 'bq-auth-export-v2', complete: false, object: 'auth/2026-11-10/100000Z-cccccccccccccccc.jsonl.age', finishedAt: '2026-11-10T10:01:00.000Z', plaintextSha256: 'z', date: '2026-11-10' };
+        fs.writeFileSync(path.join(day, '083000Z-aaaaaaaaaaaaaaaa.manifest.json'), JSON.stringify(older));
+        fs.writeFileSync(path.join(day, '090000Z-bbbbbbbbbbbbbbbb.manifest.json'), JSON.stringify(newer));
+        fs.writeFileSync(path.join(day, '100000Z-cccccccccccccccc.manifest.json'), JSON.stringify(incomplete));
+        const loaded = verify.loadManifestsFromDir(dir);
+        assert.strictEqual(loaded.length, 3);
+        assert.strictEqual(verify.findLatestComplete(loaded).manifest.object, newer.object);
+        const script = path.join(fnRoot, 'scripts', 'auth-export-verify.js');
+        const out = execFileSync('node', [script, '--latest-from', dir, '--print-latest'], { encoding: 'utf8' });
+        assert.ok(out.indexOf(newer.object) !== -1);
+        assert.ok(out.indexOf(incomplete.object) === -1);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('verify script: --all requires --delete-after; --file warns on stderr', async function () {
+    const kp = keypair();
+    const users = fakeUsers(8);
+    const bucket = fakeBucket();
+    const man = await ex.runAuthExport({ auth: fakeAuth(users), bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, log: captureLog(), getHashConfig: async function () { return HASH_CONFIG; } });
+    const plain = ageDecrypt(bucket.objects[man.object].body, kp);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'abv-flags-'));
+    const script = path.join(fnRoot, 'scripts', 'auth-export-verify.js');
+    const { spawnSync } = require('child_process');
+    try {
+        fs.writeFileSync(path.join(dir, 'p.jsonl'), plain);
+        fs.writeFileSync(path.join(dir, 'm.json'), JSON.stringify(man));
+        const warn = spawnSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json')], { encoding: 'utf8' });
+        assert.strictEqual(warn.status, 0);
+        assert.ok(/VERIFY: PASS/.test(warn.stdout));
+        assert.ok(/WARNING: --file reads a plaintext Auth export/.test(warn.stderr));
+        assert.ok(/never the shared box/.test(warn.stderr));
+        noPii(warn.stdout, users);
+        const all = spawnSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--all', '--apply'], { encoding: 'utf8' });
+        assert.strictEqual(all.status, 2);
+        assert.ok(/--all requires --delete-after/.test(all.stderr));
+        const dryAll = spawnSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--all'], { encoding: 'utf8' });
+        assert.strictEqual(dryAll.status, 2);
+        assert.ok(/--all requires --delete-after/.test(dryAll.stderr));
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('verify script: customClaims are omitted by default and included only with keepClaims', function () {
+    const users = fakeUsers(20).map(function (u) { return JSON.parse(JSON.stringify(u)); });
+    assert.deepStrictEqual(users[7].customClaims, { admin: true });
+    const denied = verify.buildRecords({ users: users }, { all: true });
+    assert.strictEqual(denied.length, 20);
+    assert.ok(denied.every(function (r) { return !r.customClaims; }));
+    const kept = verify.buildRecords({ users: users }, { all: true, keepClaims: true });
+    assert.deepStrictEqual(kept[7].customClaims, { admin: true });
+    assert.ok(kept.filter(function (r) { return r.customClaims; }).length === 1);
+    const sample = verify.buildRecords({ users: users }, { sample: 10, all: false, keepClaims: true });
+    assert.ok(sample.every(function (r) { return !r.customClaims; }));
+});
+
+test('verify script: provenance check uses creator and creation time when metadata is present', function () {
+    const man = { projectId: 'demo', startedAt: '2026-11-10T08:30:00.000Z', finishedAt: '2026-11-10T08:31:00.000Z' };
+    const sa = verify.expectedBackupSa('demo');
+    assert.strictEqual(sa, 'fn-daily-auth-export@demo.iam.gserviceaccount.com');
+    assert.deepStrictEqual(verify.checkBackupProvenance({ timeCreated: '2026-11-10T08:30:30.000Z', creator: sa }, { expectedSa: sa, startedAt: man.startedAt, finishedAt: man.finishedAt }), []);
+    assert.ok(verify.checkBackupProvenance({ timeCreated: '2026-11-10T08:30:30.000Z', creator: 'evil@example.com' }, { expectedSa: sa, startedAt: man.startedAt, finishedAt: man.finishedAt }).some(function (p) { return /creator/.test(p); }));
+    assert.ok(verify.checkBackupProvenance({ timeCreated: '2026-11-11T20:00:00.000Z', creator: sa }, { expectedSa: sa, startedAt: man.startedAt, finishedAt: man.finishedAt }).some(function (p) { return /creation time does not match/.test(p); }));
+    assert.ok(verify.checkBackupProvenance({ timeCreated: 'not-a-date', creator: sa }, { expectedSa: sa }).some(function (p) { return /not a valid timestamp/.test(p); }));
+    assert.deepStrictEqual(verify.checkBackupProvenance(null, { expectedSa: sa }), []);
+    assert.deepStrictEqual(verify.checkBackupProvenance({ timeCreated: '2026-11-10T08:30:30.000Z' }, { expectedSa: sa, startedAt: man.startedAt, finishedAt: man.finishedAt }), []);
 });
 
 (async function () {

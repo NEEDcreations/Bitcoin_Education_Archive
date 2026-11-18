@@ -9529,11 +9529,12 @@ exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
 // ── Daily encrypted Firebase Auth export ─────────────────────────────────────
 // 3:30 AM ET. listUsers (with password hashes) + hash config -> JSONL ->
 // age-encrypted in memory to the public key(s) in src/authBackupConfig.js ->
-// gs://<project>-auth-backups/auth/<YYYY-MM-DD>.jsonl.age + manifest.json.
+// gs://<project>-auth-backups/auth/<YYYY-MM-DD>/<HHmmss>Z-<runId>.jsonl.age
+// + matching manifest. Per-run names (create-only) so a same-day rerun works.
 // Runs as its own account (fn-daily-auth-export): custom role
 // bqAuthBackupReader (firebaseauth.users.get, configs.get, configs.getHashConfig)
 // and storage.objectCreator on that one bucket. No secrets, no Firestore.
-// Fails closed: writes auth/<date>.FAILED.json and throws. See src/authExport.js.
+// Fails closed: writes a matching .FAILED.json and throws. See src/authExport.js.
 exports.dailyAuthExport = onSchedule({
     schedule: '30 3 * * *',
     timeZone: 'America/New_York',
