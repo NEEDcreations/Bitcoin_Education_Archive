@@ -1416,8 +1416,10 @@ test('staging mock wallet: mockBlankPubkey is staging-only and makes getInfo ret
     assert.strictEqual(core.readConfig({ mockBlankPubkey: true }).mockBlankPubkey, true);
     assert.strictEqual(core.readConfig({ mockBlankPubkey: 'yes' }).mockBlankPubkey, false);
     const fns = fs.readFileSync(path.join(root, 'functions/src/favorBlockClaimsFns.js'), 'utf8');
-    assert.ok(/getInfo: async function \(\) \{ return \{ pubkey: cfg\.mockBlankPubkey === true \? '' : MOCK_NODE_PUBKEY \}; \}/.test(fns));
-    assert.ok(/d\.mockBlankPubkey != null\) \{\s*if \(!staging\) throw new HttpsError\('permission-denied'/.test(fns), 'same staging-only guard as the other mock fields');
+    const smwSrc = fs.readFileSync(path.join(root, 'functions/src/stagingMockWallet.js'), 'utf8');
+    assert.ok(/getInfo: async function \(\) \{ return \{ pubkey: cfg\.mockBlankPubkey === true \? '' : MOCK_NODE_PUBKEY \}; \}/.test(smwSrc));
+    assert.ok(/return require\('\.\/stagingMockWallet'\)\.createMockWallet\(cfg\);/.test(fns));
+    assert.ok(/d\.mockBlankPubkey != null \|\| d\.mockLookupOutcome != null \|\| d\.mockBalanceOutcome != null\) \{\s*if \(!staging\) throw new HttpsError\('permission-denied'/.test(fns), 'same staging-only guard as the other mock fields');
     assert.ok(/logWarn: function \(msg, data\) \{ require\('firebase-functions\/logger'\)\.warn\(msg, data \|\| \{\}\); \}/.test(fns));
 });
 

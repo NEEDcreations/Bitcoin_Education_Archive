@@ -164,8 +164,12 @@ test('claimCipherSats wiring: wait checked in the claim transaction, release onl
     assert.ok(/kind: faucetGuard\.definiteFailureKind\(\{ phase: phase, error: payError \}\)/.test(src));
     // K1: a pay-phase refusal is looked up; release only on a confirmed failed lookup.
     assert.ok(/if \(refused && phase !== 'pay'\) \{/.test(src));
-    assert.ok(/if \(refused && settlement\.pending !== true\) return \{ action: 'refund_only' \};/.test(src));
-    assert.ok(/failKind = paid\.action === 'refund_only' \? 'unconfirmed'/.test(src));
+    // Inconclusive lookups (pending, empty, error, unclassified) hold, even after a refusal.
+    assert.ok(src.indexOf("refund_only") === -1);
+    assert.ok(/failKind = paid\.kind \|\| 'theirs';/.test(src));
+    const pay = src.slice(src.indexOf('async function payCipherBalanceInvoice'), src.indexOf('async function finishCipherClaim'));
+    assert.ok(/if \(settlement\.action === 'release'\) \{/.test(pay));
+    assert.ok(/\n    return \{ action: 'hold' \};\n\}\s*$/.test(pay));
 });
 
 
@@ -242,9 +246,26 @@ test('held HTLC: a pending lookup after a refusal is held (cipher)', async funct
     const s = await cipherClaim.lookupSettlement({ attempts: 2, intervalMs: 0, lookup: async function() { return { state: 'in_flight' }; } });
     assert.strictEqual(s.action, 'hold');
     assert.strictEqual(s.pending, true);
-    // payCipherBalanceInvoice returns refund_only only when the lookup did not see it in flight.
+    // payCipherBalanceInvoice never refunds an inconclusive lookup.
     const src = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'gifting.js'), 'utf8');
-    assert.ok(src.indexOf("if (refused && settlement.pending !== true) return { action: 'refund_only' };") !== -1);
+    assert.ok(src.indexOf("refund_only") === -1);
+});
+
+test('exact refusal + lookup empty or error is held (cipher); a later settle cannot double-pay', async function() {
+    const err = await cipherClaim.lookupSettlement({ attempts: 2, intervalMs: 0, lookup: async function() { throw new Error('NOT_FOUND'); } });
+    assert.strictEqual(err.action, 'hold');
+    assert.notStrictEqual(err.pending, true);
+    const empty = await cipherClaim.lookupSettlement({ attempts: 2, intervalMs: 0, lookup: async function() { return {}; } });
+    assert.strictEqual(empty.action, 'hold');
+    // A held claim goes to finishCipherClaim(reserved, 'hold'): status unknown, balance NOT restored.
+    const src = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'gifting.js'), 'utf8');
+    const fin = src.slice(src.indexOf('async function finishCipherClaim'), src.indexOf('async function beginCipherPay'));
+    const holdAt = fin.indexOf("if (outcome === 'hold') {");
+    const returnAt = fin.indexOf('return;', holdAt);
+    const refundAt = fin.indexOf('cipherSatsBalance: admin.firestore.FieldValue.increment(reserved.amount)');
+    assert.ok(holdAt !== -1 && returnAt > holdAt && refundAt > returnAt);
+    // And a finished claim (paid, restored or unknown) is never touched again by this path.
+    assert.ok(fin.indexOf("if (status === 'paid' || status === 'restored' || status === 'unknown') return;") !== -1);
 });
 
 test('cipher receiver address failure gets the address message', function() {

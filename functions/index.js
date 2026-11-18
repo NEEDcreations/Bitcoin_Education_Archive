@@ -1832,7 +1832,14 @@ exports.claimSats = functionsV1.runWith({
     }
 
     let invoice = '';
+    // STAGING ONLY: null unless the project is bitcoin-quest-staging AND
+    // config/satoshiFavorPayouts.mockWallet is true (src/stagingMockWallet.js).
+    const stagingMock = await require('./src/stagingMockWallet').load(db);
     try {
+        if (stagingMock) {
+            // Staging mock: a signed mainnet-format invoice for the exact amount, no LNURL call.
+            invoice = require('./src/favorBlockClaimsFns').mockInvoice(netSendAmount, 'none');
+        } else {
         await assertPublicHost(_lnDomain);
         const resolved = await resolveLnurlInvoice({
             address: lnNorm,
@@ -1840,6 +1847,7 @@ exports.claimSats = functionsV1.runWith({
         });
         invoice = resolved.pr;
         console.log('[FAUCET] Resolved Lightning Address for ' + netSendAmount + ' net sats domain=' + resolved.domain);
+        }
     } catch (e) {
         console.error('[FAUCET] Lightning Address resolution failed domain=' + (_lnDomain || ''));
         const clear = e && (e.code === 'lnurl_error' || e.code === 'below_min' || e.code === 'above_max' || e.code === 'amount_mismatch' || e.code === 'wrong_network');
@@ -2246,7 +2254,9 @@ exports.claimSats = functionsV1.runWith({
     let payResult = null;
     let payError = null;
     try {
-        nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
+        nwc = stagingMock
+            ? require('./src/stagingMockWallet').createMockWallet(stagingMock)
+            : new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
         const balanceResult = await _withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor(balanceResult.balance / 1000);
         if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) throw new Error('WALLET_LOW');
@@ -2326,12 +2336,9 @@ exports.claimSats = functionsV1.runWith({
         const released = await _releaseFailedClaim(payInfo, today, lnRateRef, failKind);
         return { success: false, code: 'payment_failed', released: released.released, error: released.message };
     }
-    if (afterLookup.action === 'refund_only') {
-        // Explicit refusal the lookup could not confirm: refund, but the daily limit stays used.
-        const refunded = await _releaseFailedClaim(payInfo, today, lnRateRef, 'unconfirmed');
-        return { success: false, code: 'payment_failed', released: false, error: refunded.message };
-    }
-
+    // Anything else (pending, empty, error, unclassified), including an explicit
+    // refusal the lookup could not confirm, is held: no refund, no slot release.
+    // An HTLC can still settle, so refunding here could pay twice.
     try { await _holdFaucetUnknown(Object.assign({}, payInfo, { paymentHash: lookupReq.payment_hash })); }
     catch (e) { console.error('[FAUCET] could not hold unknown payment:', e.message); }
     return { success: false, error: _unknownPayError() };
@@ -7024,7 +7031,7 @@ exports.adminSetFavorClaims = favorBlockClaimFns.adminSetFavorClaims;
 exports.adminFreezeFavorEpoch = favorBlockClaimFns.adminFreezeFavorEpoch;
 exports.adminResolveFavorReview = favorBlockClaimFns.adminResolveFavorReview;
 
-// Payout reconciliation (draft, not deployed): ledger match, stuck-paying
+// Payout reconciliation (live since #365 shipped Nov 18, 2026): ledger match, stuck-paying
 // flags, optional wallet listing behind config/payoutReconcile.listWallet.
 // Binds no wallet secret.
 const payoutReconcileFns = require('./src/payoutReconcile').factory(functionsV1, {

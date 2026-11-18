@@ -1275,9 +1275,13 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         return { success: false, error: winFee.error };
     }
     const netAmount = winFee.net;
+    // STAGING ONLY: null unless bitcoin-quest-staging AND config/satoshiFavorPayouts.mockWallet === true.
+    const stagingMock = await require('./stagingMockWallet').load(db);
     let invoice;
     try {
-        invoice = await _resolvePrizeInvoice(data.invoice, data.lightningAddress, netAmount);
+        invoice = (stagingMock && !data.invoice)
+            ? require('./favorBlockClaimsFns').mockInvoice(netAmount, 'none')
+            : await _resolvePrizeInvoice(data.invoice, data.lightningAddress, netAmount);
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         return { success: false, error: e.message || 'Could not pay that invoice.' };
@@ -1366,7 +1370,9 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         return { success: true, amount: amount, sent: netAmount, fee: winFee.fee };
     }
 
-    const nwc = new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
+    const nwc = stagingMock
+        ? require('./stagingMockWallet').createMockWallet(stagingMock)
+        : new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
     let phase = 'balance';
     let payResult = null;
     let payError = null;
@@ -1622,8 +1628,11 @@ function dayAmount(snap) {
     return Math.max(0, Math.floor(Number(data.amount) || 0));
 }
 
-async function payCipherBalanceInvoice(invoice) {
-    const nwc = new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
+async function payCipherBalanceInvoice(invoice, stagingMock) {
+    // STAGING ONLY mock (null on every other project or with mockWallet off).
+    const nwc = stagingMock
+        ? require('./stagingMockWallet').createMockWallet(stagingMock)
+        : new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
     let phase = 'balance';
     let payResult = null;
     let payError = null;
@@ -1669,8 +1678,9 @@ async function payCipherBalanceInvoice(invoice) {
             kind: refused ? faucetGuard.definiteFailureKind({ phase: phase, error: payError }) : 'theirs',
         };
     }
-    // Refusal the lookup could not confirm, and not seen in flight: refund only.
-    if (refused && settlement.pending !== true) return { action: 'refund_only' };
+    // Anything the lookup could not confirm as failed (pending, empty, error,
+    // unclassified) is held, even after an explicit refusal code: an HTLC can
+    // still settle, so a refund here could pay twice.
     return { action: 'hold' };
 }
 
@@ -1750,6 +1760,8 @@ const claimCipherSats = functionsV1.runWith({
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
     if (!accountTombstone.secretReady()) throw httpsError('failed-precondition', UNAVAILABLE);
+    // STAGING ONLY: null unless bitcoin-quest-staging AND config/satoshiFavorPayouts.mockWallet === true.
+    const stagingMock = await require('./stagingMockWallet').load(db);
 
     let ageDays = 0;
     let ageKnown = false;
@@ -1935,7 +1947,9 @@ const claimCipherSats = functionsV1.runWith({
     try {
         // The player pays the flat Lightning fee: the invoice is for the net amount.
         if (!(reserved.net >= 1) || reserved.net + reserved.fee !== reserved.amount) throw new Error(require('./lnFee').FEE_TOO_BIG);
-        invoice = await _resolvePrizeInvoice('', reserved.address, reserved.net);
+        invoice = stagingMock
+            ? require('./favorBlockClaimsFns').mockInvoice(reserved.net, 'none')
+            : await _resolvePrizeInvoice('', reserved.address, reserved.net);
     } catch (e) {
         await finishCipherClaim(reserved, 'restore');
         console.error('[claimCipherSats] address did not resolve');
@@ -1998,7 +2012,7 @@ const claimCipherSats = functionsV1.runWith({
         await invoiceRef.delete().catch(function() {});
         return { success: false, error: 'A claim is already in progress.' };
     }
-    const paid = await payCipherBalanceInvoice(invoice);
+    const paid = await payCipherBalanceInvoice(invoice, stagingMock);
     if (paid.action === 'paid') {
         try {
             await finishCipherClaim(reserved, 'paid', paid.payResult);
@@ -2023,7 +2037,7 @@ const claimCipherSats = functionsV1.runWith({
     // Definite failure: nothing was sent. The balance comes back; the day's limit
     // comes back too unless the failure cap is reached.
     let failed = { released: false, message: '', applied: false };
-    const failKind = paid.action === 'refund_only' ? 'unconfirmed' : (paid.kind || 'theirs');
+    const failKind = paid.kind || 'theirs';
     try {
         failed = await require('./cipherSatsRelease').failCipherClaim({ db: db, admin: admin }, reserved, failKind);
     } catch (e) {
@@ -2040,9 +2054,7 @@ const claimCipherSats = functionsV1.runWith({
         success: false,
         code: 'payment_failed',
         released: !!failed.released,
-        error: failKind === 'unconfirmed'
-            ? failed.message
-            : (failed.message || 'Payment failed. No sats were sent.') + ' Your cipher sats balance was restored.',
+        error: (failed.message || 'Payment failed. No sats were sent.') + ' Your cipher sats balance was restored.',
     };
 });
 

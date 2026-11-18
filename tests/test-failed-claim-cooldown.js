@@ -158,9 +158,10 @@ test('unknown outcome: nothing calls the release, so the hold and cooldown stay'
     const body = src.slice(start, end);
     // Every release call sits behind a refund decision.
     const calls = body.split('_releaseFailedClaim(').length - 1;
-    assert.strictEqual(calls, 3);
-    assert.ok(body.indexOf("if (afterLookup.action === 'refund_only') {") !== -1);
-    assert.ok(body.indexOf("_releaseFailedClaim(payInfo, today, lnRateRef, 'unconfirmed')") !== -1);
+    assert.strictEqual(calls, 2);
+    // Inconclusive lookups after a refusal are held, never refunded (no refund_only path).
+    assert.ok(body.indexOf("refund_only") === -1);
+    assert.ok(body.indexOf("'unconfirmed'") === -1);
     assert.ok(body.indexOf("if (decision.action === 'refund') {") < body.indexOf('_releaseFailedClaim('));
     assert.ok(body.indexOf("if (afterLookup.action === 'refund') {") !== -1);
     // Unknown paths still hold and alert.
@@ -382,11 +383,30 @@ test('held HTLC: pay refusal with a pending lookup is held, never released or re
     assert.strictEqual(guard.decideFaucetLookupResult(s, { refused: true }).action, 'unknown');
     // A confirmed failed lookup is the only pay-phase release.
     assert.strictEqual(guard.decideFaucetLookupResult({ action: 'release' }, { refused: true }).action, 'refund');
-    // Refusal with lookups that error out (not seen in flight): refund only.
+    // Refusal with lookups that error out, come back empty or unclassified: HELD, like pending.
     const e = await cipher.lookupSettlement({ attempts: 2, intervalMs: 0, lookup: async function() { throw new Error('NOT_FOUND'); } });
-    assert.strictEqual(guard.decideFaucetLookupResult(e, { refused: true }).action, 'refund_only');
+    assert.strictEqual(guard.decideFaucetLookupResult(e, { refused: true }).action, 'unknown');
+    const empty = await cipher.lookupSettlement({ attempts: 2, intervalMs: 0, lookup: async function() { return {}; } });
+    assert.strictEqual(guard.decideFaucetLookupResult(empty, { refused: true }).action, 'unknown');
+    const odd = await cipher.lookupSettlement({ attempts: 2, intervalMs: 0, lookup: async function() { return { state: 'mystery' }; } });
+    assert.strictEqual(guard.decideFaucetLookupResult(odd, { refused: true }).action, 'unknown');
     // Without an explicit refusal the same lookups hold, as before.
     assert.strictEqual(guard.decideFaucetLookupResult(e).action, 'unknown');
+});
+
+test('exact refusal + lookup error is held; a later settle records once and nothing was refunded', async function() {
+    const refusal = guard.decideFaucetPayment({ phase: 'pay', error: { code: 'PAYMENT_FAILED', message: 'PAYMENT_FAILED' } });
+    assert.strictEqual(refusal.action, 'lookup');
+    assert.strictEqual(refusal.refused, true);
+    const first = await cipher.lookupSettlement({ attempts: 4, intervalMs: 0, lookup: async function() { throw new Error('NOT_FOUND'); } });
+    const held = guard.decideFaucetLookupResult(first, { refused: refusal.refused });
+    assert.strictEqual(held.action, 'unknown');
+    // The claim path only calls the release on refund; unknown goes to _holdFaucetUnknown.
+    assert.notStrictEqual(held.action, 'refund');
+    assert.notStrictEqual(held.action, 'refund_only');
+    // Later, the HTLC settles: the only possible outcome is a single paid record.
+    const later = await cipher.lookupSettlement({ attempts: 1, intervalMs: 0, lookup: async function() { return { state: 'settled', preimage: 'cd'.repeat(32) }; } });
+    assert.strictEqual(guard.decideFaucetLookupResult(later, { refused: true }).action, 'record');
 });
 
 test('unconfirmed refusal: points refunded, cooldown, cap slot and counts all stay', async function() {

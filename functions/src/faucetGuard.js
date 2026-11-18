@@ -380,15 +380,14 @@ function definiteFailureKind(info) {
     return OUR_SIDE_REFUSALS.indexOf(code) !== -1 ? 'ours' : 'theirs';
 }
 
-// opts.refused: the pay call returned an explicit refusal code. If the lookup
-// cannot confirm failure but does not see the payment in flight either, the
-// claim is refunded without giving the daily limit back (refund_only). A
-// payment the wallet still reports as pending is always held.
-function decideFaucetLookupResult(settlement, opts) {
+// Only an explicit failed lookup refunds. Pending, empty, error and
+// unclassified results are all held ('unknown'), even after an explicit
+// refusal code (opts.refused): an HTLC can still settle, so a refund here
+// could pay twice. opts is kept for callers; it no longer changes the result.
+function decideFaucetLookupResult(settlement, opts) { // eslint-disable-line no-unused-vars
     const d = settlement || {};
     if (d.action === 'paid') return { action: 'record', preimage: d.preimage || '' };
     if (d.action === 'release') return { action: 'refund', reason: 'lookup_failed' };
-    if (opts && opts.refused === true && d.pending !== true) return { action: 'refund_only' };
     return { action: 'unknown' };
 }
 
