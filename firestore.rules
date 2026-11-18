@@ -212,7 +212,8 @@ service cloud.firestore {
         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
         // First time each rank was crossed. onUserRankReached only.
         'rankReachedAt',
-        'unclaimableXp', 'chatXpStreak', 'chatXpDay',
+        // guestUnclaimableXp: guest-link split of unclaimableXp (#372). Server only.
+        'unclaimableXp', 'guestUnclaimableXp', 'chatXpStreak', 'chatXpDay',
         'visibleBadges', 'hiddenBadges', 'badges', 'payingBadgeCount', 'badgeCounters',
         'marketListings', 'marketMessages', 'marketSold',
         'dailyTripleCount', 'trifectaDays', 'dailyFiveDays', 'dailyFiveStreak',
@@ -324,7 +325,7 @@ service cloud.firestore {
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
                         // First time each rank was crossed. onUserRankReached only.
                         'rankReachedAt',
-                        'unclaimableXp', 'chatXpStreak', 'chatXpDay',
+                        'unclaimableXp', 'guestUnclaimableXp', 'chatXpStreak', 'chatXpDay',
                         'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled', 'cipherSatsBalance',
                         'orangeTickets', 'tickets',
                         // Timechain TV daily watch (tctvWatchHeartbeat only)
