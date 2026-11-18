@@ -4418,7 +4418,8 @@ exports.pvpSubmitAnswer = functionsV1.runWith({ enforceAppCheck: true }).https.o
                 });
             } catch (e) {
                 if (e && e.code === 'resource-exhausted') throw e;
-                // No salt or no IP hash: the per-uid cap still applies.
+                // No salt or no IP hash: the per-uid cap still applies. Never log the IP.
+                console.warn('[pvp] answer network bucket skipped: ' + String((e && e.code) || 'error'));
             }
         }
     }
@@ -4857,7 +4858,11 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
         try {
             const { networkRateDocId } = require('./src/rateLimitSalt');
             networkRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'pvp_anon_net_', createIp, createNow));
-        } catch (e) { networkRef = null; }
+        } catch (e) {
+            networkRef = null;
+            // Never log the IP. Only the error code, so a missing salt is visible.
+            console.warn('[pvp] create network bucket skipped: ' + String((e && e.code) || 'error'));
+        }
     }
     const charges = pvpFlow.planMatchCharges({ p1Guest: p1Guest, p2Guest: callerGuest, hasNetwork: !!networkRef });
     const hourBucket = Math.floor(createNow / pvpFlow.PVP_MATCH_HOUR_MS);
@@ -9024,7 +9029,7 @@ async function settlePvpMatch(matchId, after) {
             if (!skipAnonStats) {
                 if (p.pvpWins) upd.pvpWins = admin.firestore.FieldValue.increment(p.pvpWins);
                 if (p.pvpLosses) upd.pvpLosses = admin.firestore.FieldValue.increment(p.pvpLosses);
-                const streak = pvpFlow.planStreakUpdate(pvpUser.pvpWinStreak, pvpUser.pvpBestStreak, p.outcome);
+                const streak = pvpFlow.planStreakUpdate(pvpUser.pvpWinStreak, pvpUser.pvpBestStreak, p.outcome, p.leaver === true);
                 upd.pvpWinStreak = streak.pvpWinStreak;
                 upd.pvpBestStreak = streak.pvpBestStreak;
             }

@@ -348,5 +348,118 @@ test('K12: the quick-name submit refuses reserved names and never writes current
     assert.ok(/isPvpGuest\(\)/.test(code) && !/currentUser/.test(code));
 });
 
+
+// ---- K14: leaving a tied match resets the leaver's win streak ----
+// Mirrors the settle transaction: streaks change only for a granted plan and
+// only through planStreakUpdate(streak, best, outcome, leaver).
+function applySettleStreaks(users, after, stamp, matchId) {
+    const r = pvpFlow.settleRewardPlan({ matchId: matchId, after: after, keyData: keyDoc(stamp), flags1: {}, flags2: {} });
+    if (!r.plan.grant) return r;
+    r.plan.players.forEach(function (p) {
+        const u = users[p.uid] || {};
+        const st = pvpFlow.planStreakUpdate(u.pvpWinStreak, u.pvpBestStreak, p.outcome, p.leaver === true);
+        users[p.uid] = Object.assign({}, u, st);
+    });
+    return r;
+}
+function tiedLeave(leaver, wins) {
+    const n = wins || 0;
+    const a = []; const b = [];
+    for (let i = 0; i < n; i++) { a.push({ won: true }); b.push({ won: true }); }
+    return {
+        status: 'forfeit', forfeitedBy: leaver, forfeitReason: 'manual_leave',
+        player1: { uid: 'p1', score: 0, answers: a },
+        player2: { uid: 'p2', score: 0, answers: b.concat([{ won: false }]) },
+    };
+}
+function drawMatch() {
+    return {
+        status: 'finished',
+        player1: { uid: 'p1', score: 200, answers: [{ won: true }, { won: false }] },
+        player2: { uid: 'p2', score: 200, answers: [{ won: false }, { won: true }] },
+    };
+}
+const signedIn = function () { return pvpFlow.planGuestStamp(false, false); };
+
+test('K14: a tied leave (0-0) resets only the leaver\'s streak', function () {
+    const users = { p1: { pvpWinStreak: 2, pvpBestStreak: 2 }, p2: { pvpWinStreak: 2, pvpBestStreak: 4 } };
+    const r = applySettleStreaks(users, tiedLeave('p1', 0), signedIn(), 'k14a');
+    assert.strictEqual(r.plan.reason, 'forfeit_void');
+    assert.strictEqual(r.plan.players.find(function (p) { return p.uid === 'p1'; }).leaver, true);
+    assert.strictEqual(r.plan.players.find(function (p) { return p.uid === 'p2'; }).leaver, false);
+    assert.deepStrictEqual(users.p1, { pvpWinStreak: 0, pvpBestStreak: 2 });
+    assert.deepStrictEqual(users.p2, { pvpWinStreak: 2, pvpBestStreak: 4 });
+});
+test('K14: a tied leave at 1-1 by player2 resets only player2', function () {
+    const users = { p1: { pvpWinStreak: 1, pvpBestStreak: 3 }, p2: { pvpWinStreak: 2, pvpBestStreak: 2 } };
+    applySettleStreaks(users, tiedLeave('p2', 1), signedIn(), 'k14b');
+    assert.deepStrictEqual(users.p1, { pvpWinStreak: 1, pvpBestStreak: 3 });
+    assert.deepStrictEqual(users.p2, { pvpWinStreak: 0, pvpBestStreak: 2 });
+});
+test('K14: a normal draw keeps both streaks', function () {
+    const users = { p1: { pvpWinStreak: 2, pvpBestStreak: 2 }, p2: { pvpWinStreak: 1, pvpBestStreak: 5 } };
+    const r = applySettleStreaks(users, drawMatch(), signedIn(), 'k14c');
+    assert.strictEqual(r.plan.reason, 'draw');
+    r.plan.players.forEach(function (p) { assert.ok(!p.leaver); });
+    assert.deepStrictEqual(users.p1, { pvpWinStreak: 2, pvpBestStreak: 2 });
+    assert.deepStrictEqual(users.p2, { pvpWinStreak: 1, pvpBestStreak: 5 });
+});
+test('K14: leaving while behind is still a loss for the leaver and a win for the other side', function () {
+    const after = {
+        status: 'forfeit', forfeitedBy: 'p2', forfeitReason: 'manual_leave',
+        player1: { uid: 'p1', score: 100, answers: [{ won: true }] },
+        player2: { uid: 'p2', score: 0, answers: [{ won: false }] },
+    };
+    const users = { p1: { pvpWinStreak: 1, pvpBestStreak: 1 }, p2: { pvpWinStreak: 2, pvpBestStreak: 2 } };
+    applySettleStreaks(users, after, signedIn(), 'k14d');
+    assert.deepStrictEqual(users.p1, { pvpWinStreak: 2, pvpBestStreak: 2 });
+    assert.deepStrictEqual(users.p2, { pvpWinStreak: 0, pvpBestStreak: 2 });
+});
+test('K14: win, then leave every tied match before a loss: streak never reaches 3', function () {
+    const users = { p1: { pvpWinStreak: 0, pvpBestStreak: 0 }, p2: {} };
+    let maxStreak = 0;
+    for (let i = 0; i < 10; i++) {
+        applySettleStreaks(users, finished(), signedIn(), 'k14w' + i);      // p1 wins
+        maxStreak = Math.max(maxStreak, users.p1.pvpWinStreak);
+        applySettleStreaks(users, tiedLeave('p1', i % 3), signedIn(), 'k14l' + i); // p1 walks out tied
+        maxStreak = Math.max(maxStreak, users.p1.pvpWinStreak);
+    }
+    assert.ok(maxStreak < 3, 'max streak ' + maxStreak);
+    assert.ok(users.p1.pvpBestStreak < 3, 'best ' + users.p1.pvpBestStreak);
+    assert.strictEqual(users.p1.pvpWinStreak, 0);
+});
+test('K14: a guest match tied leave grants nothing and changes no streak', function () {
+    const users = { p1: { pvpWinStreak: 2, pvpBestStreak: 2 }, p2: { pvpWinStreak: 2, pvpBestStreak: 2 } };
+    const r = applySettleStreaks(users, tiedLeave('p1', 0), pvpFlow.planGuestStamp(false, true), 'k14g');
+    assert.strictEqual(r.plan.grant, false);
+    assert.deepStrictEqual(users.p1, { pvpWinStreak: 2, pvpBestStreak: 2 });
+    assert.deepStrictEqual(users.p2, { pvpWinStreak: 2, pvpBestStreak: 2 });
+});
+test('K14: planStreakUpdate resets only with leaver === true', function () {
+    assert.deepStrictEqual(pvpFlow.planStreakUpdate(2, 4, 'void', true), { pvpWinStreak: 0, pvpBestStreak: 4 });
+    assert.deepStrictEqual(pvpFlow.planStreakUpdate(2, 4, 'void', false), { pvpWinStreak: 2, pvpBestStreak: 4 });
+    assert.deepStrictEqual(pvpFlow.planStreakUpdate(2, 4, 'void', 'yes'), { pvpWinStreak: 2, pvpBestStreak: 4 });
+    assert.deepStrictEqual(pvpFlow.planStreakUpdate(2, 4, 'draw'), { pvpWinStreak: 2, pvpBestStreak: 4 });
+});
+test('index.js (K14): the settle transaction passes the leaver flag to planStreakUpdate', function () {
+    const src = read('functions/index.js');
+    const st = src.slice(src.indexOf('async function settlePvpMatch'), src.indexOf('const { createLobbyPush }'));
+    assert.ok(/pvpFlow\.planStreakUpdate\(pvpUser\.pvpWinStreak, pvpUser\.pvpBestStreak, p\.outcome, p\.leaver === true\)/.test(st));
+    assert.ok(st.indexOf('planStreakUpdate') > st.indexOf('db.runTransaction'), 'inside the pvp_rewards transaction');
+});
+
+// ---- K15: network bucket keys IPv6 by /64 and warns (without the IP) when skipped ----
+test('index.js (K15): skipped network buckets warn with the error code only, never the IP', function () {
+    const src = read('functions/index.js');
+    const c = src.slice(src.indexOf('exports.pvpCreateMatch ='), src.indexOf('// ── Scholar Exam'));
+    const m = c.match(/console\.warn\('\[pvp\] create network bucket skipped: '[^;]*;/);
+    assert.ok(m, 'create warn');
+    assert.ok(!/createIp/.test(m[0]));
+    const a = src.slice(src.indexOf('exports.pvpSubmitAnswer'), src.indexOf('exports.pvpSubmitAnswer') + 2500);
+    const m2 = a.match(/console\.warn\('\[pvp\] answer network bucket skipped: '[^;]*;/);
+    assert.ok(m2, 'answer warn');
+    assert.ok(!/answerIp/.test(m2[0]));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

@@ -342,6 +342,28 @@ function networkKeys(ip) {
     };
 }
 
+// Key for network rate buckets. IPv4 (and ::ffff: mapped IPv4, in dotted or
+// hex form) stays the exact address, so existing IPv4 bucket ids do not move.
+// IPv6 is keyed by its /64, since one host usually gets a whole /64 and could
+// otherwise rotate through unlimited buckets. Brackets, a zone id and any
+// compressed form are normalized first. Values that are not an IP (a missing
+// IP, 'unknown', or a non-IP key such as an email) pass through unchanged.
+function rateKeyForIp(ip) {
+    const raw = String(ip == null ? '' : ip).trim();
+    if (!raw) return raw;
+    let s = raw;
+    const bracket = s.match(/^\[([^\]]+)\](?::\d+)?$/);
+    if (bracket) s = bracket[1];
+    if (s.indexOf(':') !== -1) s = s.replace(/%[0-9a-zA-Z._~-]+$/, '');
+    const v4 = _ipv4Parts(s);
+    if (v4) return v4.join('.');
+    const groups = _expandIPv6(s);
+    if (!groups) return raw;
+    const mapped = _fromMapped(groups);
+    if (mapped) return mapped.join('.');
+    return 'v6:' + groups.slice(0, 4).join(':') + '::/64';
+}
+
 function decideFaucetPayment(info) {
     const src = info || {};
     const action = cipher.payErrorAction({
@@ -509,6 +531,7 @@ module.exports = {
     pruneAddressClaims: pruneAddressClaims,
     assessAddressRate: assessAddressRate,
     clientIpFromRequest: clientIpFromRequest,
+    rateKeyForIp: rateKeyForIp,
     accountsSeenRecently: accountsSeenRecently,
     assessExactIpSlot: assessExactIpSlot,
     assessSubnetSlot: assessSubnetSlot,

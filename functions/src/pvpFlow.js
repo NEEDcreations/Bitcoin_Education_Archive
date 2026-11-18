@@ -342,9 +342,11 @@ function planPvpReward(input) {
                 grant: true,
                 reason: 'forfeit_void',
                 claimId: claimId,
+                // K14: the player who left a tied match is marked leaver, so
+                // settle resets their win streak. The other player keeps theirs.
                 players: [
-                    { uid: p1.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'void', blocked: false },
-                    { uid: p2.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'void', blocked: false },
+                    { uid: p1.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'void', blocked: false, leaver: src.forfeitedBy === p1.uid },
+                    { uid: p2.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'void', blocked: false, leaver: src.forfeitedBy === p2.uid },
                 ],
                 shout: null,
                 voided: true,
@@ -481,9 +483,16 @@ function pvpPicAllowed(url) {
 }
 
 
-function planStreakUpdate(currentStreak, currentBest, outcome) {
+// leaver is true only for the player who manually left a tied match
+// (forfeit_void). Leaving resets their streak like a loss, so walking out of a
+// tied match cannot protect a streak. A normal draw or the other side of a
+// void keeps the streak.
+function planStreakUpdate(currentStreak, currentBest, outcome, leaver) {
     const streak = Math.max(0, Math.floor(Number(currentStreak) || 0));
     const best = Math.max(0, Math.floor(Number(currentBest) || 0));
+    if (leaver === true) {
+        return { pvpWinStreak: 0, pvpBestStreak: best };
+    }
     if (outcome === 'win') {
         const next = streak + 1;
         return { pvpWinStreak: next, pvpBestStreak: Math.max(best, next) };

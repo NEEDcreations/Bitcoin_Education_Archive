@@ -449,6 +449,64 @@ test('the lock copy is the sentence shown before an address is saved', function(
     assert.ok(hosting.indexOf('https://www.recaptcha.net') !== -1);
 });
 
+
+test('K15: rate bucket key: IPv4 exact, mapped IPv4 as IPv4, IPv6 by /64 in any form', function() {
+    const k = guard.rateKeyForIp;
+    assert.strictEqual(k('203.0.113.44'), '203.0.113.44');
+    assert.strictEqual(k(' 203.0.113.44 '), '203.0.113.44');
+    assert.strictEqual(k('::ffff:203.0.113.9'), '203.0.113.9');
+    assert.strictEqual(k('::FFFF:203.0.113.9'), '203.0.113.9');
+    assert.strictEqual(k('::ffff:cb00:7109'), '203.0.113.9');
+    assert.strictEqual(k('0:0:0:0:0:ffff:cb00:7109'), '203.0.113.9');
+    const a = k('2001:db8:85a3:12::1');
+    assert.strictEqual(a, 'v6:2001:0db8:85a3:0012::/64');
+    // Same /64, different hosts and spellings: one bucket.
+    [
+        '2001:db8:85a3:12::2',
+        '2001:0DB8:85A3:0012:ffff:ffff:ffff:ffff',
+        '2001:db8:85a3:12:0:0:0:abcd',
+        '[2001:db8:85a3:12::99]',
+        '[2001:db8:85a3:12::99]:443',
+        '2001:db8:85a3:12::99%eth0',
+        '2001:db8:85a3:12:1:2:203.0.113.9',
+    ].forEach(function(ip) { assert.strictEqual(k(ip), a, ip); });
+    // A different /64 is a different bucket.
+    assert.notStrictEqual(k('2001:db8:85a3:13::1'), a);
+    assert.strictEqual(k('::1'), 'v6:0000:0000:0000:0000::/64');
+    // Not an IP: unchanged (non-IP callers such as the recovery email key).
+    assert.strictEqual(k('unknown'), 'unknown');
+    assert.strictEqual(k('someone@example.com'), 'someone@example.com');
+    assert.strictEqual(k('uid_abc123'), 'uid_abc123');
+    assert.strictEqual(k(''), '');
+    assert.strictEqual(k(null), '');
+    assert.strictEqual(k('2001:db8:::1'), '2001:db8:::1');
+});
+
+test('K15: network rate doc ids share one bucket per IPv6 /64 and keep IPv4 ids unchanged', function() {
+    const salt = require('../functions/src/rateLimitSalt');
+    const crypto = require('crypto');
+    const secret = 'k'.repeat(32);
+    const day = Date.UTC(2026, 10, 18);
+    const id = function(ip) { return salt.networkRateDocIdFromSecret('pvp_anon_net_', ip, day, secret); };
+    // IPv4 id is byte-for-byte what the old String(ip) code produced.
+    const legacy = 'pvp_anon_net_' + crypto.createHmac('sha256', secret).update('pvp_anon_net_|203.0.113.9|2026-11-18').digest('hex').slice(0, 40);
+    assert.strictEqual(id('203.0.113.9'), legacy);
+    assert.strictEqual(id('::ffff:203.0.113.9'), legacy);
+    // One IPv6 /64 cannot mint fresh buckets by rotating the interface id.
+    const seen = new Set();
+    for (let i = 1; i <= 50; i++) seen.add(id('2001:db8:aa:bb::' + i.toString(16)));
+    seen.add(id('2001:0db8:00aa:00bb:dead:beef:0:1'));
+    assert.strictEqual(seen.size, 1);
+    assert.notStrictEqual(id('2001:db8:aa:bc::1'), id('2001:db8:aa:bb::1'));
+    // Deletion ids follow the same rule.
+    assert.strictEqual(salt.deletionIpDocId('2001:db8:aa:bb::1', day, secret), salt.deletionIpDocId('2001:db8:aa:bb::ffff', day, secret));
+    const legacyDel = 'deleteip_' + crypto.createHmac('sha256', secret).update('203.0.113.9|2026-11-18').digest('hex').slice(0, 40);
+    assert.strictEqual(salt.deletionIpDocId('203.0.113.9', day, secret), legacyDel);
+    // A non-IP key (recover_ by email) hashes exactly as before.
+    const legacyEmail = 'recover_' + crypto.createHmac('sha256', secret).update('recover_|a@example.com|2026-11-18').digest('hex').slice(0, 40);
+    assert.strictEqual(salt.networkRateDocIdFromSecret('recover_', 'a@example.com', day, secret), legacyEmail);
+});
+
 Promise.all(queue).then(function() {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

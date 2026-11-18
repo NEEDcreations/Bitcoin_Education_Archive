@@ -6,6 +6,7 @@
 // read that collection. The salt doc expires after two days.
 
 const crypto = require('crypto');
+const { rateKeyForIp } = require('./faucetGuard');
 
 const SALT_COLLECTION = 'rate_limit_salts';
 const PUBLIC_RATE_KEY = /^delete-rate-\d{4}-\d{2}-\d{2}$/;
@@ -38,7 +39,7 @@ function deletionIpDocId(ip, nowMs, secret) {
         throw err;
     }
     const day = utcDay(nowMs);
-    const hash = crypto.createHmac('sha256', secret).update(String(ip) + '|' + day).digest('hex').slice(0, 40);
+    const hash = crypto.createHmac('sha256', secret).update(rateKeyForIp(ip) + '|' + day).digest('hex').slice(0, 40);
     return 'deleteip_' + hash;
 }
 
@@ -49,7 +50,7 @@ function networkRateDocIdFromSecret(prefix, ip, nowMs, secret) {
         throw err;
     }
     const day = utcDay(nowMs);
-    const hash = crypto.createHmac('sha256', secret).update(prefix + '|' + String(ip) + '|' + day).digest('hex').slice(0, 40);
+    const hash = crypto.createHmac('sha256', secret).update(prefix + '|' + rateKeyForIp(ip) + '|' + day).digest('hex').slice(0, 40);
     return prefix + hash;
 }
 
