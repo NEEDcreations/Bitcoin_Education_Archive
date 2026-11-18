@@ -3035,11 +3035,15 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
 // All point awards go through this Cloud Function instead of direct Firestore writes
 // Enforces daily cap server-side, eliminates localStorage bypass and console inflation
 const beatsPlays = require('./src/beatsPlays');
+const guestGate = require('./src/guestGate');
 
 exports.recordBeatsPlay = functionsV1.https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    if (await guestGate.isGuestCaller(admin, context)) {
+        return { counted: false, reason: 'guest' };
     }
     const result = await beatsPlays.recordPlay(db, admin, context.auth.uid, data && data.trackId, Date.now());
     if (result && result.counted && result.plays) {
@@ -3064,6 +3068,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    // Guests earn nothing here. Points earned on an anonymous session could
+    // later move to a signed-in account and be claimed.
+    if (await guestGate.isGuestCaller(admin, context)) {
+        return { success: false, guest: true, error: guestGate.GUEST_EARN_ERROR, awarded: 0, tickets: 0 };
     }
     const uid = context.auth.uid;
     const actionKey = (data.actionKey || '').substring(0, 50);
@@ -3404,6 +3413,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     // client that still calls this phrase does not throw.
     if (resolved.id === 'daily_spin') {
         return { success: true, awarded: 0, tickets: 0 };
+    }
+    // Guest progress moves only through linkGuestAccount, which marks it
+    // unclaimable. This legacy action grants nothing and writes nothing.
+    if (resolved.id === 'anon_merge') {
+        return { success: true, awarded: 0, tickets: 0, merged: false };
     }
 
 
@@ -4509,7 +4523,7 @@ exports.pvpTimeoutOpponent = functionsV1.runWith({ enforceAppCheck: true }).http
 exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    if (await guestGate.isGuestCaller(admin, context)) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot spin');
     }
 
@@ -5786,6 +5800,7 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
         const data = change.after.data() || {};
         const pub = {};
         PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in data) pub[f] = data[f]; });
+        if ('points' in data || 'guestUnclaimableXp' in data) pub.points = boardSnapshots.allTimeXp(data);
         try {
             await pubRef.set(pub, { merge: false });
             const beforeData = change.before && change.before.exists ? (change.before.data() || {}) : null;
@@ -5806,21 +5821,8 @@ exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) 
             throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
         }
         const snap = await db.collection('users').get();
-        const batch_size = 400;
-        let count = 0;
-        let batch = db.batch();
-        snap.forEach(doc => {
-            const d = doc.data();
-            const pub = {};
-            PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in d) pub[f] = d[f]; });
-            batch.set(db.collection('public_profiles').doc(doc.id), pub, { merge: false });
-            count++;
-            if (count % batch_size === 0) {
-                batch.commit().catch(e => console.error('[backfill] batch commit failed:', e));
-                batch = db.batch();
-            }
-        });
-        if (count % batch_size !== 0) await batch.commit();
+        // Awaits every batch commit, so a failed write fails the call.
+        const count = await boardSnapshots.backfillPublicProfiles(db, snap.docs, PUBLIC_PROFILE_FIELDS, 400);
         console.log('[backfillPublicProfiles] done:', count, 'docs');
         return { success: true, count };
     });
@@ -7328,78 +7330,47 @@ exports.searchUsers = functionsV1.https.onCall(async (data, context) => {
     const afterRank = parseInt(data.afterRank) || 0;
 
     // ── Run both queries in parallel for speed ──────────────────────────────
-    // Path 1: fast prefix search on username_lower index
-    // Path 2: top-500 ranked scan for substring / missing-index fallback
+    // Both read public_profiles, whose points field is the all-time board
+    // score (users.points minus guestUnclaimableXp, floored at 0). Order and
+    // rank match the board. Single-field queries only, no composite index.
+    // Path 1: fast prefix search on username_lower
+    // Path 2: top-500 by board score for substring matches and rank
     const PREFIX_LIMIT = 200;
     const SCAN_LIMIT = 500;
     const [prefixSnap, scanSnap] = await Promise.all([
-        db.collection('users')
+        db.collection('public_profiles')
             .where('username_lower', '>=', query)
             .where('username_lower', '<=', query + '\uf8ff')
             .limit(PREFIX_LIMIT)
             .get(),
-        db.collection('users')
+        db.collection('public_profiles')
             .where('points', '>', 0)
             .orderBy('points', 'desc')
             .limit(SCAN_LIMIT)
             .get()
     ]);
+    const rowsOfSnap = (snap) => { const out = []; snap.forEach(doc => out.push({ id: doc.id, data: doc.data() || {} })); return out; };
+    const prefixRows = rowsOfSnap(prefixSnap);
+    const scanRows = rowsOfSnap(scanSnap);
 
-    const seenUids = new Set();
-    const prefixDocs = [];
-    prefixSnap.forEach(doc => {
-        const d = doc.data();
-        if (d.ghostMode) return;
-        seenUids.add(doc.id);
-        prefixDocs.push({ id: doc.id, data: d });
-    });
-
-    const scanDocs = [];
-    scanSnap.forEach(doc => {
-        if (seenUids.has(doc.id)) return; // already have from prefix path
-        const d = doc.data();
-        if (d.ghostMode) return;
-        const name = (d.username || '').toLowerCase();
-        if (!name.includes(query)) return;
-        scanDocs.push({ id: doc.id, data: d });
-    });
-
-    // ── Merge, assign global rank from scan order, sort by points ───────────
-    // Build a points-desc index from the scan for rank assignment.
-    // Prefix-only docs get rank = 9999 (not in top-500, but still valid results).
-    const rankMap = new Map();
-    let ri = 0;
-    scanSnap.forEach(doc => { rankMap.set(doc.id, ++ri); });
-
-    // For users not in the top-500 scan, fetch their real rank by counting
-    // how many users have more points. Batch these lookups in parallel.
-    const needRankDocs = prefixDocs.filter(({ id }) => !rankMap.has(id) && (prefixDocs.find(p => p.id === id)?.data?.points || 0) > 0);
+    // Prefix matches outside the top 500 get a rank from a count of higher
+    // board scores. Same field as the board, so no new index.
+    const scanIds = new Set(scanRows.map(r => r.id));
+    const needRank = prefixRows.filter(r => !scanIds.has(r.id) && !(r.data && r.data.ghostMode === true) && boardSnapshots.allTimeXp(r.data) > 0);
     const rankFetches = await Promise.all(
-        needRankDocs.map(({ id, data: d }) =>
-            db.collection('users')
-                .where('points', '>', d.points || 0)
+        needRank.map(r =>
+            db.collection('public_profiles')
+                .where('points', '>', boardSnapshots.allTimeXp(r.data))
                 .count()
                 .get()
-                .then(snap => ({ id, rank: snap.data().count + 1 }))
-                .catch(() => ({ id, rank: null }))
+                .then(snap => ({ id: r.id, rank: snap.data().count + 1 }))
+                .catch(() => ({ id: r.id, rank: null }))
         )
     );
-    rankFetches.forEach(({ id, rank }) => { if (rank !== null) rankMap.set(id, rank); });
+    const extraRanks = new Map();
+    rankFetches.forEach(({ id, rank }) => { if (rank !== null) extraRanks.set(id, rank); });
 
-    const toEntry = ({ id, data: d }) => ({
-        uid: id,
-        username: d.username || 'Anon',
-        points: d.points || 0,
-        rank: rankMap.get(id) || null,
-        faction: d.faction || null,
-        country: d.country || null,
-        lightningAddress: d.lightningAddress || d.lightning || null,
-    });
-
-    const merged = [
-        ...prefixDocs.map(toEntry),
-        ...scanDocs.map(toEntry),
-    ].sort((a, b) => b.points - a.points);
+    const merged = boardSnapshots.userSearchEntries(prefixRows, scanRows, query, extraRanks);
 
     // Pagination by rank cursor
     const page = afterRank > 0 ? merged.filter(u => u.rank > afterRank) : merged;
@@ -7998,10 +7969,9 @@ exports.seedWeeklyChallenge = functionsV1.https.onCall(async (data, context) => 
 // Increment community challenge progress (called from client - quiz completion, trivia correct)
 exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    // [SECURITY FIX] Block anonymous users — previously only checked context.auth exists.
-    // Anonymous accounts are free to create; an attacker could spam N anonymous UIDs
-    // and solo-complete the community challenge, triggering the SF boost and badge awards.
-    if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    // Block guests. isGuestCaller also checks Auth, so a stale anonymous token
+    // after an in-place link is treated as signed in, same as awardPoints.
+    if (await guestGate.isGuestCaller(admin, context)) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot contribute to weekly challenges');
     }
     const uid = context.auth.uid;

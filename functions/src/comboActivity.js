@@ -5,6 +5,7 @@
 // grants combo_trio, combo_mega, and combo_legend once each.
 
 const { awardBadge } = require('./awardBadge');
+const { isGuestUid } = require('./guestGate');
 
 const ZONES = {
     pvp: true,
@@ -48,6 +49,8 @@ function planCombo(prev, zone) {
 
 async function noteComboZone(db, adminSdk, uid, zone, day) {
     if (!uid || !day || !ZONES[zone]) return { noted: false, grant: [] };
+    // Guests record no zones, so a later sign-in does not inherit guest combo progress.
+    if (await isGuestUid(adminSdk, uid)) return { noted: false, grant: [], reason: 'guest' };
     const ref = db.collection('users').doc(uid).collection('daily_action_counts').doc(day + '_combo');
     let plan = planCombo(null, zone);
     await db.runTransaction(async function (t) {
