@@ -139,7 +139,7 @@ test('the live quiz bank keeps option counts, drops removed rows, and flags time
     const energy = pool.find((r) => r.q === 'Bitcoin mining primarily uses which type of energy?');
     assert.strictEqual(energy.a, 'A large and growing share');
     const hash = pool.find((r) => r.q.indexOf('approximate network hashrate in the 2024') !== -1);
-    assert.strictEqual(hash.a, 'Over 700 EH/s');
+    assert.strictEqual(hash.a, 'Over 700 exahashes per second (EH/s)');
     const fx = pool.find((r) => r.q === 'The first Bitcoin exchange rate was established at approximately:');
     assert.deepStrictEqual(fx.wrong, ['$1.00', '$0.10', '$100']);
     const bowl = pool.find((r) => /Super Bowl of Bitcoin/.test(r.q));
