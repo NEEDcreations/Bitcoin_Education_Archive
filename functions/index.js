@@ -7003,6 +7003,14 @@ exports.adminSetFavorClaims = favorBlockClaimFns.adminSetFavorClaims;
 exports.adminFreezeFavorEpoch = favorBlockClaimFns.adminFreezeFavorEpoch;
 exports.adminResolveFavorReview = favorBlockClaimFns.adminResolveFavorReview;
 
+// Payout reconciliation (draft, not deployed): ledger match, stuck-paying
+// flags, optional wallet listing behind config/payoutReconcile.listWallet.
+// Binds no wallet secret.
+const payoutReconcileFns = require('./src/payoutReconcile').factory(functionsV1, {
+    db: db, admin: admin, onSchedule: onSchedule,
+});
+exports.reconcilePayouts = payoutReconcileFns.reconcilePayouts;
+
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
 // The same private minute job posts the one ending heads-up. No public invoker.
 const { announceFavorEnding } = require('./src/favorEndingAnnounce');
