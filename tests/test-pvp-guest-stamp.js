@@ -126,17 +126,97 @@ test('index.js: create stamps the key doc and match doc; settle and badges read 
 });
 
 // ---- caps ----
-test('caps: a guest match never charges the signed-in player; global and network caps apply', function () {
+test('caps: a guest match never charges a waiting signed-in player1; global and network caps apply', function () {
     const g = pvpFlow.planMatchCharges({ p1Guest: false, p2Guest: true, hasNetwork: true });
     assert.ok(!g.some(function (c) { return c.who === 'player1'; }), 'signed-in p1 not charged');
-    assert.ok(g.some(function (c) { return c.who === 'player2'; }));
+    assert.ok(g.some(function (c) { return c.who === 'player2' && c.max === 20; }));
     assert.ok(g.some(function (c) { return c.who === 'global' && c.max === pvpFlow.PVP_ANON_GLOBAL_PER_HOUR; }));
     assert.ok(g.some(function (c) { return c.who === 'network' && c.max === pvpFlow.PVP_ANON_NETWORK_PER_HOUR; }));
-    const g2 = pvpFlow.planMatchCharges({ p1Guest: true, p2Guest: false, hasNetwork: true });
-    assert.ok(!g2.some(function (c) { return c.who === 'player2'; }), 'signed-in p2 not charged');
     const s = pvpFlow.planMatchCharges({ p1Guest: false, p2Guest: false, hasNetwork: true });
     assert.deepStrictEqual(s.map(function (c) { return c.who; }).sort(), ['player1', 'player2']);
 });
+test('caps (K10a): a signed-in caller starting a guest match spends their own hourly cap and the network bucket', function () {
+    const g2 = pvpFlow.planMatchCharges({ p1Guest: true, p2Guest: false, hasNetwork: true });
+    const who = g2.map(function (c) { return c.who; }).sort();
+    assert.deepStrictEqual(who, ['global', 'network', 'player1', 'player2']);
+    assert.ok(g2.some(function (c) { return c.who === 'player2' && c.bucket === 'match_hour' && c.max === 60; }), 'signed-in caller charged at the signed-in cap');
+    assert.ok(g2.some(function (c) { return c.who === 'player1' && c.max === 20; }));
+    assert.ok(g2.some(function (c) { return c.who === 'network' && c.max === pvpFlow.PVP_ANON_NETWORK_PER_HOUR; }));
+    const noIp = pvpFlow.planMatchCharges({ p1Guest: true, p2Guest: false, hasNetwork: false });
+    assert.ok(!noIp.some(function (c) { return c.who === 'network'; }), 'no network charge without an IP');
+    const both = pvpFlow.planMatchCharges({ p1Guest: true, p2Guest: true, hasNetwork: true });
+    assert.deepStrictEqual(both.map(function (c) { return c.who; }).sort(), ['global', 'network', 'player1', 'player2']);
+});
+test('caps (K10a): 15 anonymous lobbies from one signed-in caller stop at the caller and network caps, far below the global bucket', function () {
+    // Simulate one signed-in caller (one IP) joining fresh anonymous lobby uids.
+    const buckets = {};
+    let made = 0;
+    for (let i = 0; i < 500; i++) {
+        const charges = pvpFlow.planMatchCharges({ p1Guest: true, p2Guest: false, hasNetwork: true });
+        const keys = charges.map(function (c) {
+            if (c.who === 'player1') return 'p1_' + i; // a fresh anonymous uid each time
+            if (c.who === 'player2') return 'caller';
+            return c.who;
+        });
+        const ok = charges.every(function (c, ci) { return (buckets[keys[ci]] || 0) < c.max; });
+        if (!ok) continue;
+        keys.forEach(function (k) { buckets[k] = (buckets[k] || 0) + 1; });
+        made++;
+    }
+    assert.strictEqual(made, pvpFlow.PVP_ANON_NETWORK_PER_HOUR);
+    assert.ok(buckets.global < pvpFlow.PVP_ANON_GLOBAL_PER_HOUR / 5, 'global bucket left for everyone else');
+});
+test('index.js (K10a): the network bucket is computed for any guest match, not only a guest caller', function () {
+    const src = read('functions/index.js');
+    const c = src.slice(src.indexOf('exports.pvpCreateMatch ='), src.indexOf('// ── Scholar Exam'));
+    assert.ok(/if \(guestStamp\.guestMatch && createIp\)/.test(c));
+    assert.ok(!/if \(callerGuest && createIp\)/.test(c));
+    assert.ok(c.indexOf('const guestStamp = pvpFlow.planGuestStamp') < c.indexOf('guestStamp.guestMatch && createIp'));
+});
+
+// ---- lobby summary work cap (K10b) ----
+test('lobby (K10b): create, delete and status changes count; heartbeats do not', function () {
+    const w = { uid: 'a', status: 'waiting', lastSeen: 1 };
+    assert.strictEqual(pvpFlow.isLobbyStructuralEvent(null, w), true);
+    assert.strictEqual(pvpFlow.isLobbyStructuralEvent(w, null), true);
+    assert.strictEqual(pvpFlow.isLobbyStructuralEvent(w, Object.assign({}, w, { status: 'matched' })), true);
+    assert.strictEqual(pvpFlow.isLobbyStructuralEvent(w, Object.assign({}, w, { lastSeen: 9000 })), false);
+    assert.strictEqual(pvpFlow.isLobbyStructuralEvent(null, null), false);
+});
+test('lobby (K10b): the per-uid window allows about 6 events a minute, then skips until the window resets', function () {
+    assert.strictEqual(pvpFlow.PVP_LOBBY_EVENTS_PER_MIN, 6);
+    let doc = null;
+    const t0 = 1000000;
+    const results = [];
+    for (let i = 0; i < 10; i++) {
+        const p = pvpFlow.planLobbyEventWindow(doc, t0 + i * 1000);
+        results.push(p.ok);
+        if (p.ok) doc = Object.assign({}, doc || {}, p.write, { lastLobbyShoutMs: 5 });
+    }
+    assert.deepStrictEqual(results, [true, true, true, true, true, true, false, false, false, false]);
+    assert.strictEqual(doc.lastLobbyShoutMs, 5, 'shares pvp_rate/{uid} with the shout timer without clobbering it');
+    const later = pvpFlow.planLobbyEventWindow(doc, t0 + pvpFlow.PVP_LOBBY_EVENTS_WINDOW_MS + 1);
+    assert.strictEqual(later.ok, true);
+    assert.strictEqual(later.write.lobbyCount, 1);
+});
+test('index.js (K10b): syncPvpLobbyLive caps per uid before the Auth lookup and skips the summary transaction for blocked players', function () {
+    const src = read('functions/index.js');
+    const start = src.indexOf('async function syncPvpLobbyLive');
+    const fn = src.slice(start, src.indexOf('exports.onPvpLobbyLive'));
+    const rate = fn.indexOf('pvpLobbyEventAllowed(docId, now)');
+    const auth = fn.indexOf('pvpAccountFlags(docId)');
+    const tx = fn.indexOf('db.runTransaction');
+    assert.ok(rate > 0 && auth > rate, 'rate window before the Auth lookup');
+    assert.ok(/isLobbyStructuralEvent\(before, after\)/.test(fn));
+    const blockedReturn = fn.indexOf('if (blocked && !(await summaryRow())) return;');
+    assert.ok(blockedReturn > auth && blockedReturn < tx, 'blocked players return before the transaction');
+    const leaveReturn = fn.indexOf("if ((!after || after.status !== 'waiting') && !(await summaryRow())) return;");
+    assert.ok(leaveReturn > 0 && leaveReturn < tx, 'a leave with no summary row skips the transaction');
+    const helper = src.slice(src.indexOf('async function pvpLobbyEventAllowed'), start);
+    assert.ok(/collection\('pvp_rate'\)\.doc\(docId\)/.test(helper));
+    assert.ok(/planLobbyEventWindow/.test(helper) && /merge: true/.test(helper));
+});
+
 test('index.js: hourly caps are charged inside the claim transaction', function () {
     const src = read('functions/index.js');
     const c = src.slice(src.indexOf('exports.pvpCreateMatch ='), src.indexOf('// ── Scholar Exam'));
@@ -201,6 +281,71 @@ test('index.js: answer submit charges the uid and, for a guest, the hashed-IP bu
     assert.ok(/isAnonymousAuth\(context\)/.test(c));
     assert.ok(/pvp_anon_ans_min_/.test(c) && /pvp_anon_ans_hour_/.test(c));
     assert.ok(/networkRateDocId/.test(c));
+});
+
+// ---- K11: server opponent name ----
+test('K11: pvpCreateMatch returns the server-checked opponent name and the client uses it, not the lobby name', function () {
+    const src = read('functions/index.js');
+    const c = src.slice(src.indexOf('exports.pvpCreateMatch ='), src.indexOf('// ── Scholar Exam'));
+    assert.ok(/opponentName = p1Name;/.test(c));
+    assert.ok(/return \{ matchId: matchRef\.id, guestMatch: guestStamp\.guestMatch, opponentName: opponentName \}/.test(c));
+    const client = read('pvp.js.src');
+    assert.ok(!/pvpState\.opponentName = \(waitingData && waitingData\.name\)/.test(client), 'raw lobby name not shown');
+    assert.ok(/pvpState\.opponentName = \(res\.data && typeof res\.data\.opponentName === 'string' && res\.data\.opponentName\) \|\| 'Opponent'/.test(client));
+});
+test('K11: the pvp_lobby create rule applies the name list to everyone (no server-username bypass)', function () {
+    const rules = read('firestore.rules');
+    assert.ok(!/pvpHasServerUsername/.test(rules));
+    const m = rules.slice(rules.indexOf('match /pvp_lobby/{docId}'), rules.indexOf('match /pvp_lobby_live/{docId}'));
+    assert.ok(/&& pvpLobbyNameAllowed\(request\.resource\.data\.name\)/.test(m));
+});
+
+// ---- K12: guest quick battle names ----
+function loadClientNameHelpers(opts) {
+    const src = read('pvp.js.src');
+    function grab(name) {
+        const i = src.indexOf('    function ' + name + '(');
+        assert.ok(i > 0, name);
+        const j = src.indexOf('\n    }\n', i);
+        return src.slice(i, j + 6);
+    }
+    const body = grab('pvpCleanName') + grab('pvpNameReserved') + grab('lobbyDisplayName') +
+        'return { pvpCleanName: pvpCleanName, pvpNameReserved: pvpNameReserved, lobbyDisplayName: lobbyDisplayName };';
+    // eslint-disable-next-line no-new-func
+    return new Function('getMyDisplayName', 'isPvpGuest', 'currentUser', body)(
+        function () { return opts.name; }, function () { return opts.guest; }, opts.currentUser);
+}
+test('K12: a guest with a reserved quick name gets Guest Bitcoiner even when currentUser.username is set', function () {
+    const h = loadClientNameHelpers({ name: 'Nacho Fan', guest: true, currentUser: { username: 'Nacho Fan' } });
+    assert.strictEqual(h.lobbyDisplayName(), 'Guest Bitcoiner');
+    const plain = loadClientNameHelpers({ name: 'Hodler 21', guest: true, currentUser: { username: 'Hodler 21' } });
+    assert.strictEqual(plain.lobbyDisplayName(), 'Hodler 21');
+    ['Phil', 'real phil', 'NEEDcreations', 'Rufus', 'admin', 'Bitcoin Quest', 'mod', '603btc'].forEach(function (n) {
+        assert.strictEqual(h.pvpNameReserved(n), true, n);
+    });
+    ['Hodler 21', 'philosopher', 'modern', 'Satoshi'].forEach(function (n) {
+        assert.strictEqual(h.pvpNameReserved(n), false, n);
+    });
+});
+test('K12: a logged-in player whose username trips the list sends a plain lobby name (the match uses the username)', function () {
+    const h = loadClientNameHelpers({ name: 'nachofan', guest: false, currentUser: { username: 'nachofan' } });
+    assert.strictEqual(h.lobbyDisplayName(), 'Bitcoiner');
+    const ok = loadClientNameHelpers({ name: 'satoshi21', guest: false, currentUser: { username: 'satoshi21' } });
+    assert.strictEqual(ok.lobbyDisplayName(), 'satoshi21');
+});
+test('K12: the quick-name submit refuses reserved names and never writes currentUser.username', function () {
+    const src = read('pvp.js.src');
+    const sub = src.slice(src.indexOf('window.pvpQuickNameSubmit'), src.indexOf('window.enterPVPMode'));
+    const reserved = sub.indexOf('pvpNameReserved(');
+    const signIn = sub.indexOf('signInAnonymously');
+    assert.ok(reserved > 0 && reserved < signIn, 'reserved check before anonymous sign-in');
+    assert.ok(/That name is reserved/.test(sub));
+    assert.ok(!/currentUser\.username\s*=/.test(sub));
+    const enter = src.slice(src.indexOf('window.enterPVPMode'), src.indexOf('window.enterPVPMode') + 2000);
+    assert.ok(!/currentUser\.username\s*=/.test(enter));
+    const ldn = src.slice(src.indexOf('function lobbyDisplayName'), src.indexOf('function addToLobbyAndListen'));
+    const code = ldn.split('\n').filter(function (l) { return !/^\s*\/\//.test(l); }).join('\n');
+    assert.ok(/isPvpGuest\(\)/.test(code) && !/currentUser/.test(code));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

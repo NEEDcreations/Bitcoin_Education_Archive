@@ -4852,7 +4852,8 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
     const createNow = Date.now();
     let networkRef = null;
     const createIp = faucetGuard.clientIpFromRequest(context && context.rawRequest);
-    if (callerGuest && createIp) {
+    // Any guest match (either side) charges the caller's network bucket.
+    if (guestStamp.guestMatch && createIp) {
         try {
             const { networkRateDocId } = require('./src/rateLimitSalt');
             networkRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'pvp_anon_net_', createIp, createNow));
@@ -4869,6 +4870,7 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
     const matchRef = db.collection('pvp_matches').doc(); // pre-generate ID
     let challengedUid = '';
     let challengerName = 'A Bitcoiner';
+    let opponentName = 'Opponent';
 
     await db.runTransaction(async (tx) => {
         const lobbySnap = await tx.get(lobbyRef);
@@ -4900,8 +4902,8 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
         const chargeSnaps = [];
         for (let ci = 0; ci < chargeRefs.length; ci++) chargeSnaps.push(await tx.get(chargeRefs[ci]));
         // All reads are done. Charge the hourly caps inside the claim, so a
-        // refused match charges nobody and a guest match never spends a
-        // signed-in player's cap.
+        // refused match charges nobody. A guest match never spends a waiting
+        // signed-in player1's cap; the caller is always charged.
         for (let ci = 0; ci < chargeRefs.length; ci++) {
             pvpTxCharge(tx, chargeRefs[ci], chargeSnaps[ci], charges[ci].max, pvpFlow.PVP_MATCH_HOUR_MS, createNow);
         }
@@ -4916,6 +4918,7 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
         const p2Pic = pvpSafePic(player2 && player2.profilePic);
         challengedUid = p1Uid;
         challengerName = p2Name;
+        opponentName = p1Name;
 
         // Create the match document
         tx.set(matchRef, {
@@ -4973,7 +4976,9 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
         } catch (e) { console.warn('[pvpCreateMatch] push failed', e.message); }
     }
 
-    return { matchId: matchRef.id, guestMatch: guestStamp.guestMatch };
+    // opponentName is the server-checked player1 name, so the countdown
+    // screen never shows the raw lobby name.
+    return { matchId: matchRef.id, guestMatch: guestStamp.guestMatch, opponentName: opponentName };
 });
 
 // ── Scholar Exam: Server-Side Grading ──
@@ -5673,16 +5678,17 @@ exports.onPvpMatchFinished = onDocumentUpdated({
         // Only the create-time stamp decides a guest match (never live Auth).
         const stampSnap = await db.collection('pvp_answer_keys').doc(matchId).get();
         const stamp = pvpFlow.readGuestStamp(stampSnap.exists ? stampSnap.data() : null);
-        const skipUids = [];
-        const rewardUids = [];
-        for (let si = 0; si < sideUids.length; si++) {
-            if (stamp.guestMatch) skipUids.push(sideUids[si]);
-            else rewardUids.push(sideUids[si]);
-        }
+        // A guest match grants no badge family to either side.
+        const badgePlan = pvpFlow.planPvpBadgeGrants(sideUids, stamp);
+        const skipUids = badgePlan.skipUids;
+        const rewardUids = badgePlan.rewardUids;
         await activityCounters.recordPvpPlayed(db, admin, after, matchId, { skipUids: skipUids, guestMatch: stamp.guestMatch });
+        // pvpWins, pvpPlayed and pvpBestStreak (Hot Streak, Unstoppable).
+        // awardBadge re-checks each counter on the fresh user doc.
         for (let ri = 0; ri < rewardUids.length; ri++) {
             await grantFamily(db, admin, rewardUids[ri], familyFor('pvpWins'));
             await grantFamily(db, admin, rewardUids[ri], familyFor('pvpPlayed'));
+            await grantFamily(db, admin, rewardUids[ri], familyFor('pvpBestStreak'));
         }
     } catch (badgeErr) { console.warn('[onPvpMatchFinished] badges', badgeErr && badgeErr.message); }
     return null;
@@ -9076,13 +9082,41 @@ async function pushPvpLobby(joinerUid, name) {
     return lobbyPush.pushPvpLobby(joinerUid, name);
 }
 
+// Charges the per-uid lobby event window. Returns false past the cap.
+async function pvpLobbyEventAllowed(docId, nowMs) {
+    const rateRef = db.collection('pvp_rate').doc(docId);
+    return db.runTransaction(async (tx) => {
+        const snap = await tx.get(rateRef);
+        const planned = pvpFlow.planLobbyEventWindow(snap.exists ? snap.data() : null, nowMs);
+        if (!planned.ok) return false;
+        tx.set(rateRef, planned.write, { merge: true });
+        return true;
+    });
+}
+
 async function syncPvpLobbyLive(docId, before, after) {
     const now = Date.now();
     const liveRef = db.collection('pvp_lobby_live').doc('current');
+    let peekRow;
+    async function summaryRow() {
+        if (peekRow === undefined) {
+            const peek = await liveRef.get();
+            peekRow = (peek.exists && peek.data().entries && peek.data().entries[docId]) || null;
+        }
+        return peekRow;
+    }
     if (before && after) {
-        const peek = await liveRef.get();
-        const row = peek.exists && peek.data().entries ? peek.data().entries[docId] : null;
-        if (pvpFlow.shouldSkipLobbySummary(before, after, row, now)) return;
+        if (pvpFlow.shouldSkipLobbySummary(before, after, await summaryRow(), now)) return;
+    }
+    // Create, delete and status changes are capped per uid (heartbeats are
+    // not counted). Past the cap the work is skipped, except that a row
+    // already in the summary is still removed when the lobby doc goes away.
+    if (pvpFlow.isLobbyStructuralEvent(before, after)) {
+        const allowed = await pvpLobbyEventAllowed(docId, now);
+        if (!allowed) {
+            const leaving = !after || after.status !== 'waiting';
+            if (!leaving || !(await summaryRow())) return;
+        }
     }
     const becameWaiting = !!(after && after.status === 'waiting' && (!before || before.status !== 'waiting'));
     let trustedName = '';
@@ -9092,7 +9126,12 @@ async function syncPvpLobbyLive(docId, before, after) {
         const username = String(flags.username || '').trim();
         trustedName = username ? pvpFlow.safeDisplayName(username) : '';
         blocked = flags.banned || flags.anonymous || !username || trustedName === 'a Bitcoiner';
+        // A blocked player (guest, banned, or no username) is never listed.
+        // With no row to remove, skip the summary transaction entirely.
+        if (blocked && !(await summaryRow())) return;
     }
+    // A lobby doc leaving with no row in the summary has nothing to remove.
+    if ((!after || after.status !== 'waiting') && !(await summaryRow())) return;
     await db.runTransaction(async (tx) => {
         const snap = await tx.get(liveRef);
         const entries = (snap.exists && snap.data().entries) || {};

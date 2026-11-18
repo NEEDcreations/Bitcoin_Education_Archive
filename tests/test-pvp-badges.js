@@ -4,6 +4,10 @@ const assert = require('assert');
 const { awardBadge } = require('../functions/src/awardBadge');
 const badgeRules = require('../functions/src/badgeRules');
 const { recordPvpPlayed } = require('../functions/src/activityCounters');
+const { grantFamily, familyFor } = require('../functions/src/grantBadge');
+const pvpFlow = require('../functions/src/pvpFlow');
+const fs = require('fs');
+const path = require('path');
 
 let passed = 0;
 let failed = 0;
@@ -29,10 +33,26 @@ const admin = {
 
 function memoryDb(seed) {
     const docs = Object.assign({}, seed || {});
+    function subcollection(colPath) {
+        return {
+            doc: function (id) { return ref(colPath + '/' + id); },
+            get: async function () {
+                const out = [];
+                Object.keys(docs).forEach(function (k) {
+                    if (k.indexOf(colPath + '/') !== 0) return;
+                    const rest = k.slice(colPath.length + 1);
+                    if (rest.indexOf('/') !== -1 || docs[k] == null) return;
+                    const data = docs[k];
+                    out.push({ id: rest, data: function () { return Object.assign({}, data); } });
+                });
+                return { docs: out, forEach: function (fn) { out.forEach(fn); } };
+            },
+        };
+    }
     function ref(docPath) {
         return {
             path: docPath,
-            collection: function (name) { return { doc: function (id) { return ref(docPath + '/' + name + '/' + id); } }; },
+            collection: function (name) { return subcollection(docPath + '/' + name); },
             get: async function () {
                 const data = docs[docPath];
                 return { exists: data != null, data: function () { return data ? Object.assign({}, data) : undefined; } };
@@ -146,6 +166,59 @@ async function main() {
         const r2 = await recordPvpPlayed(db2, admin, after, 'match-h');
         assert.deepStrictEqual(r2.uids, []);
         assert.strictEqual(db2.docs['users/a'].pvpPlayed, 3);
+    });
+
+    await test('K9: pvpBestStreak family is Hot Streak and Unstoppable, and grantFamily pays them at streaks 3 and 5', async function () {
+        assert.deepStrictEqual(familyFor('pvpBestStreak'), ['pvp_win_streak_3', 'pvp_win_streak_5']);
+        // Streak 2: nothing.
+        const db2 = memoryDb({ 'users/u': { points: 0, pvpWins: 2, pvpBestStreak: 2 } });
+        const r2 = await grantFamily(db2, admin, 'u', familyFor('pvpBestStreak'));
+        assert.ok(!r2.some(function (r) { return r && r.granted; }));
+        assert.ok(!db2.docs['users/u/badge_awards/pvp_win_streak_3']);
+        // Streak 3: Hot Streak only.
+        const db3 = memoryDb({ 'users/u': { points: 0, pvpWins: 3, pvpBestStreak: 3 } });
+        const r3 = await grantFamily(db3, admin, 'u', familyFor('pvpBestStreak'));
+        assert.ok(r3[0] && r3[0].granted, 'pvp_win_streak_3 granted at 3');
+        assert.strictEqual(r3[0].xp || r3[0].awarded, 75);
+        assert.ok(!(r3[1] && r3[1].granted), 'pvp_win_streak_5 not granted at 3');
+        assert.ok(db3.docs['users/u/badge_awards/pvp_win_streak_3']);
+        assert.ok(!db3.docs['users/u/badge_awards/pvp_win_streak_5']);
+        // Streak 5 later: Unstoppable is added, Hot Streak is not paid twice.
+        db3.docs['users/u'] = Object.assign({}, db3.docs['users/u'], { pvpWins: 5, pvpBestStreak: 5 });
+        const r5 = await grantFamily(db3, admin, 'u', familyFor('pvpBestStreak'));
+        assert.strictEqual(r5[0].reason, 'already');
+        assert.ok(r5[1] && r5[1].granted, 'pvp_win_streak_5 granted at 5');
+        assert.strictEqual(r5[1].xp || r5[1].awarded, 150);
+        assert.ok(db3.docs['users/u/badge_awards/pvp_win_streak_5']);
+    });
+
+    await test('K9: a guest match (or a missing stamp) grants no badge family, a signed-in match grants all three', async function () {
+        const guest = pvpFlow.planPvpBadgeGrants(['a', 'b'], pvpFlow.readGuestStamp({ guestStamp: { version: 1, player1: false, player2: true } }));
+        assert.deepStrictEqual(guest.rewardUids, []);
+        assert.deepStrictEqual(guest.fields, []);
+        assert.deepStrictEqual(guest.skipUids, ['a', 'b']);
+        const missing = pvpFlow.planPvpBadgeGrants(['a', 'b'], pvpFlow.readGuestStamp(null));
+        assert.deepStrictEqual(missing.rewardUids, []);
+        const signed = pvpFlow.planPvpBadgeGrants(['a', 'b'], pvpFlow.readGuestStamp({ guestStamp: { version: 1, player1: false, player2: false } }));
+        assert.deepStrictEqual(signed.rewardUids, ['a', 'b']);
+        assert.deepStrictEqual(signed.fields, ['pvpWins', 'pvpPlayed', 'pvpBestStreak']);
+        // A guest at streak 5 (e.g. a stale counter) still gets nothing, because
+        // no family is granted for a guest match.
+        const db = memoryDb({ 'users/g': { points: 0, pvpWins: 5, pvpBestStreak: 5 } });
+        for (let i = 0; i < guest.fields.length; i++) await grantFamily(db, admin, 'g', familyFor(guest.fields[i]));
+        assert.ok(!db.docs['users/g/badge_awards/pvp_win_streak_3']);
+        assert.ok(!db.docs['users/g/badge_awards/pvp_win_streak_5']);
+    });
+
+    await test('K9: onPvpMatchFinished grants every planned family to each reward uid', async function () {
+        const src = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+        const fin = src.slice(src.indexOf('exports.onPvpMatchFinished'), src.indexOf('exports.onUserDocCreated'));
+        assert.ok(/pvpFlow\.planPvpBadgeGrants\(sideUids, stamp\)/.test(fin));
+        ['pvpWins', 'pvpPlayed', 'pvpBestStreak'].forEach(function (f) {
+            assert.ok(fin.includes("grantFamily(db, admin, rewardUids[ri], familyFor('" + f + "'))"), f);
+        });
+        assert.ok(/const rewardUids = badgePlan\.rewardUids;/.test(fin));
+        assert.ok(fin.indexOf('recordPvpPlayed') < fin.indexOf("familyFor('pvpBestStreak')"), 'played count first, then badges');
     });
 
     console.log(failed ? ('\n' + failed + ' failed') : ('\n' + passed + ' passed'));

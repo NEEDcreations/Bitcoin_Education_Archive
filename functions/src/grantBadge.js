@@ -178,6 +178,8 @@ const FAMILY = {
     replyBonusCount: ['reply_bonus_1', 'reply_bonus_25', 'reply_bonus_100', 'reply_bonus_500'],
     pvpWins: ['pvp_first', 'pvp_5', 'pvp_25', 'pvp_50', 'pvp_100'],
     pvpPlayed: ['pvp_played_1', 'pvp_played_10', 'pvp_played_50'],
+    // Server streak (users.pvpBestStreak, written only in the settle transaction).
+    pvpBestStreak: ['pvp_win_streak_3', 'pvp_win_streak_5'],
     ciphersSolved: ['cipher_1', 'cipher_10', 'cipher_50', 'cipher_200'],
     sfHashes: ['sf_first_hash', 'sf_10_hashes', 'sf_50_hashes', 'sf_100_hashes', 'sf_500_hashes', 'sf_1000_hashes', 'sf_10000_hashes', 'sf_100000_hashes', 'hash_obsessed'],
     pointsDonated: ['donor_100', 'donor_500', 'donor_1000', 'donor_5000', 'donor_10000', 'donor_25000', 'donor_50000', 'donor_100000', 'silent_donor'],

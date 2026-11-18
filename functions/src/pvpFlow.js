@@ -575,7 +575,8 @@ function readGuestStamp(keyData) {
 // ---- Match create caps ----
 // Per-uid hourly caps, plus caps that a fresh anonymous uid cannot reset:
 // one global anonymous-create bucket per hour and one per network (keyed hash).
-// A signed-in player's hourly cap is charged only for a signed-in match.
+// The caller (player2) is always charged. A waiting signed-in player1 is
+// charged only for a signed-in match.
 const PVP_ANON_GLOBAL_PER_HOUR = 300;
 const PVP_ANON_NETWORK_PER_HOUR = 30;
 function planMatchCharges(input) {
@@ -586,9 +587,15 @@ function planMatchCharges(input) {
     const out = [];
     if (guestMatch) {
         if (p1Guest) out.push({ who: 'player1', bucket: 'match_hour', max: 20 });
-        if (p2Guest) out.push({ who: 'player2', bucket: 'match_hour', max: 20 });
+        // player2 is always the caller. A logged-in caller who starts a guest
+        // match spends their own hourly cap too, so one account cannot use
+        // fresh anonymous lobbies to drain the shared guest bucket for free.
+        // A logged-in player1 (waiting in the lobby) is not charged, so guests
+        // cannot burn a waiting player's cap by joining them.
+        out.push({ who: 'player2', bucket: 'match_hour', max: p2Guest ? 20 : 60 });
         out.push({ who: 'global', bucket: 'anon_global', max: PVP_ANON_GLOBAL_PER_HOUR });
-        if (p2Guest && src.hasNetwork) out.push({ who: 'network', bucket: 'anon_net', max: PVP_ANON_NETWORK_PER_HOUR });
+        // The network bucket applies to every guest match, whoever the caller is.
+        if (src.hasNetwork) out.push({ who: 'network', bucket: 'anon_net', max: PVP_ANON_NETWORK_PER_HOUR });
     } else {
         out.push({ who: 'player1', bucket: 'match_hour', max: 60 });
         out.push({ who: 'player2', bucket: 'match_hour', max: 60 });
@@ -648,6 +655,34 @@ function settleRewardPlan(input) {
     return { stamp: stamp, plan: plan };
 }
 
+// ---- Post-settle badge families ----
+// Server-counted PvP badge families granted after a match settles. A guest
+// match (or a missing stamp, which reads as a guest match) grants none.
+const PVP_BADGE_FIELDS = ['pvpWins', 'pvpPlayed', 'pvpBestStreak'];
+function planPvpBadgeGrants(sideUids, stamp) {
+    const uids = (sideUids || []).filter(function (u) { return typeof u === 'string' && u; });
+    const guest = !stamp || stamp.guestMatch !== false;
+    if (guest) return { rewardUids: [], skipUids: uids, fields: [] };
+    return { rewardUids: uids, skipUids: [], fields: PVP_BADGE_FIELDS.slice() };
+}
+
+// ---- Lobby summary work cap ----
+// Lobby create and delete events each cost an Auth lookup and a transaction on
+// the one pvp_lobby_live/current doc. Past this many per uid per minute the
+// trigger skips the work (heartbeats are not counted).
+const PVP_LOBBY_EVENTS_PER_MIN = 6;
+const PVP_LOBBY_EVENTS_WINDOW_MS = 60000;
+function isLobbyStructuralEvent(before, after) {
+    if (!before || !after) return !!(before || after);
+    return String(before.status || '') !== String(after.status || '');
+}
+function planLobbyEventWindow(rateDoc, nowMs) {
+    const d = rateDoc || {};
+    const existing = d.lobbyWindowStartMs ? { windowStartMs: d.lobbyWindowStartMs, count: d.lobbyCount } : null;
+    const planned = planRateWindow(existing, nowMs, PVP_LOBBY_EVENTS_PER_MIN, PVP_LOBBY_EVENTS_WINDOW_MS);
+    return { ok: planned.ok, write: { lobbyWindowStartMs: planned.windowStartMs, lobbyCount: planned.count } };
+}
+
 module.exports = {
     LOBBY_SHOUT_MS: LOBBY_SHOUT_MS,
     ALERT_COOLDOWN_MS: ALERT_COOLDOWN_MS,
@@ -700,6 +735,12 @@ module.exports = {
     readGuestStamp: readGuestStamp,
     GUEST_STAMP_VERSION: GUEST_STAMP_VERSION,
     planMatchCharges: planMatchCharges,
+    PVP_BADGE_FIELDS: PVP_BADGE_FIELDS,
+    planPvpBadgeGrants: planPvpBadgeGrants,
+    PVP_LOBBY_EVENTS_PER_MIN: PVP_LOBBY_EVENTS_PER_MIN,
+    PVP_LOBBY_EVENTS_WINDOW_MS: PVP_LOBBY_EVENTS_WINDOW_MS,
+    isLobbyStructuralEvent: isLobbyStructuralEvent,
+    planLobbyEventWindow: planLobbyEventWindow,
     settleRewardPlan: settleRewardPlan,
     PVP_ANON_GLOBAL_PER_HOUR: PVP_ANON_GLOBAL_PER_HOUR,
     PVP_ANON_NETWORK_PER_HOUR: PVP_ANON_NETWORK_PER_HOUR,

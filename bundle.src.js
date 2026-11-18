@@ -1088,8 +1088,8 @@ const BADGE_DEFS = [
     { id: 'pvp_played_1',     name: 'Challenger',     emoji: '🥋', desc: 'Played your first PVP battle',           check: () => !!(typeof currentUser !== 'undefined' && currentUser && ((currentUser.pvpPlayed || ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0))) >= 1)),  pts: 10 },
     { id: 'pvp_played_10',    name: 'Battle Tested',   emoji: '🪖', desc: 'Played 10 PVP battles',                  check: () => !!(typeof currentUser !== 'undefined' && currentUser && ((currentUser.pvpPlayed || ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0))) >= 10)), pts: 25 },
     { id: 'pvp_played_50',    name: 'Battle Hardened', emoji: '⚔️', desc: 'Played 50 PVP battles',                  check: () => !!(typeof currentUser !== 'undefined' && currentUser && ((currentUser.pvpPlayed || ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0))) >= 50)), pts: 75 },
-    { id: 'pvp_win_streak_3', name: 'Hot Streak',      emoji: '🔥', desc: 'Won 3 PVP battles in a row',              check: () => parseInt(localStorage.getItem('btc_pvp_win_streak') || '0') >= 3, pts: 75 },
-    { id: 'pvp_win_streak_5', name: 'Unstoppable',     emoji: '💥', desc: 'Won 5 PVP battles in a row',              check: () => parseInt(localStorage.getItem('btc_pvp_win_streak') || '0') >= 5, pts: 150 },
+    { id: 'pvp_win_streak_3', name: 'Hot Streak',      emoji: '🔥', desc: 'Won 3 PVP battles in a row',              check: () => !!(typeof currentUser !== 'undefined' && currentUser && (currentUser.pvpBestStreak || 0) >= 3), pts: 75 },
+    { id: 'pvp_win_streak_5', name: 'Unstoppable',     emoji: '💥', desc: 'Won 5 PVP battles in a row',              check: () => !!(typeof currentUser !== 'undefined' && currentUser && (currentUser.pvpBestStreak || 0) >= 5), pts: 150 },
 
     // ---- Music: play tiers + comments ----
     { id: 'beats_100_plays',  name: 'Music Lover',    emoji: '🎵', desc: 'Played 100 tracks on Bitcoin Beats',      check: () => parseInt(localStorage.getItem('btc_beats_play_count') || '0') >= 100, pts: 50 },

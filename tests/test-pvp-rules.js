@@ -247,8 +247,20 @@ async function main() {
         await setDoc(doc(ctx.firestore(), 'users', 'nachofan'), { username: 'nachofan' });
     });
     const nachofan = authed(env, 'nachofan', 'google.com');
-    await check('a player with a server username is not blocked by the staff-name list', function () {
-        return assertSucceeds(setDoc(doc(nachofan, 'pvp_lobby', 'nachofan'), Object.assign(lobby(), { uid: 'nachofan', name: 'nachofan' })));
+    // K11: no server-username bypass. The lobby name is never used for a
+    // match when a username exists, so the list applies to every lobby name.
+    await check('a player with a server username is held to the staff-name list too', function () {
+        return assertFails(setDoc(doc(nachofan, 'pvp_lobby', 'nachofan'), Object.assign(lobby(), { uid: 'nachofan', name: 'nachofan' })));
+    });
+    await check('a player with a server username can join with a plain lobby name', function () {
+        return assertSucceeds(setDoc(doc(nachofan, 'pvp_lobby', 'nachofan'), Object.assign(lobby(), { uid: 'nachofan', name: 'Bitcoiner' })));
+    });
+    await env.withSecurityRulesDisabled(async function (ctx) {
+        await setDoc(doc(ctx.firestore(), 'users', 'rufusadmin'), { username: 'rufusadmin' });
+    });
+    const rufusadmin = authed(env, 'rufusadmin', 'google.com');
+    await check('a logged-in player cannot put Rufus Admin in a lobby name', function () {
+        return assertFails(setDoc(doc(rufusadmin, 'pvp_lobby', 'rufusadmin'), Object.assign(lobby(), { uid: 'rufusadmin', name: 'Rufus Admin' })));
     });
 
     await check('anonymous cannot write pvp_played', function () {

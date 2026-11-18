@@ -633,6 +633,12 @@
         var name = inp ? inp.value.trim() : '';
         if (!name || name.length < 2) { if (typeof showToast === 'function') showToast('Name must be at least 2 characters'); return; }
         if (name.length > 20) name = name.substring(0, 20);
+        // Staff and brand names are refused here, before sign-in, with the
+        // same list the lobby rules use.
+        if (pvpNameReserved(pvpCleanName(name).slice(0, 20))) {
+            if (typeof showToast === 'function') showToast('That name is reserved. Please pick another battle name.');
+            return;
+        }
 
         try {
             var auth = getAuth();
@@ -652,11 +658,13 @@
             // Keep the battle name on the device only. Anonymous users cannot
             // write a profile doc, and a failed write must not block the lobby.
             var uid = auth.currentUser.uid;
-            name = String(name || '').replace(/[\r\n<>\[\]()@#*`_~|\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 20);
+            name = pvpCleanName(name).slice(0, 20);
             if (name.length < 2) { if (typeof showToast === 'function') showToast('Name must be at least 2 characters'); return; }
+            if (pvpNameReserved(name)) { if (typeof showToast === 'function') showToast('That name is reserved. Please pick another battle name.'); return; }
+            // The battle name stays a device-only display name. It is not
+            // copied into currentUser.username, which means a server username.
             try { localStorage.setItem('btc_username', name); } catch (e) {}
             if (typeof currentUser === 'undefined' || !currentUser) window.currentUser = {};
-            currentUser.username = name;
             currentUser.uid = uid;
 
             var overlay = document.getElementById('pvpNameOverlay');
@@ -685,10 +693,9 @@
                 _pvpQuickName();
                 return;
             }
-            if ((!currentUser || !currentUser.username || currentUser.username === 'Anon') && storedName.length >= 2) {
+            if (storedName.length >= 2) {
                 if (typeof currentUser === 'undefined' || !currentUser) window.currentUser = {};
-                currentUser.username = storedName;
-                currentUser.uid = auth.currentUser.uid;
+                if (!currentUser.uid) currentUser.uid = auth.currentUser.uid;
             }
         }
 
@@ -1056,18 +1063,26 @@
             });
     }
 
+    // Same characters the rules and the server (safeDisplayName) refuse.
+    function pvpCleanName(raw) {
+        return String(raw || '').replace(/[\r\n<>\[\]()@#*`_~|\\"']/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    // Same plain list as pvpLobbyNameAllowed in firestore.rules. The server
+    // also folds look-alike letters and replaces any it catches.
+    function pvpNameReserved(name) {
+        var low = String(name || '').toLowerCase();
+        return /(needcreations|bitcoin ?quest|bitcoin ?education|rufus|nacho|admin|moderator|staff|official|support|603 ?btc)/.test(low)
+            || /^(the |real |official )?(phil|mod|mods|bq)$/.test(low);
+    }
+
     function lobbyDisplayName() {
-        // Same characters the rules and the server (safeDisplayName) refuse.
-        var name = String(getMyDisplayName() || '').replace(/[\r\n<>\[\]()@#*`_~|\\"']/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
+        var name = pvpCleanName(getMyDisplayName()).slice(0, 30);
         if (name.length < 2) name = 'Bitcoiner';
-        // Guests cannot use staff or brand names (the server folds look-alikes too).
-        var hasUsername = false;
-        try { hasUsername = !!(typeof currentUser !== 'undefined' && currentUser && currentUser.username); } catch (e) {}
-        if (!hasUsername) {
-            var low = name.toLowerCase();
-            if (/(needcreations|bitcoin ?quest|bitcoin ?education|rufus|nacho|admin|moderator|staff|official|support|603 ?btc)/.test(low)
-                || /^(the |real |official )?(phil|mod|mods|bq)$/.test(low)) name = 'Guest Bitcoiner';
-        }
+        // The rules apply the staff and brand list to every lobby name. A
+        // logged-in player's match name comes from their server username, so
+        // the lobby name only matters for guests. Guest status comes from the
+        // session (isPvpGuest), never from currentUser.username.
+        if (pvpNameReserved(name)) name = isPvpGuest() ? 'Guest Bitcoiner' : 'Bitcoiner';
         return name;
     }
 
@@ -1207,7 +1222,8 @@
             }
             pvpState.matchId = matchId;
             pvpState.isPlayer1 = false;
-            pvpState.opponentName = (waitingData && waitingData.name) || 'Opponent';
+            // The server-checked name, never the raw lobby name.
+            pvpState.opponentName = (res.data && typeof res.data.opponentName === 'string' && res.data.opponentName) || 'Opponent';
             pvpState.opponentUid = (waitingData && waitingData.uid) || '';
             pvpState.opponentProfilePic = (waitingData && waitingData.profilePic) || '';
             pvpState.inLobby = false;
