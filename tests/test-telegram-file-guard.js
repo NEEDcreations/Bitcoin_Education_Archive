@@ -592,6 +592,205 @@ test('apply backup uses mode 0700/0600 and is refused without a valid dir', asyn
     assert.strictEqual(stagingListed, false);
 });
 
+
+function expectRefused(fn, codes) {
+    let caught = null;
+    try { fn(); }
+    catch (err) { caught = err; }
+    assert.ok(caught, 'expected refusal ' + codes.join('|'));
+    assert.ok(codes.indexOf(caught.code) !== -1, 'expected one of ' + codes.join(',') + ' got ' + (caught && caught.code) + ' ' + (caught && caught.message));
+}
+
+test('backup-dir refuses world-writable paths and symlinks into them', function () {
+    expectRefused(function () {
+        scrub.assertBackupDir('/dev/shm/telegram-scrub-backup');
+    }, ['backup-dir-shared', 'backup-dir-writable']);
+
+    const holder = makePrivateBackupDir();
+    const link = path.join(holder, 'link-shm');
+    fs.symlinkSync('/dev/shm', link);
+    expectRefused(function () {
+        scrub.assertBackupDir(path.join(link, 'backup'));
+    }, ['backup-dir-shared', 'backup-dir-writable']);
+
+    const ww = makePrivateBackupDir();
+    fs.chmodSync(ww, 0o777);
+    try {
+        expectCode(function () { scrub.assertBackupDir(ww); }, 'backup-dir-writable');
+        expectCode(function () { scrub.assertBackupDir(path.join(ww, 'child')); }, 'backup-dir-writable');
+        const holder2 = makePrivateBackupDir();
+        const linkWw = path.join(holder2, 'link-ww');
+        fs.symlinkSync(ww, linkWw);
+        expectCode(function () {
+            scrub.assertBackupDir(path.join(linkWw, 'backup'));
+        }, 'backup-dir-writable');
+    } finally {
+        try { fs.chmodSync(ww, 0o700); } catch (err) { /* ignore */ }
+    }
+});
+
+test('apply refuses a retargeted storage bucket and still prints it', function () {
+    const dir = makePrivateBackupDir();
+    expectCode(function () {
+        scrub.assertApplyAllowed({
+            apply: true,
+            projectId: scrub.APPLY_PROJECT_ID,
+            bucketName: 'not-the-live-bucket',
+            env: {},
+            backupDir: dir,
+        });
+    }, 'apply-bucket');
+    expectCode(function () {
+        scrub.assertApplyAllowed({
+            apply: true,
+            projectId: scrub.APPLY_PROJECT_ID,
+            bucketName: scrub.APPLY_BUCKET,
+            env: { FIREBASE_STORAGE_BUCKET: 'not-the-live-bucket' },
+            backupDir: dir,
+        });
+    }, 'apply-bucket');
+    assert.strictEqual(
+        scrub.assertApplyAllowed({
+            apply: true,
+            projectId: scrub.APPLY_PROJECT_ID,
+            bucketName: scrub.APPLY_BUCKET,
+            env: {},
+            backupDir: dir,
+        }),
+        path.resolve(dir)
+    );
+    assert.strictEqual(
+        scrub.assertApplyAllowed({
+            apply: true,
+            projectId: scrub.APPLY_PROJECT_ID,
+            bucketName: scrub.APPLY_BUCKET,
+            env: { FIREBASE_STORAGE_BUCKET: scrub.APPLY_BUCKET },
+            backupDir: dir,
+        }),
+        path.resolve(dir)
+    );
+
+    const refusedLogs = [];
+    expectCode(function () {
+        scrub.prepareRun(
+            ['--apply', '--backup-dir', dir],
+            {
+                GCLOUD_PROJECT: 'bitcoin-education-archive',
+                FIREBASE_STORAGE_BUCKET: 'not-the-live-bucket',
+            },
+            function (line) { refusedLogs.push(line); }
+        );
+    }, 'apply-bucket');
+    assert.ok(refusedLogs.indexOf('projectId=bitcoin-education-archive') !== -1);
+    assert.ok(refusedLogs.indexOf('bucket=not-the-live-bucket') !== -1);
+
+    const applyLogs = [];
+    const prepared = scrub.prepareRun(
+        ['--apply', '--backup-dir', dir],
+        {
+            GCLOUD_PROJECT: 'bitcoin-education-archive',
+            FIREBASE_STORAGE_BUCKET: 'bitcoin-education-archive.firebasestorage.app',
+        },
+        function (line) { applyLogs.push(line); }
+    );
+    assert.strictEqual(prepared.apply, true);
+    assert.strictEqual(prepared.bucketName, scrub.APPLY_BUCKET);
+    assert.ok(applyLogs.indexOf('bucket=bitcoin-education-archive.firebasestorage.app') !== -1);
+
+    const dryLogs = [];
+    const dry = scrub.prepareRun(
+        [],
+        { GCLOUD_PROJECT: 'bitcoin-quest-staging', FIREBASE_STORAGE_BUCKET: 'staging-bucket' },
+        function (line) { dryLogs.push(line); }
+    );
+    assert.strictEqual(dry.apply, false);
+    assert.strictEqual(dry.bucketName, 'staging-bucket');
+    assert.ok(dryLogs.indexOf('bucket=staging-bucket') !== -1);
+
+    const idsLogs = [];
+    const ids = scrub.prepareRun(['--ids-only'], {}, function (line) { idsLogs.push(line); });
+    assert.strictEqual(ids.apply, false);
+    assert.ok(idsLogs.indexOf('bucket=bitcoin-education-archive.firebasestorage.app') !== -1);
+});
+
+test('backup-dir must be a new dedicated directory', function () {
+    expectCode(function () { scrub.assertBackupDir('/workspace/private'); }, 'backup-dir-dedicated');
+    expectCode(function () { scrub.assertBackupDir('/workspace/private/'); }, 'backup-dir-dedicated');
+    expectCode(function () {
+        scrub.assertBackupDir('/workspace/private/redteam-audit');
+    }, 'backup-dir-dedicated');
+    expectCode(function () {
+        scrub.assertBackupDir('/workspace/private/redteam-audit/nested');
+    }, 'backup-dir-dedicated');
+
+    const dirty = makePrivateBackupDir();
+    fs.writeFileSync(path.join(dirty, 'keep.txt'), 'leave-me');
+    fs.chmodSync(dirty, 0o755);
+    const before = fs.statSync(dirty).mode & 0o777;
+    expectCode(function () { scrub.assertBackupDir(dirty); }, 'backup-dir-not-empty');
+    expectCode(function () {
+        scrub.writeBackup(dirty, [{ collection: 'global_chat', id: 'n1', data: { text: 'ok' } }], '2026-11-18T01:00:00.000Z');
+    }, 'backup-dir-not-empty');
+    assert.strictEqual(fs.statSync(dirty).mode & 0o777, before);
+    assert.deepStrictEqual(fs.readdirSync(dirty), ['keep.txt']);
+    assert.strictEqual(fs.readFileSync(path.join(dirty, 'keep.txt'), 'utf8'), 'leave-me');
+
+    const freshName = path.join(PRIVATE_BACKUP_ROOT, 'telegram-scrub-backup-fresh-' + Date.now());
+    cleanupDirs.push(freshName);
+    assert.strictEqual(scrub.assertBackupDir(freshName), path.resolve(freshName));
+    assert.strictEqual(fs.existsSync(freshName), false);
+    const created = scrub.writeBackup(freshName, [{ collection: 'global_chat', id: 'n2', data: { text: 'ok' } }], '2026-11-18T01:00:00.000Z');
+    assert.strictEqual(fs.statSync(freshName).mode & 0o777, 0o700);
+    assert.strictEqual(fs.statSync(created).mode & 0o777, 0o600);
+});
+
+test('backup writes use wx and keep the first file on retry', function () {
+    const dir = makePrivateBackupDir();
+    const stamp = '2026-11-18T00:00:00.000Z';
+    const first = scrub.writeBackup(dir, [{ collection: 'global_chat', id: 'x', data: { text: 'first' } }], stamp);
+    const firstBody = fs.readFileSync(first, 'utf8');
+    assert.ok(firstBody.indexOf('"id":"x"') !== -1);
+    assert.strictEqual(fs.lstatSync(first).isSymbolicLink(), false);
+    assert.strictEqual(fs.statSync(first).mode & 0o777, 0o600);
+    assert.strictEqual(fs.statSync(dir).mode & 0o777, 0o700);
+
+    const second = scrub.writeBackup(dir, [{ collection: 'global_chat', id: 'y', data: { text: 'second' } }], stamp);
+    assert.notStrictEqual(second, first);
+    assert.strictEqual(fs.readFileSync(first, 'utf8'), firstBody);
+    const secondBody = fs.readFileSync(second, 'utf8');
+    assert.ok(secondBody.indexOf('"id":"y"') !== -1);
+    assert.ok(secondBody.indexOf('"id":"x"') === -1);
+    assert.strictEqual(fs.statSync(second).mode & 0o777, 0o600);
+    assert.ok(second.indexOf('backup-2026-11-18T00-00-00-000Z-2.json') !== -1);
+
+    const plantedDir = makePrivateBackupDir();
+    const intended = path.join(plantedDir, 'backup-2026-11-18T02-00-00-000Z.json');
+    const leakTarget = path.join(PRIVATE_BACKUP_ROOT, 'telegram-scrub-symlink-target-' + Date.now() + '.json');
+    cleanupDirs.push(leakTarget);
+    fs.writeFileSync(leakTarget, 'ORIGINAL-DO-NOT-CLOBBER', { mode: 0o600 });
+    fs.symlinkSync(leakTarget, intended);
+    const written = scrub.writeBackup(
+        plantedDir,
+        [{ collection: 'global_chat', id: 'z', data: { text: 'safe' } }],
+        '2026-11-18T02:00:00.000Z'
+    );
+    assert.notStrictEqual(written, intended);
+    assert.strictEqual(fs.lstatSync(intended).isSymbolicLink(), true);
+    assert.strictEqual(fs.readFileSync(leakTarget, 'utf8'), 'ORIGINAL-DO-NOT-CLOBBER');
+    assert.strictEqual(fs.lstatSync(written).isSymbolicLink(), false);
+    assert.ok(fs.readFileSync(written, 'utf8').indexOf('"id":"z"') !== -1);
+    assert.strictEqual(fs.statSync(written).mode & 0o777, 0o600);
+
+    const escapeDir = makePrivateBackupDir();
+    const escaped = scrub.writeBackup(
+        escapeDir,
+        [{ collection: 'global_chat', id: 'e', data: { text: 'ok' } }],
+        '2026-11-18T00:00:00.000Z/../escape'
+    );
+    assert.strictEqual(path.dirname(escaped), path.resolve(escapeDir));
+    assert.ok(fs.existsSync(escaped));
+});
+
 Promise.all(queue).then(function () {
     cleanupDirs.forEach(rmDir);
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

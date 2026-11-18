@@ -12,12 +12,19 @@
 //   node scripts/scrub-telegram-urls.js --ids-only
 //
 // --apply requires --backup-dir. The path must be absolute and private.
-// Paths inside the repo, relative paths, /tmp, /workspace outside
-// /workspace/private, and home-dir shared folders are refused. The
-// intended location is /workspace/private/telegram-scrub-backup-<date>/,
-// created with mode 0700. The backup file (mode 0600) contains the
-// original URLs. Keep it private and delete it after the bot tokens are
-// rotated.
+// Paths inside the repo, relative paths, /tmp, /dev/shm, world-writable
+// locations (the path, its realpath, or any ancestor, including a
+// symlink into one), /workspace outside /workspace/private,
+// /workspace/private itself, reserved shared subdirectories, and
+// home-dir shared folders are refused. The intended location is a new
+// dedicated directory such as
+// /workspace/private/telegram-scrub-backup-<date>/, created with mode
+// 0700. It must not exist yet, or must exist and be empty, except that
+// a later retry may reuse the same directory and will keep earlier
+// backup files. Backup files are created with mode 0600 and the
+// exclusive 'wx' flag so an existing file or symlink is never
+// overwritten. The backup contains the original URLs. Keep it private
+// and delete it after the bot tokens are rotated.
 //
 // --apply writes that backup of every affected document first, then
 // downloads each file and stores a Firebase Storage download URL under
@@ -27,10 +34,13 @@
 // applied. A later run, with or without --apply, does nothing.
 //
 // --apply is allowed only when the resolved projectId is
-// bitcoin-education-archive. GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT may
-// retarget a dry-run or --ids-only scan, but those values cannot authorize
-// --apply against any other project. The resolved projectId and bucket are
-// printed at the start of every run.
+// bitcoin-education-archive and the resolved Storage bucket is
+// bitcoin-education-archive.firebasestorage.app. GCLOUD_PROJECT or
+// GOOGLE_CLOUD_PROJECT may retarget a dry-run or --ids-only scan, but
+// those values cannot authorize --apply against any other project.
+// FIREBASE_STORAGE_BUCKET may retarget a dry-run, but --apply is
+// refused if it is set to any other bucket. The resolved projectId
+// and bucket are printed at the start of every run.
 //
 // --ids-only scans telegram_mirror_queue and announcements and prints
 // document ids and matched field names only. It never prints URLs and
@@ -45,7 +55,11 @@ const crypto = require('crypto');
 const guard = require(path.join(__dirname, '..', 'functions', 'src', 'telegramFileGuard'));
 
 const APPLY_PROJECT_ID = 'bitcoin-education-archive';
-const DEFAULT_BUCKET = 'bitcoin-education-archive.firebasestorage.app';
+const APPLY_BUCKET = 'bitcoin-education-archive.firebasestorage.app';
+const DEFAULT_BUCKET = APPLY_BUCKET;
+const RESERVED_PRIVATE_SUBDIRS = [
+    'redteam-audit',
+];
 const PAGE = 300;
 const MAX_BYTES = 20 * 1024 * 1024;
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -114,11 +128,13 @@ function printTarget(projectId, bucketName, log) {
 function printHelp() {
     console.log('Usage: node scripts/scrub-telegram-urls.js [--apply --backup-dir /absolute/path] [--ids-only]');
     console.log('Dry-run is the default. --apply rehosts media and then marks the scrub applied.');
-    console.log('--apply requires --backup-dir pointing at an absolute path outside the repo');
-    console.log('(for example /workspace/private/telegram-scrub-backup-YYYYMMDD/). Relative');
-    console.log('paths, the repo tree, /tmp, /workspace outside /workspace/private, and');
-    console.log('home-dir shared folders are refused.');
-    console.log('--apply is allowed only when the resolved projectId is ' + APPLY_PROJECT_ID + '.');
+    console.log('--apply requires --backup-dir pointing at a new dedicated absolute path');
+    console.log('outside the repo (for example /workspace/private/telegram-scrub-backup-YYYYMMDD/).');
+    console.log('Relative paths, the repo tree, /tmp, /dev/shm, world-writable paths,');
+    console.log('/workspace outside /workspace/private, /workspace/private itself, reserved');
+    console.log('shared subdirectories, and home-dir shared folders are refused.');
+    console.log('--apply is allowed only when the resolved projectId is ' + APPLY_PROJECT_ID);
+    console.log('and the resolved bucket is ' + APPLY_BUCKET + '.');
     console.log('--ids-only scans telegram_mirror_queue and announcements and prints');
     console.log('document ids and matched field names only.');
     console.log('Collections: ' + guard.SCRUB_COLLECTIONS.join(','));
@@ -155,7 +171,7 @@ function repoRoot() {
 
 function sharedTmpRoots() {
     const roots = [];
-    const candidates = ['/tmp', '/var/tmp', '/var/folders'];
+    const candidates = ['/tmp', '/var/tmp', '/var/folders', '/dev/shm', '/run/shm', '/dev/mqueue'];
     const tmpDir = os.tmpdir();
     if (tmpDir) candidates.push(tmpDir);
     for (let i = 0; i < candidates.length; i++) {
@@ -192,6 +208,126 @@ function homeSharedFolderRoots() {
         }
     }
     return roots;
+}
+
+function isOtherWritableMode(mode) {
+    return (mode & 0o002) !== 0;
+}
+
+function existsLstat(p) {
+    try {
+        return fs.lstatSync(p);
+    } catch (err) {
+        if (err && err.code === 'ENOENT') return null;
+        throw err;
+    }
+}
+
+function reservedPrivateRoots(workspacePrivate) {
+    const roots = [];
+    for (let i = 0; i < RESERVED_PRIVATE_SUBDIRS.length; i++) {
+        const raw = path.join(workspacePrivate, RESERVED_PRIVATE_SUBDIRS[i]);
+        const real = tryRealpath(raw) || path.resolve(raw);
+        if (roots.indexOf(real) === -1) roots.push(real);
+    }
+    return roots;
+}
+
+function collectWritableCheckPaths(input) {
+    const seen = Object.create(null);
+    const paths = [];
+    function add(p) {
+        if (!p) return;
+        const resolved = path.resolve(p);
+        if (seen[resolved]) return;
+        seen[resolved] = true;
+        paths.push(resolved);
+    }
+    function addWalk(start) {
+        let cur = path.resolve(start);
+        for (;;) {
+            add(cur);
+            const lst = existsLstat(cur);
+            if (lst) {
+                const real = tryRealpath(cur);
+                if (real && real !== cur && !seen[real]) addWalk(real);
+            }
+            const parent = path.dirname(cur);
+            if (parent === cur) break;
+            cur = parent;
+        }
+    }
+    addWalk(input);
+    addWalk(resolveExisting(input));
+    return paths;
+}
+
+function isWorldWritableLocation(input) {
+    if (!input) return false;
+    const paths = collectWritableCheckPaths(input);
+    for (let i = 0; i < paths.length; i++) {
+        const cur = paths[i];
+        const lst = existsLstat(cur);
+        if (!lst) continue;
+        if (isOtherWritableMode(lst.mode)) return true;
+        if (lst.isSymbolicLink()) {
+            try {
+                const st = fs.statSync(cur);
+                if (isOtherWritableMode(st.mode)) return true;
+            } catch (err) { /* dangling symlink */ }
+        }
+    }
+    return false;
+}
+
+function inspectBackupDir(resolved) {
+    if (!fs.existsSync(resolved)) return 'missing';
+    let st;
+    try { st = fs.statSync(resolved); }
+    catch (err) {
+        return 'not-dir';
+    }
+    if (!st.isDirectory()) return 'not-dir';
+    const entries = fs.readdirSync(resolved);
+    if (!entries.length) return 'empty';
+    for (let i = 0; i < entries.length; i++) {
+        if (!/^backup-[A-Za-z0-9_+-]+\.json$/.test(entries[i])) return 'not-empty';
+    }
+    return 'backups';
+}
+
+function sanitizeBackupStamp(nowIso) {
+    const raw = String(nowIso == null || String(nowIso).trim() === '' ? new Date().toISOString() : nowIso);
+    const stamp = raw.replace(/[:.]/g, '-').replace(/[^A-Za-z0-9_+-]/g, '-');
+    if (!stamp || /^-+$/.test(stamp) || stamp.indexOf('..') !== -1) {
+        const err = new Error('backup timestamp is not a safe filename');
+        err.code = 'backup-stamp';
+        throw err;
+    }
+    return stamp;
+}
+
+function uniqueBackupFile(dir, stamp) {
+    const names = ['backup-' + stamp + '.json'];
+    for (let n = 2; n <= 1000; n++) names.push('backup-' + stamp + '-' + n + '.json');
+    const root = path.resolve(dir);
+    for (let i = 0; i < names.length; i++) {
+        if (names[i].indexOf('/') !== -1 || names[i].indexOf('\\') !== -1) {
+            const err = new Error('backup file would leave the backup directory');
+            err.code = 'backup-stamp';
+            throw err;
+        }
+        const file = path.resolve(root, names[i]);
+        if (path.dirname(file) !== root || !isPathInside(root, file) || file === root) {
+            const err = new Error('backup file would leave the backup directory');
+            err.code = 'backup-stamp';
+            throw err;
+        }
+        if (!existsLstat(file)) return file;
+    }
+    const err = new Error('refusing to overwrite an existing backup file');
+    err.code = 'backup-exists';
+    throw err;
 }
 
 function assertBackupDir(input) {
@@ -243,6 +379,35 @@ function assertBackupDir(input) {
             throw err;
         }
     }
+    if (isWorldWritableLocation(raw) || isWorldWritableLocation(resolved)) {
+        const err = new Error('backup-dir must not be world-writable');
+        err.code = 'backup-dir-writable';
+        throw err;
+    }
+    if (resolved === workspacePrivate) {
+        const err = new Error('backup-dir must be a new dedicated directory, not /workspace/private itself');
+        err.code = 'backup-dir-dedicated';
+        throw err;
+    }
+    const reserved = reservedPrivateRoots(workspacePrivate);
+    for (let i = 0; i < reserved.length; i++) {
+        if (isPathInside(reserved[i], resolved)) {
+            const err = new Error('backup-dir must not be a reserved shared directory');
+            err.code = 'backup-dir-dedicated';
+            throw err;
+        }
+    }
+    const state = inspectBackupDir(resolved);
+    if (state === 'not-dir') {
+        const err = new Error('backup-dir must be a directory');
+        err.code = 'backup-dir-not-dir';
+        throw err;
+    }
+    if (state === 'not-empty') {
+        const err = new Error('backup-dir must be a new empty dedicated directory');
+        err.code = 'backup-dir-not-empty';
+        throw err;
+    }
     const parent = path.dirname(resolved);
     if (!fs.existsSync(parent)) {
         const err = new Error('backup-dir parent must already exist');
@@ -265,6 +430,18 @@ function assertApplyAllowed(options) {
         err.code = 'apply-project';
         throw err;
     }
+    const env = opts.env || process.env;
+    if (env.FIREBASE_STORAGE_BUCKET && env.FIREBASE_STORAGE_BUCKET !== APPLY_BUCKET) {
+        const err = new Error('refusing --apply: bucket must be ' + APPLY_BUCKET);
+        err.code = 'apply-bucket';
+        throw err;
+    }
+    const bucketName = opts.bucketName != null ? opts.bucketName : resolveBucket(env);
+    if (bucketName !== APPLY_BUCKET) {
+        const err = new Error('refusing --apply: bucket must be ' + APPLY_BUCKET);
+        err.code = 'apply-bucket';
+        throw err;
+    }
     return assertBackupDir(opts.backupDir);
 }
 
@@ -278,6 +455,8 @@ function prepareRun(argv, env, log) {
         apply: args.apply,
         idsOnly: args.idsOnly,
         projectId: projectId,
+        bucketName: bucketName,
+        env: env,
         backupDir: args.backupDir,
     });
     return {
@@ -373,19 +552,25 @@ async function listCollection(db, name, documentIdField) {
 
 function writeBackup(dir, docs, nowIso) {
     const resolved = assertBackupDir(dir);
-    if (fs.existsSync(resolved)) {
-        const st = fs.lstatSync(resolved);
-        if (!st.isDirectory()) {
-            const err = new Error('backup-dir must be a directory');
-            err.code = 'backup-dir-not-dir';
-            throw err;
-        }
-    } else {
-        fs.mkdirSync(resolved, { recursive: false, mode: 0o700 });
+    const state = inspectBackupDir(resolved);
+    if (state === 'not-dir') {
+        const err = new Error('backup-dir must be a directory');
+        err.code = 'backup-dir-not-dir';
+        throw err;
     }
-    fs.chmodSync(resolved, 0o700);
-    const stamp = String(nowIso || new Date().toISOString()).replace(/[:.]/g, '-');
-    const file = path.join(resolved, 'backup-' + stamp + '.json');
+    if (state === 'not-empty') {
+        const err = new Error('backup-dir must be a new empty dedicated directory');
+        err.code = 'backup-dir-not-empty';
+        throw err;
+    }
+    if (state === 'missing') {
+        fs.mkdirSync(resolved, { recursive: false, mode: 0o700 });
+        fs.chmodSync(resolved, 0o700);
+    } else if (state === 'empty') {
+        fs.chmodSync(resolved, 0o700);
+    }
+    const stamp = sanitizeBackupStamp(nowIso);
+    const file = uniqueBackupFile(resolved, stamp);
     const body = JSON.stringify({
         createdAt: nowIso || new Date().toISOString(),
         collections: guard.SCRUB_COLLECTIONS.slice(),
@@ -397,7 +582,16 @@ function writeBackup(dir, docs, nowIso) {
             };
         }),
     });
-    fs.writeFileSync(file, body, { mode: 0o600 });
+    try {
+        fs.writeFileSync(file, body, { flag: 'wx', mode: 0o600 });
+    } catch (err) {
+        if (err && err.code === 'EEXIST') {
+            const exists = new Error('refusing to overwrite an existing backup file');
+            exists.code = 'backup-exists';
+            throw exists;
+        }
+        throw err;
+    }
     fs.chmodSync(file, 0o600);
     return file;
 }
@@ -437,6 +631,8 @@ async function runScrub(options) {
         backupDir = assertApplyAllowed({
             apply: true,
             projectId: opts.projectId || APPLY_PROJECT_ID,
+            bucketName: opts.bucketName != null ? opts.bucketName : resolveBucket(opts.env),
+            env: opts.env,
             backupDir: opts.backupDir,
         });
     }
@@ -617,6 +813,7 @@ async function main() {
     const summary = await runScrub({
         apply: prepared.apply,
         projectId: prepared.projectId,
+        bucketName: prepared.bucketName,
         backupDir: prepared.backupDir,
         db: db,
         nowIso: new Date().toISOString(),
@@ -637,6 +834,7 @@ module.exports = {
     SCRUB_COLLECTIONS: guard.SCRUB_COLLECTIONS,
     SCRUB_MARKER: guard.SCRUB_MARKER,
     APPLY_PROJECT_ID: APPLY_PROJECT_ID,
+    APPLY_BUCKET: APPLY_BUCKET,
     IDS_ONLY_COLLECTIONS: IDS_ONLY_COLLECTIONS,
     toPlain: toPlain,
     changedPatch: changedPatch,
