@@ -5707,7 +5707,9 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
 
 // Admin-only backfill: copies all existing user docs → public_profiles.
 // Call once after deploy: firebase functions:call backfillPublicProfiles (with admin auth)
-exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) => {
+// It reads every user doc in one call, so it gets the gen1 maximum timeout
+// and 1GB instead of the 60s / 256MB defaults. Auth gate and logic unchanged.
+exports.backfillPublicProfiles = functionsV1.runWith({ timeoutSeconds: 540, memory: '1GB' }).https.onCall(async (data, context) => {
         if (!context.auth || !context.auth.token || context.auth.token.admin !== true) {
             throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
         }
