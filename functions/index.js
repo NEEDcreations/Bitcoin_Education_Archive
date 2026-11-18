@@ -173,6 +173,7 @@ async function verifyTurnstile(token, remoteip) {
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
+const payFailGuard = require('./src/payFailGuard');
 const rewardNotify = require('./src/rewardNotify');
 const rankReached = require('./src/rankReached');
 const awardActions = require('./src/awardActions');
@@ -1746,6 +1747,10 @@ exports.claimSats = functionsV1.runWith({
         return { success: false, error: 'Sats claims are paused. Try again later.' };
     }
 
+    // Early exit for the post-failure wait. The claim transaction checks it again.
+    const preWait = payFailGuard.assessRetryWait(ledgerPreSnap.exists ? ledgerPreSnap.data().faucetFailGuard : null, null, Date.now());
+    if (!preWait.ok) return { success: false, error: preWait.error };
+
     const holdUntil = userPreSnap.exists ? (Number(userPreSnap.data().satsHold) || 0) : 0;
     if (holdUntil > Date.now()) {
         return { success: false, error: 'Sats withdrawals are paused on this account. Try again later.' };
@@ -1955,12 +1960,21 @@ exports.claimSats = functionsV1.runWith({
                 const pendingAt = user._pendingClaimAt
                     ? (user._pendingClaimAt.toDate ? user._pendingClaimAt.toDate() : new Date(user._pendingClaimAt))
                     : null;
-                const PENDING_TTL_MS = 5 * 60 * 1000;
+                // Longer than the 300s function timeout, so a live pay is never treated as stale.
+                const PENDING_TTL_MS = 10 * 60 * 1000;
                 if (pendingAt && (Date.now() - pendingAt.getTime() <= PENDING_TTL_MS)) {
                     deny('A previous claim is still processing. Try again in a minute.');
                 }
                 console.log('[FAUCET] Auto-clearing stale _pendingClaim for uid=' + uid);
             }
+
+            // A released failure makes this account and this address wait before the next try.
+            const failWait = payFailGuard.assessRetryWait(
+                ledger.faucetFailGuard,
+                lnRateDoc.exists ? lnRateDoc.data().faucetFailGuard : null,
+                Date.now()
+            );
+            if (!failWait.ok) deny(failWait.error);
 
             let visitedList = Array.isArray(user.visitedChannelsList) ? user.visitedChannelsList : [];
             let visitedUpdate = null;
@@ -2149,6 +2163,11 @@ exports.claimSats = functionsV1.runWith({
                 status: 'pending',
                 paymentHash: paymentHash,
                 ts: admin.firestore.Timestamp.now(),
+                // Server-only. Lets a definite failure put the cooldown back exactly as it was.
+                address: lnNorm,
+                rateEntryTs: nowMs,
+                priorUserLastMs: userLastClaim,
+                priorLedgerLastMs: ledgerLastClaim,
             });
             t.set(fpRef, {
                 lastClaim: admin.firestore.FieldValue.serverTimestamp(),
@@ -2256,18 +2275,13 @@ exports.claimSats = functionsV1.runWith({
         return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: decision.preimage, message: '⚡ ' + netSendAmount + ' sats sent to your wallet!' };
     }
     if (decision.action === 'refund') {
-        await _rollbackClaim(uid, amount, today, invoiceRef);
-        if (payError && payError.message === 'WALLET_LOW') {
-            return { success: false, error: 'Faucet is being refilled. Try again later.' };
-        }
+        // Nothing was sent: the send never started, or the wallet explicitly refused it.
+        const failKind = faucetGuard.definiteFailureKind({ phase: phase, error: payError });
+        const released = await _releaseFailedClaim(payInfo, today, lnRateRef, failKind);
         if (payError && payError.message === 'HARD_CAP') {
-            return { success: false, error: 'Claim exceeds maximum. Contact support.' };
+            return { success: false, code: 'payment_failed', error: 'Claim exceeds maximum. Contact support.' };
         }
-        const isTimeout = payError && payError.message && payError.message.indexOf('[TIMEOUT]') === 0;
-        if (phase !== 'pay') {
-            return { success: false, error: isTimeout ? 'Payment wallet is not responding. Try again in a moment.' : 'Could not connect to payment wallet. Try again later.' };
-        }
-        return { success: false, error: 'Payment failed. Check your Lightning Address and try again.' };
+        return { success: false, code: 'payment_failed', released: released.released, error: released.message };
     }
 
     const lookupReq = faucetGuard.lookupRequestFromDecoded(decoded);
@@ -2305,8 +2319,9 @@ exports.claimSats = functionsV1.runWith({
         return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: afterLookup.preimage, message: '⚡ ' + netSendAmount + ' sats sent to your wallet!' };
     }
     if (afterLookup.action === 'refund') {
-        await _rollbackClaim(uid, amount, today, invoiceRef);
-        return { success: false, error: 'Payment failed. Your sats were not sent. Please try again.' };
+        // The wallet reported the payment as failed, so no HTLC can still settle.
+        const released = await _releaseFailedClaim(payInfo, today, lnRateRef, 'refused');
+        return { success: false, code: 'payment_failed', released: released.released, error: released.message };
     }
 
     try { await _holdFaucetUnknown(Object.assign({}, payInfo, { paymentHash: lookupReq.payment_hash })); }
@@ -2346,33 +2361,13 @@ async function _notifyClaimedSats(uid, amount) {
     }));
 }
 
-async function _rollbackClaim(uid, amount, today, invoiceRef) {
-    try {
-        const pointsToRefund = amount * FAUCET.POINTS_PER_SAT;
-        const batch = db.batch();
-        batch.update(db.collection('users').doc(uid), {
-            pointsClaimed: admin.firestore.FieldValue.increment(-pointsToRefund),
-            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            _pendingClaim: admin.firestore.FieldValue.delete(),
-            _pendingClaimAt: admin.firestore.FieldValue.delete()
-        });
-        batch.set(db.collection('faucet_ledger').doc(uid), {
-            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            claimCount: admin.firestore.FieldValue.increment(-1)
-        }, { merge: true });
-        batch.set(db.collection('users').doc(uid).collection('sats_daily').doc(today), {
-            amount: admin.firestore.FieldValue.increment(-amount)
-        }, { merge: true });
-        batch.set(db.collection('faucet_stats').doc(today), {
-            totalPaid: admin.firestore.FieldValue.increment(-amount),
-            claimCount: admin.firestore.FieldValue.increment(-1)
-        }, { merge: true });
-        if (invoiceRef) batch.delete(invoiceRef);
-        await batch.commit();
-        console.log('[FAUCET] Rolled back ' + amount + ' sats for ' + uid);
-    } catch (e) {
-        console.error('[FAUCET] CRITICAL: Rollback failed for ' + uid + ', amount=' + amount + ':', e.message);
-    }
+async function _releaseFailedClaim(info, today, lnRateRef, kind) {
+    return require('./src/faucetRelease').releaseFailedClaim({
+        db: db,
+        admin: admin,
+        pointsPerSat: FAUCET.POINTS_PER_SAT,
+        supportError: faucetGuard.supportError,
+    }, info, today, lnRateRef, kind);
 }
 
 async function _flagFaucetAdmin(flag) {
@@ -6385,6 +6380,8 @@ exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret], se
         const invoiceSnap = await db.collection('faucet_invoices').where('ts', '>=', since).orderBy('ts', 'desc').limit(200).get();
         invoiceSnap.forEach(inv => {
             const id = inv.data();
+            // A refunded failed claim kept its record but is not a withdrawal.
+            if (id.status === 'failed') return;
             out.recentWithdrawals.push({
                 uid: id.uid ? id.uid.substring(0, 8) : 'unknown',
                 uidFull: id.uid || 'unknown',

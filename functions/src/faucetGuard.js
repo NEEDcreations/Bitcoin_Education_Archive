@@ -358,6 +358,22 @@ function decideFaucetPayment(info) {
     return { action: 'lookup' };
 }
 
+// Which side a definite failure came from, for the user message only.
+// 'ours': the send never started (node unreachable, low balance) or our wallet
+// refused for its own reasons. 'refused': the payment itself failed.
+// Callers use this only after decideFaucetPayment returned refund.
+const OUR_SIDE_REFUSALS = ['INSUFFICIENT_BALANCE', 'QUOTA_EXCEEDED', 'RATE_LIMITED'];
+function definiteFailureKind(info) {
+    const src = info || {};
+    if (src.phase !== 'pay') return 'ours';
+    const err = src.error || {};
+    const text = (String(err.code || '') + ' ' + String(err.message || '')).toUpperCase();
+    for (let i = 0; i < OUR_SIDE_REFUSALS.length; i++) {
+        if (text.indexOf(OUR_SIDE_REFUSALS[i]) !== -1) return 'ours';
+    }
+    return 'refused';
+}
+
 function decideFaucetLookupResult(settlement) {
     const d = settlement || {};
     if (d.action === 'paid') return { action: 'record', preimage: d.preimage || '' };
@@ -515,6 +531,7 @@ module.exports = {
     networkKeys: networkKeys,
     decideFaucetPayment: decideFaucetPayment,
     decideFaucetLookupResult: decideFaucetLookupResult,
+    definiteFailureKind: definiteFailureKind,
     lookupSettlement: cipher.lookupSettlement,
     lookupRequestFromDecoded: cipher.lookupRequestFromDecoded,
     buildAbuseReport: buildAbuseReport,
