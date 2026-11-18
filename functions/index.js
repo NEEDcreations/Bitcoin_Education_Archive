@@ -1846,7 +1846,8 @@ exports.claimSats = functionsV1.runWith({
         return {
             success: false,
             code: 'address_unresolved',
-            error: clear && e.message ? e.message : RESOLVE_ERROR,
+            // The receiver's address server failed before any send. Nothing was reserved.
+            error: clear && e.message ? e.message : payFailGuard.RECEIVER_UNRESPONSIVE_MESSAGE,
         };
     }
 
@@ -2275,7 +2276,7 @@ exports.claimSats = functionsV1.runWith({
         return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: decision.preimage, message: '⚡ ' + netSendAmount + ' sats sent to your wallet!' };
     }
     if (decision.action === 'refund') {
-        // Nothing was sent: the send never started, or the wallet explicitly refused it.
+        // Nothing was sent: the send never started (our node, before the pay call).
         const failKind = faucetGuard.definiteFailureKind({ phase: phase, error: payError });
         const released = await _releaseFailedClaim(payInfo, today, lnRateRef, failKind);
         if (payError && payError.message === 'HARD_CAP') {
@@ -2301,7 +2302,7 @@ exports.claimSats = functionsV1.runWith({
             return new Promise(function(resolve) { setTimeout(resolve, ms); });
         },
     });
-    const afterLookup = faucetGuard.decideFaucetLookupResult(settlement);
+    const afterLookup = faucetGuard.decideFaucetLookupResult(settlement, { refused: decision.refused === true });
     if (afterLookup.action === 'record') {
         try {
             await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: afterLookup.preimage, paymentHash: lookupReq.payment_hash }));
@@ -2319,9 +2320,16 @@ exports.claimSats = functionsV1.runWith({
         return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: afterLookup.preimage, message: '⚡ ' + netSendAmount + ' sats sent to your wallet!' };
     }
     if (afterLookup.action === 'refund') {
-        // The wallet reported the payment as failed, so no HTLC can still settle.
-        const released = await _releaseFailedClaim(payInfo, today, lnRateRef, 'refused');
+        // The wallet lookup reported the payment as failed, so no HTLC can still settle.
+        // Our side only when the pay call itself returned one of our wallet's exact codes.
+        const failKind = decision.refused === true ? faucetGuard.definiteFailureKind({ phase: phase, error: payError }) : 'theirs';
+        const released = await _releaseFailedClaim(payInfo, today, lnRateRef, failKind);
         return { success: false, code: 'payment_failed', released: released.released, error: released.message };
+    }
+    if (afterLookup.action === 'refund_only') {
+        // Explicit refusal the lookup could not confirm: refund, but the daily limit stays used.
+        const refunded = await _releaseFailedClaim(payInfo, today, lnRateRef, 'unconfirmed');
+        return { success: false, code: 'payment_failed', released: false, error: refunded.message };
     }
 
     try { await _holdFaucetUnknown(Object.assign({}, payInfo, { paymentHash: lookupReq.payment_hash })); }
@@ -6377,11 +6385,14 @@ exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret], se
         // 2. Query recent withdrawals from faucet_invoices (global log)
         const daysBack = parseInt(req.query.days || '7');
         const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
-        const invoiceSnap = await db.collection('faucet_invoices').where('ts', '>=', since).orderBy('ts', 'desc').limit(200).get();
-        invoiceSnap.forEach(inv => {
-            const id = inv.data();
-            // A refunded failed claim kept its record but is not a withdrawal.
-            if (id.status === 'failed') return;
+        // Failed (refunded) claims keep their record, so they are filtered page by
+        // page and can't push real payouts out of the 200-row window.
+        const auditWindow = await require('./src/faucetRelease').collectWithdrawalWindow(async (after) => {
+            let q = db.collection('faucet_invoices').where('ts', '>=', since).orderBy('ts', 'desc');
+            if (after) q = q.startAfter(after);
+            return (await q.limit(200).get()).docs;
+        }, { want: 200, maxPages: 10 });
+        auditWindow.withdrawals.forEach(id => {
             out.recentWithdrawals.push({
                 uid: id.uid ? id.uid.substring(0, 8) : 'unknown',
                 uidFull: id.uid || 'unknown',
@@ -6389,6 +6400,15 @@ exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret], se
                 timestamp: id.ts && id.ts.toDate ? id.ts.toDate().toISOString() : null
             });
         });
+        out.failedClaims = auditWindow.failed.slice(0, 200).map(id => ({
+            uid: id.uid ? id.uid.substring(0, 8) : 'unknown',
+            amount: id.amount || 0,
+            failKind: id.failKind || '',
+            released: id.released === true,
+            timestamp: id.ts && id.ts.toDate ? id.ts.toDate().toISOString() : null
+        }));
+        out.failedClaimCount = auditWindow.failed.length;
+        out.withdrawalWindowTruncated = auditWindow.truncated;
 
         // 3. Check faucet_ip_log for multi-account IPs
         const ipSnap = await db.collection('faucet_ip_log').where('claimCount', '>=', 3).limit(50).get();
@@ -6420,6 +6440,7 @@ exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret], se
         out.summary = {
             totalBlockedAccounts: blockedSnap.size,
             totalWithdrawalsInPeriod: out.recentWithdrawals.length,
+            failedClaimsInPeriod: out.failedClaimCount || 0,
             blockedAccountsWithWithdrawals: out.blockedAccounts.filter(a => a.withdrawals.length > 0).length,
             multiAccountIPs: out.ipClusters.length,
             multiAccountFingerprints: out.fingerprintClusters.length,

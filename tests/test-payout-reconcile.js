@@ -452,6 +452,54 @@ test('emit writes admin_notifications once per key per ET day', async function (
     assert.strictEqual(db.store[notes[0]].type, 'payout_address_change');
 });
 
+test('#376 K2: refunded failures from the last 48h are looked up and flagged if settled, never paid', async function () {
+    const h1 = '11'.repeat(32), h2 = '22'.repeat(32), h3 = '33'.repeat(32), h4 = '44'.repeat(32);
+    const db = memDb({
+        'faucet_invoices/inv_settled': { status: 'failed', uid: 'aliceUid000001', amount: 200, paymentHash: h1, failedAt: stamp(NOW - 3600000), ts: stamp(NOW - 3700000) },
+        'cipher_sats_payouts/c_settled': { status: 'restored', uid: 'bobUid0000002', amount: 300, paymentHash: h2, restoredAt: stamp(NOW - 7200000) },
+        'faucet_invoices/inv_failed': { status: 'failed', uid: 'carolUid00003', amount: 200, paymentHash: h3, failedAt: stamp(NOW - 3600000) },
+        'faucet_invoices/inv_old': { status: 'failed', uid: 'daveUid000004', amount: 200, paymentHash: h4, failedAt: stamp(NOW - 50 * 3600000) },
+    });
+    const looked = [];
+    const r = await recon.reconcile({
+        db: db,
+        admin: { firestore: { FieldValue: { serverTimestamp: function () { return NOW; } } } },
+        emitAlert: async function () { return true; },
+        lookupPayment: async function (q) {
+            looked.push(q.payment_hash);
+            if (q.payment_hash === h1) return { state: 'settled', preimage: 'ab'.repeat(32) };
+            if (q.payment_hash === h2) return { state: 'settled' };
+            return { state: 'failed' };
+        },
+    }, { nowMs: NOW });
+    // Only the 3 refunded failures inside 48h were looked up.
+    assert.deepStrictEqual(looked.slice().sort(), [h1, h2, h3].sort());
+    assert.strictEqual(r.settledAfterFailure.length, 2);
+    assert.ok(db.store['payout_reconcile_flags/settled_after_failure_faucet_inv_settled']);
+    assert.ok(db.store['payout_reconcile_flags/settled_after_failure_cipher_sats_c_settled']);
+    assert.ok(!db.store['payout_reconcile_flags/settled_after_failure_faucet_inv_failed']);
+    assert.ok(!db.store['payout_reconcile_flags/settled_after_failure_faucet_inv_old']);
+    // Flag only: the records themselves are untouched.
+    assert.strictEqual(db.store['faucet_invoices/inv_settled'].status, 'failed');
+    assert.strictEqual(db.store['cipher_sats_payouts/c_settled'].status, 'restored');
+    // No full uid in the flags or run record.
+    const flat = JSON.stringify(Object.keys(db.store).filter(function (k) { return k.indexOf('payout_reconcile_') === 0; }).map(function (k) { return db.store[k]; }));
+    assert.ok(flat.indexOf('aliceUid000001') === -1 && flat.indexOf('bobUid0000002') === -1);
+});
+
+test('#376 K2: without a lookup hook nothing is rechecked (no wallet secret bound)', async function () {
+    const db = memDb({
+        'faucet_invoices/inv_x': { status: 'failed', amount: 200, paymentHash: '55'.repeat(32), failedAt: stamp(NOW - 3600000) },
+    });
+    const r = await recon.reconcile({
+        db: db,
+        admin: { firestore: { FieldValue: { serverTimestamp: function () { return NOW; } } } },
+        emitAlert: async function () { return true; },
+    }, { nowMs: NOW });
+    assert.strictEqual(r.settledAfterFailure.length, 0);
+    assert.strictEqual(r.failedRechecked || 0, 0);
+});
+
 (async function main() {
     for (const t of queue) {
         try { await t.fn(); console.log('\u2705 ' + t.name); passed++; }

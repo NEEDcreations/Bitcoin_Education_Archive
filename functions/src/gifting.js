@@ -1638,13 +1638,17 @@ async function payCipherBalanceInvoice(invoice) {
         payError = e;
     }
     if (payResult && payResult.preimage) return { action: 'paid', payResult: payResult };
-    if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {
+    const refused = !shouldLookupPay({ phase: phase, error: payError, payResult: payResult });
+    if (refused && phase !== 'pay') {
+        // The send never started (our node, before the pay call).
         return {
             action: 'release',
             low: !!(payError && payError.message === 'WALLET_LOW'),
             kind: faucetGuard.definiteFailureKind({ phase: phase, error: payError }),
         };
     }
+    // An explicit refusal during the pay call is confirmed by lookup first:
+    // an HTLC can still be in flight when a node reports PAYMENT_FAILED.
     let lookupReq = null;
     try { lookupReq = lookupRequestFromDecoded(bolt11.decode(invoice)); }
     catch (e) { lookupReq = null; }
@@ -1658,7 +1662,15 @@ async function payCipherBalanceInvoice(invoice) {
         },
     });
     if (settlement.action === 'paid') return { action: 'paid' };
-    if (settlement.action === 'release') return { action: 'release', low: false, kind: 'refused' };
+    if (settlement.action === 'release') {
+        return {
+            action: 'release',
+            low: false,
+            kind: refused ? faucetGuard.definiteFailureKind({ phase: phase, error: payError }) : 'theirs',
+        };
+    }
+    // Refusal the lookup could not confirm, and not seen in flight: refund only.
+    if (refused && settlement.pending !== true) return { action: 'refund_only' };
     return { action: 'hold' };
 }
 
@@ -1927,7 +1939,12 @@ const claimCipherSats = functionsV1.runWith({
     } catch (e) {
         await finishCipherClaim(reserved, 'restore');
         console.error('[claimCipherSats] address did not resolve');
-        return { success: false, error: (e && e.message) ? e.message : 'Could not pay that Lightning Address.' };
+        const msg = (e && e.message) ? e.message : '';
+        // The receiver's address server failed before any send.
+        if (!msg || msg === 'Could not look up that Lightning Address.') {
+            return { success: false, error: payFailGuard.RECEIVER_UNRESPONSIVE_MESSAGE };
+        }
+        return { success: false, error: msg };
     }
 
     const invoiceHash = crypto.createHash('sha256').update(invoice).digest('hex').slice(0, 32);
@@ -2006,8 +2023,9 @@ const claimCipherSats = functionsV1.runWith({
     // Definite failure: nothing was sent. The balance comes back; the day's limit
     // comes back too unless the failure cap is reached.
     let failed = { released: false, message: '', applied: false };
+    const failKind = paid.action === 'refund_only' ? 'unconfirmed' : (paid.kind || 'theirs');
     try {
-        failed = await require('./cipherSatsRelease').failCipherClaim({ db: db, admin: admin }, reserved, paid.kind || 'refused');
+        failed = await require('./cipherSatsRelease').failCipherClaim({ db: db, admin: admin }, reserved, failKind);
     } catch (e) {
         console.error('[claimCipherSats] CRITICAL: failed-claim restore did not commit claim=' + reserved.claimId);
         return { success: false, code: 'payment_failed', error: faucetGuard.supportError('Payment failed. No sats were sent.') };
@@ -2022,7 +2040,9 @@ const claimCipherSats = functionsV1.runWith({
         success: false,
         code: 'payment_failed',
         released: !!failed.released,
-        error: (failed.message || 'Payment failed. No sats were sent.') + ' Your cipher sats balance was restored.',
+        error: failKind === 'unconfirmed'
+            ? failed.message
+            : (failed.message || 'Payment failed. No sats were sent.') + ' Your cipher sats balance was restored.',
     };
 });
 

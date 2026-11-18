@@ -115,7 +115,7 @@ test('4th failure in 24h: balance restored, but the day limit stays used', async
     assert.strictEqual(out.message, pfg.CAPPED_MESSAGE);
     assert.strictEqual(s['users/' + UID].cipherSatsBalance, 1000);
     assert.strictEqual(s['cipher_sats_player_daily/' + UID + '_' + DAY].amount, 200);
-    assert.strictEqual(s['cipher_sats_site_daily/' + DAY].amount, 0);
+    assert.strictEqual(s['cipher_sats_site_daily/' + DAY].amount, 200);
 });
 
 test('parallel race: the same failed claim restores once', async function() {
@@ -162,7 +162,95 @@ test('claimCipherSats wiring: wait checked in the claim transaction, release onl
     assert.ok(read !== -1 && read < firstWrite);
     // payCipherBalanceInvoice reports which side failed; lookups that are not failed hold.
     assert.ok(/kind: faucetGuard\.definiteFailureKind\(\{ phase: phase, error: payError \}\)/.test(src));
-    assert.ok(/settlement\.action === 'release'\) return \{ action: 'release', low: false, kind: 'refused' \}/.test(src));
+    // K1: a pay-phase refusal is looked up; release only on a confirmed failed lookup.
+    assert.ok(/if \(refused && phase !== 'pay'\) \{/.test(src));
+    assert.ok(/if \(refused && settlement\.pending !== true\) return \{ action: 'refund_only' \};/.test(src));
+    assert.ok(/failKind = paid\.action === 'refund_only' \? 'unconfirmed'/.test(src));
+});
+
+
+const cipherClaim = require('../functions/src/cipherClaim');
+function auditRows(fake) {
+    return Object.keys(fake.db.store).filter(function(k) { return k.indexOf(pfg.AUDIT_COLLECTION + '/') === 0; })
+        .map(function(k) { return fake.db.store[k]; });
+}
+
+test('our-side failure restores the day with the 10 minute wait but never counts', async function() {
+    const fake = makeDb();
+    for (let i = 1; i <= 5; i++) {
+        const out = await fail(fake, seed(fake, { claimId: 'o' + i }), 'ours');
+        assert.strictEqual(out.released, true, 'ours ' + i);
+    }
+    const row = fake.db.store['faucet_ledger/' + UID].cipherFailGuard;
+    assert.strictEqual(row.at.length, 0);
+    assert.strictEqual(pfg.assessRetryWait(row, null, Date.now()).ok, false);
+    assert.strictEqual(fake.db.store['cipher_sats_player_daily/' + UID + '_' + DAY].amount, 0);
+});
+
+test('their-side failure counts toward the cap', async function() {
+    const fake = makeDb();
+    await fail(fake, seed(fake), 'theirs');
+    assert.strictEqual(fake.db.store['faucet_ledger/' + UID].cipherFailGuard.at.length, 1);
+    assert.strictEqual(fake.db.store['faucet_ln_ratelimit/' + guard.addressRateDocId(ADDR)].cipherFailGuard.at.length, 1);
+});
+
+test('every processed failure writes one masked audit row', async function() {
+    const fake = makeDb();
+    await fail(fake, seed(fake, { claimId: 'x1' }), 'ours');
+    await fail(fake, seed(fake, { claimId: 'x2' }), 'theirs');
+    const rows = auditRows(fake);
+    assert.strictEqual(rows.length, 2);
+    rows.forEach(function(r) {
+        assert.strictEqual(r.path, 'cipher');
+        assert.strictEqual(r.uidMasked, UID.slice(0, 5) + '\u2026');
+        assert.strictEqual(r.uidHash, pfg.uidHash(UID));
+        assert.strictEqual(r.addressHash, pfg.addressHash(ADDR));
+        assert.ok(r.createdAtMs > 0);
+    });
+    const theirs = rows.filter(function(r) { return r.reasonClass === 'theirs'; })[0];
+    const ours = rows.filter(function(r) { return r.reasonClass === 'ours'; })[0];
+    assert.strictEqual(ours.uidCount, 0);
+    assert.strictEqual(theirs.uidCount, 1);
+    assert.strictEqual(theirs.claimId, 'x2');
+    const flat = JSON.stringify(rows);
+    assert.ok(flat.indexOf(UID) === -1 && flat.indexOf(ADDR) === -1);
+});
+
+test('unconfirmed refusal: balance back, both day totals stay used, nothing counted', async function() {
+    const fake = makeDb();
+    const out = await fail(fake, seed(fake), 'unconfirmed');
+    const s = fake.db.store;
+    assert.strictEqual(out.applied, true);
+    assert.strictEqual(out.released, false);
+    assert.strictEqual(out.message, pfg.UNCONFIRMED_MESSAGE);
+    assert.strictEqual(s['users/' + UID].cipherSatsBalance, 1000);
+    assert.strictEqual(s['cipher_sats_player_daily/' + UID + '_' + DAY].amount, 200);
+    assert.strictEqual(s['cipher_sats_site_daily/' + DAY].amount, 200);
+    assert.strictEqual(s['faucet_ledger/' + UID].cipherFailGuard.at.length, 0);
+    assert.strictEqual(auditRows(fake)[0].reasonClass, 'unconfirmed');
+});
+
+test('message-only refusal text (code INTERNAL, or a timeout) goes to lookup, never release', function() {
+    const internal = Object.assign(new Error('PAYMENT_FAILED: route hint'), { code: 'INTERNAL' });
+    assert.strictEqual(cipherClaim.payErrorAction({ phase: 'pay', error: internal }), 'lookup');
+    assert.strictEqual(cipherClaim.payErrorAction({ phase: 'pay', error: new Error('[TIMEOUT] payInvoice PAYMENT_FAILED') }), 'lookup');
+    assert.strictEqual(cipherClaim.explicitPayRefusal(new Error('INSUFFICIENT_BALANCE')), false);
+    assert.strictEqual(cipherClaim.explicitPayRefusal({ code: 'PAYMENT_FAILED' }), true);
+});
+
+test('held HTLC: a pending lookup after a refusal is held (cipher)', async function() {
+    const s = await cipherClaim.lookupSettlement({ attempts: 2, intervalMs: 0, lookup: async function() { return { state: 'in_flight' }; } });
+    assert.strictEqual(s.action, 'hold');
+    assert.strictEqual(s.pending, true);
+    // payCipherBalanceInvoice returns refund_only only when the lookup did not see it in flight.
+    const src = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'gifting.js'), 'utf8');
+    assert.ok(src.indexOf("if (refused && settlement.pending !== true) return { action: 'refund_only' };") !== -1);
+});
+
+test('cipher receiver address failure gets the address message', function() {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'gifting.js'), 'utf8');
+    const body = src.slice(src.indexOf('const claimCipherSats = '), src.indexOf('const adminResolveCipherSatsClaim'));
+    assert.ok(body.indexOf("return { success: false, error: payFailGuard.RECEIVER_UNRESPONSIVE_MESSAGE };") !== -1);
 });
 
 Promise.all(queue).then(function() {

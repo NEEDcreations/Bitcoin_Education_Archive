@@ -111,7 +111,8 @@ later('only an explicit wallet refusal skips the lookup and releases', function(
         const err = Object.assign(new Error('wallet refused'), { code: code });
         assert.strictEqual(payErrorAction({ phase: 'pay', error: err }), 'release', code);
         assert.strictEqual(shouldLookupPay({ phase: 'pay', error: err }), false, code);
-        assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error(code) }), 'release', code);
+        // Exact code only: a message that merely contains the code is looked up.
+        assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error(code) }), 'lookup', code);
     });
     assert.deepStrictEqual(EXPLICIT_PAY_REFUSALS, ['PAYMENT_FAILED', 'INSUFFICIENT_BALANCE', 'QUOTA_EXCEEDED', 'RATE_LIMITED']);
 });

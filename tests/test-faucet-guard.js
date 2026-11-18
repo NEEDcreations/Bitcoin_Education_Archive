@@ -250,7 +250,7 @@ test('per-address claim history is pruned inside the 24h window', function() {
     assert.strictEqual(blocked.recent.length, 2);
 });
 
-test('balance errors and explicit refusals refund; timeouts are looked up', function() {
+test('balance errors refund; explicit pay refusals and timeouts are looked up first', function() {
     const balance = guard.decideFaucetPayment({ phase: 'balance', error: new Error('[TIMEOUT] getBalance') });
     assert.strictEqual(balance.action, 'refund');
     assert.strictEqual(balance.reason, 'balance');
@@ -258,12 +258,14 @@ test('balance errors and explicit refusals refund; timeouts are looked up', func
     const low = guard.decideFaucetPayment({ phase: 'balance', error: new Error('WALLET_LOW') });
     assert.strictEqual(low.action, 'refund');
 
+    // #376 K1: a refusal during the pay call is confirmed by lookup, since an HTLC can still be in flight.
     const refused = guard.decideFaucetPayment({ phase: 'pay', error: { code: 'PAYMENT_FAILED', message: 'no' } });
-    assert.strictEqual(refused.action, 'refund');
+    assert.strictEqual(refused.action, 'lookup');
+    assert.strictEqual(refused.refused, true);
     assert.strictEqual(refused.reason, 'refused');
-    assert.strictEqual(guard.decideFaucetPayment({ phase: 'pay', error: new Error('INSUFFICIENT_BALANCE') }).action, 'refund');
-    assert.strictEqual(guard.decideFaucetPayment({ phase: 'pay', error: new Error('QUOTA_EXCEEDED') }).action, 'refund');
-    assert.strictEqual(guard.decideFaucetPayment({ phase: 'pay', error: new Error('RATE_LIMITED') }).action, 'refund');
+    assert.strictEqual(guard.decideFaucetPayment({ phase: 'pay', error: new Error('INSUFFICIENT_BALANCE') }).action, 'lookup');
+    assert.strictEqual(guard.decideFaucetPayment({ phase: 'pay', error: new Error('QUOTA_EXCEEDED') }).action, 'lookup');
+    assert.strictEqual(guard.decideFaucetPayment({ phase: 'pay', error: new Error('RATE_LIMITED') }).action, 'lookup');
 
     const timeout = guard.decideFaucetPayment({ phase: 'pay', error: new Error('[TIMEOUT] payInvoice timed out after 30000ms') });
     assert.strictEqual(timeout.action, 'lookup');

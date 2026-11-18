@@ -36,6 +36,7 @@ function makeDb(seed) {
     const store = Object.assign({}, seed || {});
     let chain = Promise.resolve();
     let commits = 0;
+    let autoId = 0;
     function ref(path) {
         return {
             path: path,
@@ -52,7 +53,7 @@ function makeDb(seed) {
     const db = {
         store: store,
         commits: function() { return commits; },
-        collection: function(name) { return { doc: function(id) { return ref(name + '/' + id); } }; },
+        collection: function(name) { return { doc: function(id) { return ref(name + '/' + (id || ('auto' + (++autoId)))); } }; },
         runTransaction: function(fn) {
             const run = chain.then(async function() {
                 const writes = [];

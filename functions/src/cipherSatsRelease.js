@@ -1,6 +1,7 @@
 'use strict';
 
-// Cipher sats claim after a definite payment failure (nothing was sent).
+// Cipher sats claim after a definite payment failure (nothing was sent), or an
+// explicit refusal the wallet lookup could not confirm ('unconfirmed', refund only).
 // Firestore is passed in so tests can run it against an in-memory store.
 //
 // One transaction, keyed on the claim's audit record and its in-flight lock:
@@ -37,9 +38,10 @@ async function failCipherClaim(deps, reserved, kind) {
         const lock = lockSnap.exists ? (lockSnap.data() || {}) : null;
         if (String(audit.status || '') !== 'paying') return;
         if (!lockOwnedByClaim(lock, reserved.claimId)) return;
+        const nowMs = Date.now();
         const plan = payFailGuard.planRelease({
             kind: kind,
-            nowMs: Date.now(),
+            nowMs: nowMs,
             uidRow: ledgerSnap.exists ? (ledgerSnap.data() || {}).cipherFailGuard : null,
             addrRow: addrRateSnap.exists ? (addrRateSnap.data() || {}).cipherFailGuard : null,
         });
@@ -47,7 +49,11 @@ async function failCipherClaim(deps, reserved, kind) {
         if (plan.release) {
             t.set(playerRef, { amount: FieldValue.increment(-reserved.amount) }, { merge: true });
         }
-        t.set(siteRef, { amount: FieldValue.increment(-reserved.amount) }, { merge: true });
+        // Without a release (cap reached, or an unconfirmed refusal) only the
+        // balance comes back; both day totals stay used.
+        if (plan.release) {
+            t.set(siteRef, { amount: FieldValue.increment(-reserved.amount) }, { merge: true });
+        }
         t.set(ledgerRef, { cipherFailGuard: plan.uidRow }, { merge: true });
         t.set(addrRateRef, { cipherFailGuard: plan.addrRow }, { merge: true });
         t.set(auditRef, {
@@ -58,8 +64,24 @@ async function failCipherClaim(deps, reserved, kind) {
             failKind: String(kind || ''),
         }, { merge: true });
         t.delete(lockRef);
-        result = { applied: true, released: plan.release, message: plan.message };
+        // Server-only audit row (collection is denied to clients by the catch-all rule).
+        const entry = payFailGuard.auditEntry({
+            path: 'cipher',
+            claimId: reserved.claimId,
+            uid: reserved.uid,
+            address: reserved.address,
+            kind: kind,
+            plan: plan,
+            nowMs: nowMs,
+        });
+        t.set(db.collection(payFailGuard.AUDIT_COLLECTION).doc(), Object.assign({}, entry, {
+            createdAt: FieldValue.serverTimestamp(),
+        }));
+        result = { applied: true, released: plan.release, message: plan.message, reasonClass: plan.reasonClass, audit: entry };
     });
+    if (result.applied) {
+        console.log('[claimCipherSats] failed claim restored uid=' + payFailGuard.maskUid(reserved.uid) + ' released=' + result.released + ' reason=' + result.reasonClass);
+    }
     return result;
 }
 
