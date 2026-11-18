@@ -39,10 +39,72 @@ function statusOf(data) {
     return String((data && data.status) || '').toLowerCase();
 }
 
-function payingAtMs(data) {
-    const n = Number(data && (data.payingAtMs != null ? data.payingAtMs : (data.payingAt && data.payingAt.toMillis ? data.payingAt.toMillis() : data.payingAt)));
+function toMs(v) {
+    if (v == null) return 0;
+    if (typeof v === 'number') return Number.isFinite(v) && v > 0 ? v : 0;
+    if (typeof v.toMillis === 'function') {
+        const n = Number(v.toMillis());
+        return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+    if (typeof v.seconds === 'number') return v.seconds * 1000 > 0 ? v.seconds * 1000 : 0;
+    if (typeof v._seconds === 'number') return v._seconds * 1000 > 0 ? v._seconds * 1000 : 0;
+    const n = Number(v);
     return Number.isFinite(n) && n > 0 ? n : 0;
 }
+
+function eventMs(data, fields) {
+    const d = data || {};
+    const list = fields || [];
+    for (let i = 0; i < list.length; i++) {
+        const n = toMs(d[list[i]]);
+        if (n) return n;
+    }
+    return 0;
+}
+
+function payingAtMs(data) {
+    return eventMs(data, ['payingAtMs', 'payingAt']);
+}
+
+// Production faucet invoices use `ts` (Timestamp) and status used/pending/unknown.
+// Favor / cipher docs use paidAtMs or tsMs. A missing date is not "this month".
+function paidAtMsOf(data) {
+    return eventMs(data, ['paidAtMs', 'tsMs', 'ts', 'paidAt']);
+}
+
+function faucetCountsAsPaid(status) {
+    return status === 'used';
+}
+
+function faucetLooksStuck(status) {
+    return status === 'pending' || status === 'unknown';
+}
+
+const WINDOW_FIELDS = Object.freeze({
+    sf_block_claims: [
+        { field: 'paidAtMs', as: 'ms' },
+        { field: 'payingAtMs', as: 'ms' },
+        { field: 'createdAtMs', as: 'ms' },
+    ],
+    sf_block_payouts: [{ field: 'paidAtMs', as: 'ms' }],
+    faucet_invoices: [
+        { field: 'ts', as: 'ts' },
+        { field: 'tsMs', as: 'ms' },
+        { field: 'paidAtMs', as: 'ms' },
+    ],
+    cipher_sats_payouts: [
+        { field: 'paidAtMs', as: 'ms' },
+        { field: 'payingAtMs', as: 'ms' },
+        { field: 'createdAtMs', as: 'ms' },
+    ],
+    cipher_wins: [
+        { field: 'paidAtMs', as: 'ms' },
+        { field: 'payingAtMs', as: 'ms' },
+        { field: 'createdAtMs', as: 'ms' },
+        { field: 'ts', as: 'ts' },
+    ],
+});
+const OPEN_STATUSES = Object.freeze(['paying', 'pending', 'unknown']);
 
 function paidSatsOf(data) {
     const candidates = [data && data.walletSpentSats, data && data.netSats, data && data.net_sent, data && data.amount, data && data.sats];
@@ -63,11 +125,48 @@ function monthStartMs(monthKey) {
     return Date.UTC(y, m - 2, 28); // a few days before the ET month, inclusive
 }
 
-async function listCollection(db, name) {
-    const snap = await db.collection(name).get();
+function mapQueryDocs(snap) {
     return (snap.docs || []).map(function (d) {
         return { id: d.id, data: (typeof d.data === 'function' ? d.data() : d.data) || {} };
     });
+}
+
+// Time-windowed read when the collection supports where(). Falls back to a
+// full get if no bounded query works (tests, or a missing index).
+async function listCollection(db, name, sinceMs) {
+    const col = db.collection(name);
+    function absorb(into, snap) {
+        (snap.docs || []).forEach(function (d) {
+            into[d.id] = { id: d.id, data: (typeof d.data === 'function' ? d.data() : d.data) || {} };
+        });
+    }
+    if (!sinceMs || typeof col.where !== 'function') {
+        return mapQueryDocs(await col.get());
+    }
+    const byId = Object.create(null);
+    let boundedOk = false;
+    const fields = WINDOW_FIELDS[name] || [
+        { field: 'paidAtMs', as: 'ms' },
+        { field: 'tsMs', as: 'ms' },
+        { field: 'ts', as: 'ts' },
+    ];
+    for (let i = 0; i < fields.length; i++) {
+        const f = fields[i];
+        const value = f.as === 'ts' ? new Date(sinceMs) : sinceMs;
+        try {
+            absorb(byId, await col.where(f.field, '>=', value).get());
+            boundedOk = true;
+        } catch (e) { /* no index, wrong type, or test mock */ }
+    }
+    try {
+        absorb(byId, await col.where('status', 'in', OPEN_STATUSES.slice()).get());
+        boundedOk = true;
+    } catch (e) { /* no index or test mock */ }
+    if (!boundedOk) {
+        console.warn('[payoutReconcile] falling back to a full read of ' + name);
+        return mapQueryDocs(await col.get());
+    }
+    return Object.keys(byId).map(function (id) { return byId[id]; });
 }
 
 async function createFlag(db, flag) {
@@ -81,8 +180,10 @@ async function createFlag(db, flag) {
     }
 }
 
-async function loadLedger(db, listFn) {
-    const list = listFn || listCollection;
+async function loadLedger(db, listFn, sinceMs) {
+    const list = listFn || function (database, name) {
+        return listCollection(database, name, sinceMs);
+    };
     const claims = [];
     const payouts = [];
     for (let i = 0; i < CLAIM_SOURCES.length; i++) {
@@ -146,22 +247,31 @@ async function reconcile(deps, opts) {
         alerts: 0,
     };
 
-    const ledger = await loadLedger(db, deps.listCollection);
+    const ledger = await loadLedger(db, deps.listCollection, monthStartMs(monthKey));
     const claimsByHash = indexByHash(ledger.claims);
     const payoutsByHash = indexByHash(ledger.payouts);
 
     function inMonth(data) {
-        const paidAt = Number(data && (data.paidAtMs || data.tsMs || 0)) || 0;
-        return !paidAt || alerts.etMonthKey(paidAt) === monthKey;
+        const paidAt = paidAtMsOf(data);
+        if (!paidAt) return false;
+        return alerts.etMonthKey(paidAt) === monthKey;
     }
     ledger.claims.forEach(function (c) {
+        let stuckAt = 0;
         if (c.status === 'paying' && c.payingAtMs && (nowMs - c.payingAtMs) >= stuckAfterMs) {
-            result.stuckPaying.push({ source: c.source, id: c.id, payingAtMs: c.payingAtMs });
+            stuckAt = c.payingAtMs;
+        } else if (c.source === 'faucet' && faucetLooksStuck(c.status)) {
+            const start = c.payingAtMs || eventMs(c.data, ['payingAtMs', 'tsMs', 'ts', 'createdAtMs']);
+            if (start && (nowMs - start) >= stuckAfterMs) stuckAt = start;
+        }
+        if (stuckAt) {
+            result.stuckPaying.push({ source: c.source, id: c.id, payingAtMs: stuckAt, status: c.status });
         }
         // Favor spend is taken from sf_block_payouts only, so it is not
         // double-counted from the claim doc.
         if (c.source === 'favor') return;
-        if (inMonth(c.data) && (c.status === 'paid' || c.source === 'faucet')) {
+        const counts = c.source === 'faucet' ? faucetCountsAsPaid(c.status) : c.status === 'paid';
+        if (inMonth(c.data) && counts) {
             result.monthlySpentSats += c.paidSats;
         }
     });
@@ -308,6 +418,9 @@ module.exports = {
     CLAIM_SOURCES: CLAIM_SOURCES,
     normalizeHash: normalizeHash,
     hashFromDoc: hashFromDoc,
+    toMs: toMs,
+    paidAtMsOf: paidAtMsOf,
+    faucetCountsAsPaid: faucetCountsAsPaid,
     reconcile: reconcile,
     factory: factory,
     monthStartMs: monthStartMs,

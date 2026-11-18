@@ -120,7 +120,7 @@ test('monthly budget alert fires at 80k and uses Favor payout spend, not the cla
     const db = memDb({
         'sf_block_claims/e1_b3': { status: 'paid', paidAtMs: NOW, amount: 50000, walletSpentSats: 50000, paymentHash: '11'.repeat(16) },
         'sf_block_payouts/e1_b3': { paidAtMs: NOW, walletSpentSats: 81000, paymentHash: '11'.repeat(16) },
-        'faucet_invoices/f1': { tsMs: NOW, amount: 200, paymentHash: '22'.repeat(16) },
+        'faucet_invoices/f1': { tsMs: NOW, status: 'used', amount: 200, paymentHash: '22'.repeat(16) },
     });
     const emitted = [];
     const r = await recon.reconcile({
@@ -145,6 +145,48 @@ test('flags and runs are create-only (a second pass does not delete or overwrite
     assert.deepStrictEqual(db.store[flagId], first);
     const runs = Object.keys(db.store).filter(function (k) { return k.indexOf('payout_reconcile_runs/') === 0; });
     assert.strictEqual(runs.length, 2);
+});
+
+test('faucet monthly spend counts only used rows with a real timestamp, including ts', async function () {
+    const ts = { toMillis: function () { return NOW; } };
+    const db = memDb({
+        'faucet_invoices/used_ts': { ts: ts, status: 'used', amount: 300, paymentHash: '33'.repeat(16) },
+        'faucet_invoices/used_tsMs': { tsMs: NOW, status: 'used', amount: 200, paymentHash: '44'.repeat(16) },
+        'faucet_invoices/pending': { tsMs: NOW, status: 'pending', amount: 9000, net_sent: 9000, paymentHash: '55'.repeat(16) },
+        'faucet_invoices/unknown': { tsMs: NOW, status: 'unknown', amount: 8000, paymentHash: '66'.repeat(16) },
+        'faucet_invoices/no_status': { tsMs: NOW, amount: 7000, paymentHash: '77'.repeat(16) },
+        'faucet_invoices/no_time': { status: 'used', amount: 6000, paymentHash: '88'.repeat(16) },
+        'faucet_invoices/last_month': { tsMs: Date.UTC(2026, 8, 15), status: 'used', amount: 5000, paymentHash: '99'.repeat(16) },
+    });
+    const r = await recon.reconcile({
+        db: db,
+        emitAlert: async function () { return true; },
+    }, { nowMs: NOW });
+    assert.strictEqual(r.monthlySpentSats, 500);
+    assert.strictEqual(r.budgetBand, '');
+});
+
+test('faucet pending or unknown older than 15 minutes is flagged; used and fresh pending are not', async function () {
+    const db = memDb({
+        'faucet_invoices/old_pending': { status: 'pending', tsMs: NOW - 16 * 60 * 1000, amount: 200, paymentHash: 'aa'.repeat(16) },
+        'faucet_invoices/old_unknown': { status: 'unknown', ts: { toMillis: function () { return NOW - 20 * 60 * 1000; } }, amount: 200, paymentHash: 'bb'.repeat(16) },
+        'faucet_invoices/fresh_pending': { status: 'pending', tsMs: NOW - 60 * 1000, amount: 200, paymentHash: 'cc'.repeat(16) },
+        'faucet_invoices/used': { status: 'used', tsMs: NOW - 20 * 60 * 1000, amount: 200, paymentHash: 'dd'.repeat(16) },
+    });
+    const emitted = [];
+    const r = await recon.reconcile({
+        db: db,
+        emitAlert: async function (o) { emitted.push(o); return true; },
+    }, { nowMs: NOW });
+    const ids = r.stuckPaying.map(function (s) { return s.id; }).sort();
+    assert.deepStrictEqual(ids, ['old_pending', 'old_unknown']);
+    assert.ok(r.stuckPaying.every(function (s) { return s.source === 'faucet'; }));
+    assert.ok(db.store['payout_reconcile_flags/stuck_faucet_old_pending']);
+    assert.ok(db.store['payout_reconcile_flags/stuck_faucet_old_unknown']);
+    assert.ok(!db.store['payout_reconcile_flags/stuck_faucet_fresh_pending']);
+    assert.ok(!db.store['payout_reconcile_flags/stuck_faucet_used']);
+    assert.ok(emitted.some(function (a) { return a.kind === 'stuck_paying'; }));
+    assert.strictEqual(r.monthlySpentSats, 200); // only the used row
 });
 
 test('alert helpers: budget bands and uid masking', function () {
