@@ -11,6 +11,7 @@ const { isSatsBanned } = require('./cipherClaim');
 const accountTombstone = require('./accountTombstone');
 const streakBoard = require('./streakBoard');
 const joinDate = require('./joinDate');
+const guestGate = require('./guestGate');
 
 const QUIZ_DOC = /_(quest|trivia|poll_vote)$/;
 const USERNAME_HOUR_MS = 60 * 60 * 1000;
@@ -33,6 +34,50 @@ function requireUser(context, functionsV1) {
 function isAnon(context) {
     return !!(context.auth && context.auth.token && context.auth.token.firebase
         && context.auth.token.firebase.sign_in_provider === 'anonymous');
+}
+
+// Guest XP cutoff (Phil, Nov 18 2026). Set to the hotfix deploy time.
+// Guest sessions created before it keep today's behavior: moved XP is
+// claimable and counts toward weekly/monthly totals. Guests created at or
+// after it move XP as unclaimable and off the leaderboards, because earning
+// on a guest session is closed from the deploy on.
+//
+// TODO(ship): replace this 11:00 PM ET placeholder with the exact deploy
+// minute in a final commit before going live. Tests inject an override and
+// must not depend on the wall clock against this constant.
+const GUEST_XP_CUTOFF_MS = Date.parse('2026-11-18T23:00:00-05:00');
+
+let guestXpCutoffOverrideMs = null;
+
+function setGuestXpCutoffMs(ms) {
+    guestXpCutoffOverrideMs = (typeof ms === 'number' && Number.isFinite(ms)) ? ms : null;
+}
+
+function resolveGuestXpCutoffMs(explicitMs) {
+    if (typeof explicitMs === 'number' && Number.isFinite(explicitMs)) return explicitMs;
+    if (typeof guestXpCutoffOverrideMs === 'number' && Number.isFinite(guestXpCutoffOverrideMs)) return guestXpCutoffOverrideMs;
+    return GUEST_XP_CUTOFF_MS;
+}
+
+// What a guest link adds to the signed-in account, beyond points and tickets.
+// leaderboardXp is what goes into weeklyXP and monthlyXP. guestMovedXp and
+// guestMovedTickets record the amounts so a later policy can treat them
+// separately.
+function guestMovePatch(points, tickets, guestCreatedMs, cutoffMs) {
+    const xp = Math.max(0, Math.floor(Number(points) || 0));
+    const t = Math.max(0, Math.floor(Number(tickets) || 0));
+    const cutoff = resolveGuestXpCutoffMs(cutoffMs);
+    // Unknown guest age fails closed (unclaimable).
+    const beforeCutoff = typeof guestCreatedMs === 'number' && Number.isFinite(guestCreatedMs) && guestCreatedMs < cutoff;
+    return {
+        unclaimableXp: beforeCutoff ? 0 : xp,
+        // Same amount, guest-only. The all-time board subtracts this field
+        // and not unclaimableXp, which also holds unverified-action XP.
+        guestUnclaimableXp: beforeCutoff ? 0 : xp,
+        leaderboardXp: beforeCutoff ? xp : 0,
+        guestMovedXp: xp,
+        guestMovedTickets: t,
+    };
 }
 
 function quizDocId(id) {
@@ -146,6 +191,9 @@ function registerOnboarding(deps) {
     const db = deps.db;
     const admin = deps.admin;
     const functionsV1 = deps.functionsV1;
+    // Tests pass deps.guestXpCutoffMs or call setGuestXpCutoffMs. Production
+    // reads GUEST_XP_CUTOFF_MS at call time so a test override is visible to
+    // already-registered callables.
     const onCall = function () {
         return functionsV1.runWith({ enforceAppCheck: true }).https.onCall;
     };
@@ -296,7 +344,7 @@ function registerOnboarding(deps) {
 
     async function prepareGuestLink(data, context) {
         const uid = requireUser(context, functionsV1);
-        if (!isAnon(context)) {
+        if (!(await guestGate.isGuestCaller(admin, context))) {
             throw httpsError(functionsV1, 'failed-precondition', 'Guest link is only for a guest session.');
         }
         const ref = db.collection('users').doc(uid);
@@ -322,7 +370,7 @@ function registerOnboarding(deps) {
         const secondFactor = require('./secondFactor');
         await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
         const uid = requireUser(context, functionsV1);
-        if (isAnon(context)) throw httpsError(functionsV1, 'permission-denied', 'Sign in before linking a guest.');
+        if (await guestGate.isGuestCaller(admin, context)) throw httpsError(functionsV1, 'permission-denied', 'Sign in before linking a guest.');
         const anonUid = String((data && data.anonUid) || '');
         const nonce = String((data && data.nonce) || '');
         if (!/^[A-Za-z0-9]{10,128}$/.test(anonUid) || anonUid === uid) {
@@ -407,6 +455,9 @@ function registerOnboarding(deps) {
                 now: nowMs,
             });
             const movedPoints = movedGrant.awarded;
+            // Moved guest progress stays on the account but is not claimable
+            // and is not new leaderboard activity. See guestMovePatch.
+            const movePatch = guestMovePatch(movedPoints, again.tickets, createdAt, deps.guestXpCutoffMs);
             let movedName = '';
             if (nameRef) {
                 const reserved = nameSnap && nameSnap.exists ? reservationView(nameSnap.data()) : null;
@@ -417,8 +468,12 @@ function registerOnboarding(deps) {
             if (!freshDest.exists) {
                 const created = Object.assign({
                     points: movedPoints,
-                    weeklyXP: movedPoints,
-                    monthlyXP: movedPoints,
+                    weeklyXP: movePatch.leaderboardXp,
+                    monthlyXP: movePatch.leaderboardXp,
+                    unclaimableXp: movePatch.unclaimableXp,
+                    guestUnclaimableXp: movePatch.guestUnclaimableXp,
+                    guestMovedXp: movePatch.guestMovedXp,
+                    guestMovedTickets: movePatch.guestMovedTickets,
                     orangeTickets: again.tickets,
                     channelsVisited: again.channelsVisited,
                     totalVisits: 1,
@@ -435,10 +490,18 @@ function registerOnboarding(deps) {
                 if (!joinDate.hasJoin(dest, nowMs) && destJoinStamp) update.created = destJoinStamp;
                 if (movedPoints > 0) {
                     update.points = admin.firestore.FieldValue.increment(movedPoints);
-                    update.weeklyXP = admin.firestore.FieldValue.increment(movedPoints);
-                    update.monthlyXP = admin.firestore.FieldValue.increment(movedPoints);
+                    if (movePatch.leaderboardXp > 0) {
+                        update.weeklyXP = admin.firestore.FieldValue.increment(movePatch.leaderboardXp);
+                        update.monthlyXP = admin.firestore.FieldValue.increment(movePatch.leaderboardXp);
+                    }
+                    if (movePatch.unclaimableXp > 0) update.unclaimableXp = admin.firestore.FieldValue.increment(movePatch.unclaimableXp);
+                    if (movePatch.guestUnclaimableXp > 0) update.guestUnclaimableXp = admin.firestore.FieldValue.increment(movePatch.guestUnclaimableXp);
+                    update.guestMovedXp = admin.firestore.FieldValue.increment(movePatch.guestMovedXp);
                 }
-                if (again.tickets > 0) update.orangeTickets = admin.firestore.FieldValue.increment(again.tickets);
+                if (again.tickets > 0) {
+                    update.orangeTickets = admin.firestore.FieldValue.increment(again.tickets);
+                    update.guestMovedTickets = admin.firestore.FieldValue.increment(movePatch.guestMovedTickets);
+                }
                 const channels = Math.max(dest.channelsVisited || 0, again.channelsVisited || 0);
                 if (channels > (dest.channelsVisited || 0)) update.channelsVisited = channels;
                 if (movedName) {
@@ -674,5 +737,9 @@ module.exports = {
     registerOnboarding: registerOnboarding,
     gatherEvidence: gatherEvidence,
     quizDocId: quizDocId,
+    guestMovePatch: guestMovePatch,
+    GUEST_XP_CUTOFF_MS: GUEST_XP_CUTOFF_MS,
+    setGuestXpCutoffMs: setGuestXpCutoffMs,
+    resolveGuestXpCutoffMs: resolveGuestXpCutoffMs,
     offsetDateKey: offsetDateKey,
 };

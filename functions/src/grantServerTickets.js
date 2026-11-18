@@ -3,6 +3,7 @@
 const admin = require('./firebaseAdmin.js');
 const ticketGrants = require('./ticketGrants');
 const rewardNotify = require('./rewardNotify');
+const { isGuestUid } = require('./guestGate');
 
 function db() {
     return admin.firestore();
@@ -17,6 +18,9 @@ async function grantServerTickets(uid, action, opts) {
     }
     const athleteKey = ticketGrants.stravaAthleteKey(opts && opts.athleteId);
     if (action === 'strava_connect_ticket' && !athleteKey) return { tickets: 0 };
+    // Guests (anonymous Auth, no real sign-in) get no tickets. A failed
+    // lookup counts as a guest.
+    if (await isGuestUid(admin, uid)) return { tickets: 0 };
 
     const preview = spec.dailyTickets
         ? ticketGrants.planRaidTickets(opts && opts.damage != null ? opts.damage : (opts && opts.tickets), 0)

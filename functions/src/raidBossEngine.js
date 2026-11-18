@@ -1117,12 +1117,15 @@ function sourceLive(kind, snap) {
     return true;
 }
 
-async function authorGate(db, uid, nowMs) {
+async function authorGate(db, uid, nowMs, adminSdk) {
     if (!uidOk(uid) || BOTS[uid]) return 'bot';
     const userSnap = await db.collection('users').doc(uid).get();
     if (!userSnap.exists) return 'guest';
     const user = userSnap.data() || {};
     if (user.anonymous === true) return 'guest';
+    // Same guest rule as contributeRaid: an anonymous Auth account with no
+    // real sign-in deals no forum damage. A failed lookup counts as a guest.
+    if (await require('./guestGate').isGuestUid(adminSdk, uid)) return 'guest';
     let ledger = {};
     try {
         const ledgerSnap = await db.collection('faucet_ledger').doc(uid).get();
@@ -1170,7 +1173,7 @@ async function queueForumDamage(db, admin, opts) {
     if (kind === 'forum' && !forumActivityAwardable(data)) return { queued: false, reason: 'mirror' };
     if (activityRemovedState(data)) return { queued: false, reason: 'hidden' };
     if (kind === 'article' && data.status !== 'published') return { queued: false, reason: 'hidden' };
-    const gate = await authorGate(db, uid, now.getTime());
+    const gate = await authorGate(db, uid, now.getTime(), admin);
     if (gate) return { queued: false, reason: gate };
     const verdict = quality.assessRaidQuality(postPlain(kind, data));
     if (!verdict.ok) return { queued: false, reason: 'quality' };
@@ -1247,7 +1250,7 @@ async function sweepForumDamage(db, admin, now) {
             try { await settlePending(pendingRef, admin, 'skipped'); } catch (e) { /* next sweep retries */ }
             continue;
         }
-        const gate = await authorGate(db, uid, when.getTime());
+        const gate = await authorGate(db, uid, when.getTime(), admin);
         const verdict = quality.assessRaidQuality(postPlain(kind, data));
         if (gate || !verdict.ok) {
             skipped += 1;
