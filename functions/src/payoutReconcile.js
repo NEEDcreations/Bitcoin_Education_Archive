@@ -102,16 +102,25 @@ const WINDOW_FIELDS = Object.freeze({
         { field: 'tsMs', as: 'ms' },
         { field: 'paidAtMs', as: 'ms' },
     ],
+    // Production writers use Firestore Timestamps (paidAt, createdAt,
+    // payingAt, heldAt). The *Ms names are kept for older or mixed docs.
     cipher_sats_payouts: [
         { field: 'paidAtMs', as: 'ms' },
         { field: 'payingAtMs', as: 'ms' },
         { field: 'createdAtMs', as: 'ms' },
+        { field: 'paidAt', as: 'ts' },
+        { field: 'createdAt', as: 'ts' },
+        { field: 'payingAt', as: 'ts' },
+        { field: 'heldAt', as: 'ts' },
     ],
     cipher_wins: [
         { field: 'paidAtMs', as: 'ms' },
         { field: 'payingAtMs', as: 'ms' },
         { field: 'createdAtMs', as: 'ms' },
         { field: 'ts', as: 'ts' },
+        { field: 'paidAt', as: 'ts' },
+        { field: 'createdAt', as: 'ts' },
+        { field: 'payingAt', as: 'ts' },
     ],
 });
 const OPEN_STATUSES = Object.freeze(['paying', 'pending', 'unknown']);

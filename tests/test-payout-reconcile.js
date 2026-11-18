@@ -51,6 +51,118 @@ function memDb(seed) {
     return { store: store, collection: col };
 }
 
+function stamp(ms) {
+    return {
+        toMillis: function () { return ms; },
+        seconds: Math.floor(ms / 1000),
+        nanoseconds: (ms % 1000) * 1e6,
+        toDate: function () { return new Date(ms); },
+    };
+}
+
+function fieldKindAndMs(v) {
+    if (v == null) return null;
+    if (typeof v === 'number') {
+        return Number.isFinite(v) ? { kind: 'ms', ms: v } : null;
+    }
+    if (v instanceof Date) {
+        const n = v.getTime();
+        return Number.isFinite(n) ? { kind: 'ts', ms: n } : null;
+    }
+    if (typeof v.toMillis === 'function') {
+        const n = Number(v.toMillis());
+        return Number.isFinite(n) ? { kind: 'ts', ms: n } : null;
+    }
+    if (typeof v.seconds === 'number') {
+        return { kind: 'ts', ms: v.seconds * 1000 };
+    }
+    return null;
+}
+
+// Firestore-like db: where() filters by field and type. A Timestamp query
+// does not match a number field, a number query does not match a Timestamp,
+// and a missing field is not returned. Empty results do not throw, which is
+// what hid K7 when the window used the wrong names.
+function firestoreLikeDb(seed) {
+    const store = Object.assign({}, seed || {});
+    let auto = 0;
+    function snap(k, id) {
+        const v = store[k];
+        return { id: id, exists: v !== undefined, data: function () { return v ? Object.assign({}, v) : undefined; } };
+    }
+    function docsIn(name) {
+        const docs = [];
+        Object.keys(store).forEach(function (k) {
+            if (k.indexOf(name + '/') !== 0) return;
+            const id = k.slice(name.length + 1);
+            if (id.indexOf('/') !== -1) return;
+            docs.push(snap(k, id));
+        });
+        return docs;
+    }
+    function matches(data, field, op, value) {
+        if (op === 'in') {
+            const list = Array.isArray(value) ? value : [];
+            return list.indexOf(data[field]) !== -1;
+        }
+        if (!(field in data) || data[field] == null) return false;
+        const got = fieldKindAndMs(data[field]);
+        const want = fieldKindAndMs(value);
+        if (!got || !want || got.kind !== want.kind) return false;
+        if (op === '>=') return got.ms >= want.ms;
+        if (op === '>') return got.ms > want.ms;
+        if (op === '<=') return got.ms <= want.ms;
+        if (op === '<') return got.ms < want.ms;
+        if (op === '==') return got.ms === want.ms;
+        return false;
+    }
+    function col(name) {
+        function query(filters) {
+            return {
+                where: function (field, op, value) {
+                    return query(filters.concat([{ field: field, op: op, value: value }]));
+                },
+                get: async function () {
+                    const docs = docsIn(name).filter(function (d) {
+                        const data = d.data() || {};
+                        return filters.every(function (f) { return matches(data, f.field, f.op, f.value); });
+                    });
+                    return { docs: docs, empty: !docs.length, size: docs.length };
+                },
+            };
+        }
+        return {
+            doc: function (id) {
+                const k = name + '/' + id;
+                return {
+                    id: id,
+                    create: async function (d) {
+                        if (store[k] !== undefined) { const e = new Error('ALREADY_EXISTS'); e.code = 6; throw e; }
+                        store[k] = Object.assign({}, d);
+                    },
+                    set: async function (d, o) {
+                        store[k] = (o && o.merge && store[k]) ? Object.assign({}, store[k], d) : Object.assign({}, d);
+                    },
+                    get: async function () { return snap(k, id); },
+                };
+            },
+            add: async function (d) {
+                const id = 'auto' + (++auto);
+                store[name + '/' + id] = Object.assign({}, d);
+                return { id: id };
+            },
+            where: function (field, op, value) {
+                return query([{ field: field, op: op, value: value }]);
+            },
+            get: async function () {
+                const docs = docsIn(name);
+                return { docs: docs, empty: !docs.length, size: docs.length };
+            },
+        };
+    }
+    return { store: store, collection: col };
+}
+
 const NOW = Date.UTC(2026, 10, 17, 18, 0); // Nov 17 2026 18:00 UTC
 
 test('normalizeHash accepts hex and rejects junk', function () {
@@ -236,6 +348,87 @@ test('cipher wins and sats payouts with status unknown older than 15 minutes are
     assert.ok(emitted.some(function (a) { return a.kind === 'stuck_paying'; }));
     // paid cipher win (400) + paid cipher sats (250); unknown and faucet-less
     assert.strictEqual(r.monthlySpentSats, 650);
+});
+
+test('windowed ledger queries find production Timestamp paid rows; K6 still skips cipher faucet mirrors', async function () {
+    // Production shapes: claimCipherWin / adminMarkCipherWinPaid write
+    // paidAt + createdAt Timestamps and delete payingAt; claimCipherSats
+    // writes paidAt / createdAt / payingAt / heldAt Timestamps (no *Ms on
+    // paid docs unless a leftover payingAtMs remains). A used cipher_
+    // faucet mirror must not be counted twice (K6).
+    const db = firestoreLikeDb({
+        'cipher_wins/auto_claimed': {
+            status: 'paid',
+            amount: 500,
+            paidBy: 'faucet',
+            paidAt: stamp(NOW - 3600000),
+            createdAt: stamp(NOW - 7200000),
+            paymentHash: 'a1'.repeat(16),
+        },
+        'cipher_wins/admin_marked': {
+            status: 'paid',
+            amount: 700,
+            paidBy: 'adminUid0001',
+            paidAt: stamp(NOW - 1800000),
+            createdAt: stamp(NOW - 86400000),
+        },
+        'cipher_wins/faction_prize': {
+            status: 'paid',
+            amount: 800,
+            source: 'faction_race',
+            adminApproved: true,
+            paidBy: 'faucet',
+            paidAt: stamp(NOW - 600000),
+            createdAt: stamp(NOW - 5400000),
+            paymentHash: 'a2'.repeat(16),
+        },
+        'cipher_sats_payouts/paid_sats': {
+            status: 'paid',
+            amount: 250,
+            paidAt: stamp(NOW - 1200000),
+            createdAt: stamp(NOW - 1500000),
+            paymentHash: 'a3'.repeat(16),
+        },
+        'faucet_invoices/cipher_auto': {
+            ts: stamp(NOW - 3600000),
+            status: 'used',
+            amount: 500,
+            winId: 'auto_claimed',
+            paymentHash: 'a1'.repeat(16),
+        },
+        'faucet_invoices/cipher_faction': {
+            ts: stamp(NOW - 600000),
+            status: 'used',
+            amount: 800,
+            winId: 'faction_prize',
+            paymentHash: 'a2'.repeat(16),
+        },
+        'faucet_invoices/real_faucet': {
+            ts: stamp(NOW - 900000),
+            status: 'used',
+            amount: 300,
+            paymentHash: 'a4'.repeat(16),
+        },
+        'sf_block_payouts/e1_b0': {
+            paidAtMs: NOW - 400000,
+            walletSpentSats: 100,
+            paymentHash: 'a5'.repeat(16),
+        },
+        // Paid this month, but only on a field the window does not query.
+        // A full-scan fallback would count it; a real where() must not.
+        'cipher_wins/unwindowed': {
+            status: 'paid',
+            amount: 99999,
+            paidWhen: stamp(NOW - 1000),
+        },
+    });
+    const r = await recon.reconcile({
+        db: db,
+        emitAlert: async function () { return true; },
+    }, { nowMs: NOW });
+    // 500 + 700 + 800 + 250 + 300 faucet + 100 Favor payout. Mirrors skipped.
+    // The unwindowed 99999-sat win must not be included.
+    assert.strictEqual(r.monthlySpentSats, 2650);
 });
 
 test('alert helpers: budget bands and uid masking', function () {
