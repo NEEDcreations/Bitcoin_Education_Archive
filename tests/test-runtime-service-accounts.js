@@ -16,32 +16,99 @@ function test(name, fn) {
 
 process.env.GCLOUD_PROJECT = 'bitcoin-education-archive';
 process.env.FIREBASE_CONFIG = JSON.stringify({ projectId: 'bitcoin-education-archive', storageBucket: 'bitcoin-education-archive.firebasestorage.app' });
-const { RUNTIME_SERVICE_ACCOUNTS, runtimeSa } = require(path.join(fnRoot, 'src', 'runtimeServiceAccounts.js'));
+const { RUNTIME_SERVICE_ACCOUNTS, runtimeSa, runtimeSaOrDefault, DEFAULT_SA_HOLDOVER } = require(path.join(fnRoot, 'src', 'runtimeServiceAccounts.js'));
 const planMod = require(path.join(fnRoot, 'scripts', 'runtime-sa-plan.js'));
 const endpoints = planMod.loadEndpoints();
 const plan = planMod.buildPlan(endpoints);
 const names = Object.keys(endpoints);
 const secretBound = names.filter(function (n) { return endpoints[n].secrets.length > 0; }).sort();
 const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
-// Accounts for functions that bind no secret but still must not run on the
-// default (Editor) accounts. Keep this list explicit and short.
-const NO_SECRET_ACCOUNTS = ['dailyAuthExport'];
-const secretManifest = manifest.filter(function (n) { return !RUNTIME_SERVICE_ACCOUNTS[n].noSecrets; });
 
-test('manifest lists exactly the secret-bound exports (54) plus the no-secret allowlist', function () {
+const secretManifest = manifest.filter(function (n) { return !RUNTIME_SERVICE_ACCOUNTS[n].noSecrets; });
+const NO_SECRET_ACCOUNTS = manifest.filter(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].noSecrets; });
+
+test('manifest lists exactly the secret-bound exports (59) plus the no-secret allowlist', function () {
     assert.deepStrictEqual(secretManifest, secretBound);
-    assert.strictEqual(secretManifest.length, 54);
-    assert.deepStrictEqual(manifest.filter(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].noSecrets; }), NO_SECRET_ACCOUNTS);
+    assert.strictEqual(secretBound.length, 59);
+    assert.deepStrictEqual(NO_SECRET_ACCOUNTS, ['dailyAuthExport']);
 });
 
-test('every manifest function runs as its own account', function () {
-    manifest.forEach(function (n) {
-        assert.strictEqual(endpoints[n].serviceAccount, RUNTIME_SERVICE_ACCOUNTS[n].id + '@bitcoin-education-archive.iam.gserviceaccount.com', n);
+const HOLDOVER = ['regenerateRecoveryCodes', 'totpCheck', 'totpSetup', 'totpStepUp'];
+const LIVE_APPSPOT = 'bitcoin-education-archive@appspot.gserviceaccount.com';
+
+test('every secret-bound function runs as its own account (live TOTP holdover excepted)', function () {
+    secretBound.forEach(function (n) {
+        const want = HOLDOVER.indexOf(n) !== -1 ? LIVE_APPSPOT
+            : RUNTIME_SERVICE_ACCOUNTS[n].id + '@bitcoin-education-archive.iam.gserviceaccount.com';
+        assert.strictEqual(endpoints[n].serviceAccount, want, n);
     });
+});
+
+test('TOTP holdover: exactly totpStepUp, totpCheck, totpSetup, regenerateRecoveryCodes, live only', function () {
+    assert.deepStrictEqual(Object.keys(DEFAULT_SA_HOLDOVER).sort(), HOLDOVER);
+    HOLDOVER.forEach(function (n) {
+        assert.deepStrictEqual(Array.from(DEFAULT_SA_HOLDOVER[n]), ['bitcoin-education-archive'], n);
+        // Manifest entry stays so the plan still creates the account for the follow-up move.
+        assert.ok(Object.prototype.hasOwnProperty.call(RUNTIME_SERVICE_ACCOUNTS, n), n);
+        assert.ok(plan.functions[n] && /^fn-/.test(plan.functions[n].id), n);
+    });
+});
+
+test('TOTP holdover keeps TOTP_ENCRYPTION_KEY bound on all four (secrets unchanged)', function () {
+    HOLDOVER.forEach(function (n) {
+        assert.deepStrictEqual(endpoints[n].secrets, ['TOTP_ENCRYPTION_KEY'], n);
+        assert.strictEqual(endpoints[n].gen, 1, n);
+        assert.strictEqual(endpoints[n].trigger, 'callable', n);
+    });
+});
+
+test('runtimeSaOrDefault: live -> appspot default for the four, own account for every other function', function () {
+    const saved = process.env.GCLOUD_PROJECT;
+    try {
+        process.env.GCLOUD_PROJECT = 'bitcoin-education-archive';
+        manifest.forEach(function (n) {
+            const got = runtimeSaOrDefault(n);
+            if (HOLDOVER.indexOf(n) !== -1) assert.strictEqual(got, LIVE_APPSPOT, n);
+            else assert.strictEqual(got, runtimeSa(n), n);
+        });
+        assert.strictEqual(runtimeSaOrDefault('totpVerify'), 'fn-totp-verify@bitcoin-education-archive.iam.gserviceaccount.com');
+        assert.strictEqual(runtimeSaOrDefault('totpDisable'), 'fn-totp-disable@bitcoin-education-archive.iam.gserviceaccount.com');
+        assert.strictEqual(runtimeSaOrDefault('adminResetSecondFactor'), 'fn-admin-reset-second@bitcoin-education-archive.iam.gserviceaccount.com');
+    } finally {
+        process.env.GCLOUD_PROJECT = saved;
+    }
+});
+
+test('runtimeSaOrDefault: staging (and any other project) keeps its own accounts; no env opt-in', function () {
+    const saved = process.env.GCLOUD_PROJECT;
+    const savedOpt = process.env.BQ_TOTP_APPSPOT_SA;
+    try {
+        ['bitcoin-quest-staging', 'demo-other'].forEach(function (p) {
+            process.env.GCLOUD_PROJECT = p;
+            manifest.forEach(function (n) { assert.strictEqual(runtimeSaOrDefault(n), runtimeSa(n), p + ' ' + n); });
+        });
+        process.env.GCLOUD_PROJECT = 'bitcoin-quest-staging';
+        process.env.BQ_TOTP_APPSPOT_SA = '1';
+        assert.strictEqual(runtimeSaOrDefault('totpStepUp'), 'fn-totp-step-up@bitcoin-quest-staging.iam.gserviceaccount.com', 'env vars must not change the account');
+    } finally {
+        process.env.GCLOUD_PROJECT = saved;
+        if (savedOpt === undefined) delete process.env.BQ_TOTP_APPSPOT_SA; else process.env.BQ_TOTP_APPSPOT_SA = savedOpt;
+    }
+});
+
+test('runtimeSaOrDefault throws for an unknown function (no silent default)', function () {
+    assert.throws(function () { runtimeSaOrDefault('notAFunction'); });
+    assert.throws(function () { runtimeSaOrDefault('constructor'); });
 });
 
 test('no-secret accounts really bind no secret', function () {
     NO_SECRET_ACCOUNTS.forEach(function (n) { assert.deepStrictEqual(endpoints[n].secrets, [], n); });
+});
+
+test('dailyAuthExport is the no-secret allowlist and has its own runtime SA', function () {
+    assert.strictEqual(endpoints.dailyAuthExport.serviceAccount, 'fn-daily-auth-export@bitcoin-education-archive.iam.gserviceaccount.com');
+    assert.strictEqual(RUNTIME_SERVICE_ACCOUNTS.dailyAuthExport.noFirestore, true);
+    assert.ok(plan.functions.dailyAuthExport && plan.functions.dailyAuthExport.id === 'fn-daily-auth-export');
 });
 
 test('functions without secrets do not set a service account (except the allowlist)', function () {
@@ -50,30 +117,20 @@ test('functions without secrets do not set a service account (except the allowli
     });
 });
 
-test('dailyAuthExport: custom reader role + objectCreator on the auth-backups bucket only', function () {
-    const f = plan.functions.dailyAuthExport;
-    assert.strictEqual(f.id, 'fn-daily-auth-export');
-    assert.deepStrictEqual(f.projectRoles, ['projects/bitcoin-education-archive/roles/bqAuthBackupReader']);
-    assert.deepStrictEqual(f.bucketRoles, [{ bucket: 'bitcoin-education-archive-auth-backups', role: 'roles/storage.objectCreator' }]);
-    assert.deepStrictEqual(f.secrets, []);
-    assert.strictEqual(f.gen, 2);
-    assert.strictEqual(f.trigger, 'schedule');
-    assert.strictEqual(f.selfInvoker, true);
-    const { AUTH_BACKUP_READER_PERMISSIONS } = require(path.join(fnRoot, 'src', 'runtimeServiceAccounts.js'));
-    assert.deepStrictEqual(AUTH_BACKUP_READER_PERMISSIONS.slice(), ['firebaseauth.configs.get', 'firebaseauth.configs.getHashConfig', 'firebaseauth.users.get']);
-    const last = plan.batches[plan.batches.length - 1];
-    assert.deepStrictEqual(last.fns, ['dailyAuthExport']);
-    assert.strictEqual(last.standalone, true);
-});
-
 test('account ids are valid, unique, and fit the project quota', function () {
     const ids = manifest.map(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].id; });
-    assert.strictEqual(new Set(ids).size, ids.length);
-    ids.forEach(function (id) {
+    // adminSetKillSwitch and killSwitchAutoReturnTick intentionally share one account,
+    // and claimFavorBlock reuses claimCipherWin's (same NWC + HMAC grants, no new IAM).
+    const unique = Array.from(new Set(ids));
+    assert.strictEqual(ids.filter(function (id) { return id === 'fn-admin-kill-switch'; }).length, 2);
+    const shareCipher = manifest.filter(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].id === 'fn-claim-cipher-win'; }).sort();
+    assert.ok(shareCipher.length === 1 || (shareCipher.length === 2 && shareCipher.join() === 'claimCipherWin,claimFavorBlock'), shareCipher.join());
+    assert.strictEqual(unique.length, ids.length - 1 - (shareCipher.length - 1));
+    unique.forEach(function (id) {
         assert.ok(/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(id), id);
         assert.ok(id.indexOf('fn-') === 0, id);
     });
-    assert.ok(ids.length + 6 <= 100, 'default quota is 100 service accounts per project');
+    assert.ok(unique.length + 6 <= 100, 'default quota is 100 service accounts per project');
 });
 
 test('runtimeSa resolves the project from env and never returns bare shorthand', function () {
@@ -100,11 +157,16 @@ test('adminApproveFactionPayout: no account, no secrets, never in a batch', func
     plan.batches.forEach(function (b) { assert.ok(b.fns.indexOf('adminApproveFactionPayout') === -1); });
 });
 
-test('batches cover each manifest function exactly once', function () {
+test('batches cover each secret-bound function exactly once', function () {
     const all = [];
-    plan.batches.forEach(function (b) { all.push.apply(all, b.fns); });
+    const standalone = [];
+    plan.batches.forEach(function (b) {
+        if (b.standalone) standalone.push.apply(standalone, b.fns);
+        else all.push.apply(all, b.fns);
+    });
     assert.strictEqual(all.length, new Set(all).size);
-    assert.deepStrictEqual(all.slice().sort(), manifest);
+    assert.deepStrictEqual(all.slice().sort(), secretBound);
+    assert.deepStrictEqual(standalone, ['dailyAuthExport']);
 });
 
 test('wallet functions deploy in the last secret-bound batch, canary first is read-only admin', function () {
@@ -117,7 +179,7 @@ test('wallet functions deploy in the last secret-bound batch, canary first is re
 });
 
 test('plan grants each account only its own secrets', function () {
-    manifest.forEach(function (n) {
+    secretBound.forEach(function (n) {
         assert.deepStrictEqual(plan.functions[n].secrets, endpoints[n].secrets, n);
     });
 });
@@ -137,9 +199,40 @@ test('gcloud output: named deploy only, metadata-free, one secret grant per boun
             const grants = text.split('\n').filter(function (l) {
                 return l.indexOf('gcloud secrets add-iam-policy-binding') === 0 && l.indexOf('serviceAccount:' + f.email + ' ') !== -1;
             });
-            assert.strictEqual(grants.length, f.secrets.length, n);
+            // Shared runtime SAs emit one grant per unique secret on that
+            // account, not per function in the batch.
+            const union = new Set();
+            b.fns.forEach(function (other) {
+                if (plan.functions[other].email === f.email) {
+                    plan.functions[other].secrets.forEach(function (s) { union.add(s); });
+                }
+            });
+            assert.strictEqual(grants.length, union.size, n);
         });
     });
+});
+
+test('gcloud plan is valid bash and has no prefixed bucket IAM condition', function () {
+    const { execFileSync } = require('child_process');
+    const os = require('os');
+    let sawCondition = 0;
+    for (let i = 0; i < plan.batches.length; i++) {
+        const text = planMod.gcloudFor(plan, i);
+        const tmp = path.join(os.tmpdir(), 'runtime-sa-plan-batch-' + i + '.sh');
+        fs.writeFileSync(tmp, text);
+        try {
+            execFileSync('bash', ['-n', tmp], { encoding: 'utf8' });
+        } finally {
+            try { fs.unlinkSync(tmp); } catch (e) { /* ignore */ }
+        }
+        text.split('\n').forEach(function (l) {
+            if (l.indexOf('--condition=') === -1 || l.indexOf('--condition=None') !== -1) return;
+            assert.ok(/--condition="/.test(l), 'outer quotes must be double: ' + l);
+            assert.ok(!/--condition='/.test(l), 'single-quoted --condition breaks CEL: ' + l);
+            sawCondition++;
+        });
+    }
+    assert.strictEqual(sawCondition, 0, 'kill-switch grants must not use a prefix IAM condition');
 });
 
 test('gen2 event triggers get eventReceiver + own-service invoker; gen1 never does', function () {
@@ -169,9 +262,68 @@ test('no source passes a default or literal service account', function () {
     })(fnRoot);
     files.forEach(function (p) {
         const src = fs.readFileSync(p, 'utf8');
-        const hits = src.match(/\bserviceAccount:\s+(?!runtimeSa\()[^,}\n]*/g) || [];
+        const hits = src.match(/\bserviceAccount:\s+(?!runtimeSa\(|runtimeSaOrDefault\()[^,}\n]*/g) || [];
         assert.deepStrictEqual(hits, [], path.relative(fnRoot, p));
     });
+});
+
+test('runtimeSaOrDefault is used only by the TOTP key callables in secondFactor.js', function () {
+    const files = [];
+    (function walk(d) {
+        fs.readdirSync(d).forEach(function (f) {
+            if (f === 'node_modules' || f.startsWith('.')) return;
+            const p = path.join(d, f);
+            if (fs.statSync(p).isDirectory()) walk(p);
+            else if (p.endsWith('.js')) files.push(p);
+        });
+    })(fnRoot);
+    files.forEach(function (p) {
+        const rel = path.relative(fnRoot, p);
+        const n = (fs.readFileSync(p, 'utf8').match(/runtimeSaOrDefault\(/g) || []).length;
+        if (rel === path.join('src', 'secondFactor.js')) assert.strictEqual(n, 2, rel);
+        else if (rel === path.join('src', 'runtimeServiceAccounts.js')) assert.strictEqual(n, 1, rel);
+        else assert.strictEqual(n, 0, rel);
+    });
+});
+
+test('kill-switch SA gets auth viewer for listUsers, not auth admin', function () {
+    ['adminSetKillSwitch', 'killSwitchAutoReturnTick'].forEach(function (n) {
+        const extras = RUNTIME_SERVICE_ACCOUNTS[n].extra;
+        assert.ok(extras.indexOf('authViewer') !== -1, n);
+        assert.ok(extras.indexOf('auth') === -1, n);
+        const roles = plan.functions[n].projectRoles;
+        assert.ok(roles.indexOf('roles/firebaseauth.viewer') !== -1, n);
+        assert.ok(roles.indexOf('roles/firebaseauth.admin') === -1, n);
+    });
+});
+
+test('kill-switch SA gets objectCreator+objectViewer on the snapshot bucket and objectViewer only on backups', function () {
+    ['adminSetKillSwitch', 'killSwitchAutoReturnTick'].forEach(function (n) {
+        const roles = plan.functions[n].bucketRoles;
+        assert.deepStrictEqual(roles, [
+            { bucket: 'bitcoin-education-archive-killswitch-exports', role: 'roles/storage.objectCreator' },
+            { bucket: 'bitcoin-education-archive-killswitch-exports', role: 'roles/storage.objectViewer' },
+            { bucket: 'bitcoin-education-archive-backups', role: 'roles/storage.objectViewer' },
+        ], n);
+        roles.forEach(function (br) {
+            assert.ok(!br.condition, n + ' must not use a prefix IAM condition');
+        });
+    });
+});
+
+test('runtime-sa-plan refuses BQ_BACKUP_BUCKET when the project is live', function () {
+    assert.throws(function () {
+        planMod.assertLiveBackupBucketUnset('bitcoin-education-archive', 'bitcoin-quest-staging-backups-use1');
+    }, /BQ_BACKUP_BUCKET/);
+    assert.doesNotThrow(function () {
+        planMod.assertLiveBackupBucketUnset('bitcoin-education-archive', '');
+        planMod.assertLiveBackupBucketUnset('bitcoin-education-archive', undefined);
+        planMod.assertLiveBackupBucketUnset('bitcoin-quest-staging', 'bitcoin-quest-staging-backups-use1');
+    });
+    assert.strictEqual(planMod.projectIdFrom(['--project', 'bitcoin-quest-staging'], {}), 'bitcoin-quest-staging');
+    assert.strictEqual(planMod.projectIdFrom(['--project=bitcoin-education-archive'], { GCLOUD_PROJECT: 'bitcoin-quest-staging' }), 'bitcoin-education-archive');
+    assert.strictEqual(planMod.projectIdFrom([], { GCLOUD_PROJECT: 'bitcoin-quest-staging' }), 'bitcoin-quest-staging');
+    assert.strictEqual(planMod.projectIdFrom([], {}), 'bitcoin-education-archive');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

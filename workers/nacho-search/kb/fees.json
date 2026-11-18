@@ -7,9 +7,9 @@
       "What are fees?",
       "What are bitcoin fees?",
       "Explain a transaction fee?",
+      "What is a transaction fee?",
       "Define a Bitcoin transaction fee?",
-      "Explain a Bitcoin transaction fee?",
-      "Describe a Bitcoin transaction fee?"
+      "Explain a Bitcoin transaction fee?"
     ],
     "answer": "A fee is the difference between the inputs you spend and the outputs you create, and the miner who includes the transaction can claim it. It is not a charge sent to a company that owns Bitcoin. The rate rises when more people want limited block space.",
     "topics": [
@@ -306,7 +306,7 @@
     "followUps": [
       "fees-ancestor",
       "fees-pinning",
-      "fees-dust-limit"
+      "fees-sniping"
     ],
     "sources": "Package relay."
   },
@@ -327,8 +327,8 @@
     ],
     "followUps": [
       "fees-pinning",
-      "fees-dust-limit",
-      "fees-priority-old"
+      "fees-sniping",
+      "fees-dust-limit"
     ],
     "sources": "Ancestor scoring."
   },
@@ -348,11 +348,35 @@
       "risks__threats__attack_vectors__weaknes"
     ],
     "followUps": [
+      "fees-sniping",
+      "fees-dust-limit",
+      "fees-priority-old"
+    ],
+    "sources": "Pinning."
+  },
+  {
+    "id": "fees-sniping",
+    "category": "fees",
+    "question": "What is fee sniping?",
+    "alts": [
+      "What is fee sniping in bitcoin?",
+      "Explain fee sniping?",
+      "How does fee sniping work?",
+      "Define fee sniping?",
+      "Describe fee sniping?"
+    ],
+    "answer": "Fee sniping is an attempt to steal recent fees by secretly mining a replacement for the latest block with a higher-fee transaction set. Honest miners usually extend the chain instead, because an orphaned block wastes their work. It is a mining tactic, not a recommended fee quote.",
+    "topics": [
+      "mining",
+      "transaction_fees",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
       "fees-dust-limit",
       "fees-priority-old",
       "fees-wallet-units"
     ],
-    "sources": "Pinning."
+    "sources": "Fee sniping as a reorg tactic."
   },
   {
     "id": "fees-dust-limit",

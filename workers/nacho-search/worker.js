@@ -1,4 +1,4 @@
-import { collectBtcData, answerTurn, detectIntents, containsKeyMaterial } from "./nacho-logic.mjs";
+import { collectBtcData, answerTurn, detectIntents, containsKeyMaterial, mergeBtcSnapshots, snapshotHasCore, STALE_USABLE_MS } from "./nacho-logic.mjs";
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -126,9 +126,18 @@ async function loadBtcSnapshot() {
   const now = Date.now();
   if (_btcMem && now - _btcMem.at < BTC_CACHE_TTL * 1000) return _btcMem.data;
   if (_btcInflight) return _btcInflight;
+  const previous = _btcMem && _btcMem.data;
   _btcInflight = collectBtcData(fetch).then(function (data) {
-    _btcMem = { at: Date.now(), data: data };
-    return data;
+    const merged = mergeBtcSnapshots(previous, data);
+    if (snapshotHasCore(merged)) {
+      _btcMem = { at: Date.now(), data: merged };
+      return merged;
+    }
+    if (previous && now - Number(previous.ts) <= STALE_USABLE_MS) return previous;
+    return merged || data;
+  }).catch(function (err) {
+    if (previous && now - Number(previous.ts) <= STALE_USABLE_MS) return previous;
+    throw err;
   }).finally(function () {
     _btcInflight = null;
   });

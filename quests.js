@@ -2675,12 +2675,10 @@ function _renderFavorTab(body) {
                 '<td style="text-align:right;font-weight:700;color:var(--text-muted);"><span id="sfTotalHashes">…</span></td>' +
                 '<td style=""></td>' +
             '</tr>';
-        var _nextMs = (typeof window !== 'undefined' && Number(window.SF_DIFFICULTY_NEXT_RETARGET_MS)) || 0;
-        var _nextTxt = _nextMs > 0
-            ? '<div style="margin-top:6px;font-size:0.68rem;color:var(--text-faint);">Next difficulty adjustment: ' +
-              new Date(_nextMs).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
-              ' (about every 14 days)</div>'
-            : '';
+        var _nextEpoch = (typeof window !== 'undefined' && Math.floor(Number(window.SF_DIFFICULTY_NEXT_RETARGET_EPOCH))) || 0;
+        var _nextTxt = '<div style="margin-top:6px;font-size:0.68rem;color:var(--text-faint);">Next difficulty adjustment: ' +
+              (_nextEpoch > 0 ? 'when Epoch #' + _nextEpoch + ' fills 5/5' : 'when the current epoch fills 5/5') +
+              ' (aiming for one epoch about every 14 days, at most 4× per step)</div>';
         _dhHtml += '</tbody></table></div>' + _nextTxt + '</div>';
         html += _dhHtml;
     })();
@@ -2851,7 +2849,7 @@ function _startFactionScoreboardListener() {
         // Show backfill button for admin
         var elAdmin = document.getElementById('sfAdminBackfill');
         if (elAdmin) {
-            var isAdmin = (typeof currentUser !== 'undefined' && currentUser && (currentUser.email === 'needcreations@gmail.com' || currentUser.email === 'najemchris8@gmail.com'));
+            var isAdmin = window._isAdminClaim === true; // Firebase custom claim only
             elAdmin.style.display = isAdmin ? 'block' : 'none';
         }
 
@@ -3202,6 +3200,67 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod, pastBlockC
         });
 }
 
+// Assign a mined block to a Difficulty History row by the target it was
+// mined under. Fall back to the server retarget time (`since`) as the
+// period start. A calendar date like 2026-11-14 parses as UTC midnight,
+// which is 7 PM ET the night before, so it must not be the first choice.
+function _sfPeriodStartMs(row) {
+    if (!row) return 0;
+    var s = row.since;
+    if (s && typeof s.toMillis === 'function') s = s.toMillis();
+    s = Number(s);
+    if (s > 0 && isFinite(s)) return s;
+    if (row.date) {
+        var t = new Date(row.date).getTime();
+        if (isFinite(t)) return t;
+    }
+    return 0;
+}
+
+function _sfBlockTsMs(block) {
+    if (!block) return 0;
+    var ts = block.timestamp;
+    if (ts && typeof ts.toMillis === 'function') return ts.toMillis();
+    if (ts != null && ts !== '') {
+        var n = Number(ts);
+        if (n > 0 && isFinite(n)) return n;
+        var parsed = Date.parse(ts);
+        if (isFinite(parsed)) return parsed;
+    }
+    var direct = Number(block.tsMs);
+    return (direct > 0 && isFinite(direct)) ? direct : 0;
+}
+
+function _sfAssignDifficultyPeriod(history, block) {
+    var dh = Array.isArray(history) ? history : [];
+    if (!dh.length) return 0;
+    var tsMs = _sfBlockTsMs(block);
+    var starts = dh.map(_sfPeriodStartMs);
+    var target = Number(block && (block.difficultyTarget != null ? block.difficultyTarget : block.target));
+    if (target > 0) {
+        var lastAtOrBefore = -1;
+        var firstMatch = -1;
+        for (var i = 0; i < dh.length; i++) {
+            if (Number(dh[i].target) !== target) continue;
+            if (firstMatch < 0) firstMatch = i;
+            if (starts[i] <= tsMs) lastAtOrBefore = i;
+        }
+        if (lastAtOrBefore >= 0) return lastAtOrBefore;
+        if (firstMatch >= 0) return firstMatch;
+    }
+    var periodIdx = 0;
+    for (var p = 0; p < starts.length; p++) {
+        if (starts[p] <= tsMs) periodIdx = p;
+        else break;
+    }
+    return periodIdx;
+}
+
+if (typeof window !== 'undefined') {
+    window._sfPeriodStartMs = _sfPeriodStartMs;
+    window._sfAssignDifficultyPeriod = _sfAssignDifficultyPeriod;
+}
+
 function _loadDifficultyHistoryBlocks() {
     if (typeof db === 'undefined') return;
     var _dh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
@@ -3211,7 +3270,7 @@ function _loadDifficultyHistoryBlocks() {
     function _difficultyAtTs(tsMs) {
         var result = _dh.length ? _dh[0].target : 1000;
         for (var _k = 0; _k < _dh.length; _k++) {
-            if (new Date(_dh[_k].date).getTime() <= tsMs) result = _dh[_k].target;
+            if (_sfPeriodStartMs(_dh[_k]) <= tsMs) result = _dh[_k].target;
             else break;
         }
         return result;
@@ -3223,26 +3282,10 @@ function _loadDifficultyHistoryBlocks() {
         .where('isWinner', '==', true)
         .get()
         .then(function(snap) {
-            // Build period start timestamps from the history array
-            var periodStarts = _dh.map(function(row) { return new Date(row.date).getTime(); });
-
-            // counts[i] = blocks found in period i (by timestamp, not just by target)
+            // counts[i] = blocks found in period i (by stored target, then retarget time)
             var counts = new Array(_dh.length).fill(0);
             snap.forEach(function(doc) {
-                var d = doc.data();
-                var tsMs;
-                if (d.timestamp && d.timestamp.toMillis) {
-                    tsMs = d.timestamp.toMillis();
-                } else {
-                    tsMs = 0;
-                }
-                // Find which period this winner belongs to (last period whose start <= tsMs)
-                var periodIdx = 0;
-                for (var _pi = 0; _pi < periodStarts.length; _pi++) {
-                    if (periodStarts[_pi] <= tsMs) periodIdx = _pi;
-                    else break;
-                }
-                counts[periodIdx]++;
+                counts[_sfAssignDifficultyPeriod(_dh, doc.data())]++;
             });
 
             // Update Blocks cells for all rows + running total
@@ -3417,8 +3460,91 @@ function _loadPoolEpoch() {
     }
 
     // ── Past epochs history (read-only, sfPoolHistory is public-read) ──
+    // Favor claim status for the signed-in player lives on each past epoch row.
     var _sfHist = { open: false, items: [], last: null, done: false, loading: false, error: false, anchor: null };
     var _SF_HIST_PAGE = 10;
+    var _sfClaimByEpoch = {}; // epochNumber -> array of real claim rows (empty array = loaded, no win)
+    var _sfClaimLoading = false;
+
+    function _sfClaimLabel(st, amount, block) {
+        var a = Math.floor(Number(amount) || 0);
+        var sats = a ? (a.toLocaleString('en-US') + ' sats') : '';
+        var blk = (block != null && block !== '') ? ('Block #' + (Number(block) + 1) + ' \u00b7 ') : '';
+        if (st === 'claimable') return { text: 'Claim ' + blk + (sats || 'sats'), kind: 'claim' };
+        if (st === 'paid') return { text: blk + 'Claimed' + (sats ? ' \u00b7 ' + sats : ''), kind: 'done' };
+        if (st === 'paying') return { text: blk + 'Payment in progress', kind: 'wait' };
+        if (st === 'unknown') return { text: blk + 'Being confirmed so it cannot pay twice', kind: 'wait' };
+        if (st === 'manual_review') return { text: blk + 'Set aside for a manual check. Your sats are safe.', kind: 'wait' };
+        if (st === 'not_open') return { text: blk + (sats ? sats + ' saved for you. ' : '') + 'Claims open soon. It never expires.', kind: 'wait' };
+        return null;
+    }
+
+    function _sfOneClaimHtml(epochNum, info) {
+        if (!info || !info.winId) return '';
+        var lab = _sfClaimLabel(info.status, info.amount, info.block);
+        if (!lab) return '';
+        if (lab.kind === 'claim') {
+            return '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                '<button type="button" data-sf-claim-win="' + String(info.winId || '').replace(/[^a-z0-9_]/gi, '') + '" data-sf-claim-epoch="' + (parseInt(epochNum, 10) || 0) + '" data-sf-claim-block="' + (parseInt(info.block, 10) || 0) + '" ' +
+                'style="padding:8px 14px;min-height:44px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:inherit;">⚡ ' + lab.text + '</button>' +
+                '<span style="font-size:0.68rem;color:var(--text-muted);">Pays ' + (info.payTo ? String(info.payTo).replace(/[<>&"']/g, '') : 'the Lightning address saved when the epoch closed') + '</span></div>';
+        }
+        var color = lab.kind === 'done' ? '#22c55e' : (lab.kind === 'wait' ? '#eab308' : 'var(--text-faint)');
+        return '<div style="margin-top:8px;font-size:0.75rem;font-weight:700;color:' + color + ';">' + lab.text + '</div>';
+    }
+
+    function _sfClaimRowHtml(epochNum) {
+        var n = parseInt(epochNum, 10) || 0;
+        if (!n) return '';
+        var info = _sfClaimByEpoch[n];
+        if (info == null) {
+            if (typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+                return '<div data-sf-claim-slot="' + n + '" style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);">Checking your sats…</div>';
+            }
+            return '<div style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);">Sign in to see your Favor claim.</div>';
+        }
+        var list = Array.isArray(info) ? info : [info];
+        if (!list.length) return '';
+        var html = '';
+        for (var i = 0; i < list.length; i++) html += _sfOneClaimHtml(n, list[i]);
+        return html;
+    }
+
+    function _sfRefreshClaims(epochNums, paintFn) {
+        if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (paintFn) paintFn();
+            return;
+        }
+        if (typeof firebase === 'undefined' || !firebase.functions) return;
+        var nums = [];
+        var seen = {};
+        (epochNums || []).forEach(function (n) {
+            var v = parseInt(n, 10);
+            if (!v || seen[v]) return;
+            seen[v] = true;
+            nums.push(v);
+        });
+        if (!nums.length) return;
+        _sfClaimLoading = true;
+        firebase.functions().httpsCallable('myFavorEpochClaims')({ epochNumbers: nums }).then(function (res) {
+            var claims = (res && res.data && res.data.claims) || [];
+            // Mark every asked epoch as loaded. No row means no win — not "waiting on approval".
+            nums.forEach(function (n) { _sfClaimByEpoch[n] = []; });
+            claims.forEach(function (c) {
+                if (!c || !c.epochNumber || !c.winId) return;
+                var list = _sfClaimByEpoch[c.epochNumber];
+                if (!Array.isArray(list)) list = [];
+                list.push(c);
+                _sfClaimByEpoch[c.epochNumber] = list;
+            });
+            _sfClaimLoading = false;
+            if (paintFn) paintFn();
+        }).catch(function () {
+            _sfClaimLoading = false;
+            if (paintFn) paintFn();
+        });
+    }
+
     function _sfHistHtml() {
         var h = '<button type="button" data-sf-hist="toggle" aria-expanded="' + (_sfHist.open ? 'true' : 'false') + '" style="width:100%;text-align:left;background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:0.75rem;font-weight:700;color:var(--text-muted);cursor:pointer;min-height:36px;">' +
             (_sfHist.open ? '\u25BE Hide past epochs' : '\u25B8 Show all past epochs') + '</button>';
@@ -3428,10 +3554,13 @@ function _loadPoolEpoch() {
             var d = _sfHist.items[i];
             var c = d.completedAt ? (d.completedAt.toDate ? d.completedAt.toDate() : new Date(d.completedAt.seconds * 1000)) : null;
             var cs = c ? c.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+            var en = parseInt(d.epochNumber, 10) || 0;
             h += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">' +
-                '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">\u2705 Epoch #' + (parseInt(d.epochNumber, 10) || '\u2014') + '</div>' +
-                (cs ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + cs + ' \u00b7 21,000 sats distributed</div>' : '') +
-                _renderEpochBlocks(d.blocks || [], d.epochNumber, true) + '</div>';
+                '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">\u2705 Epoch #' + (en || '\u2014') + '</div>' +
+                (cs ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + cs + ' \u00b7 21,000 sats pot</div>' : '') +
+                _renderEpochBlocks(d.blocks || [], d.epochNumber, true) +
+                _sfClaimRowHtml(en) +
+                '</div>';
         }
         if (_sfHist.loading) h += '<div style="font-size:0.75rem;color:var(--text-faint);padding:8px 0;">Loading past epochs\u2026</div>';
         else if (_sfHist.error) h += '<div style="font-size:0.75rem;color:var(--text-faint);padding:8px 0;">Couldn\u2019t load past epochs. <button type="button" data-sf-hist="more" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:0.75rem;padding:0;">Try again</button></div>';
@@ -3455,9 +3584,64 @@ function _loadPoolEpoch() {
             if (s.docs.length) _sfHist.last = s.docs[s.docs.length - 1];
             if (s.docs.length < _SF_HIST_PAGE) _sfHist.done = true;
             _sfHist.loading = false; _sfHistPaint();
+            var nums = _sfHist.items.map(function (x) { return x.epochNumber; });
+            _sfRefreshClaims(nums, function () {
+                // Repaint whole pool card so Previous Epoch + history stay in sync.
+                var inner = document.getElementById('sfPoolEpochInner');
+                if (inner && inner._sfRepaint) inner._sfRepaint();
+                else _sfHistPaint();
+            });
         }).catch(function() { _sfHist.loading = false; _sfHist.error = true; _sfHistPaint(); });
     }
+    function _sfDoClaim(winId, epochNum, btn, blockNum) {
+        if (!winId || typeof firebase === 'undefined' || !firebase.functions) return;
+        if (btn) { btn.disabled = true; btn.textContent = 'Paying\u2026'; }
+        // Only { epoch, block } go to the server. It decides who won from its own records.
+        var payload = { epoch: epochNum, block: blockNum };
+        function send(p) { return firebase.functions().httpsCallable('claimFavorBlock')(p); }
+        function withProof() {
+            if (typeof window._showFreshStepUp !== 'function') return Promise.resolve(null);
+            return window._showFreshStepUp('claimFavorBlock');
+        }
+        var first = (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode())
+            ? withProof().then(function (proof) { if (!proof) throw new Error('cancelled'); return send(Object.assign({}, payload, { freshProofId: proof })); })
+            : send(payload);
+        first.then(function (res) {
+            var d = (res && res.data) || {};
+            if (!d.success && d.code === 'step_up_required' && typeof window._showFreshStepUp === 'function') {
+                return withProof().then(function (proof) {
+                    if (!proof) return d;
+                    return send(Object.assign({}, payload, { freshProofId: proof })).then(function (r2) { return (r2 && r2.data) || {}; });
+                });
+            }
+            return d;
+        }).then(function (d) {
+            var list = _sfClaimByEpoch[epochNum];
+            if (!Array.isArray(list)) list = [];
+            var next = d.success ? 'paid' : (d.code === 'manual_review' ? 'manual_review' : (d.code === 'held_unknown' ? 'unknown' : (d.code === 'already_paid' ? 'paid' : null)));
+            if (next) {
+                for (var ci = 0; ci < list.length; ci++) {
+                    if (list[ci] && list[ci].winId === winId) list[ci] = Object.assign({}, list[ci], { status: next });
+                }
+                _sfClaimByEpoch[epochNum] = list;
+            }
+            if (typeof showToast === 'function') showToast(d.success ? '\u26a1 Favor sats sent!' : (d.error || 'Claim failed. Your block is saved.'));
+            if (!d.success && btn) { btn.disabled = false; btn.textContent = '\u26a1 Claim'; }
+            var inner = document.getElementById('sfPoolEpochInner');
+            if (inner && inner._sfRepaint) inner._sfRepaint();
+            else _sfHistPaint();
+        }).catch(function (e) {
+            var msg = (e && e.message && e.message !== 'cancelled') ? e.message : 'Claim cancelled. Your block is saved.';
+            if (typeof showToast === 'function') showToast(msg);
+            if (btn) { btn.disabled = false; btn.textContent = '\u26a1 Claim'; }
+        });
+    }
     function _sfHistClick(e) {
+        var claimBtn = e.target.closest && e.target.closest('[data-sf-claim-win]');
+        if (claimBtn) {
+            _sfDoClaim(claimBtn.getAttribute('data-sf-claim-win'), parseInt(claimBtn.getAttribute('data-sf-claim-epoch'), 10) || 0, claimBtn, parseInt(claimBtn.getAttribute('data-sf-claim-block'), 10) || 0);
+            return true;
+        }
         var b = e.target.closest && e.target.closest('[data-sf-hist]');
         if (!b) return false;
         if (b.dataset.sfHist === 'toggle') {
@@ -3508,8 +3692,9 @@ function _loadPoolEpoch() {
                 var prevBlocks = ph.blocks || [];
                 var compAt = ph.completedAt ? (ph.completedAt.toDate ? ph.completedAt.toDate() : new Date(ph.completedAt.seconds * 1000)) : null;
                 var compStr = compAt ? compAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-                if (compStr) prevHtml += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr + ' \u00b7 21,000 sats distributed</div>';
+                if (compStr) prevHtml += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr + ' \u00b7 21,000 sats pot</div>';
                 prevHtml += _renderEpochBlocks(prevBlocks, ph.epochNumber, true);
+                prevHtml += _sfClaimRowHtml(ph.epochNumber);
                 // Older epoch history (lazy loaded on first expand)
                 if ((ph.epochNumber || 0) !== 1) {
                     if (_sfHist.anchor && _sfHist.anchor.id !== snap.docs[0].id) { _sfHist.items = []; _sfHist.last = null; _sfHist.done = false; _sfHist.error = false; }
@@ -3520,7 +3705,43 @@ function _loadPoolEpoch() {
             prevHtml += '</div>';
 
             var el2 = document.getElementById('sfPoolEpochInner');
-            if (el2) { el2.innerHTML = currentHtml + prevHtml; el2.onclick = function(e) { if (_sfHistClick(e)) return; var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
+            if (el2) {
+                function paintPool() {
+                    var el3 = document.getElementById('sfPoolEpochInner');
+                    if (!el3) return;
+                    // Rebuild previous claim slot from cached claim map + hist html.
+                    var rebuilt = currentHtml + prevHtml;
+                    // prevHtml already baked; refresh by re-calling snapshot path is heavy.
+                    // Instead swap claim slots in place after claims load.
+                    el3.innerHTML = currentHtml + (function () {
+                        var html = '<div>' +
+                            '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">\u2705 Previous Epoch' + (!snap.empty ? ' #' + (snap.docs[0].data().epochNumber || '\u2014') : '') + '</div>';
+                        if (snap.empty) {
+                            html += '<div style="font-size:0.75rem;color:var(--text-faint);font-style:italic;padding:4px 0;">No completed epochs yet.</div>';
+                        } else {
+                            var ph2 = snap.docs[0].data();
+                            var prevBlocks2 = ph2.blocks || [];
+                            var compAt2 = ph2.completedAt ? (ph2.completedAt.toDate ? ph2.completedAt.toDate() : new Date(ph2.completedAt.seconds * 1000)) : null;
+                            var compStr2 = compAt2 ? compAt2.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                            if (compStr2) html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr2 + ' \u00b7 21,000 sats pot</div>';
+                            html += _renderEpochBlocks(prevBlocks2, ph2.epochNumber, true);
+                            html += _sfClaimRowHtml(ph2.epochNumber);
+                            if ((ph2.epochNumber || 0) !== 1) {
+                                html += '<div id="sfEpochHistWrap" style="margin-top:10px;">' + _sfHistHtml() + '</div>';
+                            }
+                        }
+                        return html + '</div>';
+                    })();
+                    el3.onclick = function(e) { if (_sfHistClick(e)) return; var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); };
+                    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el3);
+                }
+                el2._sfRepaint = paintPool;
+                paintPool();
+                var nums = [];
+                if (!snap.empty) nums.push(snap.docs[0].data().epochNumber);
+                _sfHist.items.forEach(function (x) { nums.push(x.epochNumber); });
+                _sfRefreshClaims(nums, paintPool);
+            }
         }).catch(function() {
             var el2 = document.getElementById('sfPoolEpochInner');
             if (el2) { el2.innerHTML = currentHtml + '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:8px;">Previous epoch unavailable.</div>'; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }

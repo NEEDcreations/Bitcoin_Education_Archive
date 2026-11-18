@@ -925,6 +925,22 @@ async function deletePlayMarks(db, batcher, uid, documentIdField) {
     await deleteExactIfPresent(db, batcher, 'beats_play_user', uid);
 }
 
+
+// Audit rows stay (permanent), but the uid is masked the same way
+// survey_audit is handled: keep the row, drop the raw uid.
+async function maskTctvDripBackfillAudit(db, batcher, uid, documentIdField) {
+    const docs = await collectDocs(
+        db.collection('tctv_drip_backfill_audit').where('uid', '==', uid),
+        documentIdField
+    );
+    for (let i = 0; i < docs.length; i++) {
+        const data = docs[i].data() || {};
+        if (data.kind === 'summary') continue;
+        if (data.uid === DELETED_UID) continue;
+        await batcher.update(docs[i].ref, { uid: DELETED_UID, uidMasked: DELETED_LABEL });
+    }
+}
+
 async function clearAwardClaimUids(db, batcher, uid, documentIdField) {
     const docs = await collectDocs(
         db.collection('award_doc_claims').where('uid', '==', uid),
@@ -1295,6 +1311,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
     await removeBeatsLikes(db, batcher, uid, documentIdField);
     await deletePlayMarks(db, batcher, uid, documentIdField);
     await clearAwardClaimUids(db, batcher, uid, documentIdField);
+    await maskTctvDripBackfillAudit(db, batcher, uid, documentIdField);
     await deleteTopicPosts(db, batcher, uid, documentIdField);
     await anonymizeOrDeleteAuthored(db, batcher, uid, documentIdField);
     await clearArticleXpUid(db, batcher, uid, documentIdField);
@@ -1352,6 +1369,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['totp_pending', uid, []],
         ['totp_sessions', uid, []],
         ['recovery_codes', uid, []],
+        ['mfa_known_factors', uid, []],
         ['suggestions', uid, []],
         ['referral_signals', uid, []],
         ['email_change_pending', uid, []],
@@ -1543,7 +1561,7 @@ function bindDeleteAccount(functionsV1, admin, db, secrets) {
             timeoutSeconds: 540,
             memory: '1GB',
             enforceAppCheck: true,
-            secrets: secrets || [],
+            secrets: (secrets || []).concat(['TOTP_ENCRYPTION_KEY']),
             serviceAccount: runtimeSa('deleteAccount'),
         }).https.onCall(handlers.deleteAccount),
     };

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Block commits that add secrets. Run from a repo with core.hooksPath=githooks.
+# Do not bypass with git commit --no-verify.
+set -euo pipefail
+
+# Prefer the caller's PATH, then the usual user/local install locations.
+if ! command -v betterleaks >/dev/null 2>&1; then
+  for dir in "$HOME/.local/bin" /usr/local/bin; do
+    if [ -x "$dir/betterleaks" ]; then
+      PATH="$dir:$PATH"
+      break
+    fi
+  done
+fi
+
+if ! command -v betterleaks >/dev/null 2>&1; then
+  cat >&2 <<'EOF'
+pre-commit: betterleaks is not installed or is not on PATH.
+
+Install Betterleaks v2 from the official GitHub releases, verify the
+release checksum (and Sigstore signature when present), and place the
+binary on PATH (for example ~/.local/bin or /usr/local/bin):
+
+  https://github.com/betterleaks/betterleaks/releases
+
+This hook is required. Do not use git commit --no-verify to skip it.
+See CONTRIBUTING.md.
+EOF
+  exit 1
+fi
+
+# Fixed prefixes keep file paths intact under diff.noprefix and similar settings.
+# Official hook command from betterleaks/betterleaks .pre-commit-hooks.yaml.
+git diff --cached --no-ext-diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ \
+  | betterleaks stdin --git-diff --redact

@@ -383,11 +383,17 @@ function mfaClearDevice(uid) {
 var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
+    adminFreezeFavorEpoch: 1,
+    adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
+    adminResolveFavorReview: 1,
+    adminSetFavorClaims: 1,
+    adminSetKillSwitch: 1,
     answerTrivia: 1,
     armSayHi: 1,
     chooseFaction: 1,
     claimCipherSats: 1,
+    claimFavorBlock: 1,
     claimOnboardingQuestStep: 1,
     claimReplyBonus: 1,
     claimSats: 1,
@@ -400,6 +406,7 @@ var APP_CHECK_CALLABLES = {
     leaderboardRank: 1,
     linkGuestAccount: 1,
     markIntroSeen: 1,
+    myFavorEpochClaims: 1,
     noteNachoQuestion: 1,
     prepareEmailChange: 1,
     prepareGuestLink: 1,
@@ -407,6 +414,7 @@ var APP_CHECK_CALLABLES = {
     pvpStoreAnswerKey: 1,
     pvpSubmitAnswer: 1,
     pvpTimeoutOpponent: 1,
+    recordKnownPhoneFactor: 1,
     recordNachoAnalytics: 1,
     resetLightningAddressOnce: 1,
     startQuest: 1,
@@ -1042,6 +1050,15 @@ function initRanking() {
             // Optimistic paint is display-only. A different uid, null, or
             // signed-out clears that UI and the cache before any other work.
             reconcileOptimisticAuth(user, _pendingRedirect);
+            // Admin chrome follows the claim of the account signed in now. Any
+            // auth change drops it until settleAdminClaim() re-reads the token.
+            if (!user || user.isAnonymous || user.uid !== window._adminClaimUid) {
+                window._isAdminClaim = false;
+                window._adminClaimSettle = null;
+                window._adminClaimUid = (user && !user.isAnonymous) ? user.uid : null;
+                if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+            }
+            if (user && !user.isAnonymous) settleAdminClaim();
             // getRedirectResult() waits on the auth iframe. Calling it before this
             // listener, or on every reload, stalled the signed-in home for seconds.
             // A returning real user has nothing to consume. Only a redirect return
@@ -3556,23 +3573,35 @@ function settleAdminClaim() {
     var user = auth && auth.currentUser;
     if (!user || user.isAnonymous || typeof user.getIdTokenResult !== 'function') {
         window._isAdminClaim = false;
+        if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
         return;
     }
+    // The auth listener and loadUser both settle. One pass per uid per 5s.
+    var nowMs = Date.now();
+    if (window._adminClaimSettle && window._adminClaimSettle.uid === user.uid &&
+        nowMs - window._adminClaimSettle.at < 5000) return;
+    window._adminClaimSettle = { uid: user.uid, at: nowMs };
     var forcedLanded = false;
     function applyClaim(tokenResult) {
+        // A late answer for an account that already signed out is dropped.
+        if (!auth || auth.currentUser !== user) return;
         window._isAdminClaim = !!(tokenResult && tokenResult.claims && tokenResult.claims.admin === true);
         // Firestore's onSnapshot often fires from cache before the claim lands,
         // so own messages render with isAdmin=false and miss the pin button.
         if (window._isAdminClaim && window._chatAllMsgs && typeof renderChatMessages === 'function') {
             renderChatMessages(window._chatAllMsgs);
         }
+        if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
     }
     // Non-forced: uses the cached token when it is still valid.
     user.getIdTokenResult().then(function (tokenResult) {
         if (forcedLanded) return;
         applyClaim(tokenResult);
     }).catch(function () {
-        if (!forcedLanded) window._isAdminClaim = false;
+        if (!forcedLanded && auth && auth.currentUser === user) {
+            window._isAdminClaim = false;
+            if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+        }
     });
     // Forced refresh stays off the UI path. It only corrects a stale admin claim.
     user.getIdTokenResult(true).then(function (tokenResult) {
@@ -3580,6 +3609,129 @@ function settleAdminClaim() {
         applyClaim(tokenResult);
     }).catch(function () {});
 }
+
+// Home-page admin shortcut. Visible only when the Firebase custom claim
+// admin is true (window._isAdminClaim, set from getIdTokenResult). Never email.
+// It carries no admin data. Tapping re-checks the claim, then lazy-loads
+// admin-panel.js, so non-admins never download the panel.
+var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261116_v2581';
+
+function ensureHomeAdminBtnCss() {
+    if (document.getElementById('homeAdminBtnCss')) return;
+    var st = document.createElement('style');
+    st.id = 'homeAdminBtnCss';
+    st.textContent =
+        '#homeAdminBtn{display:none;width:100%;box-sizing:border-box;margin:0 0 12px;min-height:58px;padding:10px 16px;border-radius:16px;border:2px solid #f7931a;background:linear-gradient(135deg,rgba(247,147,26,0.20),rgba(247,147,26,0.06));color:var(--heading,#fff);cursor:pointer;align-items:center;gap:12px;text-align:left;font-family:inherit;box-shadow:0 4px 16px rgba(247,147,26,0.18);-webkit-tap-highlight-color:transparent;touch-action:manipulation;}' +
+        '#homeAdminBtn[data-on="1"]{display:flex;}' +
+        '#homeAdminBtn .hab-ico{font-size:1.7rem;line-height:1;flex-shrink:0;}' +
+        '#homeAdminBtn .hab-txt{display:flex;flex-direction:column;min-width:0;flex:1;}' +
+        '#homeAdminBtn .hab-t{font-size:1.08rem;font-weight:900;letter-spacing:0.2px;}' +
+        '#homeAdminBtn .hab-s{font-size:0.76rem;font-weight:600;color:var(--text-muted,#94a3b8);margin-top:2px;}' +
+        '#homeAdminBtn .hab-go{font-size:1.3rem;font-weight:900;color:#f7931a;flex-shrink:0;}' +
+        '#homeAdminBtn:hover,#homeAdminBtn:focus-visible{outline:3px solid rgba(247,147,26,0.45);outline-offset:2px;}' +
+        '#homeAdminBtn:active{transform:scale(0.99);}' +
+        '[data-theme="light"] #homeAdminBtn{background:linear-gradient(135deg,#fff4e6,#ffffff);color:#0f172a;box-shadow:0 4px 14px rgba(15,23,42,0.10);}' +
+        '[data-theme="light"] #homeAdminBtn .hab-s{color:#475569;}';
+    document.head.appendChild(st);
+}
+
+function loadHomeAdminPanel(done) {
+    if (typeof window.bqOpenAdminPanel === 'function') { done(true); return; }
+    var existing = document.getElementById('bqAdminPanelScript');
+    if (existing) {
+        existing.addEventListener('load', function () { done(typeof window.bqOpenAdminPanel === 'function'); });
+        existing.addEventListener('error', function () { done(false); });
+        return;
+    }
+    var s = document.createElement('script');
+    s.id = 'bqAdminPanelScript';
+    s.src = HOME_ADMIN_PANEL_SRC;
+    s.async = true;
+    s.onload = function () { done(typeof window.bqOpenAdminPanel === 'function'); };
+    s.onerror = function () {
+        if (s.parentNode) s.parentNode.removeChild(s);
+        done(false);
+    };
+    document.head.appendChild(s);
+}
+
+// Fallback and shared helper: Settings > Account > Admin mounts.
+function openSettingsAdminSection(targetId) {
+    if (window._isAdminClaim !== true) return;
+    if (typeof showSettings === 'function') showSettings();
+    setTimeout(function () {
+        if (typeof showSettingsPage === 'function') showSettingsPage('account');
+        setTimeout(function () {
+            var peers = document.getElementById('peersSectionContent');
+            if (peers) peers.style.display = 'block';
+            var target = (targetId && document.getElementById(targetId)) ||
+                document.getElementById('settingsAdminSection');
+            if (target && typeof target.scrollIntoView === 'function') {
+                try { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                catch (e) { target.scrollIntoView(true); }
+            }
+        }, 220);
+    }, 80);
+}
+window.openSettingsAdminSection = openSettingsAdminSection;
+
+function openHomeAdminTools() {
+    var user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    if (!user || user.isAnonymous || typeof user.getIdTokenResult !== 'function') return;
+    user.getIdTokenResult().then(function (tokenResult) {
+        var ok = !!(tokenResult && tokenResult.claims && tokenResult.claims.admin === true);
+        window._isAdminClaim = ok;
+        if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+        if (!ok) return;
+        loadHomeAdminPanel(function (loaded) {
+            if (loaded && window._isAdminClaim === true) window.bqOpenAdminPanel();
+            else openSettingsAdminSection('settingsAdminSection');
+        });
+    }).catch(function () {});
+}
+window.openHomeAdminTools = openHomeAdminTools;
+
+function syncHomeAdminBtn() {
+    ensureHomeAdminBtnCss();
+    var home = document.getElementById('home');
+    if (!home) return;
+    var btn = document.getElementById('homeAdminBtn');
+    var isAdmin = window._isAdminClaim === true;
+    if (!isAdmin) {
+        if (btn) {
+            btn.setAttribute('data-on', '0');
+            btn.style.display = 'none';
+            if (btn.parentNode) btn.parentNode.removeChild(btn);
+        }
+        if (typeof window.bqCloseAdminPanel === 'function') window.bqCloseAdminPanel();
+        return;
+    }
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'homeAdminBtn';
+        btn.type = 'button';
+        btn.setAttribute('aria-label', 'Admin tools');
+        btn.setAttribute('aria-haspopup', 'dialog');
+        btn.title = 'Admin tools: only admin accounts see this';
+        btn.innerHTML = '<span class="hab-ico" aria-hidden="true">\uD83D\uDEE1\uFE0F</span>' +
+            '<span class="hab-txt"><span class="hab-t">Admin tools</span>' +
+            '<span class="hab-s">Every admin control in one place, with tips</span></span>' +
+            '<span class="hab-go" aria-hidden="true">\u203A</span>';
+        btn.addEventListener('click', function (ev) {
+            if (ev && ev.preventDefault) ev.preventDefault();
+            openHomeAdminTools();
+        });
+        // In the normal flow at the top of the home column, so it never sits
+        // under the pot of sats or the floating buttons.
+        var host = document.querySelector('#home .home-inner') || home;
+        var before = document.getElementById('homeWalletStrip');
+        if (before && before.parentNode === host) host.insertBefore(btn, before);
+        else host.insertBefore(btn, host.firstChild || null);
+    }
+    btn.setAttribute('data-on', '1');
+    btn.style.display = 'flex';
+}
+window.syncHomeAdminBtn = syncHomeAdminBtn;
 
 async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
@@ -8527,28 +8679,14 @@ window._renderTitleFlairSection = function() {
         '.tf-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;box-sizing:border-box;max-width:100%;}' +
         '.tf-h{font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;}' +
         '.tf-sub{font-size:0.7rem;color:var(--text-muted);margin:14px 0 8px;font-weight:700;}' +
-        '.tf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}' +
-        '.tf-card{position:relative;box-sizing:border-box;min-height:64px;padding:8px 6px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;min-width:0;}' +
-        '.tf-card .tf-e{font-size:1.25rem;line-height:1;}' +
-        '.tf-card .tf-n{font-size:0.66rem;font-weight:700;line-height:1.2;overflow-wrap:anywhere;}' +
-        '.tf-card.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:rgba(247,147,26,0.10);}' +
-        '.tf-card.on::after{content:"✓";position:absolute;top:3px;right:6px;font-size:0.7rem;font-weight:900;color:var(--accent);}' +
-        '.tf-card.lock{opacity:0.45;filter:grayscale(1);cursor:help;}' +
         '.tf-prev{border:1px dashed var(--border);border-radius:10px;padding:10px;font-size:0.8rem;line-height:1.5;overflow-wrap:anywhere;}' +
         '.tf-pill{display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:1px 8px;font-size:0.7rem;font-weight:700;color:#f97316;margin-left:6px;}' +
         '.tf-select{display:block;width:100%;box-sizing:border-box;margin:0 0 4px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;font-size:16px;line-height:1.3;}' +
-        '@media (max-width:420px){.tf-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}.tf-card{min-height:58px;padding:6px 4px;}.tf-card .tf-n{font-size:0.6rem;}}' +
         '</style>';
     h += '<div class="tf-wrap" id="titleFlairSection">';
     h += '<div class="tf-h">🎖️ Title &amp; Flair</div>';
     h += '<div class="tf-prev" aria-live="polite"><div><strong>' + name + '</strong>' + (tDef ? '<span class="tf-pill">' + tDef.emoji + ' ' + _tfEsc(tDef.title) + '</span>' : '') + '</div>' +
         '<div style="color:var(--text-muted);">' + (showFlair ? _tfEsc(showFlair) + ' ' : '') + '<strong style="color:var(--text);">' + name + '</strong>: gm, stacking sats 🧡</div></div>';
-    function card(kind, id, emoji, label, isOn, lockTip) {
-        var attrs = lockTip
-            ? ' class="tf-card lock" aria-disabled="true" title="' + _tfEsc(lockTip) + '" onclick="if(typeof showToast===\'function\')showToast(this.title)"'
-            : ' class="tf-card' + (isOn ? ' on' : '') + '" aria-pressed="' + (isOn ? 'true' : 'false') + '" onmouseenter="window._tfHover(\'' + kind + '\',this.dataset.v)" onmouseleave="window._tfHover(\'' + kind + '\')" onclick="window._tfPick(\'' + kind + '\',this.dataset.v)"';
-        return '<button type="button" data-v="' + _tfEsc(id) + '"' + attrs + '><span class="tf-e">' + emoji + '</span><span class="tf-n">' + _tfEsc(label) + '</span></button>';
-    }
     // Titles: one compact dropdown. Locked collection titles stay visible but cannot be picked.
     h += '<label class="tf-sub" for="tfTitleSelect">Title</label>';
     h += '<select id="tfTitleSelect" class="tf-select" aria-label="Title" onchange="window._tfTitleChange(this)">';
@@ -8587,23 +8725,51 @@ window._renderTitleFlairSection = function() {
         h += '</optgroup>';
     }
     h += '</select>';
-    // Flair: None, Nook flair, then collection flair.
-    h += '<div class="tf-sub">Chat flair</div><div class="tf-grid">';
-    h += card('flair', '', '🚫', 'No flair', !flair, '');
+    // Chat flair: one compact dropdown. Locked Nook and collection flair stay visible but cannot be picked.
+    h += '<label class="tf-sub" for="tfFlairSelect">Chat flair</label>';
+    h += '<select id="tfFlairSelect" class="tf-select" aria-label="Chat flair" onchange="window._tfFlairChange(this)">';
+    h += '<option value=""' + (!flair ? ' selected' : '') + '>No flair</option>';
     var seenF = {};
+    var unlockedF = [];
+    var lockedF = [];
     var nookOwned = Array.isArray(u.ownedCosmetics) && u.ownedCosmetics.indexOf('chat_flair') !== -1;
     (window.CHAT_FLAIR_NOOK || []).forEach(function(e) {
         seenF[e] = true;
         var have = earnedF.indexOf(e) !== -1 || nookOwned;
-        h += card('flair', e, e, 'Nook', flair === e, have ? '' : '🔒 Buy Chat Flair in the Nook');
+        var item = { id: e, emoji: e, title: 'Nook', locked: !have, hint: have ? '' : 'Buy Chat Flair in the Nook' };
+        (have ? unlockedF : lockedF).push(item);
     });
     _tfCollections().forEach(function(col) {
         if (!col.flair || seenF[col.flair]) return;
         seenF[col.flair] = true;
         var have = earnedF.indexOf(col.flair) !== -1;
-        h += card('flair', col.flair, col.flair, col.name, flair === col.flair, have ? '' : '🔒 Complete the ' + col.name + ' collection');
+        var item = { id: col.flair, emoji: col.flair, title: col.name || col.flair, locked: !have, hint: have ? '' : ('Complete the ' + col.name + ' collection') };
+        (have ? unlockedF : lockedF).push(item);
     });
-    h += '</div></div>';
+    earnedF.forEach(function(fe) {
+        if (!fe || seenF[fe]) return;
+        seenF[fe] = true;
+        unlockedF.push({ id: fe, emoji: fe, title: '', locked: false, hint: '' });
+    });
+    if (flair && unlockedF.every(function(item) { return item.id !== flair; }) && lockedF.every(function(item) { return item.id !== flair; })) {
+        unlockedF.unshift({ id: flair, emoji: flair, title: '', locked: false, hint: '' });
+    }
+    function flairOpt(item) {
+        var label = ((item.emoji ? item.emoji + ' ' : '') + (item.title || '')).trim();
+        if (item.hint) label += ' — ' + item.hint;
+        return '<option value="' + _tfEsc(item.id) + '"' + (item.locked ? ' disabled' : '') + (flair === item.id ? ' selected' : '') + '>' + _tfEsc(label) + '</option>';
+    }
+    if (unlockedF.length) {
+        h += '<optgroup label="Unlocked">';
+        unlockedF.forEach(function(item) { h += flairOpt(item); });
+        h += '</optgroup>';
+    }
+    if (lockedF.length) {
+        h += '<optgroup label="Locked">';
+        lockedF.forEach(function(item) { h += flairOpt(item); });
+        h += '</optgroup>';
+    }
+    h += '</select></div>';
     return h;
 };
 window._tfRepaint = function() {
@@ -8634,6 +8800,12 @@ window._tfTitleChange = function(el) {
     var value = el.value || '';
     window._tfHover('title', value);
     window._tfPick('title', value);
+};
+window._tfFlairChange = function(el) {
+    if (!el) return;
+    var value = el.value || '';
+    window._tfHover('flair', value);
+    window._tfPick('flair', value);
 };
 window._tfPick = function(kind, value) {
     var user = auth ? auth.currentUser : null;
@@ -9167,9 +9339,16 @@ function showSettingsPage(tab) {
             html += '</div>';
         });
         html += '</div>';
-        html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
-        html += '<div id="factionPrizeAdmin" style="margin-top:12px;"></div>';
-        html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
+        // Admin mounts stay empty for non-admins. The home shortcut and these
+        // panels both require window._isAdminClaim === true (Firebase claim).
+        if (window._isAdminClaim === true) {
+            html += '<div id="settingsAdminSection" style="margin-top:14px;padding-top:8px;border-top:1px solid var(--border);">';
+            html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">\uD83D\uDEE1\uFE0F Admin</div>';
+            html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
+            html += '<div id="factionPrizeAdmin" style="margin-top:12px;"></div>';
+            html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
+            html += '</div>';
+        }
         html += '</div>';
 
         // Advanced Account toggle - content renders BELOW this button
@@ -9441,11 +9620,11 @@ function accountDeleteRowHtml(user) {
                 var inner = container.querySelector('div') || container;
                 var cardsHtml = '';
                 data.news.slice(0, 3).forEach(function(n, i) {
-                    var title = (n.title || '').replace(/<[^>]+>/g, '');
-                    var snippet = (n.snippet || '').replace(/<[^>]+>/g, '');
-                    var link = n.link || '';
+                    var title = escapeHtml(n.title || '');
+                    var snippet = escapeHtml(n.snippet || '');
+                    var link = (typeof n.link === 'string' && /^https:\/\/[^\s'"<>\\`]+$/.test(n.link)) ? n.link : '';
                     cardsHtml += '<div style="min-width:260px;max-width:300px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                        (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
+                        (link ? 'data-href="' + escapeHtml(link) + '" onclick="window.open(this.getAttribute(\'data-href\'),\'_blank\',\'noopener,noreferrer\')"' : '') +
                         ' onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
                             '<span style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:900;padding:2px 8px;border-radius:10px;">SIGNAL #' + (i + 1) + '</span>' +
@@ -11422,10 +11601,10 @@ window.loadSignalContent = function() {
         var inner = container.querySelector('div') || container;
         var cardsHtml = '';
         data.news.slice(0, 3).forEach(function(n, i) {
-            var title = (n.title || '').replace(/<[^>]+>/g, '');
-            var link = n.link || '';
+            var title = escapeHtml(n.title || '');
+            var link = (typeof n.link === 'string' && /^https:\/\/[^\s'"<>\\`]+$/.test(n.link)) ? n.link : '';
             cardsHtml += '<div style="min-width:240px;max-width:280px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
+                (link ? 'data-href="' + escapeHtml(link) + '" onclick="window.open(this.getAttribute(\'data-href\'),\'_blank\',\'noopener,noreferrer\')"' : '') +
                 '><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="background:var(--accent);color:#fff;font-size:0.55rem;font-weight:900;padding:2px 6px;border-radius:8px;">SIGNAL #' + (i + 1) + '</span></div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.82rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + title + '</div>' +
                 (link ? '<div style="color:var(--accent);font-size:0.7rem;font-weight:700;margin-top:6px;">Read →</div>' : '') + '</div>';
@@ -13205,7 +13384,12 @@ window._showFreshStepUp = function (action) {
         deleteAccount: 'Enter a fresh authenticator code to delete this account. Remembering this device is not enough.',
         disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
         regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
-        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.'
+        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.',
+        adminSetKillSwitch: 'Enter a fresh authenticator code to flip the kill switch. A remembered device is not enough, and the authenticator must be at least 24 hours old.',
+        claimFavorBlock: 'Enter a fresh authenticator code to claim your Favor block. A remembered device is not enough.',
+        adminSetFavorClaims: 'Enter a fresh authenticator code to change Favor claim settings.',
+        adminFreezeFavorEpoch: 'Enter a fresh authenticator code to freeze a Favor epoch.',
+        adminResolveFavorReview: 'Enter a fresh authenticator code to release a Favor review block.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');

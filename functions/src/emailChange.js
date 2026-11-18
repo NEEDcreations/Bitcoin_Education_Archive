@@ -668,19 +668,19 @@ function bindEmailChange(functionsV1, admin, db, deletionHmacSecret) {
         authApi: admin.auth(),
         HttpsError: functionsV1.https.HttpsError,
     });
-    function onCall(name, handler, warm) {
+    function onCall(name, handler, warm, totpKey) {
         var opts = {
             enforceAppCheck: true,
-            secrets: [secret],
+            secrets: totpKey ? [secret, 'TOTP_ENCRYPTION_KEY'] : [secret],
             serviceAccount: runtimeSa(name),
         };
         if (warm === true) opts.minInstances = 1;
         return functionsV1.runWith(opts).https.onCall(handler);
     }
     return {
-        prepareEmailChange: onCall('prepareEmailChange', handlers.prepareEmailChange),
+        prepareEmailChange: onCall('prepareEmailChange', handlers.prepareEmailChange, false, true),
         syncEmailChange: onCall('syncEmailChange', handlers.syncEmailChange, true),
-        confirmAccountLink: onCall('confirmAccountLink', handlers.confirmAccountLink),
+        confirmAccountLink: onCall('confirmAccountLink', handlers.confirmAccountLink, false, true),
     };
 }
 
