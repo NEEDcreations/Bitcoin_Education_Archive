@@ -44,10 +44,21 @@ function redirectRes(location) {
     };
 }
 
-function bolt11(msats, network) {
+const crypto = require('crypto');
+const META = '[["text/plain","Pay to a test wallet"]]';
+const PAYEE = '02' + 'ab'.repeat(32);
+const OWN = '03' + 'cd'.repeat(32);
+function bolt11(msats, network, over) {
+    const o = over || {};
     return {
         decode: function () {
-            return { millisatoshis: String(msats), network: { bech32: network || 'bc' } };
+            return {
+                millisatoshis: String(msats),
+                network: { bech32: network || 'bc' },
+                payeeNodeKey: o.payee !== undefined ? o.payee : PAYEE,
+                timeExpireDate: o.exp !== undefined ? o.exp : Math.floor(Date.now() / 1000) + 600,
+                tags: o.hash === null ? [] : [{ tagName: 'purpose_commit_hash', data: o.hash || crypto.createHash('sha256').update(o.meta || META).digest('hex') }],
+            };
         },
     };
 }
@@ -76,6 +87,7 @@ function harness(routes, extra) {
         fetch: fetch,
         bolt11: options.bolt11 || bolt11(1000, 'bc'),
         assertPublicHost: options.assertPublicHost || publicHost(options.blocked),
+        ownNodePubkeys: options.ownNodePubkeys || [OWN],
         log: {
             log: function (line) { logs.push(String(line)); },
             error: function (line) { logs.push(String(line)); },
@@ -96,7 +108,7 @@ queue.push(test('Wallet of Satoshi callback may live on another host', async fun
     const meta = 'https://walletofsatoshi.com/.well-known/lnurlp/alice';
     const invoice = 'https://livingroomofsatoshi.com/api/pay?amount=1000';
     const h = harness({
-        [meta]: jsonRes({ callback: 'https://livingroomofsatoshi.com/api/pay', minSendable: 1000, maxSendable: 100000000 }),
+        [meta]: jsonRes({ metadata: META, callback: 'https://livingroomofsatoshi.com/api/pay', minSendable: 1000, maxSendable: 100000000 }),
         [invoice]: jsonRes({ pr: 'lnbc10n1example' }),
     });
     const out = await h.resolve({ address: 'alice@walletofsatoshi.com', msats: 1000 });
@@ -112,7 +124,7 @@ queue.push(test('Blink callback may live on another host', async function () {
     const meta = 'https://blink.sv/.well-known/lnurlp/bob';
     const invoice = 'https://api.blink.sv/lnurl/pay?amount=1000';
     const h = harness({
-        [meta]: jsonRes({ callback: 'https://api.blink.sv/lnurl/pay', minSendable: 1000, maxSendable: 5000000 }),
+        [meta]: jsonRes({ metadata: META, callback: 'https://api.blink.sv/lnurl/pay', minSendable: 1000, maxSendable: 5000000 }),
         [invoice]: jsonRes({ pr: 'lnbc10n1blink' }),
     });
     const out = await h.resolve({ address: 'bob@blink.sv', msats: 1000 });
@@ -126,7 +138,7 @@ queue.push(test('Speed may redirect the metadata request and stay on https', asy
     const invoice = 'https://api.speed.app/lnurlp/invoice?amount=1000';
     const h = harness({
         [first]: redirectRes(next),
-        [next]: jsonRes({ callback: 'https://api.speed.app/lnurlp/invoice', minSendable: 1000, maxSendable: 100000000 }),
+        [next]: jsonRes({ metadata: META, callback: 'https://api.speed.app/lnurlp/invoice', minSendable: 1000, maxSendable: 100000000 }),
         [invoice]: jsonRes({ pr: 'lnbc10n1speed' }),
     });
     const out = await h.resolve({ address: 'cara@speed.app', msats: 1000 });
@@ -148,7 +160,7 @@ queue.push(test('a redirect onto a private address is rejected', async function 
 queue.push(test('an http callback is rejected before the invoice fetch', async function () {
     const meta = 'https://wallet.example/.well-known/lnurlp/supersecret';
     const h = harness({
-        [meta]: jsonRes({ callback: 'http://wallet.example/pay', minSendable: 1000, maxSendable: 100000 }),
+        [meta]: jsonRes({ metadata: META, callback: 'http://wallet.example/pay', minSendable: 1000, maxSendable: 100000 }),
     });
     await assert.rejects(function () { return h.resolve({ address: 'supersecret@wallet.example', msats: 1000 }); }, function (err) {
         return err && err.code === 'http_callback';
@@ -159,13 +171,13 @@ queue.push(test('an http callback is rejected before the invoice fetch', async f
 queue.push(test('userinfo and a non-default port are rejected', async function () {
     const meta = 'https://wallet.example/.well-known/lnurlp/supersecret';
     const userinfo = harness({
-        [meta]: jsonRes({ callback: 'https://user:pass@wallet.example/pay', minSendable: 1000, maxSendable: 100000 }),
+        [meta]: jsonRes({ metadata: META, callback: 'https://user:pass@wallet.example/pay', minSendable: 1000, maxSendable: 100000 }),
     });
     await assert.rejects(function () { return userinfo.resolve({ address: 'supersecret@wallet.example', msats: 1000 }); }, function (err) {
         return err && err.code === 'userinfo';
     });
     const port = harness({
-        [meta]: jsonRes({ callback: 'https://wallet.example:8443/pay', minSendable: 1000, maxSendable: 100000 }),
+        [meta]: jsonRes({ metadata: META, callback: 'https://wallet.example:8443/pay', minSendable: 1000, maxSendable: 100000 }),
     });
     await assert.rejects(function () { return port.resolve({ address: 'supersecret@wallet.example', msats: 1000 }); }, function (err) {
         return err && err.code === 'bad_port';
@@ -187,14 +199,14 @@ queue.push(test('LNURL status ERROR is returned and the invoice is not fetched',
 queue.push(test('an amount outside min or max does not fetch an invoice', async function () {
     const meta = 'https://wallet.example/.well-known/lnurlp/supersecret';
     const low = harness({
-        [meta]: jsonRes({ callback: 'https://pay.wallet.example/inv', minSendable: 5000, maxSendable: 100000 }),
+        [meta]: jsonRes({ metadata: META, callback: 'https://pay.wallet.example/inv', minSendable: 5000, maxSendable: 100000 }),
     });
     await assert.rejects(function () { return low.resolve({ address: 'supersecret@wallet.example', msats: 1000 }); }, function (err) {
         return err && err.code === 'below_min' && err.minSendable === 5000;
     });
     assert.deepStrictEqual(low.calls, [meta]);
     const high = harness({
-        [meta]: jsonRes({ callback: 'https://pay.wallet.example/inv', minSendable: 1000, maxSendable: 1500 }),
+        [meta]: jsonRes({ metadata: META, callback: 'https://pay.wallet.example/inv', minSendable: 1000, maxSendable: 1500 }),
     });
     await assert.rejects(function () { return high.resolve({ address: 'supersecret@wallet.example', msats: 2000 }); }, function (err) {
         return err && err.code === 'above_max';
@@ -206,7 +218,7 @@ queue.push(test('the invoice must be mainnet and the requested amount', async fu
     const meta = 'https://wallet.example/.well-known/lnurlp/supersecret';
     const invoice = 'https://pay.wallet.example/inv?amount=1000';
     const routes = {
-        [meta]: jsonRes({ callback: 'https://pay.wallet.example/inv', minSendable: 1000, maxSendable: 100000 }),
+        [meta]: jsonRes({ metadata: META, callback: 'https://pay.wallet.example/inv', minSendable: 1000, maxSendable: 100000 }),
         [invoice]: jsonRes({ pr: 'lntb1testnet' }),
     };
     const wrongNet = harness(routes, { bolt11: bolt11(1000, 'tb') });
@@ -224,7 +236,7 @@ queue.push(test('every LNURL request asks for identity encoding with a timeout a
     const invoice = 'https://wallet.example/cb?amount=1000';
     const seen = [];
     const routes = {
-        [meta]: jsonRes({ callback: 'https://wallet.example/cb', minSendable: 1000, maxSendable: 100000000 }),
+        [meta]: jsonRes({ metadata: META, callback: 'https://wallet.example/cb', minSendable: 1000, maxSendable: 100000000 }),
         [invoice]: jsonRes({ pr: 'lnbc10n1example' }),
     };
     const resolve = lnurl.createLnurlResolver({
@@ -253,6 +265,57 @@ queue.push(test('tipService LNURL fetches ask for identity encoding with a timeo
         assert.ok(/'Accept-Encoding': 'identity'/.test(c), c);
         assert.ok(/compress: false/.test(c) && /timeout: \d+/.test(c) && /size: 65536/.test(c), c);
     });
+}));
+
+
+function invoiceRoutes(metaBody) {
+    return {
+        'https://wallet.example/.well-known/lnurlp/zed': jsonRes(Object.assign({ metadata: META, callback: 'https://wallet.example/cb', minSendable: 1000, maxSendable: 100000000 }, metaBody || {})),
+        'https://wallet.example/cb?amount=1000': jsonRes({ pr: 'lnbc10n1zed' }),
+    };
+}
+async function expectCode(h, code) {
+    let err = null;
+    try { await h.resolve({ address: 'zed@wallet.example', msats: 1000 }); } catch (e) { err = e; }
+    assert.ok(err, 'expected ' + code);
+    assert.strictEqual(err.code, code);
+}
+
+queue.push(test('description hash must equal sha256(metadata)', async function () {
+    await expectCode(harness(invoiceRoutes(), { bolt11: bolt11(1000, 'bc', { hash: 'ff'.repeat(32) }) }), 'description_hash_mismatch');
+    await expectCode(harness(invoiceRoutes(), { bolt11: bolt11(1000, 'bc', { hash: null }) }), 'description_hash_mismatch');
+    await expectCode(harness(invoiceRoutes(), { bolt11: bolt11(1000, 'bc', { meta: '[["text/plain","other"]]' }) }), 'description_hash_mismatch');
+    const ok = await harness(invoiceRoutes()).resolve({ address: 'zed@wallet.example', msats: 1000 });
+    assert.strictEqual(ok.pr, 'lnbc10n1zed');
+}));
+
+queue.push(test('metadata missing from LNURL-pay response is refused', async function () {
+    await expectCode(harness(invoiceRoutes({ metadata: undefined })), 'no_metadata');
+    await expectCode(harness(invoiceRoutes({ metadata: 42 })), 'no_metadata');
+}));
+
+queue.push(test('expired or nearly expired invoices are refused', async function () {
+    const now = Math.floor(Date.now() / 1000);
+    await expectCode(harness(invoiceRoutes(), { bolt11: bolt11(1000, 'bc', { exp: now - 5 }) }), 'invoice_expired');
+    await expectCode(harness(invoiceRoutes(), { bolt11: bolt11(1000, 'bc', { exp: now + 10 }) }), 'invoice_expired');
+    await expectCode(harness(invoiceRoutes(), { bolt11: bolt11(1000, 'bc', { exp: null }) }), 'invoice_expired');
+}));
+
+queue.push(test('invoice payable to our own node, or with no payee, is refused', async function () {
+    await expectCode(harness(invoiceRoutes(), { bolt11: bolt11(1000, 'bc', { payee: OWN }) }), 'own_node');
+    await expectCode(harness(invoiceRoutes(), { bolt11: bolt11(1000, 'bc', { payee: OWN.toUpperCase() }) }), 'own_node');
+    await expectCode(harness(invoiceRoutes(), { bolt11: bolt11(1000, 'bc', { payee: '' }) }), 'no_payee');
+}));
+
+queue.push(test('own node list comes from BQ_OWN_NODE_PUBKEYS and ignores junk', function () {
+    process.env.BQ_OWN_NODE_PUBKEYS = ' ' + OWN + ' ,nonsense,' + PAYEE.toUpperCase();
+    assert.deepStrictEqual(lnurl.ownNodePubkeys(), [OWN, PAYEE]);
+    delete process.env.BQ_OWN_NODE_PUBKEYS;
+    assert.deepStrictEqual(lnurl.ownNodePubkeys(), []);
+}));
+
+queue.push(test('amount mismatch still wins over the new checks', async function () {
+    await expectCode(harness(invoiceRoutes(), { bolt11: bolt11(2000, 'bc', { payee: OWN }) }), 'amount_mismatch');
 }));
 
 Promise.all(queue).then(function () {
