@@ -141,16 +141,33 @@ function captureLog() {
 const HASH_CONFIG = { algorithm: 'SCRYPT', signerKey: Buffer.alloc(64, 7).toString('base64'), saltSeparator: 'Bw==', rounds: 8, memoryCost: 14 };
 const NOW = new Date('2026-11-10T08:30:00Z'); // 3:30 AM ET
 
-function metaCreated(iso) { return { timeCreated: iso }; }
-function auditCreate(objectName, sa, ts) {
+function metaCreated(iso, extra) { return Object.assign({ timeCreated: iso }, extra || {}); }
+function auditCreate(objectName, sa, ts, generation) {
+    const gen = String(generation == null ? '1' : generation);
     return [{
         protoPayload: {
             methodName: 'storage.objects.create',
             authenticationInfo: { principalEmail: sa },
             resourceName: 'projects/_/buckets/demo-auth-backups/objects/' + objectName,
+            response: { name: objectName, generation: gen },
         },
         timestamp: ts || isoOrNow(),
     }];
+}
+function metaForCipher(objectName, iso, buf, generation) {
+    const h = verify.fileHashes(buf);
+    return {
+        name: objectName,
+        generation: String(generation == null ? '1' : generation),
+        timeCreated: iso,
+        md5Hash: h.md5,
+        crc32c: h.crc32c,
+    };
+}
+function writeIdentity(dir, kp) {
+    const pth = path.join(dir, 'identity.txt');
+    fs.writeFileSync(pth, kp.identity + '\n', { mode: 0o600 });
+    return pth;
 }
 function isoOrNow() { return '2026-11-10T08:30:30.000Z'; }
 const IN_WINDOW = '2026-11-10T08:30:30.000Z'; // 3:30:30 AM ET
@@ -431,20 +448,25 @@ test('verify script: counts, sha match, 1% drift check, refuses non-staging impo
     try {
         fs.writeFileSync(path.join(dir, 'p.jsonl'), plain);
         fs.writeFileSync(path.join(dir, 'm.json'), JSON.stringify(man));
+        const cipherPath = path.join(dir, 'c.jsonl.age');
+        fs.writeFileSync(cipherPath, bucket.objects[man.object].body);
+        const identity = writeIdentity(dir, kp);
         const sa = verify.expectedBackupSa('demo');
-        fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(metaCreated(IN_WINDOW)));
+        fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(metaForCipher(man.object, IN_WINDOW, bucket.objects[man.object].body)));
         fs.writeFileSync(path.join(dir, 'audit.json'), JSON.stringify(auditCreate(man.object, sa, IN_WINDOW)));
         const script = path.join(fnRoot, 'scripts', 'auth-export-verify.js');
         const out = execFileSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--expect', '300'], { encoding: 'utf8' });
         assert.ok(/VERIFY: PASS/.test(out));
         noPii(out, users);
-        const dry = execFileSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--sample', '20', '--object-meta', path.join(dir, 'meta.json'), '--audit-log', path.join(dir, 'audit.json')], { encoding: 'utf8' });
+        const dry = execFileSync('node', [script, '--ciphertext', cipherPath, '--identity', identity, '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--sample', '20', '--object-meta', path.join(dir, 'meta.json'), '--audit-log', path.join(dir, 'audit.json')], { encoding: 'utf8' });
+        assert.ok(/VERIFY: PASS/.test(dry));
         assert.ok(/Import plan: 20 users/.test(dry) && /with hash: 10/.test(dry) && /DRY RUN/.test(dry));
         noPii(dry, users);
-        let code = 0;
-        try { execFileSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--import', '--project', 'bitcoin-education-archive', '--apply'], { stdio: 'pipe' }); }
-        catch (e) { code = e.status; }
+        let code = 0, err = '';
+        try { execFileSync('node', [script, '--ciphertext', cipherPath, '--identity', identity, '--manifest', path.join(dir, 'm.json'), '--object-meta', path.join(dir, 'meta.json'), '--audit-log', path.join(dir, 'audit.json'), '--import', '--project', 'bitcoin-education-archive', '--apply'], { stdio: 'pipe' }); }
+        catch (e) { code = e.status; err = (e.stderr || '').toString(); }
         assert.strictEqual(code, 2);
+        assert.ok(/Staging only/.test(err), err);
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -484,13 +506,13 @@ test('sanitize redacts emails, tokens, and spaced or local phone formats', funct
 });
 
 test('sanitize leaves ordinary counts and timestamps in log lines alone', function () {
-    const line = '[AUTH-BACKUP] wrote auth/2026-11-10/083000Z-aaaaaaaaaaaaaaaa.jsonl.age users 2503 passwordUsers 835 withHash 835 hashConfig true bytes 12345678 started 2026-11-10T08:30:00.000Z';
+    const line = '[AUTH-BACKUP] wrote auth/2026-11-10/083000Z-aaaaaaaaaaaaaaaa.jsonl.age users 2503 passwordUsers 835 withHash 835 hashConfig true bytes 1234567 started 2026-11-10T08:30:00.000Z';
     const out = ex.sanitize('error at ' + line);
     assert.ok(out.indexOf('2026-11-10') !== -1, out);
     assert.ok(out.indexOf('2026-11-10T08:30:00.000Z') !== -1, out);
     assert.ok(out.indexOf('users 2503') !== -1, out);
     assert.ok(out.indexOf('passwordUsers 835') !== -1, out);
-    assert.ok(out.indexOf('bytes 12345678') !== -1, out);
+    assert.ok(out.indexOf('bytes 1234567') !== -1, out);
     assert.ok(out.indexOf('083000Z-aaaaaaaaaaaaaaaa') !== -1, out);
     const mixed = ex.sanitize('denied +1 555 123 4567 on 2026-11-10T08:30:00.000Z users 2503');
     assert.ok(mixed.indexOf('+1 555 123 4567') === -1);
@@ -548,6 +570,15 @@ test('verify script: findLatestComplete ranks by timeCreated and flags extras an
     const noneInWindow = verify.findLatestComplete([{ manifest: planted, meta: metaCreated(OUT_WINDOW) }]);
     assert.ok(noneInWindow && !noneInWindow.manifest);
     assert.ok(noneInWindow.flags.some(function (f) { return /outside the backup schedule window/.test(f); }));
+    // A planted manifest with an uploader-set timeCreated and no sidecar
+    // must not outrank a real backup that has server metadata.
+    const noSidecar = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/083100Z-eeeeeeeeeeeeeeee.jsonl.age', timeCreated: '2026-11-18T08:31:00.000Z', finishedAt: '2026-11-18T08:31:00.000Z', date: '2026-11-18' };
+    const ranked = verify.findLatestComplete([
+        { manifest: noSidecar },
+        { manifest: older, meta: metaCreated(IN_WINDOW_EARLIER) },
+    ]);
+    assert.strictEqual(ranked.manifest.object, older.object);
+    assert.ok(ranked.flags.some(function (f) { return /missing timeCreated/.test(f) && f.indexOf(noSidecar.object) !== -1; }), String(ranked.flags));
 });
 
 test('verify script: --latest-from --print-latest selects by timeCreated and prints flags', function () {
@@ -624,8 +655,8 @@ test('verify script: provenance is fail-closed, uses audit-log creator and the s
     assert.strictEqual(sa, 'fn-daily-auth-export@demo.iam.gserviceaccount.com');
     const ok = verify.checkBackupProvenance({
         required: true,
-        meta: metaCreated(IN_WINDOW),
-        audit: auditCreate(objectName, sa, IN_WINDOW),
+        meta: metaCreated(IN_WINDOW, { name: objectName, generation: '1' }),
+        audit: auditCreate(objectName, sa, IN_WINDOW, '1'),
         objectName: objectName,
         expectedSa: sa,
         window: verify.DEFAULT_SCHEDULE_WINDOW,
@@ -637,14 +668,14 @@ test('verify script: provenance is fail-closed, uses audit-log creator and the s
     assert.ok(verify.checkBackupProvenance({ required: true, meta: metaCreated(IN_WINDOW), audit: null, expectedSa: sa }).some(function (p) { return /audit log is missing or empty/.test(p); }));
     assert.ok(verify.checkBackupProvenance({ required: true, meta: { cacheControl: 'no-store' }, audit: auditCreate(objectName, sa), objectName: objectName, expectedSa: sa }).some(function (p) { return /missing timeCreated/.test(p); }));
     // Custom metadata creator/createdBy is ignored; audit principalEmail is the source.
-    const forgedMeta = { timeCreated: IN_WINDOW, metadata: { creator: sa, createdBy: sa }, creator: sa };
+    const forgedMeta = { timeCreated: IN_WINDOW, name: objectName, generation: '1', metadata: { creator: sa, createdBy: sa }, creator: sa };
     const evilAudit = auditCreate(objectName, 'evil@example.com', IN_WINDOW);
     assert.ok(verify.checkBackupProvenance({ required: true, meta: forgedMeta, audit: evilAudit, objectName: objectName, expectedSa: sa }).some(function (p) { return /creator is not the expected service account/.test(p); }));
     assert.deepStrictEqual(verify.checkBackupProvenance({ required: true, meta: forgedMeta, audit: auditCreate(objectName, sa), objectName: objectName, expectedSa: sa }), []);
     // Window check, not manifest finishedAt. A matching forged finishedAt does not help an out-of-window object.
     const out = verify.checkBackupProvenance({
         required: true,
-        meta: metaCreated(OUT_WINDOW),
+        meta: metaCreated(OUT_WINDOW, { name: objectName, generation: '1' }),
         audit: auditCreate(objectName, sa, OUT_WINDOW),
         objectName: objectName,
         expectedSa: sa,
@@ -674,21 +705,183 @@ test('verify script: --import without provenance is refused, even on a dry run',
     try {
         fs.writeFileSync(path.join(dir, 'p.jsonl'), plain);
         fs.writeFileSync(path.join(dir, 'm.json'), JSON.stringify(man));
-        const none = spawnSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--sample', '4'], { encoding: 'utf8' });
+        const cipherPath = path.join(dir, 'c.jsonl.age');
+        fs.writeFileSync(cipherPath, bucket.objects[man.object].body);
+        const none = spawnSync('node', [script, '--ciphertext', cipherPath, '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--sample', '4'], { encoding: 'utf8' });
         assert.notStrictEqual(none.status, 0);
         assert.ok(/object metadata is missing or empty/.test(none.stdout + none.stderr));
         assert.ok(/audit log is missing or empty/.test(none.stdout + none.stderr));
         fs.writeFileSync(path.join(dir, 'empty-meta.json'), '');
         fs.writeFileSync(path.join(dir, 'empty-audit.json'), '');
-        const empty = spawnSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--object-meta', path.join(dir, 'empty-meta.json'), '--audit-log', path.join(dir, 'empty-audit.json')], { encoding: 'utf8' });
+        const empty = spawnSync('node', [script, '--ciphertext', cipherPath, '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--object-meta', path.join(dir, 'empty-meta.json'), '--audit-log', path.join(dir, 'empty-audit.json')], { encoding: 'utf8' });
         assert.notStrictEqual(empty.status, 0);
         assert.ok(/object metadata is missing or empty/.test(empty.stdout + empty.stderr));
         const sa = verify.expectedBackupSa('demo');
         fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({ metadata: { creator: sa, createdBy: sa }, creator: sa }));
         fs.writeFileSync(path.join(dir, 'audit.json'), JSON.stringify(auditCreate(man.object, sa, IN_WINDOW)));
-        const noTime = spawnSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--object-meta', path.join(dir, 'meta.json'), '--audit-log', path.join(dir, 'audit.json')], { encoding: 'utf8' });
+        const noTime = spawnSync('node', [script, '--ciphertext', cipherPath, '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--object-meta', path.join(dir, 'meta.json'), '--audit-log', path.join(dir, 'audit.json')], { encoding: 'utf8' });
         assert.notStrictEqual(noTime.status, 0);
         assert.ok(/missing timeCreated/.test(noTime.stdout + noTime.stderr));
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('crc32c matches the Castagnoli vector used by GCS metadata', function () {
+    assert.strictEqual(verify.crc32cUint(Buffer.from('123456789')).toString(16), 'e3069283');
+});
+
+test('sanitize redacts a phone sitting after a count word', function () {
+    ['failed 5551234567', 'users: 5551234567', 'lines 5551234567'].forEach(function (msg) {
+        const out = ex.sanitize(msg);
+        assert.ok(out.indexOf('5551234567') === -1, 'left phone in place: ' + msg + ' -> ' + out);
+        assert.ok(out.indexOf('<phone>') !== -1, 'did not redact ' + msg + ' -> ' + out);
+    });
+    assert.ok(ex.sanitize('failed 12').indexOf('failed 12') !== -1);
+    assert.ok(ex.sanitize('users: 26615').indexOf('users: 26615') !== -1);
+});
+
+test('verify script: --import refuses a run with no manifest', async function () {
+    const kp = keypair();
+    const users = fakeUsers(8);
+    const bucket = fakeBucket();
+    const man = await ex.runAuthExport({ auth: fakeAuth(users), bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, log: captureLog(), getHashConfig: async function () { return HASH_CONFIG; } });
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'abv-nomans-'));
+    const { spawnSync } = require('child_process');
+    const script = path.join(fnRoot, 'scripts', 'auth-export-verify.js');
+    try {
+        const cipherPath = path.join(dir, 'c.jsonl.age');
+        fs.writeFileSync(cipherPath, bucket.objects[man.object].body);
+        const sa = verify.expectedBackupSa('demo');
+        fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(metaForCipher(man.object, IN_WINDOW, bucket.objects[man.object].body)));
+        fs.writeFileSync(path.join(dir, 'audit.json'), JSON.stringify(auditCreate(man.object, sa, IN_WINDOW)));
+        const none = spawnSync('node', [script, '--ciphertext', cipherPath, '--import', '--project', 'bitcoin-quest-staging', '--sample', '4', '--object-meta', path.join(dir, 'meta.json'), '--audit-log', path.join(dir, 'audit.json')], { encoding: 'utf8' });
+        assert.strictEqual(none.status, 2);
+        assert.ok(/--import requires --manifest or --latest-from/.test(none.stderr + none.stdout), none.stderr + none.stdout);
+        assert.ok(!/VERIFY: PASS/.test(none.stdout));
+        assert.ok(!/Import plan:/.test(none.stdout));
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('verify script: an auth/ substring in the manifest does not satisfy provenance', function () {
+    const sa = verify.expectedBackupSa('demo');
+    const real = 'auth/2026-11-10/083000Z-aaaaaaaaaaaaaaaa.jsonl.age';
+    const problems = verify.checkBackupProvenance({
+        required: true,
+        meta: metaCreated(IN_WINDOW, { name: real, generation: '1' }),
+        audit: auditCreate(real, sa, IN_WINDOW),
+        objectName: 'auth/',
+        expectedSa: sa,
+        window: verify.DEFAULT_SCHEDULE_WINDOW,
+    });
+    assert.ok(problems.some(function (p) { return /name does not match manifest.object/.test(p); }), String(problems));
+    assert.ok(problems.some(function (p) { return /no storage.objects.create principalEmail for this object/.test(p); }), String(problems));
+    assert.strictEqual(verify.creatorFromAuditLog(auditCreate(real, sa, IN_WINDOW), 'auth/'), '');
+    assert.strictEqual(verify.auditCreateHits(auditCreate(real, sa, IN_WINDOW), 'auth/').length, 0);
+    assert.strictEqual(verify.creatorFromAuditLog(auditCreate(real, sa, IN_WINDOW), real), sa);
+});
+
+test('verify script: a meta/manifest object name mismatch is refused', function () {
+    const sa = verify.expectedBackupSa('demo');
+    const objectName = 'auth/2026-11-10/083000Z-aaaaaaaaaaaaaaaa.jsonl.age';
+    const problems = verify.checkBackupProvenance({
+        required: true,
+        meta: metaCreated(IN_WINDOW, { name: 'auth/2026-11-10/083000Z-ffffffffffffffff.jsonl.age', generation: '1' }),
+        audit: auditCreate(objectName, sa, IN_WINDOW),
+        objectName: objectName,
+        expectedSa: sa,
+        window: verify.DEFAULT_SCHEDULE_WINDOW,
+    });
+    assert.ok(problems.some(function (p) { return /name does not match manifest.object/.test(p); }), String(problems));
+});
+
+test('verify script: delete then recreate (two creates / two generations) is refused', function () {
+    const sa = verify.expectedBackupSa('demo');
+    const objectName = 'auth/2026-11-10/083000Z-aaaaaaaaaaaaaaaa.jsonl.age';
+    const first = auditCreate(objectName, sa, IN_WINDOW, '1')[0];
+    const second = auditCreate(objectName, 'evil@example.com', IN_WINDOW, '2')[0];
+    const problems = verify.checkBackupProvenance({
+        required: true,
+        meta: metaCreated(IN_WINDOW, { name: objectName, generation: '2' }),
+        audit: [first, second],
+        objectName: objectName,
+        expectedSa: sa,
+        window: verify.DEFAULT_SCHEDULE_WINDOW,
+    });
+    assert.ok(problems.some(function (p) { return /more than one storage.objects.create/.test(p); }), String(problems));
+    assert.strictEqual(verify.creatorFromAuditLog([first, second], objectName), '');
+    // hits[0] would have been the legitimate first create; we must not take it.
+    assert.strictEqual(verify.creatorFromAuditLog([first], objectName), sa);
+});
+
+test('verify script: CLI --import refuses forged no-manifest, auth/ substring, name mismatch, and delete+recreate', async function () {
+    const kp = keypair();
+    const users = fakeUsers(8);
+    const bucket = fakeBucket();
+    const man = await ex.runAuthExport({ auth: fakeAuth(users), bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, log: captureLog(), getHashConfig: async function () { return HASH_CONFIG; } });
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'abv-forge-'));
+    const { spawnSync } = require('child_process');
+    const script = path.join(fnRoot, 'scripts', 'auth-export-verify.js');
+    try {
+        const cipherPath = path.join(dir, 'c.jsonl.age');
+        const cipher = bucket.objects[man.object].body;
+        fs.writeFileSync(cipherPath, cipher);
+        const identity = writeIdentity(dir, kp);
+        const sa = verify.expectedBackupSa('demo');
+        fs.writeFileSync(path.join(dir, 'm.json'), JSON.stringify(man));
+        fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(metaForCipher(man.object, IN_WINDOW, cipher)));
+        fs.writeFileSync(path.join(dir, 'audit.json'), JSON.stringify(auditCreate(man.object, sa, IN_WINDOW)));
+
+        const noMan = spawnSync('node', [script, '--ciphertext', cipherPath, '--identity', identity, '--import', '--project', 'bitcoin-quest-staging', '--object-meta', path.join(dir, 'meta.json'), '--audit-log', path.join(dir, 'audit.json')], { encoding: 'utf8' });
+        assert.strictEqual(noMan.status, 2);
+        assert.ok(/--import requires --manifest or --latest-from/.test(noMan.stderr + noMan.stdout));
+
+        const planted = Object.assign({}, man, { object: 'auth/' });
+        fs.writeFileSync(path.join(dir, 'm-auth.json'), JSON.stringify(planted));
+        const sub = spawnSync('node', [script, '--ciphertext', cipherPath, '--identity', identity, '--manifest', path.join(dir, 'm-auth.json'), '--import', '--project', 'bitcoin-quest-staging', '--object-meta', path.join(dir, 'meta.json'), '--audit-log', path.join(dir, 'audit.json')], { encoding: 'utf8' });
+        assert.notStrictEqual(sub.status, 0);
+        const subOut = sub.stdout + sub.stderr;
+        assert.ok(/name does not match manifest.object/.test(subOut) || /no storage.objects.create principalEmail/.test(subOut), subOut);
+        assert.ok(!/VERIFY: PASS/.test(sub.stdout));
+        assert.ok(!/Import plan:/.test(sub.stdout));
+
+        const mismatchMeta = metaForCipher('auth/2026-11-10/083000Z-ffffffffffffffff.jsonl.age', IN_WINDOW, cipher);
+        fs.writeFileSync(path.join(dir, 'meta-mismatch.json'), JSON.stringify(mismatchMeta));
+        const mismatch = spawnSync('node', [script, '--ciphertext', cipherPath, '--identity', identity, '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--object-meta', path.join(dir, 'meta-mismatch.json'), '--audit-log', path.join(dir, 'audit.json')], { encoding: 'utf8' });
+        assert.notStrictEqual(mismatch.status, 0);
+        assert.ok(/name does not match manifest.object/.test(mismatch.stdout + mismatch.stderr), mismatch.stdout + mismatch.stderr);
+        assert.ok(!/Import plan:/.test(mismatch.stdout));
+
+        const first = auditCreate(man.object, sa, IN_WINDOW, '1')[0];
+        const second = auditCreate(man.object, 'evil@example.com', IN_WINDOW, '2')[0];
+        const meta2 = metaForCipher(man.object, IN_WINDOW, cipher, '2');
+        fs.writeFileSync(path.join(dir, 'meta-recreate.json'), JSON.stringify(meta2));
+        fs.writeFileSync(path.join(dir, 'audit-recreate.json'), JSON.stringify([first, second]));
+        const rec = spawnSync('node', [script, '--ciphertext', cipherPath, '--identity', identity, '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--object-meta', path.join(dir, 'meta-recreate.json'), '--audit-log', path.join(dir, 'audit-recreate.json')], { encoding: 'utf8' });
+        assert.notStrictEqual(rec.status, 0);
+        assert.ok(/more than one storage.objects.create/.test(rec.stdout + rec.stderr), rec.stdout + rec.stderr);
+        assert.ok(!/Import plan:/.test(rec.stdout));
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('verify script: a missing .meta.json sidecar is flagged and excluded from --latest-from', function () {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'abv-sidecar-'));
+    try {
+        const day = path.join(dir, '2026-11-10');
+        fs.mkdirSync(day);
+        const real = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/083030Z-bbbbbbbbbbbbbbbb.jsonl.age', finishedAt: '2026-11-10T08:31:00.000Z', plaintextSha256: 'y', ciphertextSha256: 'y2', date: '2026-11-10' };
+        const planted = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/083100Z-cccccccccccccccc.jsonl.age', timeCreated: '2026-11-18T08:31:00.000Z', finishedAt: '2026-11-18T08:31:00.000Z', plaintextSha256: 'z', ciphertextSha256: 'z2', date: '2026-11-18' };
+        fs.writeFileSync(path.join(day, '083030Z-bbbbbbbbbbbbbbbb.manifest.json'), JSON.stringify(real));
+        fs.writeFileSync(path.join(day, '083030Z-bbbbbbbbbbbbbbbb.meta.json'), JSON.stringify(metaCreated(IN_WINDOW)));
+        fs.writeFileSync(path.join(day, '083100Z-cccccccccccccccc.manifest.json'), JSON.stringify(planted));
+        // no sidecar for planted
+        const loaded = verify.loadManifestsFromDir(dir);
+        const latest = verify.findLatestComplete(loaded);
+        assert.strictEqual(latest.manifest.object, real.object);
+        assert.ok(latest.flags.some(function (f) { return /missing timeCreated/.test(f) && f.indexOf(planted.object) !== -1; }), String(latest.flags));
+        const script = path.join(fnRoot, 'scripts', 'auth-export-verify.js');
+        const out = execFileSync('node', [script, '--latest-from', dir, '--print-latest'], { encoding: 'utf8' });
+        assert.ok(out.indexOf(real.object) !== -1);
+        assert.ok(/FLAG:.*missing timeCreated/.test(out));
+        assert.ok(out.indexOf('Latest complete backup: ' + planted.object) === -1);
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 

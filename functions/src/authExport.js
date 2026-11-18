@@ -193,13 +193,15 @@ function sha256Hex(buf) {
 // a key from an error message before it goes into a log or the FAILED marker.
 // Phone rule (after email): /\+?\d[\d\s().-]{6,18}\d/ covers compact E.164,
 // spaced international, and local forms like (555) 123-4567. That pattern
-// would also eat ISO dates (2026-11-10), labeled counts (bytes 12345678),
+// would also eat ISO dates (2026-11-10), labeled counts (bytes 1234567),
 // and per-run object stamps (083000Z-<16 hex>), so those are held out and
-// restored. Bare 8–20 digit strings with no label are treated as phones
+// restored. Held counts are capped at 7 digits so a phone sitting after a
+// count word (e.g. "failed 5551234567" or "users: 5551234567") is not
+// protected. Bare 8–20 digit strings with no label are treated as phones
 // (needed for 5551234567).
 const PHONE_RE = /\+?\d[\d\s().-]{6,18}\d/g;
 const SANITIZE_DATE_RE = /\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?/g;
-const SANITIZE_COUNT_RE = /\b(?:users|userCount|passwordUsers|withHash|withPasswordHash|mfaUsers|disabled(?:Users)?|bytes|ciphertextBytes|plaintextBytes|jsonlLines|lines|unique uids|imported|failed|deleted|found(?: after import)?)\s*:?\s*\d+\b/gi;
+const SANITIZE_COUNT_RE = /\b(?:users|userCount|passwordUsers|withHash|withPasswordHash|mfaUsers|disabled(?:Users)?|bytes|ciphertextBytes|plaintextBytes|jsonlLines|lines|unique uids|imported|failed|deleted|found(?: after import)?)\s*:?\s*\d{1,7}\b/gi;
 const SANITIZE_STAMP_RE = /\b\d{6}Z-[0-9a-f]{16}\b/gi;
 
 function holdMatches(s, re, stash) {

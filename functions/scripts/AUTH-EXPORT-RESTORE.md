@@ -2,10 +2,12 @@
 
 Restore tests run from **Phil's machine only, never the shared box**.
 
-The Cloud Function `dailyAuthExport` cannot decrypt. Decrypt with the official
-`age` CLI and Phil's offline identity, then pipe plaintext into
-`functions/scripts/auth-export-verify.js`. Do not copy a private key, a
-plaintext export, or a decrypted file onto the box.
+The Cloud Function `dailyAuthExport` cannot decrypt. For a verify-only
+count check you may decrypt with the official `age` CLI and Phil's offline
+identity, then pipe plaintext into `functions/scripts/auth-export-verify.js`.
+For any `--import` (dry run or `--apply`), this tool decrypts `--ciphertext`
+itself (`age -d -i <identity>`; the key stays with the age CLI). Do not copy
+a private key, a plaintext export, or a decrypted file onto the box.
 
 ## Find the latest complete backup
 
@@ -13,11 +15,13 @@ Object names are unique per run:
 
 `auth/<ET date>/<HHmmss>Z-<runId>.jsonl.age` plus a matching `.manifest.json`.
 
-`--latest-from` ranks by the GCS server-set `timeCreated` (not the manifest's
-`finishedAt`, which a planted file can set). Put a sidecar
-`<stamp>.meta.json` with `{ "timeCreated": "<RFC3339>" }` next to each
-manifest (from `gcloud storage objects describe --format=json` or the JSON
-API). It flags more than one complete run on the same ET day, and any run
+`--latest-from` ranks only by the GCS server-set `timeCreated` in a
+`<stamp>.meta.json` sidecar (from `gcloud storage objects describe
+--format=json` or the JSON API). It never falls back to the manifest's
+`timeCreated` or `finishedAt`, which a planted file can set. A missing
+sidecar counts as missing `timeCreated`: that run is flagged and excluded.
+
+It also flags more than one complete run on the same ET day, and any run
 whose `timeCreated` is outside the backup window (default 3:29–3:50 AM
 America/New_York; override with `--window-start`, `--window-end`,
 `--window-zone`).
@@ -27,38 +31,53 @@ node functions/scripts/auth-export-verify.js --latest-from ./auth/2026-11-18 --p
 ```
 
 That prints flags, then the object name and `timeCreated` of the newest
-in-window complete backup. Then decrypt that object on Phil's machine.
+in-window complete backup. Then download that object's ciphertext, manifest,
+server metadata, and audit log (examples below).
 
-## Verify (pipe only)
+## Verify (pipe only, no --import)
 
 ```sh
 age -d -i ~/bq-auth-backup.key 083000Z-ab12cd34ef56ab78.jsonl.age \
   | node functions/scripts/auth-export-verify.js \
-      --latest-from ./auth/2026-11-18 --expect 26615
+      --manifest 083000Z-ab12cd34ef56ab78.manifest.json --expect 26615
 ```
 
 `--file` is supported for fixtures, but it means a plaintext Auth export
 (emails, phones, password hashes, hash config) is on disk. Prefer a pipe, and
-delete any plaintext file when you are done.
+delete any plaintext file when you are done. `--import` does not accept
+`--file` or a plaintext pipe.
 
-## Provenance (required for any --import)
+## Provenance and ciphertext binding (required for any --import)
 
-`--import` (dry run or `--apply`) fails closed unless both of these are
-present and valid. Verify-only can omit them.
+`--import` (dry run or `--apply`) fails closed unless all of the following
+are present and valid. Verify-only can omit them and still use a pipe.
 
-1. `--object-meta metadata.json` — the GCS object resource for the ciphertext
-   (and, when checking the pair, the manifest). Use the server-set
-   `timeCreated` field from `gcloud storage objects describe gs://<bucket>/<object> --format=json`
-   or the JSON API. GCS objects have no creator field. Do **not** trust custom
-   metadata (`metadata.creator`, `metadata.createdBy`, or any uploader-set
-   key). `timeCreated` must fall inside the backup window (default 3:29–3:50
-   AM ET), not merely match the manifest's own `finishedAt`.
+1. `--manifest <file>` or `--latest-from <dir>` — the manifest must include
+   `object`, `plaintextSha256` and `ciphertextSha256`.
 
-2. `--audit-log audit.json` — a Cloud Audit Logs export whose
-   `storage.objects.create` entry for that object has
+2. `--ciphertext <file.jsonl.age>` — the exact downloaded ciphertext. Its
+   sha256 must equal `manifest.ciphertextSha256`. Its md5 and crc32c must
+   equal the server-set `md5Hash` and `crc32c` on the object metadata. The
+   tool then decrypts that file with `--identity` and checks that the
+   plaintext sha equals `plaintextSha256`.
+
+3. `--identity <age identity file>` — passed only to `age -d -i`. This
+   script never reads the key.
+
+4. `--object-meta metadata.json` — the GCS object resource for the
+   ciphertext, from `gcloud storage objects describe gs://<bucket>/<object> --format=json`
+   or the JSON API. Required server-set fields: `name`, `generation`,
+   `timeCreated`, `md5Hash`, `crc32c`. `name` must equal `manifest.object`
+   exactly (no substring match). `timeCreated` must fall inside the backup
+   window (default 3:29–3:50 AM ET). Do **not** trust custom metadata
+   (`metadata.creator`, `metadata.createdBy`, or any uploader-set key).
+
+5. `--audit-log audit.json` — a Cloud Audit Logs export whose
+   `storage.objects.create` entry for that exact object name has
    `protoPayload.authenticationInfo.principalEmail` equal to
-   `fn-daily-auth-export@<project>.iam.gserviceaccount.com`. Phil exports
-   this from his machine, for example:
+   `fn-daily-auth-export@<project>.iam.gserviceaccount.com`. There must be
+   exactly one create for that name, and its generation must match
+   `metadata.generation`. Phil exports this from his machine, for example:
 
    ```sh
    gcloud logging read \
@@ -75,17 +94,29 @@ present and valid. Verify-only can omit them.
    has no principalEmail to check, and `--import` will refuse. This is one of
    Phil's console steps (below).
 
-Signing the manifest with a Cloud KMS asymmetric key that only
-`fn-daily-auth-export` can use is an optional later improvement. It is not
-required for the nightly backup or for these provenance checks.
+Ciphertext md5/crc32c binding against the server metadata is what ties the
+file you decrypt to the object the audit log describes. Signing the manifest
+with a Cloud KMS asymmetric key that only `fn-daily-auth-export` can use is
+an optional later improvement. It is not required for the nightly backup or
+for these checks.
 
 ## Staging restore test
 
 Staging only (`--project bitcoin-quest-staging`). Never point this at
 production.
 
-- Sample (default): `--import --project bitcoin-quest-staging --sample 100 --apply --delete-after --object-meta m.json --audit-log audit.json`
-- All users: `--import --project bitcoin-quest-staging --all --apply --delete-after --object-meta m.json --audit-log audit.json`
+```sh
+node functions/scripts/auth-export-verify.js \
+  --ciphertext 083000Z-ab12cd34ef56ab78.jsonl.age \
+  --identity ~/bq-auth-backup.key \
+  --manifest 083000Z-ab12cd34ef56ab78.manifest.json \
+  --object-meta metadata.json \
+  --audit-log audit.json \
+  --import --project bitcoin-quest-staging --sample 100 --apply --delete-after
+```
+
+- Sample (default): add `--sample 100 --apply --delete-after` as above.
+- All users: replace `--sample 100` with `--all` (still needs `--delete-after`).
 
 `--all` requires `--delete-after` so real emails and hashes are not left in
 staging. `customClaims` are not imported unless you also pass `--keep-claims`
@@ -112,8 +143,10 @@ alerts, second recipient key):
    needed so every `storage.objects.create` is logged with
    `principalEmail`. Confirm a staging run produces an entry for
    `fn-daily-auth-export@…`.
-2. On a staging run, download `timeCreated` with `gcloud storage objects describe`
-   and the matching audit log with `gcloud logging read` (examples above),
-   then decrypt and verify on your own machine — never on the shared box.
+2. On a staging run, download the ciphertext and manifest, `timeCreated` /
+   `name` / `generation` / `md5Hash` / `crc32c` with
+   `gcloud storage objects describe --format=json`, and the matching audit
+   log with `gcloud logging read` (examples above). Then run the verify or
+   `--import` command on your own machine — never on the shared box.
 3. Optional later: sign the manifest with a Cloud KMS asymmetric key usable
    only by `fn-daily-auth-export`.

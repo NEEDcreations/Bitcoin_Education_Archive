@@ -4,26 +4,54 @@
 // Verify (and optionally restore-test) a dailyAuthExport backup.
 //
 // Restore tests run from Phil's machine only, never the shared box.
-// This script never sees a private key. Decrypt first with the official age
-// CLI on Phil's own machine, and pipe the plaintext straight in:
+// This script never prints a private key. For --import it decrypts
+// --ciphertext itself by spawning the official age CLI, so the key stays
+// with age and the plaintext is bound to that exact file:
 //
-//   age -d -i ~/bq-auth-backup.key 083000Z-ab12cd34ef56ab78.jsonl.age \
-//     | node functions/scripts/auth-export-verify.js --manifest 083000Z-ab12cd34ef56ab78.manifest.json --expect 26615
+//   node functions/scripts/auth-export-verify.js \
+//     --ciphertext 083000Z-ab12cd34ef56ab78.jsonl.age \
+//     --identity ~/bq-auth-backup.key \
+//     --manifest 083000Z-ab12cd34ef56ab78.manifest.json \
+//     --object-meta metadata.json --audit-log audit.json \
+//     --import --project bitcoin-quest-staging --sample 100
+//
+// --import requires --manifest or --latest-from (with object,
+// plaintextSha256 and ciphertextSha256), --ciphertext, --identity,
+// --object-meta and --audit-log. The ciphertext sha256 must equal
+// manifest.ciphertextSha256, and its md5/crc32c must match the server-set
+// object metadata. The tool then decrypts that file and checks that the
+// plaintext sha equals plaintextSha256.
+//
+// Object names must match exactly across metadata.name, manifest.object
+// and the audit-log resource (no substring matching). Every
+// storage.objects.create for that name must be from fn-daily-auth-export,
+// and exactly one generation may exist (it must match metadata.generation).
 //
 // Object names are per-run (auth/<ET date>/<HHmmss>Z-<runId>.jsonl.age). To
 // pick the latest complete backup from a folder of downloaded manifests:
 //
 //   node functions/scripts/auth-export-verify.js --latest-from ./auth/2026-11-18 --print-latest
-//   age -d -i ~/bq-auth-backup.key <that-object> \
-//     | node functions/scripts/auth-export-verify.js --latest-from ./auth/2026-11-18 --expect 26615
 //
-// Prefer a pipe. --file reads a plaintext export from disk (emails, phones,
-// password hashes) and prints a strong warning; delete that file when done.
+// --latest-from ranks only by the GCS server-set timeCreated in a .meta.json
+// sidecar. A missing sidecar is treated as missing timeCreated: it is
+// flagged and excluded.
+//
+// Verify-only can still pipe plaintext (no --import):
+//
+//   age -d -i ~/bq-auth-backup.key 083000Z-ab12cd34ef56ab78.jsonl.age \
+//     | node functions/scripts/auth-export-verify.js --manifest 083000Z-ab12cd34ef56ab78.manifest.json --expect 26615
+//
+// Prefer a pipe for verify-only. --file reads a plaintext export from disk
+// (emails, phones, password hashes) and prints a strong warning; delete
+// that file when done. --import does not accept --file or a plaintext pipe;
+// it always decrypts --ciphertext.
 //
 // Prints counts only: never emails, uids, hashes, salts, or the signer key.
 //
 // Restore test into STAGING (bitcoin-quest-staging) only:
-//   ... | node functions/scripts/auth-export-verify.js --manifest m.json --import --project bitcoin-quest-staging
+//   node functions/scripts/auth-export-verify.js --ciphertext <file.jsonl.age> --identity <key> \
+//        --manifest m.json --object-meta meta.json --audit-log audit.json \
+//        --import --project bitcoin-quest-staging
 //        (dry run: builds every import record, writes nothing)
 //   ... --import --project bitcoin-quest-staging --sample 100 --apply --delete-after
 //        (imports 100 pseudonymized users: uid "rv-<n>", email
@@ -35,9 +63,10 @@
 //         --delete-after so those identities are not left in staging.)
 // customClaims are omitted unless you pass --keep-claims (prints a warning).
 // --import (dry run or --apply) requires provenance and fails closed:
-//   --object-meta <json>  GCS object JSON with server-set timeCreated
-//                         (not custom metadata). timeCreated must fall in
-//                         the backup window (default 3:29–3:50 AM ET).
+//   --object-meta <json>  GCS object JSON with server-set timeCreated, name,
+//                         generation, md5Hash and crc32c (not custom
+//                         metadata). timeCreated must fall in the backup
+//                         window (default 3:29–3:50 AM ET).
 //   --audit-log <json>    Cloud Audit Logs export (Data Access,
 //                         storage.objects.create) whose principalEmail is
 //                         fn-daily-auth-export. Data-access logging must be
@@ -50,13 +79,14 @@
 // with Firebase Auth Admin on bitcoin-quest-staging (never the prod deploy key).
 
 const crypto = require('crypto');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
 const STAGING = 'bitcoin-quest-staging';
 const HEADER_TYPE = 'bq-auth-export-v2';
-const FILE_WARNING = 'WARNING: --file reads a plaintext Auth export from disk (emails, phone numbers, password hashes, and the hash config). Prefer piping: age -d -i <key> <file.jsonl.age> | node functions/scripts/auth-export-verify.js ...  Delete the plaintext file when you are done. Restore tests run from Phil\'s machine only, never the shared box.';
+const FILE_WARNING = 'WARNING: --file reads a plaintext Auth export from disk (emails, phone numbers, password hashes, and the hash config). For verify-only, prefer piping: age -d -i <key> <file.jsonl.age> | node functions/scripts/auth-export-verify.js ...  --import requires --ciphertext (this tool decrypts it) and does not accept --file. Delete any plaintext file when you are done. Restore tests run from Phil\'s machine only, never the shared box.';
 const ALL_REQUIRES_DELETE = '--all requires --delete-after so real emails and hashes are not left in staging. Restore tests run from Phil\'s machine only, never the shared box.';
 const KEEP_CLAIMS_WARNING = 'WARNING: --keep-claims will import customClaims from the backup, including any admin claims. A planted backup could grant admin rights. Only use this after you have checked the object creator and you intend to restore claims.';
 
@@ -207,17 +237,136 @@ function isObjectCreate(entry) {
     return /(^|\.)storage\.objects\.create$/.test(method) || method === 'storage.objects.create';
 }
 
-function creatorFromAuditLog(input, objectName) {
-    const entries = parseAuditLog(input);
-    const hits = entries.filter(function (e) {
+function principalEmailFromEntry(entry) {
+    const info = entry && entry.protoPayload && entry.protoPayload.authenticationInfo;
+    return info && info.principalEmail ? String(info.principalEmail) : '';
+}
+
+function generationFromAuditEntry(entry) {
+    const p = entry && entry.protoPayload || {};
+    const g = (p.response && p.response.generation)
+        || (p.metadata && p.metadata.generation)
+        || (p.resource && p.resource.generation);
+    return g == null || g === '' ? '' : String(g);
+}
+
+// Exact name equality only. objectName is required; a missing or partial
+// name (e.g. "auth/") matches nothing. Never substring-match.
+function auditCreateHits(input, objectName) {
+    if (!objectName) return [];
+    return parseAuditLog(input).filter(function (e) {
         if (!isObjectCreate(e)) return false;
         const payload = e.protoPayload || {};
         const name = objectNameFromResource(payload.resourceName || (e.resource && e.resource.name));
-        if (objectName && name !== objectName && !name.endsWith('/' + objectName) && name.indexOf(objectName) === -1) return false;
-        return !!(payload.authenticationInfo && payload.authenticationInfo.principalEmail);
+        return name === objectName;
     });
-    if (!hits.length) return '';
-    return hits[0].protoPayload.authenticationInfo.principalEmail;
+}
+
+function uniqueStrings(values) {
+    const seen = [];
+    (values || []).forEach(function (v) {
+        if (v && seen.indexOf(v) === -1) seen.push(v);
+    });
+    return seen;
+}
+
+// Returns the principal only when there is exactly one create entry for
+// this exact name. Multiple creates (delete + recreate) return ''.
+function creatorFromAuditLog(input, objectName) {
+    const hits = auditCreateHits(input, objectName);
+    if (hits.length !== 1) return '';
+    return principalEmailFromEntry(hits[0]);
+}
+
+// CRC-32C (Castagnoli), as used in GCS object metadata.crc32c (base64 of
+// the 4-byte big-endian checksum). Node's crypto does not always expose it.
+function crc32cUint(buf) {
+    let crc = 0xffffffff;
+    for (let i = 0; i < buf.length; i++) {
+        crc ^= buf[i];
+        for (let j = 0; j < 8; j++) {
+            crc = (crc >>> 1) ^ (0x82f63b78 & -(crc & 1));
+        }
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+function crc32cBase64(buf) {
+    const b = Buffer.alloc(4);
+    b.writeUInt32BE(crc32cUint(buf));
+    return b.toString('base64');
+}
+
+function fileHashes(buf) {
+    const body = Buffer.isBuffer(buf) ? buf : Buffer.from(buf || '');
+    return {
+        sha256: crypto.createHash('sha256').update(body).digest('hex'),
+        md5: crypto.createHash('md5').update(body).digest('base64'),
+        crc32c: crc32cBase64(body),
+    };
+}
+
+function sameB64(a, b) {
+    try {
+        const left = Buffer.from(String(a || ''), 'base64');
+        const right = Buffer.from(String(b || ''), 'base64');
+        return left.length > 0 && left.equals(right);
+    } catch (e) { return false; }
+}
+
+function metaName(meta) {
+    if (!meta || typeof meta !== 'object') return '';
+    return meta.name ? String(meta.name) : '';
+}
+
+function metaGeneration(meta) {
+    if (!meta || typeof meta !== 'object' || meta.generation == null || meta.generation === '') return '';
+    return String(meta.generation);
+}
+
+function metaMd5(meta) {
+    if (!meta || typeof meta !== 'object') return '';
+    return meta.md5Hash || meta.md5_hash || '';
+}
+
+function metaCrc32c(meta) {
+    if (!meta || typeof meta !== 'object') return '';
+    return meta.crc32c || meta.crc32C || '';
+}
+
+function checkCiphertextBinding(buf, manifest, meta) {
+    const problems = [];
+    if (!buf || !buf.length) {
+        problems.push('ciphertext file is missing or empty (pass --ciphertext <file.jsonl.age>)');
+        return problems;
+    }
+    const h = fileHashes(buf);
+    if (!manifest || !manifest.ciphertextSha256) problems.push('manifest is missing ciphertextSha256');
+    else if (h.sha256 !== String(manifest.ciphertextSha256).toLowerCase()) problems.push('ciphertext sha256 does not match manifest');
+    if (!metaMd5(meta)) problems.push('object metadata is missing md5Hash');
+    else if (!sameB64(h.md5, metaMd5(meta))) problems.push('ciphertext md5 does not match object metadata');
+    if (!metaCrc32c(meta)) problems.push('object metadata is missing crc32c');
+    else if (!sameB64(h.crc32c, metaCrc32c(meta))) problems.push('ciphertext crc32c does not match object metadata');
+    return problems;
+}
+
+function ageBinary() {
+    const cands = [path.join(os.homedir(), 'bin', 'age'), '/usr/bin/age', '/usr/local/bin/age'];
+    for (let i = 0; i < cands.length; i++) if (fs.existsSync(cands[i])) return cands[i];
+    try {
+        const found = execFileSync('which', ['age'], { encoding: 'utf8' }).trim();
+        return found || '';
+    } catch (e) { return ''; }
+}
+
+// Decrypts that exact ciphertext file with the official age CLI. The
+// identity file is passed as -i; this process never reads the key.
+function decryptCiphertextFile(ciphertextPath, identityPath, deps) {
+    if (deps && typeof deps.decrypt === 'function') return deps.decrypt(ciphertextPath, identityPath);
+    if (!identityPath) throw new Error('--ciphertext requires --identity <age identity file>');
+    const bin = (deps && deps.ageBinary) || ageBinary();
+    if (!bin) throw new Error('age CLI not found (needed to decrypt --ciphertext)');
+    return execFileSync(bin, ['-d', '-i', identityPath, ciphertextPath], { maxBuffer: 256 * 1024 * 1024 });
 }
 
 function timeCreatedFromMeta(meta) {
@@ -229,6 +378,9 @@ function timeCreatedFromMeta(meta) {
 // Provenance for a backup object. When required (any --import), missing or
 // empty metadata, missing timeCreated, missing audit log, or missing
 // principalEmail fail closed. Creator is taken from the audit log only.
+// Names must match exactly across meta.name, opts.objectName (manifest.object)
+// and the audit resource. Every create for that name must be from the
+// expected SA, and exactly one generation may exist (matching meta.generation).
 function checkBackupProvenance(opts) {
     opts = opts || {};
     const required = opts.required === true;
@@ -237,11 +389,19 @@ function checkBackupProvenance(opts) {
     const hasMeta = !!(meta && typeof meta === 'object' && Object.keys(meta).length);
     const audit = opts.audit;
     const hasAudit = !(audit == null || (Array.isArray(audit) && !audit.length) || (typeof audit === 'object' && !Array.isArray(audit) && !Object.keys(audit).length && !audit.entries));
+    const objectName = opts.objectName ? String(opts.objectName) : '';
     if (required) {
         if (!hasMeta) problems.push('object metadata is missing or empty (pass --object-meta with GCS timeCreated)');
         if (!hasAudit) problems.push('audit log is missing or empty (pass --audit-log from Cloud Audit Logs data-access storage.objects.create)');
+        if (!objectName) problems.push('manifest is missing object (pass --manifest or --latest-from with object, plaintextSha256 and ciphertextSha256)');
     } else if (!hasMeta && !hasAudit) {
         return problems;
+    }
+    if (hasMeta) {
+        const name = metaName(meta);
+        if (!name) problems.push('object metadata is missing name');
+        else if (objectName && name !== objectName) problems.push('object metadata name does not match manifest.object');
+        if (required && !metaGeneration(meta)) problems.push('object metadata is missing generation');
     }
     const created = timeCreatedFromMeta(meta);
     if (hasMeta || required) {
@@ -256,10 +416,36 @@ function checkBackupProvenance(opts) {
         }
     }
     if (hasAudit || required) {
-        const creator = creatorFromAuditLog(audit, opts.objectName);
         const expected = opts.expectedSa || expectedBackupSa(opts.projectId);
-        if (!creator) problems.push('audit log has no storage.objects.create principalEmail for this object');
-        else if (expected && creator !== expected) problems.push('object creator is not the expected service account');
+        const hits = auditCreateHits(audit, objectName);
+        if (!objectName) {
+            if (!required) problems.push('audit log has no storage.objects.create principalEmail for this object');
+        } else if (!hits.length) {
+            problems.push('audit log has no storage.objects.create principalEmail for this object');
+        } else if (hits.length !== 1) {
+            problems.push('audit log has more than one storage.objects.create for this object (exactly one generation is allowed)');
+        } else {
+            const creator = principalEmailFromEntry(hits[0]);
+            if (!creator) problems.push('audit log has no storage.objects.create principalEmail for this object');
+            else if (expected && creator !== expected) problems.push('object creator is not the expected service account');
+            const gen = generationFromAuditEntry(hits[0]);
+            const metaGen = metaGeneration(meta);
+            if (metaGen && gen && gen !== metaGen) problems.push('audit log generation does not match object metadata');
+            if (required && metaGen && !gen) problems.push('audit log is missing generation for this object');
+        }
+        // Every create for this name (including extras already flagged) must
+        // be from the expected SA when an expected SA is set.
+        if (hits.length > 1 && expected) {
+            const bad = hits.some(function (e) {
+                const who = principalEmailFromEntry(e);
+                return !who || who !== expected;
+            });
+            if (bad) problems.push('object creator is not the expected service account');
+            const gens = uniqueStrings(hits.map(generationFromAuditEntry));
+            if (gens.length !== 1) {
+                // already flagged as more than one create; keep a generation note
+            }
+        }
     }
     return problems;
 }
@@ -296,17 +482,17 @@ function loadManifestsFromDir(dir) {
     });
 }
 
+// Server-set sidecar / object metadata only. A missing .meta.json sidecar
+// (or a sidecar without timeCreated) is missing timeCreated. Never fall
+// back to manifest.timeCreated, which the uploader writes.
 function entryTimeCreated(row) {
-    if (row && row.timeCreated) return row.timeCreated;
     if (row && row.meta) return timeCreatedFromMeta(row.meta);
-    const man = row && (row.manifest || row);
-    if (man && man.timeCreated) return String(man.timeCreated);
     return '';
 }
 
-// Rank complete backups by server timeCreated (not manifest finishedAt).
-// Flags more than one complete run per ET day, any run outside the window,
-// and any complete backup missing timeCreated.
+// Rank complete backups by server metadata timeCreated only (not the
+// manifest's timeCreated or finishedAt). A missing sidecar is flagged as
+// missing timeCreated and excluded.
 function findLatestComplete(entries, opts) {
     opts = opts || {};
     const window = opts.window || DEFAULT_SCHEDULE_WINDOW;
@@ -551,6 +737,7 @@ async function main() {
     const log = function (m) { console.log(m); };
     if (has('--cleanup')) { await runCleanup(log); return; }
     if (arg('--file')) console.error(FILE_WARNING);
+    if (has('--import') && has('--all') && !has('--delete-after')) { console.error(ALL_REQUIRES_DELETE); process.exit(2); }
 
     const window = await resolveWindow();
     let manifest = null;
@@ -574,34 +761,46 @@ async function main() {
     }
 
     const hasFile = !!arg('--file');
-    const findOnly = !!latestFrom && (has('--print-latest') || (!hasFile && process.stdin.isTTY && !has('--import') && !arg('--expect') && !arg('--object-meta') && !arg('--audit-log')));
+    const ciphertextPath = arg('--ciphertext');
+    if (hasFile && ciphertextPath) { console.error('Use only one of --file and --ciphertext'); process.exit(2); }
+    const findOnly = !!latestFrom && (has('--print-latest') || (!hasFile && !ciphertextPath && process.stdin.isTTY && !has('--import') && !arg('--expect') && !arg('--object-meta') && !arg('--audit-log') && !arg('--identity')));
     if (findOnly) return;
 
-    const input = hasFile ? fs.readFileSync(arg('--file')) : await readStdin();
-    const expect = Number(arg('--expect')) || 0;
-    const sha = crypto.createHash('sha256').update(input).digest('hex');
-    const parsed = parse(input);
-    input.fill(0);
-    const s = summarize(parsed);
-    log('Users: ' + s.users + ' (lines ' + s.lines + ', unique uids ' + s.uniqueUids + ')');
-    log('Password users: ' + s.passwordUsers + ', with hash: ' + s.withHash + ', MFA users: ' + s.mfaUsers + ', disabled: ' + s.disabled);
-    log('Hash config in export: ' + (s.hashConfig ? 'yes' : 'no') + ' (' + s.algorithm + ')');
-    log('Plaintext sha256 matches manifest: ' + (manifest ? String(manifest.plaintextSha256 === sha) : 'n/a (no --manifest)'));
-    const problems = check(s, manifest, sha, expect);
+    if (has('--import')) {
+        if (hasFile) { console.error('--import does not accept --file; pass --ciphertext <file.jsonl.age> and --identity so this tool decrypts that exact file'); process.exit(2); }
+        if (!manifest) { console.error('--import requires --manifest or --latest-from, with object, plaintextSha256 and ciphertextSha256'); process.exit(2); }
+        const missing = [];
+        if (!manifest.object) missing.push('object');
+        if (!manifest.plaintextSha256) missing.push('plaintextSha256');
+        if (!manifest.ciphertextSha256) missing.push('ciphertextSha256');
+        if (missing.length) {
+            console.error('--import requires a manifest with ' + missing.join(', '));
+            process.exit(2);
+        }
+        if (!ciphertextPath) { console.error('--import requires --ciphertext <file.jsonl.age>'); process.exit(2); }
+    }
+
+    let meta = null, audit = null;
+    if (arg('--object-meta')) {
+        const raw = fs.readFileSync(arg('--object-meta'), 'utf8').trim();
+        meta = raw ? JSON.parse(raw) : null;
+    }
+    if (arg('--audit-log')) {
+        const raw = fs.readFileSync(arg('--audit-log'), 'utf8').trim();
+        audit = raw ? readJsonFile(arg('--audit-log')) : null;
+    }
+
+    const problems = [];
+    let ciphertextBuf = null;
+    if (ciphertextPath) {
+        ciphertextBuf = fs.readFileSync(ciphertextPath);
+        checkCiphertextBinding(ciphertextBuf, manifest, meta).forEach(function (p) { problems.push(p); });
+    }
 
     const wantProvenance = has('--import') || arg('--object-meta') || arg('--audit-log');
     if (wantProvenance) {
-        let meta = null, audit = null;
-        if (arg('--object-meta')) {
-            const raw = fs.readFileSync(arg('--object-meta'), 'utf8').trim();
-            meta = raw ? JSON.parse(raw) : null;
-        }
-        if (arg('--audit-log')) {
-            const raw = fs.readFileSync(arg('--audit-log'), 'utf8').trim();
-            audit = raw ? readJsonFile(arg('--audit-log')) : null;
-        }
-        const expectedSa = arg('--expected-sa') || expectedBackupSa((manifest && manifest.projectId) || (parsed.header && parsed.header.projectId));
-        const prov = checkBackupProvenance({
+        const expectedSa = arg('--expected-sa') || expectedBackupSa((manifest && manifest.projectId));
+        checkBackupProvenance({
             required: has('--import'),
             meta: meta,
             audit: audit,
@@ -609,19 +808,58 @@ async function main() {
             expectedSa: expectedSa,
             projectId: manifest && manifest.projectId,
             window: window,
-        });
-        prov.forEach(function (p) { problems.push(p); });
+        }).forEach(function (p) { problems.push(p); });
     }
     latestFlags.forEach(function (f) {
         if (has('--import')) problems.push(f);
     });
+
+    let input = null;
+    if (ciphertextPath) {
+        if (problems.length) {
+            problems.forEach(function (p) { log('PROBLEM: ' + p); });
+            log('VERIFY: FAIL');
+            if (has('--import')) console.error('Refusing to import a backup that failed verification or provenance.');
+            process.exit(1);
+        }
+        const identity = arg('--identity');
+        if (!identity) { console.error('--ciphertext requires --identity <age identity file> so this tool can decrypt that exact file (the key stays with the age CLI)'); process.exit(2); }
+        input = decryptCiphertextFile(ciphertextPath, identity);
+    } else {
+        input = hasFile ? fs.readFileSync(arg('--file')) : await readStdin();
+    }
+
+    const expect = Number(arg('--expect')) || 0;
+    const sha = crypto.createHash('sha256').update(input).digest('hex');
+    const parsed = parse(input);
+    if (Buffer.isBuffer(input) && typeof input.fill === 'function') input.fill(0);
+    const s = summarize(parsed);
+    log('Users: ' + s.users + ' (lines ' + s.lines + ', unique uids ' + s.uniqueUids + ')');
+    log('Password users: ' + s.passwordUsers + ', with hash: ' + s.withHash + ', MFA users: ' + s.mfaUsers + ', disabled: ' + s.disabled);
+    log('Hash config in export: ' + (s.hashConfig ? 'yes' : 'no') + ' (' + s.algorithm + ')');
+    log('Plaintext sha256 matches manifest: ' + (manifest ? String(manifest.plaintextSha256 === sha) : 'n/a (no --manifest)'));
+    check(s, manifest, sha, expect).forEach(function (p) { problems.push(p); });
+
+    // Project id in the export header can refine the expected SA; re-check if needed.
+    if (wantProvenance && !arg('--expected-sa') && parsed.header && parsed.header.projectId && !(manifest && manifest.projectId)) {
+        const expectedSa = expectedBackupSa(parsed.header.projectId);
+        checkBackupProvenance({
+            required: has('--import'),
+            meta: meta,
+            audit: audit,
+            objectName: manifest && manifest.object,
+            expectedSa: expectedSa,
+            projectId: parsed.header.projectId,
+            window: window,
+        }).forEach(function (p) { if (problems.indexOf(p) === -1) problems.push(p); });
+    }
+
     problems.forEach(function (p) { log('PROBLEM: ' + p); });
     log(problems.length ? 'VERIFY: FAIL' : 'VERIFY: PASS');
     if (!has('--import')) process.exit(problems.length ? 1 : 0);
 
     const project = arg('--project');
     if (project !== STAGING) { console.error('Refusing --import into "' + project + '". Staging only: --project ' + STAGING); process.exit(2); }
-    if (has('--all') && !has('--delete-after')) { console.error(ALL_REQUIRES_DELETE); process.exit(2); }
     if (problems.length) { console.error('Refusing to import a backup that failed verification or provenance.'); process.exit(1); }
     if (has('--keep-claims')) log(KEEP_CLAIMS_WARNING);
     const mode = { all: has('--all'), sample: Number(arg('--sample')) || 100, keepClaims: has('--keep-claims') };
@@ -654,8 +892,15 @@ module.exports = {
     inScheduleWindow: inScheduleWindow,
     DEFAULT_SCHEDULE_WINDOW: DEFAULT_SCHEDULE_WINDOW,
     creatorFromAuditLog: creatorFromAuditLog,
+    auditCreateHits: auditCreateHits,
     parseAuditLog: parseAuditLog,
     timeCreatedFromMeta: timeCreatedFromMeta,
+    metaName: metaName,
+    metaGeneration: metaGeneration,
+    fileHashes: fileHashes,
+    crc32cUint: crc32cUint,
+    checkCiphertextBinding: checkCiphertextBinding,
+    decryptCiphertextFile: decryptCiphertextFile,
     cleanupCommand: cleanupCommand,
     printCleanup: printCleanup,
     applyImport: applyImport,
