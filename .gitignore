@@ -18,6 +18,7 @@ scripts/*
 !scripts/raid-boss-inspect.js
 !scripts/backfill-leaderboard-snapshots.js
 !scripts/backfill-join-dates.js
+!scripts/scrub-telegram-urls.js
 !scripts/render-miniapp-og.py
 !scripts/staging/
 scripts/staging/*
