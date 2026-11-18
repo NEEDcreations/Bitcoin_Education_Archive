@@ -191,13 +191,35 @@ function sha256Hex(buf) {
 
 // Strips anything that looks like an email, a phone number, a long token, or
 // a key from an error message before it goes into a log or the FAILED marker.
+// Phone rule (after email): /\+?\d[\d\s().-]{6,18}\d/ covers compact E.164,
+// spaced international, and local forms like (555) 123-4567. That pattern
+// would also eat ISO dates (2026-11-10), labeled counts (bytes 12345678),
+// and per-run object stamps (083000Z-<16 hex>), so those are held out and
+// restored. Bare 8–20 digit strings with no label are treated as phones
+// (needed for 5551234567).
+const PHONE_RE = /\+?\d[\d\s().-]{6,18}\d/g;
+const SANITIZE_DATE_RE = /\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?/g;
+const SANITIZE_COUNT_RE = /\b(?:users|userCount|passwordUsers|withHash|withPasswordHash|mfaUsers|disabled(?:Users)?|bytes|ciphertextBytes|plaintextBytes|jsonlLines|lines|unique uids|imported|failed|deleted|found(?: after import)?)\s*:?\s*\d+\b/gi;
+const SANITIZE_STAMP_RE = /\b\d{6}Z-[0-9a-f]{16}\b/gi;
+
+function holdMatches(s, re, stash) {
+    return s.replace(re, function (m) {
+        stash.push(m);
+        return '\u0000H' + (stash.length - 1) + '\u0000';
+    });
+}
+
 function sanitize(msg) {
-    return String(msg || 'error')
-        .replace(/[^\s@]+@[^\s@]+/g, '<email>')
-        .replace(/\+\d{7,15}/g, '<phone>')
-        .replace(/AGE-SECRET-KEY-1[0-9A-Z]+/gi, '<redacted>')
-        .replace(/[A-Za-z0-9+/_=-]{24,}/g, '<redacted>')
-        .slice(0, 300);
+    const stash = [];
+    let s = String(msg || 'error').replace(/[^\s@]+@[^\s@]+/g, '<email>');
+    s = holdMatches(s, SANITIZE_DATE_RE, stash);
+    s = holdMatches(s, SANITIZE_COUNT_RE, stash);
+    s = holdMatches(s, SANITIZE_STAMP_RE, stash);
+    s = s.replace(PHONE_RE, '<phone>');
+    s = s.replace(/AGE-SECRET-KEY-1[0-9A-Z]+/gi, '<redacted>');
+    s = s.replace(/[A-Za-z0-9+/_=-]{24,}/g, '<redacted>');
+    s = s.replace(/\u0000H(\d+)\u0000/g, function (_, i) { return stash[Number(i)]; });
+    return s.slice(0, 300);
 }
 
 async function save(bucket, name, body, contentType) {

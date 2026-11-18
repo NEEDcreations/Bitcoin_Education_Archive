@@ -141,6 +141,22 @@ function captureLog() {
 const HASH_CONFIG = { algorithm: 'SCRYPT', signerKey: Buffer.alloc(64, 7).toString('base64'), saltSeparator: 'Bw==', rounds: 8, memoryCost: 14 };
 const NOW = new Date('2026-11-10T08:30:00Z'); // 3:30 AM ET
 
+function metaCreated(iso) { return { timeCreated: iso }; }
+function auditCreate(objectName, sa, ts) {
+    return [{
+        protoPayload: {
+            methodName: 'storage.objects.create',
+            authenticationInfo: { principalEmail: sa },
+            resourceName: 'projects/_/buckets/demo-auth-backups/objects/' + objectName,
+        },
+        timestamp: ts || isoOrNow(),
+    }];
+}
+function isoOrNow() { return '2026-11-10T08:30:30.000Z'; }
+const IN_WINDOW = '2026-11-10T08:30:30.000Z'; // 3:30:30 AM ET
+const IN_WINDOW_EARLIER = '2026-11-10T08:29:30.000Z'; // 3:29:30 AM ET
+const OUT_WINDOW = '2026-11-10T09:01:00.000Z'; // 4:01 AM ET
+
 function objectsEnding(bucket, suffix) {
     return Object.keys(bucket.objects).filter(function (k) { return k.endsWith(suffix); }).sort();
 }
@@ -415,11 +431,14 @@ test('verify script: counts, sha match, 1% drift check, refuses non-staging impo
     try {
         fs.writeFileSync(path.join(dir, 'p.jsonl'), plain);
         fs.writeFileSync(path.join(dir, 'm.json'), JSON.stringify(man));
+        const sa = verify.expectedBackupSa('demo');
+        fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(metaCreated(IN_WINDOW)));
+        fs.writeFileSync(path.join(dir, 'audit.json'), JSON.stringify(auditCreate(man.object, sa, IN_WINDOW)));
         const script = path.join(fnRoot, 'scripts', 'auth-export-verify.js');
         const out = execFileSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--expect', '300'], { encoding: 'utf8' });
         assert.ok(/VERIFY: PASS/.test(out));
         noPii(out, users);
-        const dry = execFileSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--sample', '20'], { encoding: 'utf8' });
+        const dry = execFileSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--sample', '20', '--object-meta', path.join(dir, 'meta.json'), '--audit-log', path.join(dir, 'audit.json')], { encoding: 'utf8' });
         assert.ok(/Import plan: 20 users/.test(dry) && /with hash: 10/.test(dry) && /DRY RUN/.test(dry));
         noPii(dry, users);
         let code = 0;
@@ -447,7 +466,7 @@ test('verify script: pseudonymized sample keeps hashes but no real uid/email/nam
 });
 
 
-test('sanitize redacts emails, tokens, and E.164 phone numbers', function () {
+test('sanitize redacts emails, tokens, and spaced or local phone formats', function () {
     const s = ex.sanitize('denied for someone@example.com phone +15555550109 also +447911123456 token ya29.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
     assert.ok(s.indexOf('someone@example.com') === -1);
     assert.ok(s.indexOf('+15555550109') === -1);
@@ -456,8 +475,28 @@ test('sanitize redacts emails, tokens, and E.164 phone numbers', function () {
     assert.ok(s.indexOf('<email>') !== -1);
     assert.ok(s.indexOf('<phone>') !== -1);
     assert.ok(s.indexOf('<redacted>') !== -1);
-    assert.strictEqual(ex.sanitize('call +1234567 or +123456789012345'), 'call <phone> or <phone>');
+    ['+1 555 123 4567', '(555) 123-4567', '555-123-4567', '5551234567'].forEach(function (phone) {
+        const out = ex.sanitize('call ' + phone + ' now');
+        assert.ok(out.indexOf(phone) === -1, 'left phone in place: ' + phone + ' -> ' + out);
+        assert.ok(out.indexOf('<phone>') !== -1, 'did not redact ' + phone);
+    });
     assert.ok(ex.sanitize('short +123456 stays').indexOf('+123456') !== -1);
+});
+
+test('sanitize leaves ordinary counts and timestamps in log lines alone', function () {
+    const line = '[AUTH-BACKUP] wrote auth/2026-11-10/083000Z-aaaaaaaaaaaaaaaa.jsonl.age users 2503 passwordUsers 835 withHash 835 hashConfig true bytes 12345678 started 2026-11-10T08:30:00.000Z';
+    const out = ex.sanitize('error at ' + line);
+    assert.ok(out.indexOf('2026-11-10') !== -1, out);
+    assert.ok(out.indexOf('2026-11-10T08:30:00.000Z') !== -1, out);
+    assert.ok(out.indexOf('users 2503') !== -1, out);
+    assert.ok(out.indexOf('passwordUsers 835') !== -1, out);
+    assert.ok(out.indexOf('bytes 12345678') !== -1, out);
+    assert.ok(out.indexOf('083000Z-aaaaaaaaaaaaaaaa') !== -1, out);
+    const mixed = ex.sanitize('denied +1 555 123 4567 on 2026-11-10T08:30:00.000Z users 2503');
+    assert.ok(mixed.indexOf('+1 555 123 4567') === -1);
+    assert.ok(mixed.indexOf('<phone>') !== -1);
+    assert.ok(mixed.indexOf('2026-11-10T08:30:00.000Z') !== -1);
+    assert.ok(mixed.indexOf('users 2503') !== -1);
 });
 
 test('hash config error marker also redacts phone numbers', async function () {
@@ -483,38 +522,59 @@ test('objectNames include the UTC stamp and a random id, and two calls differ', 
     assert.ok(a.manifest.startsWith('auth/2026-11-10/083000Z-') && a.failed.startsWith('auth/2026-11-10/083000Z-'));
 });
 
-test('verify script: findLatestComplete picks the newest complete manifest', function () {
-    const older = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/083000Z-aaaaaaaaaaaaaaaa.jsonl.age', finishedAt: '2026-11-10T08:31:00.000Z', startedAt: '2026-11-10T08:30:00.000Z', date: '2026-11-10' };
-    const newer = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/090000Z-bbbbbbbbbbbbbbbb.jsonl.age', finishedAt: '2026-11-10T09:01:00.000Z', startedAt: '2026-11-10T09:00:00.000Z', date: '2026-11-10' };
-    const incomplete = { format: 'bq-auth-export-v2', complete: false, object: 'auth/2026-11-10/100000Z-cccccccccccccccc.jsonl.age', finishedAt: '2026-11-10T10:01:00.000Z', startedAt: '2026-11-10T10:00:00.000Z', date: '2026-11-10' };
+test('verify script: findLatestComplete ranks by timeCreated and flags extras and out-of-window runs', function () {
+    const older = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/082930Z-aaaaaaaaaaaaaaaa.jsonl.age', finishedAt: '2026-11-10T10:00:00.000Z', date: '2026-11-10' };
+    const later = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/083030Z-bbbbbbbbbbbbbbbb.jsonl.age', finishedAt: '2026-11-10T08:31:00.000Z', date: '2026-11-10' };
+    const planted = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/090100Z-cccccccccccccccc.jsonl.age', finishedAt: '2026-11-10T12:00:00.000Z', date: '2026-11-10' };
+    const incomplete = { format: 'bq-auth-export-v2', complete: false, object: 'auth/2026-11-10/100000Z-dddddddddddddddd.jsonl.age', finishedAt: '2026-11-10T10:01:00.000Z', date: '2026-11-10' };
     const latest = verify.findLatestComplete([
         { manifest: incomplete },
-        { manifest: older },
-        { manifest: newer },
+        { manifest: planted, meta: metaCreated(OUT_WINDOW) },
+        { manifest: older, meta: metaCreated(IN_WINDOW_EARLIER) },
+        { manifest: later, meta: metaCreated(IN_WINDOW) },
     ]);
-    assert.strictEqual(latest.manifest.object, newer.object);
+    assert.strictEqual(latest.manifest.object, later.object);
+    assert.strictEqual(latest.timeCreated, IN_WINDOW);
+    assert.ok(latest.flags.some(function (f) { return /outside the backup schedule window/.test(f) && f.indexOf(planted.object) !== -1; }), String(latest.flags));
+    assert.ok(latest.flags.some(function (f) { return /more than one complete run on 2026-11-10/.test(f); }), String(latest.flags));
+    // A later finishedAt must not beat an earlier timeCreated.
+    const forged = verify.findLatestComplete([
+        { manifest: older, meta: metaCreated(IN_WINDOW) },
+        { manifest: planted, meta: metaCreated(IN_WINDOW_EARLIER) },
+    ]);
+    assert.strictEqual(forged.manifest.object, older.object);
     assert.strictEqual(verify.findLatestComplete([{ manifest: incomplete }]), null);
     assert.strictEqual(verify.findLatestComplete([]), null);
+    const noneInWindow = verify.findLatestComplete([{ manifest: planted, meta: metaCreated(OUT_WINDOW) }]);
+    assert.ok(noneInWindow && !noneInWindow.manifest);
+    assert.ok(noneInWindow.flags.some(function (f) { return /outside the backup schedule window/.test(f); }));
 });
 
-test('verify script: --latest-from --print-latest selects the newest complete manifest', function () {
+test('verify script: --latest-from --print-latest selects by timeCreated and prints flags', function () {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'abv-latest-'));
     try {
         const day = path.join(dir, '2026-11-10');
         fs.mkdirSync(day);
-        const older = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/083000Z-aaaaaaaaaaaaaaaa.jsonl.age', finishedAt: '2026-11-10T08:31:00.000Z', plaintextSha256: 'x', date: '2026-11-10' };
-        const newer = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/090000Z-bbbbbbbbbbbbbbbb.jsonl.age', finishedAt: '2026-11-10T09:01:00.000Z', plaintextSha256: 'y', date: '2026-11-10' };
-        const incomplete = { format: 'bq-auth-export-v2', complete: false, object: 'auth/2026-11-10/100000Z-cccccccccccccccc.jsonl.age', finishedAt: '2026-11-10T10:01:00.000Z', plaintextSha256: 'z', date: '2026-11-10' };
-        fs.writeFileSync(path.join(day, '083000Z-aaaaaaaaaaaaaaaa.manifest.json'), JSON.stringify(older));
-        fs.writeFileSync(path.join(day, '090000Z-bbbbbbbbbbbbbbbb.manifest.json'), JSON.stringify(newer));
-        fs.writeFileSync(path.join(day, '100000Z-cccccccccccccccc.manifest.json'), JSON.stringify(incomplete));
+        const older = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/082930Z-aaaaaaaaaaaaaaaa.jsonl.age', finishedAt: '2026-11-10T10:00:00.000Z', plaintextSha256: 'x', date: '2026-11-10' };
+        const later = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/083030Z-bbbbbbbbbbbbbbbb.jsonl.age', finishedAt: '2026-11-10T08:31:00.000Z', plaintextSha256: 'y', date: '2026-11-10' };
+        const planted = { format: 'bq-auth-export-v2', complete: true, object: 'auth/2026-11-10/090100Z-cccccccccccccccc.jsonl.age', finishedAt: '2026-11-10T12:00:00.000Z', plaintextSha256: 'z', date: '2026-11-10' };
+        fs.writeFileSync(path.join(day, '082930Z-aaaaaaaaaaaaaaaa.manifest.json'), JSON.stringify(older));
+        fs.writeFileSync(path.join(day, '082930Z-aaaaaaaaaaaaaaaa.meta.json'), JSON.stringify(metaCreated(IN_WINDOW_EARLIER)));
+        fs.writeFileSync(path.join(day, '083030Z-bbbbbbbbbbbbbbbb.manifest.json'), JSON.stringify(later));
+        fs.writeFileSync(path.join(day, '083030Z-bbbbbbbbbbbbbbbb.meta.json'), JSON.stringify(metaCreated(IN_WINDOW)));
+        fs.writeFileSync(path.join(day, '090100Z-cccccccccccccccc.manifest.json'), JSON.stringify(planted));
+        fs.writeFileSync(path.join(day, '090100Z-cccccccccccccccc.meta.json'), JSON.stringify(metaCreated(OUT_WINDOW)));
         const loaded = verify.loadManifestsFromDir(dir);
         assert.strictEqual(loaded.length, 3);
-        assert.strictEqual(verify.findLatestComplete(loaded).manifest.object, newer.object);
+        const latest = verify.findLatestComplete(loaded);
+        assert.strictEqual(latest.manifest.object, later.object);
         const script = path.join(fnRoot, 'scripts', 'auth-export-verify.js');
         const out = execFileSync('node', [script, '--latest-from', dir, '--print-latest'], { encoding: 'utf8' });
-        assert.ok(out.indexOf(newer.object) !== -1);
-        assert.ok(out.indexOf(incomplete.object) === -1);
+        assert.ok(out.indexOf(later.object) !== -1);
+        assert.ok(out.indexOf('timeCreated ' + IN_WINDOW) !== -1);
+        assert.ok(/FLAG:.*outside the backup schedule window/.test(out));
+        assert.ok(/FLAG:.*more than one complete run on 2026-11-10/.test(out));
+        assert.ok(out.indexOf(planted.object) === -1 || /FLAG:.*090100Z-cccccccccccccccc/.test(out));
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -558,16 +618,123 @@ test('verify script: customClaims are omitted by default and included only with 
     assert.ok(sample.every(function (r) { return !r.customClaims; }));
 });
 
-test('verify script: provenance check uses creator and creation time when metadata is present', function () {
-    const man = { projectId: 'demo', startedAt: '2026-11-10T08:30:00.000Z', finishedAt: '2026-11-10T08:31:00.000Z' };
+test('verify script: provenance is fail-closed, uses audit-log creator and the schedule window', function () {
     const sa = verify.expectedBackupSa('demo');
+    const objectName = 'auth/2026-11-10/083000Z-aaaaaaaaaaaaaaaa.jsonl.age';
     assert.strictEqual(sa, 'fn-daily-auth-export@demo.iam.gserviceaccount.com');
-    assert.deepStrictEqual(verify.checkBackupProvenance({ timeCreated: '2026-11-10T08:30:30.000Z', creator: sa }, { expectedSa: sa, startedAt: man.startedAt, finishedAt: man.finishedAt }), []);
-    assert.ok(verify.checkBackupProvenance({ timeCreated: '2026-11-10T08:30:30.000Z', creator: 'evil@example.com' }, { expectedSa: sa, startedAt: man.startedAt, finishedAt: man.finishedAt }).some(function (p) { return /creator/.test(p); }));
-    assert.ok(verify.checkBackupProvenance({ timeCreated: '2026-11-11T20:00:00.000Z', creator: sa }, { expectedSa: sa, startedAt: man.startedAt, finishedAt: man.finishedAt }).some(function (p) { return /creation time does not match/.test(p); }));
-    assert.ok(verify.checkBackupProvenance({ timeCreated: 'not-a-date', creator: sa }, { expectedSa: sa }).some(function (p) { return /not a valid timestamp/.test(p); }));
-    assert.deepStrictEqual(verify.checkBackupProvenance(null, { expectedSa: sa }), []);
-    assert.deepStrictEqual(verify.checkBackupProvenance({ timeCreated: '2026-11-10T08:30:30.000Z' }, { expectedSa: sa, startedAt: man.startedAt, finishedAt: man.finishedAt }), []);
+    const ok = verify.checkBackupProvenance({
+        required: true,
+        meta: metaCreated(IN_WINDOW),
+        audit: auditCreate(objectName, sa, IN_WINDOW),
+        objectName: objectName,
+        expectedSa: sa,
+        window: verify.DEFAULT_SCHEDULE_WINDOW,
+    });
+    assert.deepStrictEqual(ok, []);
+    // Missing or empty inputs fail closed when required.
+    assert.ok(verify.checkBackupProvenance({ required: true, expectedSa: sa }).some(function (p) { return /metadata is missing or empty/.test(p); }));
+    assert.ok(verify.checkBackupProvenance({ required: true, meta: {}, audit: [], expectedSa: sa }).some(function (p) { return /metadata is missing or empty/.test(p); }));
+    assert.ok(verify.checkBackupProvenance({ required: true, meta: metaCreated(IN_WINDOW), audit: null, expectedSa: sa }).some(function (p) { return /audit log is missing or empty/.test(p); }));
+    assert.ok(verify.checkBackupProvenance({ required: true, meta: { cacheControl: 'no-store' }, audit: auditCreate(objectName, sa), objectName: objectName, expectedSa: sa }).some(function (p) { return /missing timeCreated/.test(p); }));
+    // Custom metadata creator/createdBy is ignored; audit principalEmail is the source.
+    const forgedMeta = { timeCreated: IN_WINDOW, metadata: { creator: sa, createdBy: sa }, creator: sa };
+    const evilAudit = auditCreate(objectName, 'evil@example.com', IN_WINDOW);
+    assert.ok(verify.checkBackupProvenance({ required: true, meta: forgedMeta, audit: evilAudit, objectName: objectName, expectedSa: sa }).some(function (p) { return /creator is not the expected service account/.test(p); }));
+    assert.deepStrictEqual(verify.checkBackupProvenance({ required: true, meta: forgedMeta, audit: auditCreate(objectName, sa), objectName: objectName, expectedSa: sa }), []);
+    // Window check, not manifest finishedAt. A matching forged finishedAt does not help an out-of-window object.
+    const out = verify.checkBackupProvenance({
+        required: true,
+        meta: metaCreated(OUT_WINDOW),
+        audit: auditCreate(objectName, sa, OUT_WINDOW),
+        objectName: objectName,
+        expectedSa: sa,
+        finishedAt: OUT_WINDOW,
+        startedAt: OUT_WINDOW,
+        window: verify.DEFAULT_SCHEDULE_WINDOW,
+    });
+    assert.ok(out.some(function (p) { return /outside the backup schedule window/.test(p); }), String(out));
+    assert.ok(verify.checkBackupProvenance({ required: true, meta: { timeCreated: 'not-a-date' }, audit: auditCreate(objectName, sa), objectName: objectName, expectedSa: sa }).some(function (p) { return /not a valid timestamp/.test(p); }));
+    // Optional path (verify-only, no flags) still stays quiet.
+    assert.deepStrictEqual(verify.checkBackupProvenance({ required: false, expectedSa: sa }), []);
+    // July (EDT): 07:30 UTC is 3:30 AM ET and is in window.
+    const july = '2026-07-01T07:30:00.000Z';
+    assert.ok(verify.inScheduleWindow(july, verify.DEFAULT_SCHEDULE_WINDOW));
+    assert.ok(!verify.inScheduleWindow('2026-07-01T08:00:00.000Z', verify.DEFAULT_SCHEDULE_WINDOW));
+});
+
+test('verify script: --import without provenance is refused, even on a dry run', async function () {
+    const kp = keypair();
+    const users = fakeUsers(8);
+    const bucket = fakeBucket();
+    const man = await ex.runAuthExport({ auth: fakeAuth(users), bucket: bucket, recipients: [kp.recipient], projectId: 'demo', now: NOW, log: captureLog(), getHashConfig: async function () { return HASH_CONFIG; } });
+    const plain = ageDecrypt(bucket.objects[man.object].body, kp);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'abv-prov-'));
+    const script = path.join(fnRoot, 'scripts', 'auth-export-verify.js');
+    const { spawnSync } = require('child_process');
+    try {
+        fs.writeFileSync(path.join(dir, 'p.jsonl'), plain);
+        fs.writeFileSync(path.join(dir, 'm.json'), JSON.stringify(man));
+        const none = spawnSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--sample', '4'], { encoding: 'utf8' });
+        assert.notStrictEqual(none.status, 0);
+        assert.ok(/object metadata is missing or empty/.test(none.stdout + none.stderr));
+        assert.ok(/audit log is missing or empty/.test(none.stdout + none.stderr));
+        fs.writeFileSync(path.join(dir, 'empty-meta.json'), '');
+        fs.writeFileSync(path.join(dir, 'empty-audit.json'), '');
+        const empty = spawnSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--object-meta', path.join(dir, 'empty-meta.json'), '--audit-log', path.join(dir, 'empty-audit.json')], { encoding: 'utf8' });
+        assert.notStrictEqual(empty.status, 0);
+        assert.ok(/object metadata is missing or empty/.test(empty.stdout + empty.stderr));
+        const sa = verify.expectedBackupSa('demo');
+        fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({ metadata: { creator: sa, createdBy: sa }, creator: sa }));
+        fs.writeFileSync(path.join(dir, 'audit.json'), JSON.stringify(auditCreate(man.object, sa, IN_WINDOW)));
+        const noTime = spawnSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--import', '--project', 'bitcoin-quest-staging', '--object-meta', path.join(dir, 'meta.json'), '--audit-log', path.join(dir, 'audit.json')], { encoding: 'utf8' });
+        assert.notStrictEqual(noTime.status, 0);
+        assert.ok(/missing timeCreated/.test(noTime.stdout + noTime.stderr));
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('verify script: mid-import crash runs delete-after in finally and prints a cleanup command otherwise', async function () {
+    const uids = ['rv-0', 'rv-1', 'rv-2'];
+    const records = uids.map(function (u) { return { uid: u, email: u + '@restore-test.invalid' }; });
+    const lines = [];
+    const log = function (m) { lines.push(m); };
+    let deleted = [];
+    const authOkDelete = {
+        importUsers: async function (batch) { return { successCount: batch.length, failureCount: 0, errors: [] }; },
+        getUsers: async function () { throw new Error('boom after import'); },
+        deleteUsers: async function (batch) { deleted = deleted.concat(batch); return { successCount: batch.length }; },
+    };
+    await assert.rejects(verify.applyImport('bitcoin-quest-staging', records, null, true, log, { auth: authOkDelete }), /boom after import/);
+    assert.deepStrictEqual(deleted, uids);
+    assert.ok(lines.some(function (l) { return /--delete-after cleaned up 3 uids/.test(l); }));
+    assert.ok(!lines.some(function (l) { return /Cleanup with:/.test(l); }));
+
+    const lines2 = [];
+    const log2 = function (m) { lines2.push(m); };
+    const authNoDelete = {
+        importUsers: async function (batch) { return { successCount: batch.length, failureCount: 0, errors: [] }; },
+        getUsers: async function () { throw new Error('boom after import'); },
+        deleteUsers: async function () { throw new Error('should not delete'); },
+    };
+    await assert.rejects(verify.applyImport('bitcoin-quest-staging', records, null, false, log2, { auth: authNoDelete }), /boom after import/);
+    const cleanup = lines2.join('\n');
+    assert.ok(/Cleanup with:/.test(cleanup));
+    const cmd = lines2.find(function (l) { return /--cleanup --project bitcoin-quest-staging --uids-file /.test(l); });
+    assert.ok(cmd, cleanup);
+    const file = cmd.split('--uids-file ')[1];
+    const listed = fs.readFileSync(file, 'utf8').trim().split('\n');
+    assert.deepStrictEqual(listed, uids);
+    fs.unlinkSync(file);
+
+    const lines3 = [];
+    const log3 = function (m) { lines3.push(m); };
+    const authDeleteFails = {
+        importUsers: async function (batch) { return { successCount: batch.length, failureCount: 0, errors: [] }; },
+        getUsers: async function () { throw new Error('boom after import'); },
+        deleteUsers: async function () { throw new Error('delete failed'); },
+    };
+    await assert.rejects(verify.applyImport('bitcoin-quest-staging', records, null, true, log3, { auth: authDeleteFails }), /boom after import/);
+    assert.ok(lines3.some(function (l) { return /Cleanup with:/.test(l); }));
+    assert.ok(lines3.some(function (l) { return /--cleanup --project bitcoin-quest-staging --uids-file /.test(l); }));
 });
 
 (async function () {
