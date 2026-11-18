@@ -245,6 +245,7 @@ function principalEmailFromEntry(entry) {
 function generationFromAuditEntry(entry) {
     const p = entry && entry.protoPayload || {};
     const g = (p.response && p.response.generation)
+        || (p.metadata && p.metadata.objectId && p.metadata.objectId.generation)
         || (p.metadata && p.metadata.generation)
         || (p.resource && p.resource.generation);
     return g == null || g === '' ? '' : String(g);

@@ -51,6 +51,8 @@ delete any plaintext file when you are done. `--import` does not accept
 
 `--import` (dry run or `--apply`) fails closed unless all of the following
 are present and valid. Verify-only can omit them and still use a pipe.
+Phil makes the `--object-meta` and `--audit-log` files himself with
+`gcloud`, never from the bucket, the shared box, or an agent.
 
 1. `--manifest <file>` or `--latest-from <dir>` — the manifest must include
    `object`, `plaintextSha256` and `ciphertextSha256`.
@@ -65,19 +67,21 @@ are present and valid. Verify-only can omit them and still use a pipe.
    script never reads the key.
 
 4. `--object-meta metadata.json` — the GCS object resource for the
-   ciphertext, from `gcloud storage objects describe gs://<bucket>/<object> --format=json`
-   or the JSON API. Required server-set fields: `name`, `generation`,
+   ciphertext. Phil makes this file himself with
+   `gcloud storage objects describe gs://<bucket>/<object> --format=json`
+   (never from the bucket, the shared box, or an agent). Required server-set fields: `name`, `generation`,
    `timeCreated`, `md5Hash`, `crc32c`. `name` must equal `manifest.object`
    exactly (no substring match). `timeCreated` must fall inside the backup
    window (default 3:29–3:50 AM ET). Do **not** trust custom metadata
    (`metadata.creator`, `metadata.createdBy`, or any uploader-set key).
 
-5. `--audit-log audit.json` — a Cloud Audit Logs export whose
-   `storage.objects.create` entry for that exact object name has
-   `protoPayload.authenticationInfo.principalEmail` equal to
+5. `--audit-log audit.json` — a Cloud Audit Logs export Phil makes himself
+   with `gcloud logging read` (never from the bucket, the shared box, or an
+   agent). Every `storage.objects.create` entry for that exact object name
+   must have `protoPayload.authenticationInfo.principalEmail` equal to
    `fn-daily-auth-export@<project>.iam.gserviceaccount.com`. There must be
    exactly one create for that name, and its generation must match
-   `metadata.generation`. Phil exports this from his machine, for example:
+   `metadata.generation`. Example:
 
    ```sh
    gcloud logging read \
@@ -143,10 +147,12 @@ alerts, second recipient key):
    needed so every `storage.objects.create` is logged with
    `principalEmail`. Confirm a staging run produces an entry for
    `fn-daily-auth-export@…`.
-2. On a staging run, download the ciphertext and manifest, `timeCreated` /
-   `name` / `generation` / `md5Hash` / `crc32c` with
-   `gcloud storage objects describe --format=json`, and the matching audit
-   log with `gcloud logging read` (examples above). Then run the verify or
+2. On a staging run, download the ciphertext and manifest, then make the
+   metadata and audit-log files yourself with
+   `gcloud storage objects describe --format=json` (`timeCreated`, `name`,
+   `generation`, `md5Hash`, `crc32c`) and `gcloud logging read` (examples
+   above). Those two files must come from your own `gcloud` — never from
+   the bucket, the shared box, or an agent. Then run the verify or
    `--import` command on your own machine — never on the shared box.
 3. Optional later: sign the manifest with a Cloud KMS asymmetric key usable
    only by `fn-daily-auth-export`.
