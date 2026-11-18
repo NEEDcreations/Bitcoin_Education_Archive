@@ -23,6 +23,21 @@ function makePrivateBackupDir() {
     return dir;
 }
 
+function makeFreshBackupPath() {
+    const dir = path.join(
+        PRIVATE_BACKUP_ROOT,
+        'telegram-scrub-backup-test-' + Date.now() + '-' + Math.random().toString(16).slice(2)
+    );
+    cleanupDirs.push(dir);
+    return dir;
+}
+
+function backupJsonFiles(dir) {
+    return fs.readdirSync(dir).filter(function (name) {
+        return /^backup-[A-Za-z0-9_+-]+\.json$/.test(name);
+    });
+}
+
 function rmDir(dir) {
     if (!dir) return;
     try { fs.rmSync(dir, { recursive: true, force: true }); }
@@ -208,7 +223,7 @@ test('scrub dry-run prints ids only and apply rehosts or clears', async function
     ];
     const logs = [];
     const updates = [];
-    const dir = makePrivateBackupDir();
+    const dir = makeFreshBackupPath();
     const db = {
         collection: function () {
             return { doc: function () { return { get: async function () { return { exists: false, data: function () { return null; } }; } }; } };
@@ -233,7 +248,7 @@ test('scrub dry-run prints ids only and apply rehosts or clears', async function
     assert.ok(dryText.indexOf(TOKEN) === -1);
     assert.ok(dryText.indexOf('TESTTOKEN') === -1);
     assert.ok(dryText.indexOf('api.telegram.org') === -1);
-    assert.strictEqual(fs.readdirSync(dir).length, 0);
+    assert.strictEqual(fs.existsSync(dir), false);
 
     logs.length = 0;
     const marker = {};
@@ -264,7 +279,7 @@ test('scrub dry-run prints ids only and apply rehosts or clears', async function
         log: function (line) { logs.push(line); },
         listDocs: async function () { return rows; },
         updateDoc: async function (collection, id, patch) {
-            assert.ok(fs.readdirSync(dir).length === 1);
+            assert.strictEqual(backupJsonFiles(dir).length, 1);
             guard.assertFirestoreSafe(patch);
             assert.ok(JSON.stringify(patch).indexOf(TOKEN) === -1);
             updates.push({ collection: collection, id: id, patch: patch });
@@ -285,7 +300,7 @@ test('scrub dry-run prints ids only and apply rehosts or clears', async function
     assert.ok(photo.patch.imageUrl.indexOf('chat-images%2Ftg%2F') !== -1);
     assert.strictEqual(gone.patch.gifUrl, null);
     assert.strictEqual(gone.patch.mediaRemoved, true);
-    const backup = JSON.parse(fs.readFileSync(path.join(dir, fs.readdirSync(dir)[0]), 'utf8'));
+    const backup = JSON.parse(fs.readFileSync(path.join(dir, backupJsonFiles(dir)[0]), 'utf8'));
     assert.strictEqual(backup.docs.length, 2);
     assert.strictEqual(backup.docs[0].data.imageUrl, secretUrl);
     const applyText = logs.join('\n');
@@ -421,7 +436,7 @@ test('apply refuses a retargeted project and dry-run prints the target', functio
     assert.strictEqual(scrub.resolveBucket({}), 'bitcoin-education-archive.firebasestorage.app');
     assert.strictEqual(scrub.resolveBucket({ FIREBASE_STORAGE_BUCKET: 'custom-bucket' }), 'custom-bucket');
 
-    const dir = makePrivateBackupDir();
+    const dir = makeFreshBackupPath();
     expectCode(function () {
         scrub.assertApplyAllowed({
             apply: true,
@@ -544,7 +559,7 @@ test('ids-only scan prints ids and field names, never URLs', async function () {
 });
 
 test('apply backup uses mode 0700/0600 and is refused without a valid dir', async function () {
-    const dir = makePrivateBackupDir();
+    const dir = makeFreshBackupPath();
     const file = scrub.writeBackup(dir, [{ collection: 'global_chat', id: 'n1', data: { text: 'ok' } }], '2026-11-18T00:00:00.000Z');
     const dirMode = fs.statSync(dir).mode & 0o777;
     const fileMode = fs.statSync(file).mode & 0o777;
@@ -630,7 +645,7 @@ test('backup-dir refuses world-writable paths and symlinks into them', function 
 });
 
 test('apply refuses a retargeted storage bucket and still prints it', function () {
-    const dir = makePrivateBackupDir();
+    const dir = makeFreshBackupPath();
     expectCode(function () {
         scrub.assertApplyAllowed({
             apply: true,
@@ -745,7 +760,7 @@ test('backup-dir must be a new dedicated directory', function () {
 });
 
 test('backup writes use wx and keep the first file on retry', function () {
-    const dir = makePrivateBackupDir();
+    const dir = makeFreshBackupPath();
     const stamp = '2026-11-18T00:00:00.000Z';
     const first = scrub.writeBackup(dir, [{ collection: 'global_chat', id: 'x', data: { text: 'first' } }], stamp);
     const firstBody = fs.readFileSync(first, 'utf8');
@@ -763,7 +778,8 @@ test('backup writes use wx and keep the first file on retry', function () {
     assert.strictEqual(fs.statSync(second).mode & 0o777, 0o600);
     assert.ok(second.indexOf('backup-2026-11-18T00-00-00-000Z-2.json') !== -1);
 
-    const plantedDir = makePrivateBackupDir();
+    const plantedDir = makeFreshBackupPath();
+    scrub.writeBackup(plantedDir, [{ collection: 'global_chat', id: 'seed', data: { text: 'seed' } }], '2026-11-18T01:59:00.000Z');
     const intended = path.join(plantedDir, 'backup-2026-11-18T02-00-00-000Z.json');
     const leakTarget = path.join(PRIVATE_BACKUP_ROOT, 'telegram-scrub-symlink-target-' + Date.now() + '.json');
     cleanupDirs.push(leakTarget);
@@ -781,7 +797,7 @@ test('backup writes use wx and keep the first file on retry', function () {
     assert.ok(fs.readFileSync(written, 'utf8').indexOf('"id":"z"') !== -1);
     assert.strictEqual(fs.statSync(written).mode & 0o777, 0o600);
 
-    const escapeDir = makePrivateBackupDir();
+    const escapeDir = makeFreshBackupPath();
     const escaped = scrub.writeBackup(
         escapeDir,
         [{ collection: 'global_chat', id: 'e', data: { text: 'ok' } }],
@@ -789,6 +805,153 @@ test('backup writes use wx and keep the first file on retry', function () {
     );
     assert.strictEqual(path.dirname(escaped), path.resolve(escapeDir));
     assert.ok(fs.existsSync(escaped));
+});
+
+test('apply refuses a pre-existing backup-dir unless it has this tool\'s marker', function () {
+    const existing = makePrivateBackupDir();
+    expectCode(function () { scrub.assertBackupDir(existing); }, 'backup-dir-exists');
+    expectCode(function () {
+        scrub.writeBackup(existing, [{ collection: 'global_chat', id: 'n1', data: { text: 'ok' } }], '2026-11-18T03:00:00.000Z');
+    }, 'backup-dir-exists');
+    assert.strictEqual(fs.readdirSync(existing).length, 0);
+
+    const holder = makePrivateBackupDir();
+    const link = path.join(holder, 'link-dir');
+    fs.symlinkSync(existing, link);
+    expectCode(function () { scrub.assertBackupDir(link); }, 'backup-dir-symlink');
+    expectCode(function () {
+        scrub.writeBackup(link, [{ collection: 'global_chat', id: 'n1', data: { text: 'ok' } }], '2026-11-18T03:00:00.000Z');
+    }, 'backup-dir-symlink');
+    assert.strictEqual(fs.lstatSync(link).isSymbolicLink(), true);
+    assert.strictEqual(fs.readdirSync(existing).length, 0);
+
+    const fresh = makeFreshBackupPath();
+    const file = scrub.writeBackup(fresh, [{ collection: 'global_chat', id: 'a', data: { text: 'ok' } }], '2026-11-18T03:00:00.000Z');
+    assert.strictEqual(scrub.assertBackupDir(fresh), path.resolve(fresh));
+    assert.ok(fs.existsSync(path.join(fresh, scrub.BACKUP_DIR_MARKER)));
+    assert.strictEqual(fs.lstatSync(fresh).isSymbolicLink(), false);
+    assert.strictEqual(fs.statSync(fresh).mode & 0o777, 0o700);
+    const second = scrub.writeBackup(fresh, [{ collection: 'global_chat', id: 'b', data: { text: 'ok' } }], '2026-11-18T03:00:00.000Z');
+    assert.notStrictEqual(second, file);
+    assert.ok(fs.existsSync(file));
+    assert.strictEqual(backupJsonFiles(fresh).length, 2);
+});
+
+test('apply prints the backup-dir path and same-dir retry keeps earlier backups', async function () {
+    const dir = makeFreshBackupPath();
+    const resolved = path.resolve(dir);
+    const secretUrl = FILE_URL;
+    const rows = [
+        { id: 'photo', data: { text: 'pic', imageUrl: secretUrl } },
+        { id: 'gone', data: { text: 'old', gifUrl: secretUrl } },
+    ];
+    const leftoverRows = [
+        { id: 'gone', data: { text: 'old', gifUrl: secretUrl } },
+        { id: 'done', data: { text: 'done', mediaRemoved: true, gifUrl: null } },
+    ];
+
+    function makeDb(markerState) {
+        const marker = markerState || {};
+        return {
+            collection: function (name) {
+                return {
+                    doc: function (id) {
+                        return {
+                            get: async function () {
+                                if (marker.applied) return { exists: true, data: function () { return marker; } };
+                                return { exists: false, data: function () { return null; } };
+                            },
+                            set: async function (data) { Object.assign(marker, data); },
+                        };
+                    },
+                };
+            },
+        };
+    }
+
+    const logs = [];
+    let caught = null;
+    try {
+        await scrub.runScrub({
+            apply: true,
+            db: makeDb({}),
+            backupDir: dir,
+            nowIso: '2026-11-18T04:00:00.000Z',
+            log: function (line) { logs.push(line); },
+            listDocs: async function () { return rows; },
+            updateDoc: async function (collection, id) {
+                if (id === 'gone') throw new Error('simulated mid-apply failure');
+            },
+            rehost: async function () { return null; },
+        });
+    } catch (err) { caught = err; }
+    assert.ok(caught);
+    assert.ok(String(caught.message).indexOf('simulated mid-apply failure') !== -1);
+    const text = logs.join('\n');
+    assert.ok(text.indexOf('backup-dir=' + resolved) !== -1);
+    assert.ok(text.indexOf('partial failure. re-run with the SAME --backup-dir ' + resolved) !== -1);
+    assert.ok(text.indexOf(TOKEN) === -1);
+    const startIdx = logs.findIndex(function (line) { return line === 'backup-dir=' + resolved; });
+    const writtenIdx = logs.findIndex(function (line) { return line.indexOf('backup-written') !== -1; });
+    const endIdx = logs.findIndex(function (line) { return line.indexOf('SAME --backup-dir ' + resolved) !== -1; });
+    assert.ok(startIdx !== -1 && writtenIdx !== -1 && endIdx !== -1);
+    assert.ok(startIdx < writtenIdx);
+    assert.ok(writtenIdx < endIdx);
+    assert.strictEqual(backupJsonFiles(dir).length, 1);
+    const firstFile = path.join(dir, backupJsonFiles(dir)[0]);
+    const firstBody = fs.readFileSync(firstFile, 'utf8');
+    assert.ok(firstBody.indexOf('"id":"photo"') !== -1);
+    assert.ok(firstBody.indexOf('"id":"gone"') !== -1);
+    assert.ok(fs.existsSync(path.join(dir, scrub.BACKUP_DIR_MARKER)));
+
+    const retryLogs = [];
+    const retry = await scrub.runScrub({
+        apply: true,
+        db: makeDb({}),
+        backupDir: dir,
+        nowIso: '2026-11-18T04:00:00.000Z',
+        log: function (line) { retryLogs.push(line); },
+        listDocs: async function () { return leftoverRows; },
+        updateDoc: async function () { return; },
+        rehost: async function () { return null; },
+    });
+    assert.strictEqual(retry.wrote, true);
+    assert.strictEqual(backupJsonFiles(dir).length, 2);
+    assert.ok(retry.backupFile.indexOf('backup-2026-11-18T04-00-00-000Z-2.json') !== -1);
+    assert.strictEqual(fs.readFileSync(firstFile, 'utf8'), firstBody);
+    assert.strictEqual(fs.statSync(retry.backupFile).mode & 0o777, 0o600);
+    const retryText = retryLogs.join('\n');
+    assert.ok(retryText.indexOf(TOKEN) === -1);
+    const retryStart = retryLogs.findIndex(function (line) { return line === 'backup-dir=' + resolved; });
+    const retryEnd = retryLogs.lastIndexOf('backup-dir=' + resolved);
+    assert.ok(retryStart !== -1 && retryEnd > retryStart);
+    assert.ok(retryText.indexOf('new backup-dir') === -1);
+    assert.ok(retryText.indexOf('WARNING:') === -1);
+
+    const fresh = makeFreshBackupPath();
+    const freshResolved = path.resolve(fresh);
+    const freshLogs = [];
+    const freshRun = await scrub.runScrub({
+        apply: true,
+        db: makeDb({}),
+        backupDir: fresh,
+        nowIso: '2026-11-18T05:00:00.000Z',
+        log: function (line) { freshLogs.push(line); },
+        listDocs: async function () { return leftoverRows; },
+        updateDoc: async function () { return; },
+        rehost: async function () { return null; },
+    });
+    assert.strictEqual(freshRun.wrote, true);
+    const freshText = freshLogs.join('\n');
+    assert.ok(freshText.indexOf('backup-dir=' + freshResolved) !== -1);
+    assert.ok(freshLogs[0] === 'backup-dir=' + freshResolved || freshLogs.indexOf('backup-dir=' + freshResolved) === 0 || freshLogs.indexOf('backup-dir=' + freshResolved) !== -1);
+    const freshStart = freshLogs.findIndex(function (line) { return line === 'backup-dir=' + freshResolved; });
+    const freshEnd = freshLogs.lastIndexOf('backup-dir=' + freshResolved);
+    assert.ok(freshStart !== -1 && freshEnd > freshStart);
+    assert.ok(freshText.indexOf('WARNING: some documents already have mediaRemoved set') !== -1);
+    assert.ok(freshText.indexOf('SAME --backup-dir') !== -1);
+    assert.ok(freshText.indexOf('A new directory only backs up remaining documents.') !== -1);
+    assert.ok(freshText.indexOf(TOKEN) === -1);
 });
 
 Promise.all(queue).then(function () {

@@ -19,12 +19,16 @@
 // home-dir shared folders are refused. The intended location is a new
 // dedicated directory such as
 // /workspace/private/telegram-scrub-backup-<date>/, created with mode
-// 0700. It must not exist yet, or must exist and be empty, except that
-// a later retry may reuse the same directory and will keep earlier
-// backup files. Backup files are created with mode 0600 and the
+// 0700. The path must not already exist, so the tool can create it
+// itself. A later retry may reuse that same directory only when it
+// contains this tool's own marker file, is owned by the current user,
+// is mode 0700, and is not a symlink. Earlier backup files in that
+// directory are kept. Backup files are created with mode 0600 and the
 // exclusive 'wx' flag so an existing file or symlink is never
-// overwritten. The backup contains the original URLs. Keep it private
-// and delete it after the bot tokens are rotated.
+// overwritten. The resolved backup path is printed at the start and
+// end of every --apply run. After a partial failure, re-run with the
+// same --backup-dir. The backup contains the original URLs. Keep it
+// private and delete it after the bot tokens are rotated.
 //
 // --apply writes that backup of every affected document first, then
 // downloads each file and stores a Firebase Storage download URL under
@@ -60,6 +64,8 @@ const DEFAULT_BUCKET = APPLY_BUCKET;
 const RESERVED_PRIVATE_SUBDIRS = [
     'redteam-audit',
 ];
+const BACKUP_DIR_MARKER = '.bq-telegram-scrub-marker';
+const BACKUP_DIR_MARKER_BODY = 'bq-telegram-scrub-backup-dir\n';
 const PAGE = 300;
 const MAX_BYTES = 20 * 1024 * 1024;
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -130,6 +136,8 @@ function printHelp() {
     console.log('Dry-run is the default. --apply rehosts media and then marks the scrub applied.');
     console.log('--apply requires --backup-dir pointing at a new dedicated absolute path');
     console.log('outside the repo (for example /workspace/private/telegram-scrub-backup-YYYYMMDD/).');
+    console.log('The path must not already exist. After a partial failure, re-run with');
+    console.log('the same --backup-dir.');
     console.log('Relative paths, the repo tree, /tmp, /dev/shm, world-writable paths,');
     console.log('/workspace outside /workspace/private, /workspace/private itself, reserved');
     console.log('shared subdirectories, and home-dir shared folders are refused.');
@@ -281,19 +289,154 @@ function isWorldWritableLocation(input) {
 }
 
 function inspectBackupDir(resolved) {
-    if (!fs.existsSync(resolved)) return 'missing';
-    let st;
-    try { st = fs.statSync(resolved); }
-    catch (err) {
-        return 'not-dir';
-    }
-    if (!st.isDirectory()) return 'not-dir';
+    const lst = existsLstat(resolved);
+    if (!lst) return 'missing';
+    if (lst.isSymbolicLink()) return 'symlink';
+    if (!lst.isDirectory()) return 'not-dir';
     const entries = fs.readdirSync(resolved);
     if (!entries.length) return 'empty';
+    let hasMarker = false;
     for (let i = 0; i < entries.length; i++) {
+        if (entries[i] === BACKUP_DIR_MARKER) {
+            hasMarker = true;
+            continue;
+        }
         if (!/^backup-[A-Za-z0-9_+-]+\.json$/.test(entries[i])) return 'not-empty';
     }
-    return 'backups';
+    return hasMarker ? 'marked' : 'unmarked';
+}
+
+function throwBackupDir(message, code) {
+    const err = new Error(message);
+    err.code = code;
+    throw err;
+}
+
+function backupDirOpenFlags() {
+    let flags = fs.constants.O_RDONLY;
+    if (fs.constants.O_DIRECTORY) flags |= fs.constants.O_DIRECTORY;
+    if (fs.constants.O_NOFOLLOW) flags |= fs.constants.O_NOFOLLOW;
+    return flags;
+}
+
+function openBackupDir(resolved) {
+    return fs.openSync(resolved, backupDirOpenFlags());
+}
+
+function markerFilePath(dir) {
+    return path.resolve(dir, BACKUP_DIR_MARKER);
+}
+
+function hasValidMarker(dir) {
+    const file = markerFilePath(dir);
+    const lst = existsLstat(file);
+    if (!lst || lst.isSymbolicLink() || !lst.isFile()) return false;
+    if (typeof process.getuid === 'function' && lst.uid !== process.getuid()) return false;
+    let body;
+    try { body = fs.readFileSync(file, 'utf8'); }
+    catch (err) { return false; }
+    return body === BACKUP_DIR_MARKER_BODY;
+}
+
+function closeFd(fd) {
+    if (fd == null) return;
+    try { fs.closeSync(fd); } catch (err) { /* ignore */ }
+}
+
+function assertReusableBackupDir(resolved) {
+    const lst = existsLstat(resolved);
+    if (!lst) {
+        throwBackupDir('backup-dir already exists; pass a new path, or reuse a directory this tool created', 'backup-dir-exists');
+    }
+    if (lst.isSymbolicLink()) {
+        throwBackupDir('backup-dir must not be a symlink', 'backup-dir-symlink');
+    }
+    if (!lst.isDirectory()) {
+        throwBackupDir('backup-dir must be a directory', 'backup-dir-not-dir');
+    }
+    if (typeof process.getuid === 'function' && lst.uid !== process.getuid()) {
+        throwBackupDir('backup-dir must be owned by the current user', 'backup-dir-owner');
+    }
+    if ((lst.mode & 0o777) !== 0o700) {
+        throwBackupDir('backup-dir must be mode 0700', 'backup-dir-mode');
+    }
+    let fd;
+    try {
+        fd = openBackupDir(resolved);
+        const st = fs.fstatSync(fd);
+        if (!st.isDirectory()) {
+            throwBackupDir('backup-dir must be a directory', 'backup-dir-not-dir');
+        }
+        if (typeof process.getuid === 'function' && st.uid !== process.getuid()) {
+            throwBackupDir('backup-dir must be owned by the current user', 'backup-dir-owner');
+        }
+        if ((st.mode & 0o777) !== 0o700) {
+            throwBackupDir('backup-dir must be mode 0700', 'backup-dir-mode');
+        }
+    } catch (err) {
+        if (err && err.code && String(err.code).indexOf('backup-dir-') === 0) throw err;
+        if (err && (err.code === 'ELOOP' || err.code === 'ENOTDIR')) {
+            throwBackupDir('backup-dir must not be a symlink', 'backup-dir-symlink');
+        }
+        throw err;
+    } finally {
+        closeFd(fd);
+    }
+    if (!hasValidMarker(resolved)) {
+        throwBackupDir('backup-dir already exists; pass a new path, or reuse a directory this tool created', 'backup-dir-exists');
+    }
+}
+
+function writeMarker(resolved) {
+    const file = markerFilePath(resolved);
+    try {
+        fs.writeFileSync(file, BACKUP_DIR_MARKER_BODY, { flag: 'wx', mode: 0o600 });
+    } catch (err) {
+        if (err && err.code === 'EEXIST') {
+            throwBackupDir('backup-dir already exists; pass a new path, or reuse a directory this tool created', 'backup-dir-exists');
+        }
+        throw err;
+    }
+    const lst = existsLstat(file);
+    if (!lst || lst.isSymbolicLink() || !lst.isFile()) {
+        throwBackupDir('backup-dir marker is not a regular file', 'backup-dir-exists');
+    }
+    fs.chmodSync(file, 0o600);
+}
+
+function ensureBackupDir(resolved) {
+    const lst = existsLstat(resolved);
+    if (lst) {
+        assertReusableBackupDir(resolved);
+        return { created: false, dir: resolved };
+    }
+    fs.mkdirSync(resolved, { recursive: false, mode: 0o700 });
+    let fd;
+    try {
+        fd = openBackupDir(resolved);
+        const st = fs.fstatSync(fd);
+        if (!st.isDirectory()) {
+            throwBackupDir('backup-dir must be a directory', 'backup-dir-not-dir');
+        }
+        if (typeof process.getuid === 'function' && st.uid !== process.getuid()) {
+            throwBackupDir('backup-dir must be owned by the current user', 'backup-dir-owner');
+        }
+        fs.fchmodSync(fd, 0o700);
+    } catch (err) {
+        if (err && err.code && String(err.code).indexOf('backup-dir-') === 0) throw err;
+        if (err && (err.code === 'ELOOP' || err.code === 'ENOTDIR')) {
+            throwBackupDir('backup-dir must not be a symlink', 'backup-dir-symlink');
+        }
+        throw err;
+    } finally {
+        closeFd(fd);
+    }
+    const created = existsLstat(resolved);
+    if (!created || created.isSymbolicLink() || !created.isDirectory()) {
+        throwBackupDir('backup-dir must not be a symlink', 'backup-dir-symlink');
+    }
+    writeMarker(resolved);
+    return { created: true, dir: resolved };
 }
 
 function sanitizeBackupStamp(nowIso) {
@@ -341,6 +484,11 @@ function assertBackupDir(input) {
         const err = new Error('backup-dir must be an absolute path');
         err.code = 'backup-dir-relative';
         throw err;
+    }
+    const rawResolved = path.resolve(raw);
+    const self = existsLstat(rawResolved);
+    if (self && self.isSymbolicLink()) {
+        throwBackupDir('backup-dir must not be a symlink', 'backup-dir-symlink');
     }
     const resolved = resolveExisting(raw);
     if (isPathInside(repoRoot(), resolved)) {
@@ -399,20 +547,23 @@ function assertBackupDir(input) {
     }
     const state = inspectBackupDir(resolved);
     if (state === 'not-dir') {
-        const err = new Error('backup-dir must be a directory');
-        err.code = 'backup-dir-not-dir';
-        throw err;
+        throwBackupDir('backup-dir must be a directory', 'backup-dir-not-dir');
+    }
+    if (state === 'symlink') {
+        throwBackupDir('backup-dir must not be a symlink', 'backup-dir-symlink');
     }
     if (state === 'not-empty') {
-        const err = new Error('backup-dir must be a new empty dedicated directory');
-        err.code = 'backup-dir-not-empty';
-        throw err;
+        throwBackupDir('backup-dir must be a new empty dedicated directory', 'backup-dir-not-empty');
+    }
+    if (state === 'empty' || state === 'unmarked') {
+        throwBackupDir('backup-dir already exists; pass a new path, or reuse a directory this tool created', 'backup-dir-exists');
+    }
+    if (state === 'marked') {
+        assertReusableBackupDir(resolved);
     }
     const parent = path.dirname(resolved);
-    if (!fs.existsSync(parent)) {
-        const err = new Error('backup-dir parent must already exist');
-        err.code = 'backup-dir-parent';
-        throw err;
+    if (state === 'missing' && !fs.existsSync(parent)) {
+        throwBackupDir('backup-dir parent must already exist', 'backup-dir-parent');
     }
     return resolved;
 }
@@ -459,6 +610,7 @@ function prepareRun(argv, env, log) {
         env: env,
         backupDir: args.backupDir,
     });
+    if (args.apply && backupDir) say(log, 'backup-dir=' + path.resolve(backupDir));
     return {
         help: false,
         apply: args.apply,
@@ -552,23 +704,7 @@ async function listCollection(db, name, documentIdField) {
 
 function writeBackup(dir, docs, nowIso) {
     const resolved = assertBackupDir(dir);
-    const state = inspectBackupDir(resolved);
-    if (state === 'not-dir') {
-        const err = new Error('backup-dir must be a directory');
-        err.code = 'backup-dir-not-dir';
-        throw err;
-    }
-    if (state === 'not-empty') {
-        const err = new Error('backup-dir must be a new empty dedicated directory');
-        err.code = 'backup-dir-not-empty';
-        throw err;
-    }
-    if (state === 'missing') {
-        fs.mkdirSync(resolved, { recursive: false, mode: 0o700 });
-        fs.chmodSync(resolved, 0o700);
-    } else if (state === 'empty') {
-        fs.chmodSync(resolved, 0o700);
-    }
+    ensureBackupDir(resolved);
     const stamp = sanitizeBackupStamp(nowIso);
     const file = uniqueBackupFile(resolved, stamp);
     const body = JSON.stringify({
@@ -635,21 +771,25 @@ async function runScrub(options) {
             env: opts.env,
             backupDir: opts.backupDir,
         });
+        say(log, 'backup-dir=' + path.resolve(backupDir));
     }
     const markerRef = db.collection(marker.collection).doc(marker.id);
     const markerSnap = await markerRef.get();
     const markerData = markerSnap && markerSnap.exists && markerSnap.data ? (markerSnap.data() || {}) : null;
     if (markerData && markerData.applied === true) {
         say(log, 'already-applied collection=' + marker.collection + ' id=' + marker.id);
+        if (apply && backupDir) say(log, 'backup-dir=' + path.resolve(backupDir));
         return { alreadyApplied: true, affected: 0, rehosted: 0, removed: 0, wrote: false };
     }
 
     const affected = [];
+    let alreadyScrubbed = 0;
     for (let i = 0; i < collections.length; i++) {
         const name = collections[i];
         const rows = await opts.listDocs(name);
         for (let r = 0; r < rows.length; r++) {
             const row = rows[r];
+            if (row.data && row.data.mediaRemoved === true) alreadyScrubbed += 1;
             if (!guard.findTelegramBotMaterial(row.data)) continue;
             affected.push({ collection: name, id: row.id, data: row.data });
         }
@@ -669,42 +809,58 @@ async function runScrub(options) {
         return { alreadyApplied: false, affected: affected.length, rehosted: 0, removed: 0, wrote: false };
     }
 
-    const backupFile = writeBackup(backupDir, affected, opts.nowIso || new Date().toISOString());
-    say(log, 'backup-written bytes=' + fs.statSync(backupFile).size);
-
-    let rehosted = 0;
-    let removed = 0;
-    for (let i = 0; i < affected.length; i++) {
-        const row = affected[i];
-        const result = await scrubDocument(row.data, opts.rehost);
-        if (!result) continue;
-        guard.assertFirestoreSafe(result.patch);
-        await opts.updateDoc(row.collection, row.id, result.patch);
-        rehosted += result.rehosted;
-        removed += result.removed;
-        const action = result.removed ? 'removed' : 'rehosted';
-        say(log, 'updated=' + row.collection + '/' + row.id + ' action=' + action);
+    const resolvedDir = path.resolve(backupDir);
+    const existedBefore = !!existsLstat(resolvedDir);
+    if (!existedBefore) {
+        say(log, 'new backup-dir ' + resolvedDir + '. after a partial failure, re-run with this same --backup-dir.');
+        if (alreadyScrubbed > 0) {
+            say(log, 'WARNING: some documents already have mediaRemoved set. If this is a retry after a partial failure, re-run with the SAME --backup-dir from the first run. A new directory only backs up remaining documents.');
+        }
     }
 
-    const markerBody = {
-        applied: true,
-        appliedAt: opts.nowIso || new Date().toISOString(),
-        collections: collections,
-        affected: affected.length,
-        rehosted: rehosted,
-        removed: removed,
-    };
-    guard.assertFirestoreSafe(markerBody);
-    await markerRef.set(markerBody);
-    say(log, 'applied affected=' + affected.length + ' rehosted=' + rehosted + ' removed=' + removed);
-    return {
-        alreadyApplied: false,
-        affected: affected.length,
-        rehosted: rehosted,
-        removed: removed,
-        wrote: true,
-        backupFile: backupFile,
-    };
+    try {
+        const backupFile = writeBackup(backupDir, affected, opts.nowIso || new Date().toISOString());
+        say(log, 'backup-written bytes=' + fs.statSync(backupFile).size);
+
+        let rehosted = 0;
+        let removed = 0;
+        for (let i = 0; i < affected.length; i++) {
+            const row = affected[i];
+            const result = await scrubDocument(row.data, opts.rehost);
+            if (!result) continue;
+            guard.assertFirestoreSafe(result.patch);
+            await opts.updateDoc(row.collection, row.id, result.patch);
+            rehosted += result.rehosted;
+            removed += result.removed;
+            const action = result.removed ? 'removed' : 'rehosted';
+            say(log, 'updated=' + row.collection + '/' + row.id + ' action=' + action);
+        }
+
+        const markerBody = {
+            applied: true,
+            appliedAt: opts.nowIso || new Date().toISOString(),
+            collections: collections,
+            affected: affected.length,
+            rehosted: rehosted,
+            removed: removed,
+        };
+        guard.assertFirestoreSafe(markerBody);
+        await markerRef.set(markerBody);
+        say(log, 'applied affected=' + affected.length + ' rehosted=' + rehosted + ' removed=' + removed);
+        say(log, 'backup-dir=' + resolvedDir);
+        return {
+            alreadyApplied: false,
+            affected: affected.length,
+            rehosted: rehosted,
+            removed: removed,
+            wrote: true,
+            backupFile: backupFile,
+        };
+    } catch (err) {
+        say(log, 'backup-dir=' + resolvedDir);
+        say(log, 'partial failure. re-run with the SAME --backup-dir ' + resolvedDir);
+        throw err;
+    }
 }
 
 function extensionForUpload(url, mime) {
@@ -852,6 +1008,7 @@ module.exports = {
     assertBackupDir: assertBackupDir,
     assertApplyAllowed: assertApplyAllowed,
     prepareRun: prepareRun,
+    BACKUP_DIR_MARKER: BACKUP_DIR_MARKER,
 };
 
 if (require.main === module) {
