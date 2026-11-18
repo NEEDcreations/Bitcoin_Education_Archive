@@ -154,8 +154,16 @@ test('names: staff and brand names are replaced, with look-alikes and case folde
         '603btc', '603BTC', '6o3btc'].forEach(function (n) {
         assert.strictEqual(pvpFlow.guestBattleName(n), pvpFlow.GUEST_FALLBACK_NAME, n);
     });
-    ['alice', 'Satoshi', 'philosopher', 'modern', 'Hodler 21'].forEach(function (n) {
+    ['alice', 'Satoshi', 'philosopher', 'modern', 'Hodler 21', 'bqfan'].forEach(function (n) {
         assert.notStrictEqual(pvpFlow.guestBattleName(n), pvpFlow.GUEST_FALLBACK_NAME, n);
+    });
+});
+test('names: rufus and 603btc stay substring-blocked for guest battle names only', function () {
+    // Username policy treats rufus and 603btc as whole names (rufusfan is
+    // allowed as a username). Guest battle names keep the existing substring
+    // policy, so rufusfan and 603btcfoo are still replaced.
+    ['rufusfan', 'RUFU5fan', 'xx603btc', '603BTCfoo'].forEach(function (n) {
+        assert.strictEqual(pvpFlow.guestBattleName(n), pvpFlow.GUEST_FALLBACK_NAME, n);
     });
 });
 test('names: markup and quote characters are stripped like the rules refuse them', function () {

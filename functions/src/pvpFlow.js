@@ -1,5 +1,7 @@
 'use strict';
 
+const reservedNames = require('./reservedNames');
+
 // Pure PvP decisions: lobby shouts, alert cooldown, push cap, grading, rewards.
 // No Firebase. index.js and pvpResolve.js apply these inside transactions.
 
@@ -512,27 +514,16 @@ function planRateWindow(existing, nowMs, maxCount, windowMs) {
 
 // ---- Guest battle names ----
 // Guests pick their own battle name. Staff and brand names are refused, after
-// folding case, accents, look-alike letters and digit swaps.
-const CONFUSABLE = {
-    '0': 'o', '1': 'i', '!': 'i', '|': 'i', 'l': 'i', '3': 'e', '4': 'a', '@': 'a',
-    '5': 's', '$': 's', '7': 't', '8': 'b', '9': 'g', '2': 'z', '6': 'g',
-    'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x', 'і': 'i',
-    'ј': 'j', 'ѕ': 's', 'һ': 'h', 'ԁ': 'd', 'ո': 'n', 'м': 'm', 'т': 't', 'в': 'b', 'н': 'h', 'к': 'k',
-    'α': 'a', 'ο': 'o', 'ε': 'e', 'ι': 'i', 'ν': 'v', 'ρ': 'p', 'τ': 't', 'κ': 'k', 'η': 'n', 'μ': 'm',
-};
-function foldName(name) {
-    let s = String(name || '');
-    try { s = s.normalize('NFKD'); } catch (e) {}
-    s = s.replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    let out = '';
-    for (const ch of s) out += Object.prototype.hasOwnProperty.call(CONFUSABLE, ch) ? CONFUSABLE[ch] : ch;
-    return out.replace(/[^a-z]/g, '');
-}
-// Refused anywhere in the name.
+// folding case, accents, look-alike letters and digit swaps. foldName and the
+// staff exact list live in reservedNames.js, shared with usernamePolicy.
+const foldName = reservedNames.foldName;
+// Refused anywhere in the name. rufus and 603btc stay on this substring list
+// (existing guest-name policy); username picks treat those two as whole names.
 const RESERVED_ANYWHERE = ['needcreations', 'bitcoinquest', 'bitcoineducation', 'rufus', 'nacho',
     'admin', 'moderator', 'staff', 'support', 'official', 'system', 'satoshisfavor', '603btc'];
 // Refused as the whole name (after a real/the/official prefix or suffix).
-const RESERVED_WHOLE = ['phil', 'mod', 'mods', 'bq', 'team', 'dev', 'owner', 'founder', 'bot'];
+// The shared staff list (phil, rufus, bq, 603btc) is included here.
+const RESERVED_WHOLE = ['mod', 'mods', 'team', 'dev', 'owner', 'founder', 'bot'].concat(reservedNames.STAFF_RESERVED_EXACT);
 const RESERVED_ANYWHERE_F = RESERVED_ANYWHERE.map(foldName);
 const RESERVED_WHOLE_F = RESERVED_WHOLE.map(foldName);
 const AFFIX_F = ['real', 'the', 'its', 'iam', 'official', 'team', 'hq', 'bot', 'here'].map(foldName);
