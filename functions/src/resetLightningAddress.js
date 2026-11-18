@@ -77,7 +77,6 @@ function createResetHandlers(deps) {
     }
 
     async function resetLightningAddressOnce(data, context) {
-        await requireSecondFactor(data, context);
         if (!context || !context.auth || !context.auth.uid) {
             throw new HttpsError('unauthenticated', 'Must be signed in');
         }
@@ -87,10 +86,13 @@ function createResetHandlers(deps) {
             throw new HttpsError('permission-denied', 'Account required.');
         }
         // Same recent-signin window as email change and account deletion.
-        // A fresh authenticator code is still required when 2FA is on.
+        // Guest and recent-signin checks run first so a stale session does
+        // not consume a fresh authenticator proof. A fresh code is still
+        // required when 2FA is on.
         if (!authTimeOk(context.auth, nowSec())) {
             throw new HttpsError('failed-precondition', SIGN_IN_AGAIN);
         }
+        await requireSecondFactor(data, context);
 
         const uid = context.auth.uid;
         const userRef = db.collection('users').doc(uid);

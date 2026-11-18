@@ -117,13 +117,15 @@ function signedIn(uid, authTime) {
 
 function handlers(mem, resolve) {
     const calls = [];
+    const stepUpCalls = [];
     return {
         calls: calls,
+        stepUpCalls: stepUpCalls,
         api: createResetHandlers({
             db: mem.db,
             admin: admin,
             verifyTurnstile: async function () { return true; },
-            requireSecondFactor: async function () {},
+            requireSecondFactor: async function () { stepUpCalls.push(1); },
             nowSec: function () { return NOW_SEC; },
             resolveLnurlInvoice: async function (opts) {
                 calls.push(opts);
@@ -249,6 +251,7 @@ queue.push(test('a broken address can be replaced once and the marker stores the
     assert.strictEqual(mem.store['ln_resets/user1'].ln_reset_used.ts, 1);
     assert.ok(JSON.stringify(mem.store['ln_resets/user1']).indexOf('fresh@') === -1);
     assert.strictEqual(mem.store['lightning_addresses/fresh@blink.sv'].uid, 'user1');
+    assert.ok(h.stepUpCalls.length >= 1);
     const again = await h.api.resetLightningAddressOnce({
         lightningAddress: 'other@speed.app',
         turnstileToken: 'ok',
@@ -272,6 +275,7 @@ queue.push(test('a session without a recent sign-in cannot reset the address', a
     assert.strictEqual(err.code, 'failed-precondition');
     assert.ok(String(err.message).indexOf('Sign in again') !== -1);
     assert.strictEqual(h.calls.length, 0);
+    assert.strictEqual(h.stepUpCalls.length, 0);
     assert.ok(!mem.store['users/user1'].lightningAddress);
     assert.ok(!mem.store['ln_resets/user1']);
 }));
@@ -294,6 +298,7 @@ queue.push(test('a session with no sign-in time cannot reset the address', async
     assert.strictEqual(err.code, 'failed-precondition');
     assert.ok(String(err.message).indexOf('Sign in again') !== -1);
     assert.strictEqual(h.calls.length, 0);
+    assert.strictEqual(h.stepUpCalls.length, 0);
     assert.ok(!mem.store['ln_resets/user1']);
 }));
 
@@ -310,6 +315,48 @@ queue.push(test('a sign-in at the window edge can still reach the address checks
     assert.strictEqual(out.address, 'fresh@walletofsatoshi.com');
     assert.strictEqual(mem.store['users/user1'].lightningAddress, 'fresh@walletofsatoshi.com');
     assert.ok(mem.store['ln_resets/user1'].ln_reset_used);
+    assert.strictEqual(h.stepUpCalls.length, 1);
+}));
+
+
+queue.push(test('an anonymous session is refused before the authenticator step', async function () {
+    const mem = memDb({
+        'users/user1': { emailVerified: true, providers: ['google.com'] },
+    });
+    const h = handlers(mem, async function () { return { pr: 'lnbc', domain: 'walletofsatoshi.com' }; });
+    const ctx = signedIn('user1');
+    ctx.auth.token.firebase.sign_in_provider = 'anonymous';
+    let err = null;
+    try {
+        await h.api.resetLightningAddressOnce({
+            lightningAddress: 'fresh@walletofsatoshi.com',
+            turnstileToken: 'ok',
+        }, ctx);
+    } catch (e) { err = e; }
+    assert.ok(err, 'expected refusal');
+    assert.strictEqual(err.code, 'permission-denied');
+    assert.ok(String(err.message).indexOf('Account required') !== -1);
+    assert.strictEqual(h.stepUpCalls.length, 0);
+    assert.strictEqual(h.calls.length, 0);
+    assert.ok(!mem.store['ln_resets/user1']);
+}));
+
+queue.push(test('a signed-out call is refused before the authenticator step', async function () {
+    const mem = memDb({
+        'users/user1': { emailVerified: true, providers: ['google.com'] },
+    });
+    const h = handlers(mem, async function () { throw new Error('should not fetch'); });
+    let err = null;
+    try {
+        await h.api.resetLightningAddressOnce({
+            lightningAddress: 'fresh@walletofsatoshi.com',
+            turnstileToken: 'ok',
+        }, {});
+    } catch (e) { err = e; }
+    assert.ok(err, 'expected refusal');
+    assert.strictEqual(err.code, 'unauthenticated');
+    assert.strictEqual(h.stepUpCalls.length, 0);
+    assert.strictEqual(h.calls.length, 0);
 }));
 
 queue.push(test('rules deny client address edits once one is saved, and the reset doc is server-only', function () {
@@ -330,6 +377,15 @@ queue.push(test('rules deny client address edits once one is saved, and the rese
     assert.ok(index.indexOf("requireFreshStepUp(secondFactor.stamp(data, context), 'resetLightningAddress')") > 0);
     assert.ok(resetSrc.indexOf('authTimeOk(context.auth, nowSec())') > 0);
     assert.ok(resetSrc.indexOf('REAUTH_MAX_AGE_SEC') > 0);
+    const handlerAt = resetSrc.indexOf('async function resetLightningAddressOnce');
+    const handlerEnd = resetSrc.indexOf('\n    return { resetLightningAddressOnce', handlerAt);
+    const handlerBody = resetSrc.slice(handlerAt, handlerEnd);
+    const anonAt = handlerBody.indexOf("provider === 'anonymous'");
+    const authAt = handlerBody.indexOf('authTimeOk(context.auth, nowSec())');
+    const stepAt = handlerBody.indexOf('await requireSecondFactor(data, context)');
+    assert.ok(handlerAt > 0 && handlerEnd > handlerAt);
+    assert.ok(anonAt > 0 && authAt > anonAt && stepAt > authAt);
+    assert.ok(handlerBody.indexOf("payoutAlerts.emit") > 0);
     const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
     const callAt = ranking.indexOf('function _callResetLightning');
     assert.ok(callAt > 0);
