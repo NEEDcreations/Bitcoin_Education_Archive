@@ -266,6 +266,305 @@ function censorText(text) {
         try { _log.apply(console, arguments); } catch (e) {}
     };
 })();
+// Guest access: one shared place for "is this player a guest?", the quiet
+// guest sign-in a mini app uses when it needs a uid, and the guest notices.
+// A guest is a visitor with no auth or a Firebase anonymous session. Guests can
+// play every mini app. Rewards (XP, badges, OrangeTix, sats) and chat need a
+// login. The server enforces that; these notices only explain it.
+// Every notice opens the existing sign-in entry point (showSignInPrompt).
+;(function (root) {
+    'use strict';
+    var win = (typeof window !== 'undefined') ? window : root;
+
+    var COPY = {
+        banner: 'Playing as a guest. Log in to earn XP, badges, OrangeTix and sats, and to chat.',
+        tctv: 'Sign in to earn XP, badges and sats while you watch, and to join the chat.',
+        chat: 'Sign in to chat',
+        link: 'Log in to connect an account or wallet.',
+        // Shown only where a reward would appear after a result. {n} is the amount.
+        reward: '+{n} XP if logged in',
+        // Same rule for a non-XP prize (tickets, items) after a result.
+        prize: '{prize} if logged in',
+        login: 'Log in',
+        dismiss: 'Dismiss'
+    };
+
+    var PROGRESS_KEY = 'btc_guest_progress_v1';
+    var BANNER_KEY = 'btc_guest_banner_seen_v1';
+
+    function getAuth() {
+        try { if (typeof win.auth !== 'undefined' && win.auth) return win.auth; } catch (e) {}
+        try { if (typeof firebase !== 'undefined' && firebase.auth) return firebase.auth(); } catch (e2) {}
+        return null;
+    }
+
+    function currentAuthUser() {
+        var a = getAuth();
+        return a && a.currentUser ? a.currentUser : null;
+    }
+
+    // No user, or an anonymous one, is a guest.
+    function isGuest(user) {
+        var u = arguments.length ? user : currentAuthUser();
+        return !u || u.isAnonymous === true;
+    }
+
+    function openSignIn() {
+        if (typeof win.showSignInPrompt === 'function') { win.showSignInPrompt(); return true; }
+        if (typeof win.showUsernamePrompt === 'function') { win.showUsernamePrompt(); return true; }
+        return false;
+    }
+
+    function toast(msg) {
+        if (typeof win.showToast === 'function') { try { win.showToast(msg); } catch (e) {} }
+    }
+
+    // Account links (wallet, Lightning address, Strava) need a login.
+    // Returns true when the caller may continue.
+    function requireLogin(message) {
+        if (!isGuest()) return true;
+        toast(message || COPY.link);
+        openSignIn();
+        return false;
+    }
+
+    var _pending = null;
+    var state = { anonDisabled: false, lastError: '' };
+
+    // A mini app that needs a uid calls this. A visitor with no auth gets a
+    // quiet anonymous session. It never runs while an email link or account
+    // link hold is in progress, and never replaces a real session.
+    function ensureGuestSession(appId) {
+        var a = getAuth();
+        if (!a) return Promise.resolve(null);
+        if (a.currentUser) return Promise.resolve(a.currentUser);
+        try {
+            if (typeof win.anonymousSignInBlockedNow === 'function' && win.anonymousSignInBlockedNow()) return Promise.resolve(null);
+        } catch (e) { return Promise.resolve(null); }
+        if (state.anonDisabled || typeof a.signInAnonymously !== 'function') return Promise.resolve(null);
+        if (_pending) return _pending;
+        state.app = String(appId || '').slice(0, 40);
+        _pending = Promise.resolve().then(function () { return a.signInAnonymously(); }).then(function (cred) {
+            _pending = null;
+            return (cred && cred.user) || a.currentUser || null;
+        }, function (err) {
+            _pending = null;
+            var code = err && err.code ? String(err.code) : '';
+            state.lastError = code;
+            // Anonymous sign-in switched off in Firebase Auth. Report, do not retry.
+            if (code === 'auth/operation-not-allowed' || code === 'auth/admin-restricted-operation') state.anonDisabled = true;
+            return null;
+        });
+        return _pending;
+    }
+
+    function storage(kind) {
+        try { return kind === 'session' ? win.sessionStorage : win.localStorage; } catch (e) { return null; }
+    }
+
+    function el(tag, css, text) {
+        var d = win.document.createElement(tag);
+        if (css) d.style.cssText = css;
+        if (text != null) d.textContent = text;
+        return d;
+    }
+
+    function loginButton() {
+        var b = el('button', 'background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:0.75rem;font-weight:700;cursor:pointer;flex-shrink:0;', COPY.login);
+        b.type = 'button';
+        b.setAttribute('data-guest-login', '1');
+        b.onclick = function (ev) { if (ev && ev.stopPropagation) ev.stopPropagation(); openSignIn(); };
+        return b;
+    }
+
+    // Shown once per session per app, at the top of the app. Logged-in players never see it.
+    function shouldShowBanner(appId) {
+        if (!isGuest()) return false;
+        var s = storage('session');
+        var key = BANNER_KEY + ':' + String(appId || 'app');
+        try { if (s && s.getItem(key) === '1') return false; } catch (e) {}
+        return true;
+    }
+
+    function markBannerSeen(appId) {
+        var s = storage('session');
+        try { if (s) s.setItem(BANNER_KEY + ':' + String(appId || 'app'), '1'); } catch (e) {}
+    }
+
+    function mountBanner(host, appId) {
+        if (!host || !win.document || !shouldShowBanner(appId)) return null;
+        if (host.querySelector && host.querySelector('[data-guest-banner]')) return null;
+        var box = el('div', 'display:flex;align-items:center;gap:10px;background:var(--accent-bg);border:1px dashed var(--accent);border-radius:10px;padding:8px 12px;margin:0 0 12px;font-size:0.78rem;line-height:1.35;color:var(--text);');
+        box.setAttribute('data-guest-banner', String(appId || 'app'));
+        box.setAttribute('role', 'note');
+        box.appendChild(el('div', 'flex:1;', COPY.banner));
+        box.appendChild(loginButton());
+        var x = el('button', 'background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:0 2px;', '\u00d7');
+        x.type = 'button';
+        x.setAttribute('aria-label', COPY.dismiss);
+        x.onclick = function () { if (box.parentNode) box.parentNode.removeChild(box); };
+        box.appendChild(x);
+        if (host.firstChild) host.insertBefore(box, host.firstChild); else host.appendChild(box);
+        markBannerSeen(appId);
+        return box;
+    }
+
+    // Timechain TV: a small line under the player. It never covers or pauses the stream.
+    function mountTctvNote(playerEl) {
+        if (!playerEl || !playerEl.parentNode || !isGuest()) return null;
+        var next = playerEl.nextSibling;
+        if (next && next.getAttribute && next.getAttribute('data-guest-tctv') === '1') return next;
+        var note = el('div', 'display:flex;align-items:center;justify-content:center;gap:8px;font-size:0.72rem;color:var(--text-muted);padding:6px 4px;');
+        note.setAttribute('data-guest-tctv', '1');
+        note.setAttribute('role', 'note');
+        note.appendChild(el('span', '', COPY.tctv));
+        var link = el('button', 'background:none;border:none;color:var(--accent);font-weight:700;font-size:0.72rem;cursor:pointer;padding:0;', COPY.login);
+        link.type = 'button';
+        link.onclick = function () { openSignIn(); };
+        note.appendChild(link);
+        playerEl.parentNode.insertBefore(note, next);
+        return note;
+    }
+
+    // Chat inputs: guests see "Sign in to chat" and tapping opens sign-in.
+    // The server rules block guest chat writes on their own; this is the UI.
+    function gateChatInput(input, sendBtn) {
+        if (!input) return false;
+        if (!isGuest()) {
+            if (input.getAttribute && input.getAttribute('data-guest-chat') === '1') {
+                input.disabled = false;
+                input.removeAttribute('data-guest-chat');
+                if (input._guestPlaceholder != null) input.placeholder = input._guestPlaceholder;
+                if (sendBtn) sendBtn.disabled = false;
+            }
+            return false;
+        }
+        if (input._guestPlaceholder == null) input._guestPlaceholder = input.placeholder || '';
+        input.placeholder = COPY.chat;
+        input.readOnly = true;
+        input.setAttribute('data-guest-chat', '1');
+        input.setAttribute('aria-label', COPY.chat);
+        input.onfocus = function () { if (isGuest()) { input.blur && input.blur(); openSignIn(); } };
+        if (sendBtn) sendBtn.disabled = true;
+        return true;
+    }
+
+    // Per-result note where a reward would show. Never a popup during play.
+    function rewardText(n) {
+        var amt = Math.max(0, Math.floor(Number(n) || 0));
+        return COPY.reward.replace('{n}', String(amt));
+    }
+
+    function prizeText(label) {
+        var p = String(label == null ? '' : label).replace(/[\u0000-\u001f<>]/g, '').slice(0, 60).trim();
+        return p ? COPY.prize.replace('{prize}', p) : '';
+    }
+
+    function noteBox(text) {
+        if (!win.document || !text) return null;
+        var box = el('div', 'display:inline-flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--text-muted);margin-top:6px;');
+        box.setAttribute('data-guest-reward', '1');
+        box.appendChild(el('span', '', text));
+        box.appendChild(loginButton());
+        return box;
+    }
+
+    function rewardNote(n) { return noteBox(rewardText(n)); }
+    function prizeNote(label) { return noteBox(prizeText(label)); }
+
+    // ---- Guest learning progress (device only) ----
+    // A guest's completions are stored on this device with guestCompleted set.
+    // They never pay. On sign-up they move to the account as progress, and each
+    // item still pays the first time it is completed while logged in. The
+    // server decides that payment from its own records, never from this list.
+    function readProgress() {
+        var s = storage('local');
+        var raw = null;
+        try { raw = s ? s.getItem(PROGRESS_KEY) : null; } catch (e) { raw = null; }
+        var obj = {};
+        try { obj = raw ? JSON.parse(raw) : {}; } catch (e2) { obj = {}; }
+        return obj && typeof obj === 'object' && !Array.isArray(obj) ? obj : {};
+    }
+
+    function cleanKey(key) {
+        var k = String(key || '').replace(/[^A-Za-z0-9_:.\-]/g, '').slice(0, 120);
+        return k;
+    }
+
+    function recordGuestCompletion(key) {
+        if (!isGuest()) return false;
+        var k = cleanKey(key);
+        if (!k) return false;
+        var all = readProgress();
+        if (all[k]) return true;
+        if (Object.keys(all).length >= 2000) return false;
+        all[k] = { guestCompleted: true, at: Date.now() };
+        var s = storage('local');
+        try { if (s) s.setItem(PROGRESS_KEY, JSON.stringify(all)); } catch (e) { return false; }
+        return true;
+    }
+
+    function guestCompleted(key) {
+        var row = readProgress()[cleanKey(key)];
+        return !!(row && row.guestCompleted === true);
+    }
+
+    // Progress to show on the new account. Only keys and the guestCompleted
+    // flag move. No amounts, no XP, no rewards.
+    function progressForMerge() {
+        var all = readProgress();
+        var out = {};
+        Object.keys(all).forEach(function (k) {
+            var ck = cleanKey(k);
+            if (ck && all[k] && all[k].guestCompleted === true) out[ck] = { guestCompleted: true };
+        });
+        return out;
+    }
+
+    // Does a logged-in completion of this item pay? guestCompleted never blocks
+    // it. Only a server record that this account was already paid does.
+    function paysWhenLoggedIn(key, serverPaid) {
+        if (isGuest()) return false;
+        var k = cleanKey(key);
+        if (!k) return false;
+        if (serverPaid && typeof serverPaid === 'object') {
+            if (Array.isArray(serverPaid)) return serverPaid.indexOf(k) < 0;
+            return !serverPaid[k];
+        }
+        return true;
+    }
+
+    var api = {
+        COPY: COPY,
+        isGuest: isGuest,
+        ensureGuestSession: ensureGuestSession,
+        openSignIn: openSignIn,
+        requireLogin: requireLogin,
+        shouldShowBanner: shouldShowBanner,
+        mountBanner: mountBanner,
+        mountTctvNote: mountTctvNote,
+        gateChatInput: gateChatInput,
+        rewardText: rewardText,
+        rewardNote: rewardNote,
+        prizeText: prizeText,
+        prizeNote: prizeNote,
+        progress: {
+            record: recordGuestCompletion,
+            guestCompleted: guestCompleted,
+            forMerge: progressForMerge,
+            paysWhenLoggedIn: paysWhenLoggedIn,
+            KEY: PROGRESS_KEY
+        },
+        state: state
+    };
+
+    if (typeof module !== 'undefined' && module.exports) module.exports = api;
+    if (win) {
+        win.bqGuest = api;
+        win.isGuest = isGuest;
+        win.ensureGuestSession = ensureGuestSession;
+    }
+})(this);
 // One display formula for raid boss health.
 // Server docs store damage dealt in `current` and max HP in `target`.
 // Every remaining-HP label and health bar uses this helper.
@@ -3227,6 +3526,8 @@ const TICKET_CONFIG = {
 function getReferralCode() {
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
     var authUser = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? auth.currentUser : null;
+    // Guests share without a referral code. Only logged-in accounts refer.
+    if (!authUser) return null;
     if (!user && !authUser) return null;
     // Prefer the code the server stored on the user doc. Fall back to the
     // uid prefix, which is the same code ensureReferralCode writes.
@@ -3247,6 +3548,8 @@ function getReferralLink() {
 
 function liveRefCode() {
     var code = '';
+    // Guest share links carry no referral code.
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return '';
     try {
         if (typeof getReferralCode === 'function') code = String(getReferralCode() || '');
     } catch (e) { code = ''; }
@@ -15184,12 +15487,8 @@ window.showNachoStory = function(chapterOverride) {
 
 // ---- Price Prediction Game ----
 window.showPricePrediction = function() {
-    // Auth gate — must be signed in to predict
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showSignInPrompt === 'function') showSignInPrompt();
-        else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
-        return;
-    }
+    // Guests can play. Their pick stays on this device and is never scored or
+    // saved to the server, so nothing banks. Only logged-in picks earn XP.
     var currentPrice = parseFloat(localStorage.getItem('btc_last_price')) || 0;
     if (!currentPrice && typeof _lastWsPrice !== 'undefined' && _lastWsPrice) { currentPrice = _lastWsPrice; localStorage.setItem('btc_last_price', currentPrice.toString()); }
     if (!currentPrice && typeof _dashData !== 'undefined' && _dashData && _dashData.price) { currentPrice = _dashData.price; localStorage.setItem('btc_last_price', currentPrice.toString()); }
@@ -15357,6 +15656,15 @@ function _paintPredictionCard(card, model, stats) {
             closeBtn;
     }
     _fillPersonalLine(stats);
+    if (typeof window !== 'undefined' && window.bqGuest && window.bqGuest.isGuest()) {
+        window.bqGuest.mountBanner(card, 'prediction');
+        // Where the reward would show: a correct pick pays 25 XP to logged-in players.
+        if (model.mode !== 'form') {
+            var note = window.bqGuest.rewardNote(25);
+            var close = card.querySelector('button');
+            if (note) card.insertBefore(note, close && close.parentNode === card ? close : null);
+        }
+    }
 }
 
 function _fillPersonalLine(stats) {
@@ -15384,7 +15692,8 @@ window._savePrediction = function(direction) {
     var price = parseFloat(localStorage.getItem('btc_last_price')) || 0;
     var prediction = { direction: direction, price: price, time: Date.now(), resolved: false };
     localStorage.setItem('btc_price_prediction', JSON.stringify(prediction));
-    if (typeof showToast === 'function') showToast('🎯 Prediction saved! Check back tomorrow to see if you were right.');
+    var _predGuest = !!(window.bqGuest && window.bqGuest.isGuest());
+    if (typeof showToast === 'function') showToast(_predGuest ? '🎯 Prediction saved on this device. Log in to have it scored for XP.' : '🎯 Prediction saved! Check back tomorrow to see if you were right.');
     if (typeof window._trackCombo === 'function') window._trackCombo('prediction');
     (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_pred_made_'+dk,'1'); })();
     var _predSaved = _syncPredictionToFirestore(prediction);
@@ -21136,11 +21445,15 @@ document.addEventListener('btcProfileSaved', function() {
             if (typeof showToast === 'function') showToast('Daily Spin is in Settings → Experience Mode (Balanced or Everything).');
             return;
         }
-        // Auth gate — must be signed in to spin
-        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-            if (typeof showSignInPrompt === 'function') showSignInPrompt();
-            else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
-            return;
+        // Guests can spin for fun. The wheel runs on this device only: no server
+        // call, nothing banks, and the prize shows as "if logged in".
+        var guestSpin = !!(window.bqGuest && window.bqGuest.isGuest());
+        if (guestSpin) {
+            var _gToday = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+            if (localStorage.getItem('btc_guest_spin_date') === _gToday) {
+                if (typeof showToast === 'function') showToast('🎡 You already spun today. Log in to spin for real prizes.');
+                return;
+            }
         }
         // Check if already spun today (bypass for bonus spins from Nook)
         var isBonusSpin = !!window._bonusSpinActive;
@@ -21192,6 +21505,7 @@ document.addEventListener('btcProfileSaved', function() {
             '</div>';
         
         document.body.appendChild(modal);
+        if (guestSpin && window.bqGuest) window.bqGuest.mountBanner(modal.firstChild, 'spin');
         
         // Draw the wheel
         var canvas = document.getElementById('spinCanvas');
@@ -21234,7 +21548,18 @@ document.addEventListener('btcProfileSaved', function() {
 
             // Fire the callable on click. The wheel never picks a prize itself.
             var spinFn = (typeof firebase !== 'undefined' && firebase.functions) ? firebase.functions().httpsCallable('dailySpin') : null;
-            var serverSpinPromise = spinFn ? spinFn({}) : Promise.resolve({ data: null });
+            var serverSpinPromise;
+            if (guestSpin) {
+                // Weighted pick on this device. Shown only, never sent or saved.
+                var _gTotal = 0, _gIdx = 0;
+                segments.forEach(function (sg) { _gTotal += sg.weight; });
+                var _gRoll = Math.random() * _gTotal;
+                for (var _gi = 0; _gi < segments.length; _gi++) { _gRoll -= segments[_gi].weight; if (_gRoll <= 0) { _gIdx = _gi; break; } }
+                try { localStorage.setItem('btc_guest_spin_date', (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0])); } catch (e) {}
+                serverSpinPromise = Promise.resolve({ data: { reward: { rewardIndex: _gIdx, guest: true } } });
+            } else {
+                serverSpinPromise = spinFn ? spinFn({}) : Promise.resolve({ data: null });
+            }
             var clock = window._dailySpinClock;
             var spinState = clock.createState();
             spinState.started = Date.now();
@@ -21368,6 +21693,23 @@ document.addEventListener('btcProfileSaved', function() {
 
             function showSpinReward(reward, selectedIndex) {
                 reward = reward || {};
+                if (reward.guest === true) {
+                    var gLanded = segments[selectedIndex] || segments[0];
+                    var gXp = /(\d+) XP/.exec(gLanded.label);
+                    var gText = (window.bqGuest && gXp) ? window.bqGuest.rewardText(Number(gXp[1])) : (window.bqGuest ? window.bqGuest.prizeText(gLanded.label) : gLanded.label);
+                    resultDiv.innerHTML = '';
+                    var gWrap = document.createElement('div');
+                    gWrap.style.cssText = 'animation:fadeSlideIn 0.5s ease-out;';
+                    var gEmoji = document.createElement('div');
+                    gEmoji.style.cssText = 'font-size:3rem;margin-bottom:8px;';
+                    gEmoji.textContent = gLanded.label.split(' ')[0];
+                    gWrap.appendChild(gEmoji);
+                    var gNote = window.bqGuest ? (gXp ? window.bqGuest.rewardNote(Number(gXp[1])) : window.bqGuest.prizeNote(gLanded.label)) : null;
+                    if (gNote) gWrap.appendChild(gNote);
+                    else { var gT = document.createElement('div'); gT.textContent = gText; gWrap.appendChild(gT); }
+                    resultDiv.appendChild(gWrap);
+                    return;
+                }
                 var rewardText = '';
                 var emoji = '🎡';
                 if (reward.rare) {

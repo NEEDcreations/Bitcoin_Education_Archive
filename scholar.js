@@ -968,6 +968,7 @@ window.startFlashcards = function(topic) {
         </div>`;
 
         document.getElementById('closeFlash').onclick = () => { modal.classList.remove('open'); };
+        if (window.bqGuest) window.bqGuest.mountBanner(inner, 'flashcards');
         document.getElementById('cardFlip').onclick = () => {
             isFlipped = !isFlipped;
             document.getElementById('cardInner').style.transform = isFlipped ? 'rotateY(180deg)' : 'none';
@@ -980,8 +981,22 @@ window.startFlashcards = function(topic) {
                     <p style="color:var(--text-muted);margin-bottom:30px;">You've mastered the <strong>${topic}</strong> deck.</p>
                     <button id="finishDeck" style="padding:16px 40px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-weight:800;font-size:1rem;cursor:pointer;font-family:inherit;box-shadow:0 6px 16px rgba(247,147,26,0.3);">Back to Scholar Tab</button>
                 </div>`;
+                // Guests: the deck counts as done on this device only. No XP or
+                // tickets, and it does not block the first logged-in completion.
+                if (window.bqGuest && window.bqGuest.isGuest()) {
+                    window.bqGuest.progress.record('deck:' + topic);
+                    var _fcG = window.bqGuest.rewardNote(15);
+                    var _fcBtn = document.getElementById('finishDeck');
+                    if (_fcG && _fcBtn && _fcBtn.parentNode) { _fcG.style.display = 'flex'; _fcG.style.justifyContent = 'center'; _fcG.style.marginBottom = '16px'; _fcBtn.parentNode.insertBefore(_fcG, _fcBtn); }
+                }
                 document.getElementById('finishDeck').onclick = () => {
                     var _fcKey = 'btc_fc_done_' + topic.replace(/\s+/g,'_') + '_' + new Date().toISOString().split('T')[0];
+                    if (window.bqGuest && window.bqGuest.isGuest()) {
+                        sessionStorage.setItem('_ch_flashcard', '1');
+                        closeQuest();
+                        if (typeof showSettingsPage === 'function') showSettingsPage('scholar');
+                        return;
+                    }
                     if (!localStorage.getItem(_fcKey)) {
                         localStorage.setItem(_fcKey, '1');
                         if (typeof awardPoints === 'function') awardPoints(15, '📚 Completed ' + topic + ' deck');

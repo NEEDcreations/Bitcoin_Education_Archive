@@ -1006,7 +1006,9 @@ service cloud.firestore {
 
     match /forum_posts/{postId} {
       allow read: if true;
+      // Posting is a chat feature: logged-in accounts only, never anonymous.
       allow create: if clientWritesOk() && (request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.keys().hasAll(['title', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 5
@@ -1050,7 +1052,9 @@ service cloud.firestore {
     // =============================================
     match /forum_replies/{replyId} {
       allow read: if true;
+      // Replying is a chat feature: logged-in accounts only, never anonymous.
       allow create: if clientWritesOk() && (request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.keys().hasAll(['postId', 'body', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2

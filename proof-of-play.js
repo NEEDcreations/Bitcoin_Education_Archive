@@ -532,6 +532,11 @@ window.enterProofOfPlay = function(startTab) {
     document.body.appendChild(overlay);
 
     var body = document.getElementById('popBody');
+    // Guest banner under the header, once per session.
+    if (window.bqGuest) {
+        var _popBanner = window.bqGuest.mountBanner(overlay, 'proof-of-play');
+        if (_popBanner && body) { _popBanner.style.margin = '8px 12px'; overlay.insertBefore(_popBanner, body); }
+    }
     if (startTab === 'pvp') {
         _renderPVPTab(body);
     } else if (startTab === 'sat_arcade') {

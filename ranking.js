@@ -12422,6 +12422,8 @@ function openWithdrawalAddress(opts) {
     opts = opts || {};
     var mode = opts.mode || 'reset';
     var start = opts.start || (mode === 'readonly' ? 'readonly' : 'input');
+    // Saving or changing a Lightning address links a wallet: logged-in accounts only.
+    if (mode === 'reset' && window.bqGuest && !window.bqGuest.requireLogin('Log in to save a Lightning address.')) return Promise.resolve(null);
     return new Promise(function (resolve) {
         var old = document.getElementById('lnAddrModal');
         if (old) old.remove();

@@ -12,6 +12,8 @@ const path = require('path');
 
 const UNVERIFIED_DAILY_CAP = 100;
 const ANON_POINT_CAP = 500;
+// Off by policy (Nov 18, 2026): nothing a guest earns carries over after sign-up.
+const GUEST_MERGE_PAYS = false;
 const FRESH_MS = 24 * 60 * 60 * 1000;
 const CLOCK_SKEW_MS = 60 * 1000;
 
@@ -465,6 +467,10 @@ function confirm(resolved, data, ctx) {
     }
 
     if (resolved.id === 'anon_merge') {
+        // Guest progress never carries over as XP. Learning progress can move
+        // to the account on the device, but it pays only when the player
+        // completes it again while logged in.
+        if (GUEST_MERGE_PAYS !== true) return fail('Guest progress does not carry over');
         const anon = proof.anon || null;
         const row = snapRow(context, 'anon');
         const exists = (anon && anon.exists === true) || !!row;

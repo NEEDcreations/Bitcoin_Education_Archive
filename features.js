@@ -402,12 +402,8 @@ window.showNachoStory = function(chapterOverride) {
 
 // ---- Price Prediction Game ----
 window.showPricePrediction = function() {
-    // Auth gate — must be signed in to predict
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showSignInPrompt === 'function') showSignInPrompt();
-        else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
-        return;
-    }
+    // Guests can play. Their pick stays on this device and is never scored or
+    // saved to the server, so nothing banks. Only logged-in picks earn XP.
     var currentPrice = parseFloat(localStorage.getItem('btc_last_price')) || 0;
     if (!currentPrice && typeof _lastWsPrice !== 'undefined' && _lastWsPrice) { currentPrice = _lastWsPrice; localStorage.setItem('btc_last_price', currentPrice.toString()); }
     if (!currentPrice && typeof _dashData !== 'undefined' && _dashData && _dashData.price) { currentPrice = _dashData.price; localStorage.setItem('btc_last_price', currentPrice.toString()); }
@@ -575,6 +571,15 @@ function _paintPredictionCard(card, model, stats) {
             closeBtn;
     }
     _fillPersonalLine(stats);
+    if (typeof window !== 'undefined' && window.bqGuest && window.bqGuest.isGuest()) {
+        window.bqGuest.mountBanner(card, 'prediction');
+        // Where the reward would show: a correct pick pays 25 XP to logged-in players.
+        if (model.mode !== 'form') {
+            var note = window.bqGuest.rewardNote(25);
+            var close = card.querySelector('button');
+            if (note) card.insertBefore(note, close && close.parentNode === card ? close : null);
+        }
+    }
 }
 
 function _fillPersonalLine(stats) {
@@ -602,7 +607,8 @@ window._savePrediction = function(direction) {
     var price = parseFloat(localStorage.getItem('btc_last_price')) || 0;
     var prediction = { direction: direction, price: price, time: Date.now(), resolved: false };
     localStorage.setItem('btc_price_prediction', JSON.stringify(prediction));
-    if (typeof showToast === 'function') showToast('🎯 Prediction saved! Check back tomorrow to see if you were right.');
+    var _predGuest = !!(window.bqGuest && window.bqGuest.isGuest());
+    if (typeof showToast === 'function') showToast(_predGuest ? '🎯 Prediction saved on this device. Log in to have it scored for XP.' : '🎯 Prediction saved! Check back tomorrow to see if you were right.');
     if (typeof window._trackCombo === 'function') window._trackCombo('prediction');
     (function(){ var d=new Date(); var dk=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); localStorage.setItem('btc_pred_made_'+dk,'1'); })();
     var _predSaved = _syncPredictionToFirestore(prediction);

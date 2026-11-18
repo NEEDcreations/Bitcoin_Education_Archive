@@ -1094,6 +1094,7 @@
         rig = rig || 1;
         if (_satsDisabledNow()) { showToast('Sats are disabled on this account.'); return; }
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (window.bqGuest) { window.bqGuest.requireLogin('Log in to hash and claim sats.'); return; }
             if (typeof showSignInPrompt === 'function') showSignInPrompt();
             else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
             return;
@@ -1721,6 +1722,7 @@
 
         // Check logged in
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (window.bqGuest) { window.bqGuest.requireLogin('Log in to hash and claim sats.'); return; }
             if (typeof showSignInPrompt === 'function') showSignInPrompt();
             else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
             return;

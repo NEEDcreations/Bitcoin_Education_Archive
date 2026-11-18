@@ -96,6 +96,20 @@ function saveProgress(p) {
         db.collection('users').doc(auth.currentUser.uid).update({ trailProgress: p }).catch(function(){});
     }
 }
+// Guests: a trail passed as a guest is kept on this device in its own list.
+// It unlocks the next trail for the guest, never pays, and does not stop the
+// first logged-in pass from paying.
+var STORAGE_GUEST_PASSED = 'btc_trail_guest_passed';
+function trailIsGuest() { return !!(window.bqGuest && window.bqGuest.isGuest()); }
+function getGuestPassed() {
+    try { var a = JSON.parse(localStorage.getItem(STORAGE_GUEST_PASSED) || '[]'); return Array.isArray(a) ? a : []; } catch(e) { return []; }
+}
+function addGuestPassed(id) {
+    var a = getGuestPassed();
+    if (a.indexOf(id) === -1) a.push(id);
+    try { localStorage.setItem(STORAGE_GUEST_PASSED, JSON.stringify(a)); } catch(e) {}
+    if (window.bqGuest) window.bqGuest.progress.record('trail:' + id);
+}
 function getPassed() {
     try { return JSON.parse(localStorage.getItem(STORAGE_PASSED) || '[]'); } catch(e) { return []; }
 }
@@ -156,8 +170,9 @@ function getModuleStatus(mod) {
     var totalChannels = mod.channels.length;
     var visitedCount = mod.channels.filter(function(ch) { return visited.indexOf(ch.id) !== -1; }).length;
     var isComplete = visitedCount >= totalChannels;
-    var isPassed = passed.indexOf(mod.id) !== -1;
-    var isLocked = mod.requires && passed.indexOf(mod.requires) === -1;
+    var guestPassed = getGuestPassed();
+    var isPassed = passed.indexOf(mod.id) !== -1 || guestPassed.indexOf(mod.id) !== -1;
+    var isLocked = mod.requires && passed.indexOf(mod.requires) === -1 && guestPassed.indexOf(mod.requires) === -1;
     return { visited: visited, visitedCount: visitedCount, totalChannels: totalChannels, isComplete: isComplete, isPassed: isPassed, isLocked: isLocked };
 }
 
@@ -298,6 +313,7 @@ window.renderModules = function(container) {
 
     html += '</div></div>';
     fc.innerHTML = html;
+    if (window.bqGuest && fc.firstChild && fc.firstChild.firstChild) window.bqGuest.mountBanner(fc.firstChild.firstChild, 'trails');
 };
 
 // ---- TRAIL EXAM ----
@@ -545,7 +561,12 @@ function renderTrailExamResults() {
     var pct = Math.round((exam.score / exam.total) * 100);
     var passed = pct >= mod.passingScore;
 
-    if (passed) {
+    var trailGuest = trailIsGuest();
+    var showGuestReward = false;
+    if (passed && trailGuest) {
+        showGuestReward = getPassed().indexOf(mod.id) === -1;
+        addGuestPassed(mod.id);
+    } else if (passed) {
         var passedList = getPassed();
         if (passedList.indexOf(mod.id) === -1) {
             passedList.push(mod.id);
@@ -583,7 +604,9 @@ function renderTrailExamResults() {
         exam.score + ' / ' + exam.total + ' (' + pct + '%)</div>';
 
     html += '<p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:24px;line-height:1.6;">';
-    if (passed) {
+    if (passed && trailGuest) {
+        html += 'You passed the ' + mod.name + ' Trail Quest!<br><span id="trailGuestReward"></span>';
+    } else if (passed) {
         html += 'You\'ve earned the <strong style="color:' + mod.color + ';">' + mod.badgeName + '</strong> badge!<br>' +
             '+' + mod.pointsReward + ' points · +🎫 ' + mod.ticketReward + ' tickets';
     } else {
@@ -616,6 +639,8 @@ function renderTrailExamResults() {
 
     fc.innerHTML = html;
     fc.scrollTop = 0;
+    var _tg = document.getElementById('trailGuestReward');
+    if (_tg && showGuestReward && window.bqGuest) { var _tn = window.bqGuest.rewardNote(mod.pointsReward); if (_tn) _tg.appendChild(_tn); }
 }
 
 // Review wrong answers in Nacho Mode

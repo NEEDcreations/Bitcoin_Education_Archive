@@ -514,6 +514,7 @@ function renderConnected() {
 // ─── Connection Actions ──────────────────────────────────
 
 window.lnConnectWebLN = async function() {
+    if (window.bqGuest && !window.bqGuest.requireLogin('Log in to connect a wallet.')) return;
     var st = document.getElementById('weblnStatus');
     try {
         st.innerHTML = '<span style="color:var(--accent);">⏳ Connecting…</span>';
@@ -526,6 +527,7 @@ window.lnConnectWebLN = async function() {
 };
 
 window.lnConnectNWC = async function() {
+    if (window.bqGuest && !window.bqGuest.requireLogin('Log in to connect a wallet.')) return;
     var uri = document.getElementById('nwcUri');
     var st = document.getElementById('nwcStatus');
     if (!uri || !uri.value.trim()) { st.innerHTML = '<span style="color:#ef4444;">Paste your NWC connection string</span>'; return; }

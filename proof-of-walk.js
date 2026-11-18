@@ -61,8 +61,9 @@ window.renderProofOfWalk = function() {
         </div>
     `;
     
-    if (typeof auth === 'undefined' || !auth.currentUser) {
-        document.getElementById('pow-ui-state').innerHTML = `<p style="color:#aaa;font-size:0.9rem;margin-bottom:12px;">Sign in to connect Strava.</p><a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" class="pow-btn" style="background:transparent;border:2px solid #fc4c02;color:#fc4c02;box-shadow:none;">Download Strava</a>`;
+    // Guests (no auth or anonymous) see the sign-in note. Connecting Strava needs a login.
+    if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) {
+        document.getElementById('pow-ui-state').innerHTML = `<p style="color:#aaa;font-size:0.9rem;margin-bottom:12px;">Sign in to connect Strava. <button type="button" onclick="if(window.bqGuest)window.bqGuest.openSignIn();else if(typeof showSignInPrompt==='function')showSignInPrompt();" style="background:none;border:none;color:#fc4c02;font-weight:700;cursor:pointer;padding:0;font-size:0.9rem;">Log in</button></p><a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" class="pow-btn" style="background:transparent;border:2px solid #fc4c02;color:#fc4c02;box-shadow:none;">Download Strava</a>`;
         return;
     }
     
@@ -97,6 +98,7 @@ function renderPOWConnect() {
     `;
 
     document.getElementById('pow-connect-btn').addEventListener('click', async function() {
+        if (window.bqGuest && !window.bqGuest.requireLogin('Log in to connect Strava.')) return;
         this.disabled = true;
         this.style.opacity = '0.6';
         try {
@@ -280,6 +282,7 @@ window.syncPow = function() {
     const msg = document.getElementById('pow-sync-msg');
     
     if (btn.classList.contains('syncing')) return;
+    if (window.bqGuest && !window.bqGuest.requireLogin('Log in to sync Strava.')) return;
     
     btn.classList.add('syncing');
     btn.innerText = 'Syncing...';
