@@ -45,7 +45,8 @@ function isAnon(context) {
 // TODO(ship): replace this 11:00 PM ET placeholder with the exact deploy
 // minute in a final commit before going live. Tests inject an override and
 // must not depend on the wall clock against this constant.
-const GUEST_XP_CUTOFF_MS = Date.parse('2026-11-18T23:00:00-05:00');
+// STAGING ONLY (staging/combo-368f1-372): 4:30 PM ET, 1795037400000. Not for any PR.
+const GUEST_XP_CUTOFF_MS = Date.parse('2026-11-18T16:30:00-05:00');
 
 let guestXpCutoffOverrideMs = null;
 
