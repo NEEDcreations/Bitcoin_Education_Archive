@@ -12629,7 +12629,7 @@ function openWithdrawalAddress(opts) {
     });
 }
 
-function _callResetLightning(addr, proofId) {
+function _callResetLightning(addr, proofId, retried) {
     var token = '';
     var tsEl = document.querySelector('#lnAddrTurnstile [name="cf-turnstile-response"]');
     if (tsEl) token = tsEl.value || '';
@@ -12644,18 +12644,24 @@ function _callResetLightning(addr, proofId) {
     } catch (e) {
         return Promise.resolve({ ok: false, error: 'Security check failed. Refresh the page and try again.' });
     }
+    var reauthReady = (typeof window.reauthForSensitiveAction === 'function')
+        ? window.reauthForSensitiveAction('changing your Lightning Address')
+        : Promise.resolve(true);
     var proofReady = Promise.resolve(proofId || '');
     if (!proofId && mfaNeedsFreshCode()) proofReady = window._showFreshStepUp('resetLightningAddress');
-    return proofReady.then(function (proof) {
-        if (proof === null) return { ok: false, error: 'Enter a fresh authenticator code to change your Lightning Address.', code: 'fresh' };
-        return appCheckReady.then(function () {
-            var fn = firebase.functions().httpsCallable('resetLightningAddressOnce');
-            var body = { lightningAddress: addr, turnstileToken: token };
-            if (proof) body.freshProofId = proof;
-            return fn(body);
+    return reauthReady.then(function (ready) {
+        if (!ready) return { ok: false, error: 'Sign in again, then try this.', code: 'reauth' };
+        return proofReady.then(function (proof) {
+            if (proof === null) return { ok: false, error: 'Enter a fresh authenticator code to change your Lightning Address.', code: 'fresh' };
+            return appCheckReady.then(function () {
+                var fn = firebase.functions().httpsCallable('resetLightningAddressOnce');
+                var body = { lightningAddress: addr, turnstileToken: token };
+                if (proof) body.freshProofId = proof;
+                return fn(body);
+            });
         });
     }).then(function (res) {
-        if (res && res.ok === false && res.code === 'fresh') return res;
+        if (res && res.ok === false && (res.code === 'fresh' || res.code === 'reauth')) return res;
         var data = res && res.data ? res.data : {};
         if (!data.ok) return { ok: false, error: data.error || 'Could not resolve Lightning Address. Check the address and try again.', code: data.code || 'address_unresolved' };
         if (typeof currentUser !== 'undefined' && currentUser) {
@@ -12667,10 +12673,16 @@ function _callResetLightning(addr, proofId) {
         return { ok: true, address: data.address || addr };
     }).catch(function (e) {
         var msg = (e && e.message) ? e.message : 'Could not resolve Lightning Address. Check the address and try again.';
+        if (!retried && msg.indexOf('Sign in again') !== -1 && typeof window.reauthForSensitiveAction === 'function') {
+            return window.reauthForSensitiveAction('changing your Lightning Address').then(function (ok) {
+                if (!ok) return { ok: false, error: msg, code: 'reauth' };
+                return _callResetLightning(addr, proofId, true);
+            });
+        }
         if (!proofId && msg.indexOf('fresh authenticator') !== -1 && typeof window._showFreshStepUp === 'function') {
             return window._showFreshStepUp('resetLightningAddress').then(function (proof) {
                 if (!proof) return { ok: false, error: msg, code: 'fresh' };
-                return _callResetLightning(addr, proof);
+                return _callResetLightning(addr, proof, retried);
             });
         }
         return { ok: false, error: msg, code: 'address_unresolved' };

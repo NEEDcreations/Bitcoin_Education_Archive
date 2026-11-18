@@ -8,6 +8,16 @@ const { runtimeSa } = require('./runtimeServiceAccounts');
 
 const faucetGuard = require('./faucetGuard');
 const { emailOk } = require('./referrals');
+
+const REAUTH_MAX_AGE_SEC = 5 * 60;
+const SIGN_IN_AGAIN = 'Sign in again, then try this.';
+
+function authTimeOk(auth, nowSec) {
+    const authTime = auth && auth.token && Number(auth.token.auth_time);
+    const age = nowSec - authTime;
+    return Number.isFinite(authTime) && age >= 0 && age <= REAUTH_MAX_AGE_SEC;
+}
+
 const {
     resolveLnurlInvoice,
     normalizeLnAddress,
@@ -43,6 +53,7 @@ function createResetHandlers(deps) {
     const admin = options.admin;
     const verifyTurnstile = options.verifyTurnstile;
     const requireSecondFactor = options.requireSecondFactor || async function () {};
+    const nowSec = options.nowSec || function () { return Math.floor(Date.now() / 1000); };
     const resolve = options.resolveLnurlInvoice || resolveLnurlInvoice;
     const HttpsError = options.HttpsError || function (code, message) {
         const err = new Error(message);
@@ -74,6 +85,11 @@ function createResetHandlers(deps) {
         const provider = token.firebase && token.firebase.sign_in_provider;
         if (provider === 'anonymous') {
             throw new HttpsError('permission-denied', 'Account required.');
+        }
+        // Same recent-signin window as email change and account deletion.
+        // A fresh authenticator code is still required when 2FA is on.
+        if (!authTimeOk(context.auth, nowSec())) {
+            throw new HttpsError('failed-precondition', SIGN_IN_AGAIN);
         }
 
         const uid = context.auth.uid;
@@ -232,4 +248,6 @@ module.exports = {
     bindResetLightningAddress: bindResetLightningAddress,
     identityOk: identityOk,
     storedAddress: storedAddress,
+    authTimeOk: authTimeOk,
+    REAUTH_MAX_AGE_SEC: REAUTH_MAX_AGE_SEC,
 };

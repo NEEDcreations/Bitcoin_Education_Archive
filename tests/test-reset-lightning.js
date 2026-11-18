@@ -2,7 +2,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { createResetHandlers } = require('../functions/src/resetLightningAddress');
+const { createResetHandlers, REAUTH_MAX_AGE_SEC } = require('../functions/src/resetLightningAddress');
 
 const root = path.join(__dirname, '..');
 let passed = 0;
@@ -100,14 +100,16 @@ function memDb(initial) {
 }
 
 const admin = { firestore: { FieldValue: { serverTimestamp: function () { return { ts: 1 }; } } } };
+const NOW_SEC = 1700000000;
 
-function signedIn(uid) {
+function signedIn(uid, authTime) {
     return {
         auth: {
             uid: uid,
             token: {
                 email_verified: true,
                 firebase: { sign_in_provider: 'google.com' },
+                auth_time: authTime === undefined ? NOW_SEC : authTime,
             },
         },
     };
@@ -122,6 +124,7 @@ function handlers(mem, resolve) {
             admin: admin,
             verifyTurnstile: async function () { return true; },
             requireSecondFactor: async function () {},
+            nowSec: function () { return NOW_SEC; },
             resolveLnurlInvoice: async function (opts) {
                 calls.push(opts);
                 return resolve(opts);
@@ -253,6 +256,62 @@ queue.push(test('a broken address can be replaced once and the marker stores the
     assert.strictEqual(again.code, 'already_used');
 }));
 
+queue.push(test('a session without a recent sign-in cannot reset the address', async function () {
+    const mem = memDb({
+        'users/user1': { emailVerified: true, providers: ['google.com'] },
+    });
+    const h = handlers(mem, async function () { return { pr: 'lnbc', domain: 'walletofsatoshi.com' }; });
+    let err = null;
+    try {
+        await h.api.resetLightningAddressOnce({
+            lightningAddress: 'fresh@walletofsatoshi.com',
+            turnstileToken: 'ok',
+        }, signedIn('user1', NOW_SEC - REAUTH_MAX_AGE_SEC - 1));
+    } catch (e) { err = e; }
+    assert.ok(err, 'expected refusal');
+    assert.strictEqual(err.code, 'failed-precondition');
+    assert.ok(String(err.message).indexOf('Sign in again') !== -1);
+    assert.strictEqual(h.calls.length, 0);
+    assert.ok(!mem.store['users/user1'].lightningAddress);
+    assert.ok(!mem.store['ln_resets/user1']);
+}));
+
+queue.push(test('a session with no sign-in time cannot reset the address', async function () {
+    const mem = memDb({
+        'users/user1': { emailVerified: true, providers: ['google.com'] },
+    });
+    const h = handlers(mem, async function () { return { pr: 'lnbc', domain: 'walletofsatoshi.com' }; });
+    const ctx = signedIn('user1');
+    delete ctx.auth.token.auth_time;
+    let err = null;
+    try {
+        await h.api.resetLightningAddressOnce({
+            lightningAddress: 'fresh@walletofsatoshi.com',
+            turnstileToken: 'ok',
+        }, ctx);
+    } catch (e) { err = e; }
+    assert.ok(err, 'expected refusal');
+    assert.strictEqual(err.code, 'failed-precondition');
+    assert.ok(String(err.message).indexOf('Sign in again') !== -1);
+    assert.strictEqual(h.calls.length, 0);
+    assert.ok(!mem.store['ln_resets/user1']);
+}));
+
+queue.push(test('a sign-in at the window edge can still reach the address checks', async function () {
+    const mem = memDb({
+        'users/user1': { emailVerified: true, providers: ['google.com'] },
+    });
+    const h = handlers(mem, async function () { return { pr: 'lnbc', domain: 'walletofsatoshi.com' }; });
+    const out = await h.api.resetLightningAddressOnce({
+        lightningAddress: 'fresh@walletofsatoshi.com',
+        turnstileToken: 'ok',
+    }, signedIn('user1', NOW_SEC - REAUTH_MAX_AGE_SEC));
+    assert.strictEqual(out.ok, true);
+    assert.strictEqual(out.address, 'fresh@walletofsatoshi.com');
+    assert.strictEqual(mem.store['users/user1'].lightningAddress, 'fresh@walletofsatoshi.com');
+    assert.ok(mem.store['ln_resets/user1'].ln_reset_used);
+}));
+
 queue.push(test('rules deny client address edits once one is saved, and the reset doc is server-only', function () {
     const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
     const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
@@ -268,6 +327,15 @@ queue.push(test('rules deny client address edits once one is saved, and the rese
     assert.ok(resetSrc.indexOf('enforceAppCheck: true') > 0);
     assert.ok(index.indexOf('bindResetLightningAddress') > 0);
     assert.ok(index.indexOf('exports.resetLightningAddressOnce') > 0);
+    assert.ok(index.indexOf("requireFreshStepUp(secondFactor.stamp(data, context), 'resetLightningAddress')") > 0);
+    assert.ok(resetSrc.indexOf('authTimeOk(context.auth, nowSec())') > 0);
+    assert.ok(resetSrc.indexOf('REAUTH_MAX_AGE_SEC') > 0);
+    const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    const callAt = ranking.indexOf('function _callResetLightning');
+    assert.ok(callAt > 0);
+    const callEnd = ranking.indexOf('\nfunction showWithdrawalAddressReadonly', callAt);
+    const callBody = ranking.slice(callAt, callEnd);
+    assert.ok(callBody.indexOf("reauthForSensitiveAction('changing your Lightning Address')") > 0);
     const start = index.indexOf('exports.claimSats');
     const end = index.indexOf('function _withTimeout');
     const body = index.slice(start, end);
