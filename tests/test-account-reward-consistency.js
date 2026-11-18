@@ -38,10 +38,10 @@ function unit() {
     assert.strictEqual(gate.hasRealProvider({ providerData: [{ providerId: 'password' }] }), true);
     const { guestMovePatch } = require(path.join(root, 'functions/src/onboardingApi'));
     const cut = Date.UTC(2026, 10, 19, 4, 0, 0);
-    assert.deepStrictEqual(guestMovePatch(300, 2, cut - 1, cut), { unclaimableXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
-    assert.deepStrictEqual(guestMovePatch(300, 2, cut, cut), { unclaimableXp: 300, guestMovedXp: 300, guestMovedTickets: 2 });
-    assert.deepStrictEqual(guestMovePatch(300, 2, null, cut), { unclaimableXp: 300, guestMovedXp: 300, guestMovedTickets: 2 });
-    assert.deepStrictEqual(guestMovePatch(-5, 'x', cut - 1, cut), { unclaimableXp: 0, guestMovedXp: 0, guestMovedTickets: 0 });
+    assert.deepStrictEqual(guestMovePatch(300, 2, cut - 1, cut), { unclaimableXp: 0, leaderboardXp: 300, guestMovedXp: 300, guestMovedTickets: 2 });
+    assert.deepStrictEqual(guestMovePatch(300, 2, cut, cut), { unclaimableXp: 300, leaderboardXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
+    assert.deepStrictEqual(guestMovePatch(300, 2, null, cut), { unclaimableXp: 300, leaderboardXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
+    assert.deepStrictEqual(guestMovePatch(-5, 'x', cut - 1, cut), { unclaimableXp: 0, leaderboardXp: 0, guestMovedXp: 0, guestMovedTickets: 0 });
     const { GUEST_XP_CUTOFF_MS } = require(path.join(root, 'functions/src/onboardingApi'));
     assert.ok(Number.isFinite(GUEST_XP_CUTOFF_MS) && GUEST_XP_CUTOFF_MS > Date.UTC(2026, 10, 18));
     console.log('  ok  unit helpers');
@@ -106,7 +106,7 @@ const admin = require('../functions/node_modules/firebase-admin');
 const fns = require('../functions/index.js');
 const { awardBadge } = require('../functions/src/awardBadge');
 const badgeRules = require('../functions/src/badgeRules');
-const { registerOnboarding } = require('../functions/src/onboardingApi');
+const { registerOnboarding, GUEST_XP_CUTOFF_MS } = require('../functions/src/onboardingApi');
 const functionsV1 = require(require.resolve('firebase-functions/v1', { paths: [path.join(root, 'functions')] }));
 const db = admin.firestore();
 
@@ -251,10 +251,11 @@ async function main() {
         const row = await userRow('linkDest00000000');
         assert.strictEqual(row.points, 120);
         assert.strictEqual(row.guestMovedXp, 120);
-        assert.strictEqual(row.weeklyXP, 0);
+        // Production cutoff is the deploy time; a guest created now is before it.
+        assert.strictEqual(row.weeklyXP, Date.now() < GUEST_XP_CUTOFF_MS ? 120 : 0);
     });
 
-    await test('guest from before the cutoff moves XP as claimable (Phil: keep earned XP)', async function () {
+    await test('guest from before the cutoff moves XP as claimable and leaderboard XP, as today', async function () {
         await auth.createUser({ uid: 'linkDest00000003', email: 'dest3@example.com', password: emuPw(), emailVerified: true });
         const res = await linkFlow('linkGuest0000003', 'linkDest00000003', { points: 100, weeklyXP: 40, monthlyXP: 60, unclaimableXp: 10 }, BEFORE_GUEST);
         assert.strictEqual(res.ok, true, JSON.stringify(res));
@@ -262,8 +263,8 @@ async function main() {
         assert.strictEqual(row.points, 400);
         assert.strictEqual(row.unclaimableXp, 10);
         assert.strictEqual(row.guestMovedXp, 300);
-        assert.strictEqual(row.weeklyXP, 40);
-        assert.strictEqual(row.monthlyXP, 60);
+        assert.strictEqual(row.weeklyXP, 340);
+        assert.strictEqual(row.monthlyXP, 360);
     });
 
     await test('linked guest XP after the cutoff is unclaimable and not leaderboard XP (existing account)', async function () {

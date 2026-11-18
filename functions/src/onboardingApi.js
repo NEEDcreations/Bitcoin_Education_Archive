@@ -37,21 +37,27 @@ function isAnon(context) {
 
 // Guest XP cutoff (Phil, Nov 18 2026). Set to the hotfix deploy time.
 // Guest sessions created before it keep today's behavior: moved XP is
-// claimable. Guests created at or after it move XP as unclaimable, because
-// earning on a guest session is closed from the deploy on.
+// claimable and counts toward weekly/monthly totals. Guests created at or
+// after it move XP as unclaimable and off the leaderboards, because earning
+// on a guest session is closed from the deploy on.
 const GUEST_XP_CUTOFF_MS = Date.parse('2026-11-18T23:00:00-05:00');
 
 // What a guest link adds to the signed-in account, beyond points and tickets.
-// Moved XP never enters weeklyXP or monthlyXP, so it is not new leaderboard
-// activity. guestMovedXp and guestMovedTickets record the amounts so a later
-// policy can treat them separately.
+// leaderboardXp is what goes into weeklyXP and monthlyXP. guestMovedXp and
+// guestMovedTickets record the amounts so a later policy can treat them
+// separately.
 function guestMovePatch(points, tickets, guestCreatedMs, cutoffMs) {
     const xp = Math.max(0, Math.floor(Number(points) || 0));
     const t = Math.max(0, Math.floor(Number(tickets) || 0));
     const cutoff = cutoffMs == null ? GUEST_XP_CUTOFF_MS : cutoffMs;
     // Unknown guest age fails closed (unclaimable).
     const beforeCutoff = typeof guestCreatedMs === 'number' && Number.isFinite(guestCreatedMs) && guestCreatedMs < cutoff;
-    return { unclaimableXp: beforeCutoff ? 0 : xp, guestMovedXp: xp, guestMovedTickets: t };
+    return {
+        unclaimableXp: beforeCutoff ? 0 : xp,
+        leaderboardXp: beforeCutoff ? xp : 0,
+        guestMovedXp: xp,
+        guestMovedTickets: t,
+    };
 }
 
 function quizDocId(id) {
@@ -441,8 +447,8 @@ function registerOnboarding(deps) {
             if (!freshDest.exists) {
                 const created = Object.assign({
                     points: movedPoints,
-                    weeklyXP: 0,
-                    monthlyXP: 0,
+                    weeklyXP: movePatch.leaderboardXp,
+                    monthlyXP: movePatch.leaderboardXp,
                     unclaimableXp: movePatch.unclaimableXp,
                     guestMovedXp: movePatch.guestMovedXp,
                     guestMovedTickets: movePatch.guestMovedTickets,
@@ -462,6 +468,10 @@ function registerOnboarding(deps) {
                 if (!joinDate.hasJoin(dest, nowMs) && destJoinStamp) update.created = destJoinStamp;
                 if (movedPoints > 0) {
                     update.points = admin.firestore.FieldValue.increment(movedPoints);
+                    if (movePatch.leaderboardXp > 0) {
+                        update.weeklyXP = admin.firestore.FieldValue.increment(movePatch.leaderboardXp);
+                        update.monthlyXP = admin.firestore.FieldValue.increment(movePatch.leaderboardXp);
+                    }
                     if (movePatch.unclaimableXp > 0) update.unclaimableXp = admin.firestore.FieldValue.increment(movePatch.unclaimableXp);
                     update.guestMovedXp = admin.firestore.FieldValue.increment(movePatch.guestMovedXp);
                 }
