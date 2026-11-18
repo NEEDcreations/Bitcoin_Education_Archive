@@ -298,6 +298,53 @@ test('scrub dry-run prints ids only and apply rehosts or clears', async function
     assert.ok(againLogs.join('\n').indexOf(TOKEN) === -1);
 });
 
+test('scrub CLI uses firebase-admin v14 modular APIs', function () {
+    const src = fs.readFileSync(path.join(root, 'scripts', 'scrub-telegram-urls.js'), 'utf8');
+    assert.ok(src.indexOf("requireAdmin('firebase-admin/app')") !== -1);
+    assert.ok(src.indexOf("requireAdmin('firebase-admin/firestore')") !== -1);
+    assert.ok(src.indexOf('getApps') !== -1);
+    assert.ok(src.indexOf('getFirestore') !== -1);
+    assert.ok(src.indexOf('admin.apps') === -1);
+    assert.ok(src.indexOf('admin.firestore()') === -1);
+    assert.ok(src.indexOf('admin.firestore.FieldPath') === -1);
+    assert.strictEqual(scrub.parseArgs([]).apply, false);
+    assert.strictEqual(scrub.parseArgs(['--apply']).apply, true);
+
+    const inits = [];
+    let storageCalled = false;
+    const fakeDb = { kind: 'firestore' };
+    const clients = scrub.initClients({
+        getApps: function () { return inits.slice(); },
+        initializeApp: function (opts) { inits.push(opts); return opts; },
+        applicationDefault: function () { return { kind: 'adc' }; },
+        getFirestore: function () { return fakeDb; },
+        FieldPath: { documentId: function () { return 'docId'; } },
+        getStorage: function () {
+            storageCalled = true;
+            return { bucket: function (name) { return { name: name }; } };
+        },
+    });
+    assert.strictEqual(inits.length, 1);
+    assert.strictEqual(inits[0].projectId, 'bitcoin-education-archive');
+    assert.strictEqual(inits[0].credential.kind, 'adc');
+    assert.strictEqual(clients.db, fakeDb);
+    assert.strictEqual(clients.fieldPath, 'docId');
+    assert.strictEqual(storageCalled, false);
+    assert.strictEqual(clients.bucket().name, 'bitcoin-education-archive.firebasestorage.app');
+    assert.strictEqual(storageCalled, true);
+
+    const again = scrub.initClients({
+        getApps: function () { return inits.slice(); },
+        initializeApp: function (opts) { inits.push(opts); return opts; },
+        applicationDefault: function () { return { kind: 'adc' }; },
+        getFirestore: function () { return fakeDb; },
+        FieldPath: { documentId: function () { return 'docId'; } },
+        getStorage: function () { return { bucket: function (name) { return { name: name }; } }; },
+    });
+    assert.strictEqual(inits.length, 1);
+    assert.strictEqual(again.db, fakeDb);
+});
+
 Promise.all(queue).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

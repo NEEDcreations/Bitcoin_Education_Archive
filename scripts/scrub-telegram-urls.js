@@ -266,9 +266,43 @@ function makeStorageRehost(bucket, fetchImpl) {
     };
 }
 
-function loadAdmin() {
-    try { return require('firebase-admin'); }
-    catch (err) { return require(path.join(__dirname, '..', 'functions', 'node_modules', 'firebase-admin')); }
+function requireAdmin(subpath) {
+    try { return require(subpath); }
+    catch (err) {
+        return require(path.join(__dirname, '..', 'functions', 'node_modules', subpath));
+    }
+}
+
+// firebase-admin v14 dropped the namespaced compat surface from
+// require('firebase-admin'). Use the modular entry points.
+function loadModular() {
+    const app = requireAdmin('firebase-admin/app');
+    const firestore = requireAdmin('firebase-admin/firestore');
+    const storage = requireAdmin('firebase-admin/storage');
+    return {
+        initializeApp: app.initializeApp,
+        getApps: app.getApps,
+        applicationDefault: app.applicationDefault,
+        getFirestore: firestore.getFirestore,
+        FieldPath: firestore.FieldPath,
+        getStorage: storage.getStorage,
+    };
+}
+
+function initClients(mods) {
+    const api = mods || loadModular();
+    if (!api.getApps().length) {
+        const init = { projectId: PROJECT_ID, storageBucket: BUCKET_NAME };
+        if (typeof api.applicationDefault === 'function') {
+            init.credential = api.applicationDefault();
+        }
+        api.initializeApp(init);
+    }
+    return {
+        db: api.getFirestore(),
+        fieldPath: api.FieldPath.documentId(),
+        bucket: function () { return api.getStorage().bucket(BUCKET_NAME); },
+    };
 }
 
 async function main() {
@@ -279,12 +313,9 @@ async function main() {
         console.log('Collections: ' + guard.SCRUB_COLLECTIONS.join(','));
         return;
     }
-    const admin = loadAdmin();
-    if (!admin.apps.length) {
-        admin.initializeApp({ projectId: PROJECT_ID, storageBucket: BUCKET_NAME });
-    }
-    const db = admin.firestore();
-    const documentIdField = admin.firestore.FieldPath.documentId();
+    const clients = initClients();
+    const db = clients.db;
+    const documentIdField = clients.fieldPath;
     const fetchImpl = typeof fetch === 'function' ? fetch : require('node-fetch');
     const summary = await runScrub({
         apply: args.apply,
@@ -294,7 +325,9 @@ async function main() {
         updateDoc: function (name, id, patch) {
             return db.collection(name).doc(id).update(patch);
         },
-        rehost: makeStorageRehost(admin.storage().bucket(BUCKET_NAME), fetchImpl),
+        rehost: args.apply
+            ? makeStorageRehost(clients.bucket(), fetchImpl)
+            : async function () { return null; },
     });
     if (!summary.wrote && !summary.alreadyApplied) {
         say(console.log, 'no writes');
@@ -310,6 +343,9 @@ module.exports = {
     runScrub: runScrub,
     writeBackup: writeBackup,
     extensionForUpload: extensionForUpload,
+    loadModular: loadModular,
+    initClients: initClients,
+    parseArgs: parseArgs,
 };
 
 if (require.main === module) {
