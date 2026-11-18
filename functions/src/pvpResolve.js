@@ -23,6 +23,8 @@ exports.pvpResolveRound = onDocumentWritten({
     const context = { params: event.params };
     if (!change.after.exists) return null;
     const data = change.after.data();
+    const beforeData = change.before && change.before.exists ? change.before.data() : null;
+    if (pvpFlow.skippedRerollQuestion(beforeData, data)) return null;
 
     if (data.status !== 'active') return null;
 

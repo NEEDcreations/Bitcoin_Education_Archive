@@ -3614,11 +3614,6 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     console.warn(`[awardPoints] flex day badge rejected: ${badgeId} flexFullDays=${userData.flexFullDays || 0} uid=${uid}`);
                     throw new Error('BADGE_CONDITION_NOT_MET:' + badgeId);
                 }
-                if (!awardActions.pvpBadgeAllowed(badgeId, userData)) {
-                    const need = awardActions.pvpBadgeNeed(badgeId);
-                    console.warn('[awardPoints] pvp badge rejected:', badgeId, need && need.field, userData[need.field], 'uid:', uid);
-                    throw new Error('BADGE_CONDITION_NOT_MET:' + badgeId);
-                }
             }
             if (matchedAction === 'flex_day_complete') {
                 const flexHave = flexProofDoc && flexProofDoc.exists ? (flexProofDoc.data().count || 0) : 0;
@@ -4369,25 +4364,24 @@ exports.pollVote = functionsV1.https.onCall(createSvbVote({
 }));
 
 // ---- PVP Answer Submission (server records the choice; pvpResolveRound grades it) ----
+function isAnonymousAuth(context) {
+    const token = context && context.auth && context.auth.token;
+    const provider = token && token.firebase && token.firebase.sign_in_provider;
+    return provider === 'anonymous' || !provider;
+}
+
 async function pvpRateLimit(uid, bucket, maxCount, windowMs) {
+    if (!uid || typeof uid !== 'string') {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid player');
+    }
     const ref = db.collection('rate_limits').doc('pvp_' + bucket + '_' + uid);
     await db.runTransaction(async (tx) => {
         const doc = await tx.get(ref);
-        const now = Date.now();
-        if (doc.exists) {
-            const d = doc.data() || {};
-            const start = d.windowStartMs || 0;
-            if (now - start < windowMs) {
-                if ((d.count || 0) >= maxCount) {
-                    throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many PvP requests');
-                }
-                tx.update(ref, { count: (d.count || 0) + 1 });
-            } else {
-                tx.set(ref, { windowStartMs: now, count: 1 });
-            }
-        } else {
-            tx.set(ref, { windowStartMs: now, count: 1 });
+        const planned = pvpFlow.planRateWindow(doc.exists ? doc.data() : null, Date.now(), maxCount, windowMs);
+        if (!planned.ok) {
+            throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many PvP requests');
         }
+        tx.set(ref, { windowStartMs: planned.windowStartMs, count: planned.count });
     });
 }
 
@@ -4773,7 +4767,11 @@ function pvpSafePic(url) {
 // ── PVP Match Creation (server-side, hides answer keys) ──
 exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    await pvpRateLimit(context.auth.uid, 'create', 10, 60000);
+    await pvpRateLimit(context.auth.uid, 'create', pvpFlow.PVP_CREATE_BURST, pvpFlow.PVP_CREATE_BURST_MS);
+    const callerHourMax = isAnonymousAuth(context)
+        ? pvpFlow.PVP_ANON_MATCH_PER_HOUR
+        : pvpFlow.PVP_SIGNED_MATCH_PER_HOUR;
+    await pvpRateLimit(context.auth.uid, 'match_hour', callerHourMax, pvpFlow.PVP_MATCH_HOUR_MS);
 
     // [SECURITY FIX] Caller is always player2 (the matchmaker who found an opponent).
     // Pin player2.uid to context.auth.uid — never trust client-supplied uid.
@@ -4807,6 +4805,17 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
     // This prevents the race condition where both players try to create a match
     // against each other simultaneously.
     const lobbyRef = db.collection('pvp_lobby').doc(lobbyDocId);
+    const lobbyPreview = await lobbyRef.get();
+    if (lobbyPreview.exists) {
+        const previewUid = lobbyPreview.data() && lobbyPreview.data().uid;
+        if (previewUid && previewUid !== callerUid) {
+            const p1Flags = await pvpAccountFlags(previewUid);
+            const p1HourMax = p1Flags.anonymous
+                ? pvpFlow.PVP_ANON_MATCH_PER_HOUR
+                : pvpFlow.PVP_SIGNED_MATCH_PER_HOUR;
+            await pvpRateLimit(previewUid, 'match_hour', p1HourMax, pvpFlow.PVP_MATCH_HOUR_MS);
+        }
+    }
     const matchRef = db.collection('pvp_matches').doc(); // pre-generate ID
     let challengedUid = '';
     let challengerName = 'A Bitcoiner';
@@ -5586,19 +5595,23 @@ exports.onPvpMatchFinished = onDocumentUpdated({
     try {
         await settlePvpMatch(matchId, after);
     } catch (e) { console.error('[onPvpMatchFinished] settle failed:', e.message); }
-    if (becameFinished) {
-        try {
-            await activityCounters.recordPvpPlayed(db, admin, after);
-            const sides = [after.player1, after.player2];
-            for (let si = 0; si < sides.length; si++) {
-                const sideUid = sides[si] && sides[si].uid;
-                if (sideUid) {
-                    await grantFamily(db, admin, sideUid, familyFor('pvpWins'));
-                    await grantFamily(db, admin, sideUid, familyFor('pvpPlayed'));
-                }
-            }
-        } catch (badgeErr) { console.warn('[onPvpMatchFinished] badges', badgeErr && badgeErr.message); }
-    }
+    try {
+        const sides = [after.player1, after.player2];
+        const sideUids = sides.map(function (side) { return side && side.uid; }).filter(Boolean);
+        const flags = await Promise.all(sideUids.map(function (uid) { return pvpAccountFlags(uid); }));
+        const anyAnon = flags.some(function (f) { return f && f.anonymous; });
+        const skipUids = [];
+        const rewardUids = [];
+        for (let si = 0; si < sideUids.length; si++) {
+            if (anyAnon || (flags[si] && flags[si].anonymous)) skipUids.push(sideUids[si]);
+            else rewardUids.push(sideUids[si]);
+        }
+        await activityCounters.recordPvpPlayed(db, admin, after, matchId, { skipUids: skipUids });
+        for (let ri = 0; ri < rewardUids.length; ri++) {
+            await grantFamily(db, admin, rewardUids[ri], familyFor('pvpWins'));
+            await grantFamily(db, admin, rewardUids[ri], familyFor('pvpPlayed'));
+        }
+    } catch (badgeErr) { console.warn('[onPvpMatchFinished] badges', badgeErr && badgeErr.message); }
     return null;
 });
 
@@ -8882,7 +8895,7 @@ async function settlePvpMatch(matchId, after) {
         },
     });
     if (!plan.grant) {
-        if (plan.reason === 'disconnect') {
+        if (plan.reason === 'disconnect' || plan.reason === 'guest_match' || plan.guestMatch === true) {
             await db.collection('pvp_matches').doc(matchId).set({ rewardsGranted: true, rewards: {} }, { merge: true });
         }
         return;
@@ -8941,8 +8954,15 @@ async function settlePvpMatch(matchId, after) {
                 upd.weeklyXP = admin.firestore.FieldValue.increment(write.weeklyXP);
                 upd.monthlyXP = admin.firestore.FieldValue.increment(write.monthlyXP);
             }
-            if (p.pvpWins) upd.pvpWins = admin.firestore.FieldValue.increment(p.pvpWins);
-            if (p.pvpLosses) upd.pvpLosses = admin.firestore.FieldValue.increment(p.pvpLosses);
+            const skipAnonStats = plan.guestMatch === true
+                || (p.uid === ids.player1 ? f1 : f2).anonymous === true;
+            if (!skipAnonStats) {
+                if (p.pvpWins) upd.pvpWins = admin.firestore.FieldValue.increment(p.pvpWins);
+                if (p.pvpLosses) upd.pvpLosses = admin.firestore.FieldValue.increment(p.pvpLosses);
+                const streak = pvpFlow.planStreakUpdate(pvpUser.pvpWinStreak, pvpUser.pvpBestStreak, p.outcome);
+                upd.pvpWinStreak = streak.pvpWinStreak;
+                upd.pvpBestStreak = streak.pvpBestStreak;
+            }
             if (ticket.tickets > 0) upd.orangeTickets = admin.firestore.FieldValue.increment(ticket.tickets);
             if (Object.keys(upd).length) tx.update(userRefs[i], upd);
             if (write.write) {

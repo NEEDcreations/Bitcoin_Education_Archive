@@ -1415,9 +1415,8 @@ service cloud.firestore {
 
     match /pvp_lobby/{docId} {
       allow read: if request.auth != null;
-      // Signed-in, non-anonymous, own uid, strict field list. No extra payload.
+      // Signed-in (including anonymous), own uid, strict field list. No extra payload.
       allow create: if clientWritesOk() && (request.auth != null
-                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && docId == request.auth.uid
                     && request.resource.data.keys().hasOnly(['uid', 'name', 'profilePic', 'status', 'createdAt', 'lastSeen'])
                     && request.resource.data.uid == request.auth.uid
@@ -1450,6 +1449,10 @@ service cloud.firestore {
     }
 
     match /pvp_rewards/{matchId} {
+      allow read, write: if false;
+    }
+
+    match /pvp_played/{matchId} {
       allow read, write: if false;
     }
 
@@ -1494,7 +1497,7 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(['status', 'currentQ', 'questionWinner', 'questionStartedAt',
                                  'player1LastSeen', 'player2LastSeen',
-                                 'forfeitedBy', 'forfeitReason', 'lastTaunt'])
+                                 'forfeitedBy', 'forfeitReason', 'lastTaunt', 'roundExplain'])
                     && (request.resource.data.status == resource.data.status
                         || (request.resource.data.status == 'active'
                             && resource.data.status in ['countdown', 'question_result'])
@@ -1503,8 +1506,11 @@ service cloud.firestore {
                             && request.resource.data.forfeitReason == 'manual_leave'))
                     && (request.resource.data.currentQ == resource.data.currentQ
                         || (resource.data.status == 'question_result'
+                            && resource.data.questionWinner != 'reroll'
                             && request.resource.data.status == 'active'
                             && request.resource.data.currentQ == resource.data.currentQ + 1))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['roundExplain'])
+                        || request.resource.data.roundExplain == '')
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionWinner'])
                         || request.resource.data.questionWinner == null)
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionStartedAt'])

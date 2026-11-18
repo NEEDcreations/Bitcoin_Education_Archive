@@ -16,8 +16,30 @@
         { id: 'pvp_5',     name: 'Contender',   emoji: '🥊', desc: 'Won 5 PVP matches',        threshold: 5,   pts: 50 },
         { id: 'pvp_25',    name: 'Gladiator',   emoji: '🏟️', desc: 'Won 25 PVP matches',       threshold: 25,  pts: 100 },
         { id: 'pvp_50',    name: 'Champion',    emoji: '🏆', desc: 'Won 50 PVP matches',       threshold: 50,  pts: 200 },
-        { id: 'pvp_100',   name: 'PVP Legend',  emoji: '👑', desc: 'Won 100 PVP matches',      threshold: 100, pts: 500 },
+        { id: 'pvp_100',   name: 'PVP Legend',  emoji: '👑', desc: 'Won 100 PVP matches',      threshold: 100, pts: 1000 },
     ];
+
+    function isPvpGuest() {
+        var auth = getAuth();
+        if (!auth || !auth.currentUser) return true;
+        return auth.currentUser.isAnonymous === true;
+    }
+
+    function pvpGuestBanner() {
+        if (!isPvpGuest()) return '';
+        return '<div style="margin:10px 0 0;padding:8px 12px;border:1px solid rgba(247,147,26,0.35);border-radius:8px;color:#fbbf24;font-size:0.8rem;text-align:center;line-height:1.4;">Playing as a guest. Log in to earn XP, badges, OrangeTix and sats, and to chat.</div>';
+    }
+
+    function pvpGuestResultNote(iWon, isDraw, myScore) {
+        if (!isPvpGuest()) return '';
+        var n = iWon ? 50 : (isDraw ? 5 : ((Number(myScore) || 0) > 0 ? 25 : 0));
+        var label = n > 0
+            ? ('+' + n + ' XP if logged in')
+            : 'Log in to earn XP, badges, OrangeTix and sats';
+        return '<div style="margin:12px 0 0;padding:8px 12px;border:1px solid rgba(148,163,184,0.35);border-radius:8px;color:#94a3b8;font-size:0.8rem;text-align:center;line-height:1.4;">' +
+            label +
+            ' <button type="button" onclick="if(typeof showSignInPrompt===\'function\')showSignInPrompt();" style="margin-left:8px;padding:4px 10px;border:none;border-radius:6px;background:#f7931a;color:#111;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Log in</button></div>';
+    }
 
     function serverPvpWins() {
         if (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.pvpWins === 'number') {
@@ -114,13 +136,6 @@
         return pool.slice(0, count);
     }
 
-    function formatQuestionForFirestore(q) {
-        // Build shuffled options array with correct answer index
-        var options = q.wrong.slice();
-        var correctIdx = Math.floor(Math.random() * (options.length + 1));
-        options.splice(correctIdx, 0, q.a);
-        return { q: q.q, options: options, correct: correctIdx };
-    }
 
     // =============================================
     // UTILITY
@@ -604,28 +619,15 @@
                 }
             }
             if (!auth.currentUser) { throw new Error('Sign-in failed. Please try again.'); }
-            // Set username in Firestore
+            // Keep the battle name on the device only. Anonymous users cannot
+            // write a profile doc, and a failed write must not block the lobby.
             var uid = auth.currentUser.uid;
-            await db.collection('users').doc(uid).set({
-                username: name,
-                points: 0,
-                channelsVisited: 0,
-                totalVisits: 1,
-                streak: 0,
-                pvpWins: 0,
-                pvpLosses: 0,
-                lastVisit: new Date().toISOString().split('T')[0],
-                created: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-
-            // Load user data so currentUser is populated
-            if (typeof loadUser === 'function') {
-                await loadUser(uid);
-            } else {
-                if (typeof currentUser === 'undefined' || !currentUser) window.currentUser = {};
-                currentUser.username = name;
-                currentUser.uid = uid;
-            }
+            name = String(name || '').replace(/[\r\n<>\[\]()@#*`_~|\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 20);
+            if (name.length < 2) { if (typeof showToast === 'function') showToast('Name must be at least 2 characters'); return; }
+            try { localStorage.setItem('btc_username', name); } catch (e) {}
+            if (typeof currentUser === 'undefined' || !currentUser) window.currentUser = {};
+            currentUser.username = name;
+            currentUser.uid = uid;
 
             var overlay = document.getElementById('pvpNameOverlay');
             if (overlay) overlay.remove();
@@ -645,10 +647,18 @@
         }
         // If anonymous with no username, show quick name prompt
         if (auth.currentUser.isAnonymous) {
-            var hasName = typeof currentUser !== 'undefined' && currentUser && currentUser.username && currentUser.username !== 'Anon';
+            var storedName = '';
+            try { storedName = localStorage.getItem('btc_username') || ''; } catch (e) { storedName = ''; }
+            var hasName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username && currentUser.username !== 'Anon')
+                || storedName.length >= 2;
             if (!hasName) {
                 _pvpQuickName();
                 return;
+            }
+            if ((!currentUser || !currentUser.username || currentUser.username === 'Anon') && storedName.length >= 2) {
+                if (typeof currentUser === 'undefined' || !currentUser) window.currentUser = {};
+                currentUser.username = storedName;
+                currentUser.uid = auth.currentUser.uid;
             }
         }
 
@@ -894,6 +904,7 @@
                                 '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Losses</div>' +
                             '</div>' +
                         '</div>' +
+                        pvpGuestBanner() +
                     '</div>' +
                     // Rules (compact) — shown first
                     '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:16px;text-align:left;">' +
@@ -1479,7 +1490,8 @@
             status: 'active',
             currentQ: pvpState.currentQ,
             questionWinner: null,
-            questionStartedAt: firebase.firestore.FieldValue.serverTimestamp()
+            questionStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            roundExplain: ''
         });
     }
 
@@ -1602,71 +1614,6 @@
     // RESOLVE ROUND — shared logic for determining winner
     // Used by both the answer transaction and the force-resolve fallback
     // =============================================
-    function resolveRound(update, data, myAnswers, oppAnswers, qIdx, myKey, oppKey, myPlayerData, oppPlayerData, myIsCorrect) {
-        var oppAnswer = oppAnswers[qIdx];
-        var myAnswer = myAnswers[qIdx];
-        var oppIsCorrect = oppAnswer && oppAnswer.correct;
-        var iWon = false;
-        var oppWon = false;
-
-        if (myIsCorrect && !oppIsCorrect) {
-            iWon = true;
-        } else if (!myIsCorrect && oppIsCorrect) {
-            oppWon = true;
-        } else if (myIsCorrect && oppIsCorrect) {
-            // Both correct — first to commit wins (opponent was already in DB)
-            oppWon = true;
-        } else {
-            // Both wrong — REROLL
-            var newQ = pickRandomQuestions(1);
-            if (newQ.length > 0) {
-                var formatted = formatQuestionForFirestore(newQ[0]);
-                var questions = data.questions.slice();
-                questions[qIdx] = formatted;
-                update['questions'] = questions;
-            }
-            // Clear both players' answers for this question
-            update[myKey + '.answers'] = myAnswers.slice(0, qIdx);
-            update[oppKey + '.answers'] = oppAnswers.slice(0, qIdx);
-            update['questionWinner'] = 'reroll';
-            update['status'] = 'question_result';
-            return;
-        }
-
-        // Set won flags
-        if (iWon) {
-            myAnswers[qIdx] = Object.assign({}, myAnswer, { won: true });
-            update[myKey + '.answers'] = myAnswers;
-        }
-        if (oppWon) {
-            var oppFixed = oppAnswers.slice();
-            oppFixed[qIdx] = Object.assign({}, oppAnswer, { won: true });
-            update[oppKey + '.answers'] = oppFixed;
-        }
-
-        // Award points to winner
-        var winnerKey = iWon ? myKey : oppKey;
-        var winnerData = iWon ? myPlayerData : oppPlayerData;
-        var winnerAnswers = iWon ? myAnswers : oppAnswers;
-
-        var winStreak = 0;
-        for (var s = winnerAnswers.length - 1; s >= 0; s--) {
-            if (winnerAnswers[s] && winnerAnswers[s].won) winStreak++;
-            else break;
-        }
-        var pts = 10 + (winStreak > 1 ? (winStreak - 1) * 5 : 0);
-        update[winnerKey + '.score'] = (winnerData.score || 0) + pts;
-        update[winnerKey + '.correct'] = (winnerData.correct || 0) + 1;
-        update['questionWinner'] = winnerKey;
-
-        // Count total decided questions (including this one)
-        var decidedCount = 1;
-        for (var dc = 0; dc < qIdx; dc++) {
-            if ((myAnswers[dc] && myAnswers[dc].won) || (oppAnswers[dc] && oppAnswers[dc].won)) decidedCount++;
-        }
-
-        update['status'] = decidedCount >= 5 ? 'finished' : 'question_result';
-    }
 
     // =============================================
     // ANSWER SUBMISSION
@@ -1864,6 +1811,7 @@
                 '<div style="font-size:4rem;margin-bottom:12px;">' + resultEmoji + '</div>' +
                 '<h1 style="color:' + resultColor + ';font-size:2.2rem;margin:0 0 4px;letter-spacing:3px;">' + resultText + '</h1>' +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">' + resultSubtext + '</div>' +
+                pvpGuestResultNote(iWon, isDraw, myData.score) +
                 pvpScoreBar(myData.score, oppData.score, pvpState.opponentName) +
                 // Player cards with result labels
                 '<div style="display:flex;justify-content:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;">' +

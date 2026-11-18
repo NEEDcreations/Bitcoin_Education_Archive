@@ -138,7 +138,7 @@ const PURPLE_CHANNELS = ['maximalism', 'problems-of-money', 'self-custody', 'pri
 const BLUE_CHANNELS = ['one-stop-shop', 'faq-glossary', 'nostr', 'misconceptions-fud', 'books', 'videos', 'podcasts', 'articles-threads', 'informational-sites', 'curriculum', 'research-theses', 'games', 'music', 'movies-tv', 'hardware', 'poems-stories', 'apps-tools', 'projects-diy', 'art-inspiration', 'graphics', 'charts', 'swag-merch', 'jobs-earn', 'social-media', 'fun-facts', 'news-adoption', 'history', 'international', 'satoshi-nakamoto', 'giga-chad', 'health', 'web5', 'memes-funny'];
 
 const COSMETIC_PREFIXES = [
-    'lb_lurker_', 'chat_lurker_', 'fun_', 'chat_streak_', 'pvp_win_streak_',
+    'lb_lurker_', 'chat_lurker_', 'fun_', 'chat_streak_',
     'trail_', 'story_', 'nacho_', 'dj_', 'react_', 'irl_', 'pow_',
     'cert_', 'beats_', 'tctv_tuned', 'tctv_couch', 'tctv_binge', 'tctv_channel',
     'tctv_remote', 'tctv_dial', 'tctv_signal', 'tctv_antenna', 'tctv_timechain',
@@ -403,6 +403,8 @@ function sourceFor(id) {
     if (id.indexOf('article_') === 0) return counter('articlesPublished', numFromId(id));
     if (id === 'pvp_first') return counter('pvpWins', 1);
     if (id.indexOf('pvp_played_') === 0) return counter('pvpPlayed', numFromId(id));
+    if (id === 'pvp_win_streak_3') return counter('pvpBestStreak', 3);
+    if (id === 'pvp_win_streak_5') return counter('pvpBestStreak', 5);
     if (id.indexOf('pvp_') === 0) return counter('pvpWins', numFromId(id));
     if (id.indexOf('cipher_') === 0) return counter('ciphersSolved', numFromId(id));
     if (id === 'sf_first_hash') return counter('sfHashes', 1);

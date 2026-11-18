@@ -278,6 +278,22 @@ function sideReward(key, player, winner, draw) {
     };
 }
 
+
+function guestMatchBlocksRewards(p1, p2) {
+    return (p1 && p1.anonymous === true) || (p2 && p2.anonymous === true);
+}
+
+function zeroGuestMatchRewards(players) {
+    return (players || []).map(function (p) {
+        return Object.assign({}, p, {
+            points: 0,
+            pvpWins: 0,
+            pvpLosses: 0,
+            blocked: true,
+        });
+    });
+}
+
 function planPvpReward(input) {
     const src = input || {};
     const empty = { grant: false, reason: 'not_finished', players: [], shout: null, voided: false };
@@ -292,6 +308,20 @@ function planPvpReward(input) {
     const p2 = src.player2 || {};
     if (!p1.uid || !p2.uid || p1.uid === p2.uid) {
         return { grant: false, reason: 'bad_players', players: [], shout: null, voided: false };
+    }
+    if (guestMatchBlocksRewards(p1, p2)) {
+        return {
+            grant: false,
+            reason: 'guest_match',
+            claimId: claimId,
+            players: zeroGuestMatchRewards([
+                { uid: p1.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'none', blocked: true },
+                { uid: p2.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'none', blocked: true },
+            ]),
+            shout: null,
+            voided: false,
+            guestMatch: true,
+        };
     }
 
     let winner = null;
@@ -358,6 +388,7 @@ function planPvpReward(input) {
         players: players,
         shout: shout,
         voided: false,
+        guestMatch: false,
     };
 }
 
@@ -447,6 +478,38 @@ function pvpPicAllowed(url) {
     return '';
 }
 
+
+function planStreakUpdate(currentStreak, currentBest, outcome) {
+    const streak = Math.max(0, Math.floor(Number(currentStreak) || 0));
+    const best = Math.max(0, Math.floor(Number(currentBest) || 0));
+    if (outcome === 'win') {
+        const next = streak + 1;
+        return { pvpWinStreak: next, pvpBestStreak: Math.max(best, next) };
+    }
+    if (outcome === 'loss') {
+        return { pvpWinStreak: 0, pvpBestStreak: best };
+    }
+    return { pvpWinStreak: streak, pvpBestStreak: best };
+}
+
+function skippedRerollQuestion(before, after) {
+    if (!before || !after) return false;
+    if (before.questionWinner !== 'reroll') return false;
+    return Number(after.currentQ) !== Number(before.currentQ);
+}
+
+function planRateWindow(existing, nowMs, maxCount, windowMs) {
+    const now = Number(nowMs) || 0;
+    const max = Math.max(1, Math.floor(Number(maxCount) || 0));
+    const window = Math.max(1, Math.floor(Number(windowMs) || 0));
+    if (!existing || !existing.windowStartMs || (now - existing.windowStartMs) >= window) {
+        return { ok: true, windowStartMs: now, count: 1, reset: true };
+    }
+    const count = Math.floor(Number(existing.count) || 0);
+    if (count >= max) return { ok: false, windowStartMs: existing.windowStartMs, count: count, reset: false };
+    return { ok: true, windowStartMs: existing.windowStartMs, count: count + 1, reset: false };
+}
+
 module.exports = {
     LOBBY_SHOUT_MS: LOBBY_SHOUT_MS,
     ALERT_COOLDOWN_MS: ALERT_COOLDOWN_MS,
@@ -486,4 +549,14 @@ module.exports = {
     playerKeyForUid: playerKeyForUid,
     pushShardOrder: pushShardOrder,
     pvpPicAllowed: pvpPicAllowed,
+    planStreakUpdate: planStreakUpdate,
+    skippedRerollQuestion: skippedRerollQuestion,
+    planRateWindow: planRateWindow,
+    guestMatchBlocksRewards: guestMatchBlocksRewards,
+    zeroGuestMatchRewards: zeroGuestMatchRewards,
+    PVP_CREATE_BURST: 10,
+    PVP_CREATE_BURST_MS: 60000,
+    PVP_ANON_MATCH_PER_HOUR: 20,
+    PVP_SIGNED_MATCH_PER_HOUR: 60,
+    PVP_MATCH_HOUR_MS: 60 * 60 * 1000,
 };

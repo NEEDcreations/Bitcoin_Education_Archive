@@ -114,8 +114,8 @@ async function main() {
     const alice = authed(env, 'alice', 'google.com');
     const anon = authed(env, 'anon', 'anonymous');
 
-    await check('anonymous lobby create is denied', function () {
-        return assertFails(setDoc(doc(anon, 'pvp_lobby', 'anon'), Object.assign(lobby(), { uid: 'anon' })));
+    await check('anonymous lobby create succeeds', function () {
+        return assertSucceeds(setDoc(doc(anon, 'pvp_lobby', 'anon'), Object.assign(lobby(), { uid: 'anon', name: 'Guest' })));
     });
     await check('lobby extra field is denied', function () {
         const data = lobby();
@@ -206,6 +206,35 @@ async function main() {
             questionWinner: null,
             questionStartedAt: serverTimestamp(),
         }));
+    });
+
+    await seedMatch(env, 'reroll-skip', 'question_result', { currentQ: 1, questionWinner: 'reroll' });
+    await check('client cannot advance currentQ after a reroll', function () {
+        return assertFails(updateDoc(doc(alice, 'pvp_matches', 'reroll-skip'), {
+            status: 'active',
+            currentQ: 2,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+        }));
+    });
+    await seedMatch(env, 'reroll-same', 'question_result', { currentQ: 1, questionWinner: 'reroll', roundExplain: 'old' });
+    await check('client can start the replacement question at the same currentQ and clear roundExplain', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'reroll-same'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+            roundExplain: '',
+        }));
+    });
+    await seedMatch(env, 'explain-set', 'question_result', { currentQ: 0, questionWinner: 'player1' });
+    await check('client cannot write a new roundExplain', function () {
+        return assertFails(updateDoc(doc(alice, 'pvp_matches', 'explain-set'), {
+            roundExplain: 'secret',
+        }));
+    });
+    await check('anonymous cannot write pvp_played', function () {
+        return assertFails(setDoc(doc(anon, 'pvp_played', 'm1'), { matchId: 'm1' }));
     });
 
     await deleteDoc(doc(alice, 'pvp_lobby', 'alice')).catch(function () {});
