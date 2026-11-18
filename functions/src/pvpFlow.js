@@ -17,6 +17,9 @@ const SUMMARY_HEARTBEAT_MS = 20 * 1000;
 const WIN_POINTS = 50;
 const DRAW_POINTS = 5;
 const CONSOLATION_POINTS = 25;
+const PAIR_XP_CAP = 3;
+const MIN_MATCH_MS = 30 * 1000;
+const MIN_ACCOUNT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function safeDisplayName(name) {
     const cleaned = String(name || '')
@@ -242,6 +245,34 @@ function shuffleQuestion(q, rng) {
     };
 }
 
+
+function farmDayKey(nowMs) {
+    const when = new Date(Number(nowMs) || Date.now());
+    if (Number.isNaN(when.getTime())) return '';
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(when);
+    const get = function (type) {
+        for (let i = 0; i < parts.length; i++) {
+            if (parts[i].type === type) return parts[i].value;
+        }
+        return '';
+    };
+    const y = get('year'), m = get('month'), d = get('day');
+    return y && m && d ? y + '-' + m + '-' + d : '';
+}
+
+function pairDailyId(day, uidA, uidB) {
+    const a = String(uidA || '');
+    const b = String(uidB || '');
+    if (!day || !a || !b || a === b) return '';
+    const ids = [a, b].sort();
+    return day + '_' + ids[0] + '_' + ids[1];
+}
+
 function sideReward(key, player, winner, draw) {
     const p = player || {};
     const blocked = p.banned === true || p.anonymous === true;
@@ -258,7 +289,10 @@ function sideReward(key, player, winner, draw) {
         pvpWins = 1;
     } else if (winner) {
         outcome = 'loss';
-        points = (Number(p.score) || 0) > 0 ? CONSOLATION_POINTS : 0;
+        const wonRound = p.roundWins != null
+            ? (Number(p.roundWins) || 0) > 0
+            : (Number(p.score) || 0) > 0;
+        points = wonRound ? CONSOLATION_POINTS : 0;
         pvpLosses = 1;
     }
     if (blocked) {
@@ -327,6 +361,23 @@ function planPvpReward(input) {
     }
 
     const players = [sideReward('player1', p1, winner, draw), sideReward('player2', p2, winner, draw)];
+    let xpReason = draw ? 'draw' : 'win';
+    if (typeof src.durationMs === 'number' && src.durationMs < (src.minDurationMs || MIN_MATCH_MS)) {
+        players.forEach(function (p) { p.points = 0; });
+        xpReason = 'too_short';
+    } else if (typeof src.pairMatchesToday === 'number' && src.pairMatchesToday >= (src.pairXpCap || PAIR_XP_CAP)) {
+        players.forEach(function (p) { p.points = 0; });
+        xpReason = 'pair_cap';
+    } else {
+        const minAge = src.minAccountAgeMs || MIN_ACCOUNT_AGE_MS;
+        const ages = src.accountAgeMs || {};
+        ['player1', 'player2'].forEach(function (key, i) {
+            if (typeof ages[key] === 'number' && ages[key] < minAge) {
+                players[i].points = 0;
+                if (xpReason === 'draw' || xpReason === 'win') xpReason = 'young_account';
+            }
+        });
+    }
     let shout = null;
     if (winner) {
         const w = winner === 'player1' ? p1 : p2;
@@ -353,7 +404,7 @@ function planPvpReward(input) {
     }
     return {
         grant: true,
-        reason: draw ? 'draw' : 'win',
+        reason: xpReason,
         claimId: claimId,
         players: players,
         shout: shout,
@@ -460,6 +511,9 @@ module.exports = {
     WIN_POINTS: WIN_POINTS,
     DRAW_POINTS: DRAW_POINTS,
     CONSOLATION_POINTS: CONSOLATION_POINTS,
+    PAIR_XP_CAP: PAIR_XP_CAP,
+    MIN_MATCH_MS: MIN_MATCH_MS,
+    MIN_ACCOUNT_AGE_MS: MIN_ACCOUNT_AGE_MS,
     safeDisplayName: safeDisplayName,
     lobbyShoutText: lobbyShoutText,
     resultShoutText: resultShoutText,
@@ -483,6 +537,8 @@ module.exports = {
     trustedLobbyKeep: trustedLobbyKeep,
     planWinTicket: planWinTicket,
     planXpWrite: planXpWrite,
+    farmDayKey: farmDayKey,
+    pairDailyId: pairDailyId,
     playerKeyForUid: playerKeyForUid,
     pushShardOrder: pushShardOrder,
     pvpPicAllowed: pvpPicAllowed,

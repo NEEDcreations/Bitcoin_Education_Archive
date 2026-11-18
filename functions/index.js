@@ -8848,12 +8848,34 @@ async function settlePvpMatch(matchId, after) {
     const p1 = after.player1 || {};
     const p2 = after.player2 || {};
     const [f1, f2] = await Promise.all([pvpAccountFlags(ids.player1), pvpAccountFlags(ids.player2)]);
+    const nowMs = Date.now();
+    const createdMs = pvpFlow.lastSeenMs(after.createdAt);
+    const durationMs = createdMs ? Math.max(0, nowMs - createdMs) : null;
+    const day = pvpFlow.farmDayKey(nowMs);
+    const pairId = pvpFlow.pairDailyId(day, ids.player1, ids.player2);
+    const pairRef = pairId ? db.collection('pvp_pair_daily').doc(pairId) : null;
+    async function accountAgeMs(uid) {
+        try {
+            const authUser = await admin.auth().getUser(uid);
+            const created = Date.parse(authUser.metadata && authUser.metadata.creationTime);
+            if (created) return nowMs - created;
+        } catch (e) {}
+        return null;
+    }
+    const [age1, age2, pairSnap] = await Promise.all([
+        accountAgeMs(ids.player1),
+        accountAgeMs(ids.player2),
+        pairRef ? pairRef.get() : Promise.resolve(null),
+    ]);
     const plan = pvpFlow.planPvpReward({
         matchId: matchId,
         status: after.status,
         alreadyGranted: false,
         forfeitedBy: after.forfeitedBy || '',
         forfeitReason: after.forfeitReason || '',
+        durationMs: durationMs,
+        pairMatchesToday: pairSnap && pairSnap.exists ? (pairSnap.data().count || 0) : 0,
+        accountAgeMs: { player1: age1, player2: age2 },
         player1: {
             uid: ids.player1,
             name: keyData.player1Name || '',
@@ -8970,6 +8992,14 @@ async function settlePvpMatch(matchId, after) {
             rewardsGranted: true,
             rewards: rewardsMap,
         }, { merge: true });
+        if (pairRef && !plan.voided) {
+            tx.set(pairRef, {
+                count: admin.firestore.FieldValue.increment(1),
+                day: day,
+                uids: [ids.player1, ids.player2],
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
         return true;
     });
     if (wrote && plan.shout && plan.shout.post) {

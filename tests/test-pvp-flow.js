@@ -250,5 +250,60 @@ test('a win ticket is once per win and daily-capped, and XP writes weekly fields
     assert.deepStrictEqual(flow.pushShardOrder(3).slice(0, 3), [3, 4, 5]);
 });
 
+
+test('short matches and a fourth same-pair match pay no XP', function () {
+    const base = {
+        matchId: 'm2',
+        status: 'finished',
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    };
+    const short = flow.planPvpReward(Object.assign({}, base, { durationMs: 5000 }));
+    assert.strictEqual(short.grant, true);
+    assert.strictEqual(short.reason, 'too_short');
+    assert.strictEqual(short.players[0].points, 0);
+    assert.strictEqual(short.players[1].points, 0);
+    assert.strictEqual(short.players[0].pvpWins, 1);
+
+    const capped = flow.planPvpReward(Object.assign({}, base, { durationMs: 60000, pairMatchesToday: 3 }));
+    assert.strictEqual(capped.reason, 'pair_cap');
+    assert.strictEqual(capped.players[0].points, 0);
+    assert.strictEqual(capped.players[1].points, 0);
+
+    const third = flow.planPvpReward(Object.assign({}, base, { durationMs: 60000, pairMatchesToday: 2 }));
+    assert.strictEqual(third.reason, 'win');
+    assert.strictEqual(third.players[0].points, 50);
+    assert.strictEqual(third.players[1].points, 25);
+});
+
+test('consolation needs a won round, and young accounts earn no PvP XP', function () {
+    const noRound = flow.planPvpReward({
+        matchId: 'm3',
+        status: 'finished',
+        durationMs: 60000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 0, roundWins: 0 },
+    });
+    assert.strictEqual(noRound.players[0].points, 50);
+    assert.strictEqual(noRound.players[1].points, 0);
+
+    const young = flow.planPvpReward({
+        matchId: 'm4',
+        status: 'finished',
+        durationMs: 60000,
+        pairMatchesToday: 0,
+        accountAgeMs: { player1: 2 * 24 * 3600 * 1000, player2: 30 * 24 * 3600 * 1000 },
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(young.reason, 'young_account');
+    assert.strictEqual(young.players[0].points, 0);
+    assert.strictEqual(young.players[1].points, 25);
+
+    assert.ok(flow.pairDailyId('2026-11-18', 'b', 'a').indexOf('2026-11-18_a_b') === 0);
+    assert.strictEqual(flow.farmDayKey(Date.parse('2026-06-01T04:30:00Z')), '2026-06-01');
+});
+
 console.log(failed ? ('\n' + failed + ' failed') : ('\n' + passed + ' passed'));
 if (failed) process.exit(1);
