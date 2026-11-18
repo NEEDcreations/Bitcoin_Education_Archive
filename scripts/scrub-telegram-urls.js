@@ -8,43 +8,286 @@
 // ids. It does not write and it does not print URLs or bot tokens.
 //
 //   node scripts/scrub-telegram-urls.js
-//   node scripts/scrub-telegram-urls.js --apply
+//   node scripts/scrub-telegram-urls.js --apply --backup-dir /workspace/private/telegram-scrub-backup-YYYYMMDD
+//   node scripts/scrub-telegram-urls.js --ids-only
 //
-// --apply writes a local JSON backup of every affected document first, then
+// --apply requires --backup-dir. The path must be absolute and private.
+// Paths inside the repo, relative paths, /tmp, /workspace outside
+// /workspace/private, and home-dir shared folders are refused. The
+// intended location is /workspace/private/telegram-scrub-backup-<date>/,
+// created with mode 0700. The backup file (mode 0600) contains the
+// original URLs. Keep it private and delete it after the bot tokens are
+// rotated.
+//
+// --apply writes that backup of every affected document first, then
 // downloads each file and stores a Firebase Storage download URL under
 // chat-images/tg/<random>. When the file can no longer be fetched, the field
 // is set to null and the document gets mediaRemoved: true.
 // After a successful --apply, maintenance/telegram_file_url_scrub is marked
 // applied. A later run, with or without --apply, does nothing.
 //
-// The backup file contains the original URLs. It is written under
-// scripts/.telegram-url-scrub/ which is gitignored. Keep it private and
-// delete it after the bot tokens are rotated.
+// --apply is allowed only when the resolved projectId is
+// bitcoin-education-archive. GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT may
+// retarget a dry-run or --ids-only scan, but those values cannot authorize
+// --apply against any other project. The resolved projectId and bucket are
+// printed at the start of every run.
+//
+// --ids-only scans telegram_mirror_queue and announcements and prints
+// document ids and matched field names only. It never prints URLs and
+// never writes.
 //
 // Credentials are Application Default Credentials. No key file is read.
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const guard = require(path.join(__dirname, '..', 'functions', 'src', 'telegramFileGuard'));
 
-const PROJECT_ID = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'bitcoin-education-archive';
-const BUCKET_NAME = process.env.FIREBASE_STORAGE_BUCKET || 'bitcoin-education-archive.firebasestorage.app';
+const APPLY_PROJECT_ID = 'bitcoin-education-archive';
+const DEFAULT_BUCKET = 'bitcoin-education-archive.firebasestorage.app';
 const PAGE = 300;
 const MAX_BYTES = 20 * 1024 * 1024;
-const BACKUP_DIR = path.join(__dirname, '.telegram-url-scrub');
+const REPO_ROOT = path.resolve(__dirname, '..');
+const IDS_ONLY_COLLECTIONS = ['telegram_mirror_queue', 'announcements'];
+const HOME_SHARED_DIRS = [
+    'Desktop',
+    'Documents',
+    'Downloads',
+    'Public',
+    'Pictures',
+    'Music',
+    'Videos',
+    'Templates',
+    'Shared',
+    'shared',
+    'tmp',
+    'Temp',
+];
 
 function parseArgs(argv) {
-    return {
-        help: argv.indexOf('--help') !== -1 || argv.indexOf('-h') !== -1,
-        apply: argv.indexOf('--apply') !== -1,
+    const args = {
+        help: false,
+        apply: false,
+        idsOnly: false,
+        backupDir: null,
     };
+    const list = argv || [];
+    for (let i = 0; i < list.length; i++) {
+        const token = list[i];
+        if (token === '--help' || token === '-h') {
+            args.help = true;
+        } else if (token === '--apply') {
+            args.apply = true;
+        } else if (token === '--ids-only') {
+            args.idsOnly = true;
+        } else if (token === '--backup-dir') {
+            args.backupDir = i + 1 < list.length ? list[++i] : '';
+        } else if (token.indexOf('--backup-dir=') === 0) {
+            args.backupDir = token.slice('--backup-dir='.length);
+        }
+    }
+    return args;
 }
 
 function say(log, line) {
     const out = guard.redactSecrets(line);
     if (guard.containsTelegramBotMaterial(out)) return;
     (log || console.log)(out);
+}
+
+function resolveProjectId(env) {
+    const e = env || process.env;
+    return e.GCLOUD_PROJECT || e.GOOGLE_CLOUD_PROJECT || APPLY_PROJECT_ID;
+}
+
+function resolveBucket(env) {
+    const e = env || process.env;
+    return e.FIREBASE_STORAGE_BUCKET || DEFAULT_BUCKET;
+}
+
+function printTarget(projectId, bucketName, log) {
+    say(log, 'projectId=' + projectId);
+    say(log, 'bucket=' + bucketName);
+}
+
+function printHelp() {
+    console.log('Usage: node scripts/scrub-telegram-urls.js [--apply --backup-dir /absolute/path] [--ids-only]');
+    console.log('Dry-run is the default. --apply rehosts media and then marks the scrub applied.');
+    console.log('--apply requires --backup-dir pointing at an absolute path outside the repo');
+    console.log('(for example /workspace/private/telegram-scrub-backup-YYYYMMDD/). Relative');
+    console.log('paths, the repo tree, /tmp, /workspace outside /workspace/private, and');
+    console.log('home-dir shared folders are refused.');
+    console.log('--apply is allowed only when the resolved projectId is ' + APPLY_PROJECT_ID + '.');
+    console.log('--ids-only scans telegram_mirror_queue and announcements and prints');
+    console.log('document ids and matched field names only.');
+    console.log('Collections: ' + guard.SCRUB_COLLECTIONS.join(','));
+}
+
+function tryRealpath(p) {
+    try { return fs.realpathSync(p); }
+    catch (err) { return null; }
+}
+
+function isPathInside(parent, child) {
+    if (!parent || !child) return false;
+    const root = path.resolve(parent);
+    const target = path.resolve(child);
+    if (root === target) return true;
+    const prefix = root.endsWith(path.sep) ? root : root + path.sep;
+    return target.startsWith(prefix);
+}
+
+function resolveExisting(input) {
+    let cur = path.resolve(input);
+    const missing = [];
+    while (!fs.existsSync(cur) && cur !== path.dirname(cur)) {
+        missing.unshift(path.basename(cur));
+        cur = path.dirname(cur);
+    }
+    const existing = tryRealpath(cur) || cur;
+    return missing.length ? path.resolve(existing, path.join.apply(path, missing)) : path.resolve(existing);
+}
+
+function repoRoot() {
+    return tryRealpath(REPO_ROOT) || REPO_ROOT;
+}
+
+function sharedTmpRoots() {
+    const roots = [];
+    const candidates = ['/tmp', '/var/tmp', '/var/folders'];
+    const tmpDir = os.tmpdir();
+    if (tmpDir) candidates.push(tmpDir);
+    for (let i = 0; i < candidates.length; i++) {
+        const raw = candidates[i];
+        const real = tryRealpath(raw) || path.resolve(raw);
+        if (roots.indexOf(real) === -1) roots.push(real);
+    }
+    return roots;
+}
+
+function homeDirs() {
+    const homes = [];
+    const seen = [];
+    if (process.env.HOME) homes.push(process.env.HOME);
+    try {
+        const fromOs = os.homedir();
+        if (fromOs) homes.push(fromOs);
+    } catch (err) { /* ignore */ }
+    for (let i = 0; i < homes.length; i++) {
+        const home = tryRealpath(homes[i]) || path.resolve(homes[i]);
+        if (seen.indexOf(home) === -1) seen.push(home);
+    }
+    return seen;
+}
+
+function homeSharedFolderRoots() {
+    const roots = [];
+    const homes = homeDirs();
+    for (let i = 0; i < homes.length; i++) {
+        for (let j = 0; j < HOME_SHARED_DIRS.length; j++) {
+            const shared = path.join(homes[i], HOME_SHARED_DIRS[j]);
+            const real = tryRealpath(shared) || path.resolve(shared);
+            if (roots.indexOf(real) === -1) roots.push(real);
+        }
+    }
+    return roots;
+}
+
+function assertBackupDir(input) {
+    if (input == null || String(input).trim() === '') {
+        const err = new Error('--apply requires --backup-dir');
+        err.code = 'backup-dir-required';
+        throw err;
+    }
+    const raw = String(input).trim();
+    if (!path.isAbsolute(raw)) {
+        const err = new Error('backup-dir must be an absolute path');
+        err.code = 'backup-dir-relative';
+        throw err;
+    }
+    const resolved = resolveExisting(raw);
+    if (isPathInside(repoRoot(), resolved)) {
+        const err = new Error('backup-dir must not be inside the repository');
+        err.code = 'backup-dir-repo';
+        throw err;
+    }
+    const tmpRoots = sharedTmpRoots();
+    for (let i = 0; i < tmpRoots.length; i++) {
+        if (isPathInside(tmpRoots[i], resolved)) {
+            const err = new Error('backup-dir must not be a shared location');
+            err.code = 'backup-dir-shared';
+            throw err;
+        }
+    }
+    const workspace = tryRealpath('/workspace') || path.resolve('/workspace');
+    const workspacePrivate = tryRealpath('/workspace/private') || path.resolve('/workspace/private');
+    if (isPathInside(workspace, resolved) && !isPathInside(workspacePrivate, resolved)) {
+        const err = new Error('backup-dir under /workspace must be inside /workspace/private');
+        err.code = 'backup-dir-workspace';
+        throw err;
+    }
+    const homes = homeDirs();
+    for (let i = 0; i < homes.length; i++) {
+        if (resolved === homes[i]) {
+            const err = new Error('backup-dir must not be a home-dir shared folder');
+            err.code = 'backup-dir-home';
+            throw err;
+        }
+    }
+    const sharedHomes = homeSharedFolderRoots();
+    for (let i = 0; i < sharedHomes.length; i++) {
+        if (isPathInside(sharedHomes[i], resolved)) {
+            const err = new Error('backup-dir must not be a home-dir shared folder');
+            err.code = 'backup-dir-home';
+            throw err;
+        }
+    }
+    const parent = path.dirname(resolved);
+    if (!fs.existsSync(parent)) {
+        const err = new Error('backup-dir parent must already exist');
+        err.code = 'backup-dir-parent';
+        throw err;
+    }
+    return resolved;
+}
+
+function assertApplyAllowed(options) {
+    const opts = options || {};
+    if (opts.apply !== true) return;
+    if (opts.idsOnly === true) {
+        const err = new Error('refusing --apply with --ids-only');
+        err.code = 'apply-ids-only';
+        throw err;
+    }
+    if (opts.projectId !== APPLY_PROJECT_ID) {
+        const err = new Error('refusing --apply: projectId must be ' + APPLY_PROJECT_ID);
+        err.code = 'apply-project';
+        throw err;
+    }
+    return assertBackupDir(opts.backupDir);
+}
+
+function prepareRun(argv, env, log) {
+    const args = parseArgs(argv);
+    if (args.help) return { help: true };
+    const projectId = resolveProjectId(env);
+    const bucketName = resolveBucket(env);
+    printTarget(projectId, bucketName, log);
+    const backupDir = assertApplyAllowed({
+        apply: args.apply,
+        idsOnly: args.idsOnly,
+        projectId: projectId,
+        backupDir: args.backupDir,
+    });
+    return {
+        help: false,
+        apply: args.apply,
+        idsOnly: args.idsOnly,
+        projectId: projectId,
+        bucketName: bucketName,
+        backupDir: backupDir || null,
+    };
 }
 
 function toPlain(value) {
@@ -129,9 +372,20 @@ async function listCollection(db, name, documentIdField) {
 }
 
 function writeBackup(dir, docs, nowIso) {
-    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const resolved = assertBackupDir(dir);
+    if (fs.existsSync(resolved)) {
+        const st = fs.lstatSync(resolved);
+        if (!st.isDirectory()) {
+            const err = new Error('backup-dir must be a directory');
+            err.code = 'backup-dir-not-dir';
+            throw err;
+        }
+    } else {
+        fs.mkdirSync(resolved, { recursive: false, mode: 0o700 });
+    }
+    fs.chmodSync(resolved, 0o700);
     const stamp = String(nowIso || new Date().toISOString()).replace(/[:.]/g, '-');
-    const file = path.join(dir, 'backup-' + stamp + '.json');
+    const file = path.join(resolved, 'backup-' + stamp + '.json');
     const body = JSON.stringify({
         createdAt: nowIso || new Date().toISOString(),
         collections: guard.SCRUB_COLLECTIONS.slice(),
@@ -144,7 +398,31 @@ function writeBackup(dir, docs, nowIso) {
         }),
     });
     fs.writeFileSync(file, body, { mode: 0o600 });
+    fs.chmodSync(file, 0o600);
     return file;
+}
+
+async function runIdsOnlyScan(options) {
+    const opts = options || {};
+    const log = opts.log || console.log;
+    const collections = (opts.collections || IDS_ONLY_COLLECTIONS).slice();
+    const matches = [];
+    for (let i = 0; i < collections.length; i++) {
+        const name = collections[i];
+        const rows = await opts.listDocs(name);
+        for (let r = 0; r < rows.length; r++) {
+            const row = rows[r];
+            const leaks = guard.listTelegramBotMaterial(row.data);
+            if (!leaks.length) continue;
+            const fields = leaks.map(function (leak) {
+                return guard.fieldLabel(leak.path);
+            });
+            matches.push({ collection: name, id: row.id, fields: fields });
+            say(log, 'doc=' + name + '/' + row.id + ' fields=' + fields.join(','));
+        }
+    }
+    say(log, 'ids-only matches=' + matches.length);
+    return { matches: matches, affected: matches.length, wrote: false };
 }
 
 async function runScrub(options) {
@@ -154,6 +432,14 @@ async function runScrub(options) {
     const db = opts.db;
     const marker = opts.marker || guard.SCRUB_MARKER;
     const collections = (opts.collections || guard.SCRUB_COLLECTIONS).slice();
+    let backupDir = null;
+    if (apply) {
+        backupDir = assertApplyAllowed({
+            apply: true,
+            projectId: opts.projectId || APPLY_PROJECT_ID,
+            backupDir: opts.backupDir,
+        });
+    }
     const markerRef = db.collection(marker.collection).doc(marker.id);
     const markerSnap = await markerRef.get();
     const markerData = markerSnap && markerSnap.exists && markerSnap.data ? (markerSnap.data() || {}) : null;
@@ -187,7 +473,7 @@ async function runScrub(options) {
         return { alreadyApplied: false, affected: affected.length, rehosted: 0, removed: 0, wrote: false };
     }
 
-    const backupFile = writeBackup(opts.backupDir || BACKUP_DIR, affected, opts.nowIso || new Date().toISOString());
+    const backupFile = writeBackup(backupDir, affected, opts.nowIso || new Date().toISOString());
     say(log, 'backup-written bytes=' + fs.statSync(backupFile).size);
 
     let rehosted = 0;
@@ -289,10 +575,12 @@ function loadModular() {
     };
 }
 
-function initClients(mods) {
+function initClients(mods, opts) {
     const api = mods || loadModular();
+    const projectId = (opts && opts.projectId) || resolveProjectId();
+    const bucketName = (opts && opts.bucketName) || resolveBucket();
     if (!api.getApps().length) {
-        const init = { projectId: PROJECT_ID, storageBucket: BUCKET_NAME };
+        const init = { projectId: projectId, storageBucket: bucketName };
         if (typeof api.applicationDefault === 'function') {
             init.credential = api.applicationDefault();
         }
@@ -301,31 +589,42 @@ function initClients(mods) {
     return {
         db: api.getFirestore(),
         fieldPath: api.FieldPath.documentId(),
-        bucket: function () { return api.getStorage().bucket(BUCKET_NAME); },
+        bucket: function () { return api.getStorage().bucket(bucketName); },
     };
 }
 
 async function main() {
     const args = parseArgs(process.argv.slice(2));
     if (args.help) {
-        console.log('Usage: node scripts/scrub-telegram-urls.js [--apply]');
-        console.log('Dry-run is the default. --apply rehosts media and then marks the scrub applied.');
-        console.log('Collections: ' + guard.SCRUB_COLLECTIONS.join(','));
+        printHelp();
         return;
     }
-    const clients = initClients();
+    const prepared = prepareRun(process.argv.slice(2), process.env, console.log);
+    const clients = initClients(null, {
+        projectId: prepared.projectId,
+        bucketName: prepared.bucketName,
+    });
     const db = clients.db;
     const documentIdField = clients.fieldPath;
     const fetchImpl = typeof fetch === 'function' ? fetch : require('node-fetch');
+    if (prepared.idsOnly) {
+        const scan = await runIdsOnlyScan({
+            listDocs: function (name) { return listCollection(db, name, documentIdField); },
+        });
+        if (!scan.affected) say(console.log, 'no matches');
+        return;
+    }
     const summary = await runScrub({
-        apply: args.apply,
+        apply: prepared.apply,
+        projectId: prepared.projectId,
+        backupDir: prepared.backupDir,
         db: db,
         nowIso: new Date().toISOString(),
         listDocs: function (name) { return listCollection(db, name, documentIdField); },
         updateDoc: function (name, id, patch) {
             return db.collection(name).doc(id).update(patch);
         },
-        rehost: args.apply
+        rehost: prepared.apply
             ? makeStorageRehost(clients.bucket(), fetchImpl)
             : async function () { return null; },
     });
@@ -337,15 +636,24 @@ async function main() {
 module.exports = {
     SCRUB_COLLECTIONS: guard.SCRUB_COLLECTIONS,
     SCRUB_MARKER: guard.SCRUB_MARKER,
+    APPLY_PROJECT_ID: APPLY_PROJECT_ID,
+    IDS_ONLY_COLLECTIONS: IDS_ONLY_COLLECTIONS,
     toPlain: toPlain,
     changedPatch: changedPatch,
     scrubDocument: scrubDocument,
     runScrub: runScrub,
+    runIdsOnlyScan: runIdsOnlyScan,
     writeBackup: writeBackup,
     extensionForUpload: extensionForUpload,
     loadModular: loadModular,
     initClients: initClients,
     parseArgs: parseArgs,
+    resolveProjectId: resolveProjectId,
+    resolveBucket: resolveBucket,
+    printTarget: printTarget,
+    assertBackupDir: assertBackupDir,
+    assertApplyAllowed: assertApplyAllowed,
+    prepareRun: prepareRun,
 };
 
 if (require.main === module) {

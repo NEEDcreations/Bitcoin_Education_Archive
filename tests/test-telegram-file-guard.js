@@ -10,10 +10,24 @@ const mirror = require('../functions/src/chatTelegramMirror');
 const TOKEN = '12345:TESTTOKEN';
 const FILE_URL = 'https://api.telegram.org/file/bot' + TOKEN + '/photos/file_1.jpg';
 const root = path.join(__dirname, '..');
+const PRIVATE_BACKUP_ROOT = '/workspace/private';
 
 let passed = 0;
 let failed = 0;
 const queue = [];
+const cleanupDirs = [];
+
+function makePrivateBackupDir() {
+    const dir = fs.mkdtempSync(path.join(PRIVATE_BACKUP_ROOT, 'telegram-scrub-backup-test-'));
+    cleanupDirs.push(dir);
+    return dir;
+}
+
+function rmDir(dir) {
+    if (!dir) return;
+    try { fs.rmSync(dir, { recursive: true, force: true }); }
+    catch (err) { /* ignore */ }
+}
 
 function test(name, fn) {
     try {
@@ -194,7 +208,7 @@ test('scrub dry-run prints ids only and apply rehosts or clears', async function
     ];
     const logs = [];
     const updates = [];
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-scrub-'));
+    const dir = makePrivateBackupDir();
     const db = {
         collection: function () {
             return { doc: function () { return { get: async function () { return { exists: false, data: function () { return null; } }; } }; } };
@@ -309,6 +323,13 @@ test('scrub CLI uses firebase-admin v14 modular APIs', function () {
     assert.ok(src.indexOf('admin.firestore.FieldPath') === -1);
     assert.strictEqual(scrub.parseArgs([]).apply, false);
     assert.strictEqual(scrub.parseArgs(['--apply']).apply, true);
+    assert.strictEqual(scrub.parseArgs(['--apply']).backupDir, null);
+    assert.strictEqual(scrub.parseArgs(['--apply', '--backup-dir', '/workspace/private/x']).backupDir, '/workspace/private/x');
+    assert.strictEqual(scrub.parseArgs(['--backup-dir=/workspace/private/x']).backupDir, '/workspace/private/x');
+    assert.strictEqual(scrub.parseArgs(['--ids-only']).idsOnly, true);
+    assert.strictEqual(scrub.parseArgs([]).idsOnly, false);
+    assert.ok(src.indexOf("scripts/.telegram-url-scrub") === -1);
+    assert.ok(src.indexOf(".telegram-url-scrub") === -1);
 
     const inits = [];
     let storageCalled = false;
@@ -345,7 +366,234 @@ test('scrub CLI uses firebase-admin v14 modular APIs', function () {
     assert.strictEqual(again.db, fakeDb);
 });
 
+
+function expectCode(fn, code) {
+    let caught = null;
+    try { fn(); }
+    catch (err) { caught = err; }
+    assert.ok(caught, 'expected error ' + code);
+    assert.strictEqual(caught.code, code);
+}
+
+test('apply requires a private absolute backup-dir', function () {
+    expectCode(function () { scrub.assertBackupDir(); }, 'backup-dir-required');
+    expectCode(function () { scrub.assertBackupDir(''); }, 'backup-dir-required');
+    expectCode(function () { scrub.assertBackupDir('   '); }, 'backup-dir-required');
+    expectCode(function () { scrub.assertBackupDir('scripts/.telegram-url-scrub'); }, 'backup-dir-relative');
+    expectCode(function () { scrub.assertBackupDir('./telegram-scrub-backup'); }, 'backup-dir-relative');
+    expectCode(function () { scrub.assertBackupDir('../private/telegram-scrub-backup'); }, 'backup-dir-relative');
+    expectCode(function () {
+        scrub.assertBackupDir(path.join(root, 'scripts', '.telegram-url-scrub'));
+    }, 'backup-dir-repo');
+    expectCode(function () { scrub.assertBackupDir(path.join(root, 'backup')); }, 'backup-dir-repo');
+    expectCode(function () { scrub.assertBackupDir('/tmp/telegram-scrub-backup'); }, 'backup-dir-shared');
+    expectCode(function () { scrub.assertBackupDir(path.join(os.tmpdir(), 'telegram-scrub-backup')); }, 'backup-dir-shared');
+    expectCode(function () { scrub.assertBackupDir('/workspace/telegram-scrub-backup'); }, 'backup-dir-workspace');
+    expectCode(function () { scrub.assertBackupDir('/workspace/private-not-allowed'); }, 'backup-dir-workspace');
+    expectCode(function () {
+        scrub.assertBackupDir(path.join(os.homedir(), 'Downloads', 'telegram-scrub-backup'));
+    }, 'backup-dir-home');
+    expectCode(function () {
+        scrub.assertBackupDir(path.join(os.homedir(), 'Desktop', 'telegram-scrub-backup'));
+    }, 'backup-dir-home');
+    expectCode(function () { scrub.assertBackupDir(os.homedir()); }, 'backup-dir-home');
+
+    const allowed = path.join(PRIVATE_BACKUP_ROOT, 'telegram-scrub-backup-20261118');
+    assert.strictEqual(scrub.assertBackupDir(allowed), path.resolve(allowed));
+
+    expectCode(function () {
+        scrub.assertApplyAllowed({
+            apply: true,
+            projectId: scrub.APPLY_PROJECT_ID,
+            backupDir: null,
+        });
+    }, 'backup-dir-required');
+});
+
+test('apply refuses a retargeted project and dry-run prints the target', function () {
+    assert.strictEqual(scrub.resolveProjectId({}), 'bitcoin-education-archive');
+    assert.strictEqual(scrub.resolveProjectId({ GCLOUD_PROJECT: 'other-project' }), 'other-project');
+    assert.strictEqual(scrub.resolveProjectId({ GOOGLE_CLOUD_PROJECT: 'from-google' }), 'from-google');
+    assert.strictEqual(scrub.resolveProjectId({
+        GCLOUD_PROJECT: 'from-gcloud',
+        GOOGLE_CLOUD_PROJECT: 'from-google',
+    }), 'from-gcloud');
+    assert.strictEqual(scrub.resolveBucket({}), 'bitcoin-education-archive.firebasestorage.app');
+    assert.strictEqual(scrub.resolveBucket({ FIREBASE_STORAGE_BUCKET: 'custom-bucket' }), 'custom-bucket');
+
+    const dir = makePrivateBackupDir();
+    expectCode(function () {
+        scrub.assertApplyAllowed({
+            apply: true,
+            projectId: 'other-project',
+            backupDir: dir,
+        });
+    }, 'apply-project');
+    expectCode(function () {
+        scrub.assertApplyAllowed({
+            apply: true,
+            projectId: 'bitcoin-quest-staging',
+            backupDir: dir,
+        });
+    }, 'apply-project');
+    expectCode(function () {
+        scrub.assertApplyAllowed({
+            apply: true,
+            idsOnly: true,
+            projectId: scrub.APPLY_PROJECT_ID,
+            backupDir: dir,
+        });
+    }, 'apply-ids-only');
+    assert.strictEqual(
+        scrub.assertApplyAllowed({
+            apply: true,
+            projectId: 'bitcoin-education-archive',
+            backupDir: dir,
+        }),
+        path.resolve(dir)
+    );
+    scrub.assertApplyAllowed({ apply: false, projectId: 'other-project' });
+
+    const dryLogs = [];
+    const dry = scrub.prepareRun([], { GCLOUD_PROJECT: 'bitcoin-quest-staging', FIREBASE_STORAGE_BUCKET: 'staging-bucket' }, function (line) {
+        dryLogs.push(line);
+    });
+    assert.strictEqual(dry.apply, false);
+    assert.strictEqual(dry.projectId, 'bitcoin-quest-staging');
+    assert.strictEqual(dry.bucketName, 'staging-bucket');
+    assert.ok(dryLogs.indexOf('projectId=bitcoin-quest-staging') !== -1);
+    assert.ok(dryLogs.indexOf('bucket=staging-bucket') !== -1);
+
+    const applyLogs = [];
+    const prepared = scrub.prepareRun(
+        ['--apply', '--backup-dir', dir],
+        { GCLOUD_PROJECT: 'bitcoin-education-archive' },
+        function (line) { applyLogs.push(line); }
+    );
+    assert.strictEqual(prepared.apply, true);
+    assert.strictEqual(prepared.projectId, 'bitcoin-education-archive');
+    assert.ok(applyLogs.indexOf('projectId=bitcoin-education-archive') !== -1);
+    assert.ok(applyLogs.indexOf('bucket=bitcoin-education-archive.firebasestorage.app') !== -1);
+
+    const refusedLogs = [];
+    expectCode(function () {
+        scrub.prepareRun(
+            ['--apply', '--backup-dir', dir],
+            { GCLOUD_PROJECT: 'other-project', GOOGLE_CLOUD_PROJECT: 'other-project' },
+            function (line) { refusedLogs.push(line); }
+        );
+    }, 'apply-project');
+    assert.ok(refusedLogs.indexOf('projectId=other-project') !== -1);
+    assert.ok(refusedLogs.indexOf('bucket=bitcoin-education-archive.firebasestorage.app') !== -1);
+});
+
+test('ids-only scan prints ids and field names, never URLs', async function () {
+    const secretUrl = FILE_URL;
+    const logs = [];
+    const listed = [];
+    const scan = await scrub.runIdsOnlyScan({
+        log: function (line) { logs.push(line); },
+        listDocs: async function (name) {
+            listed.push(name);
+            if (name === 'telegram_mirror_queue') {
+                return [
+                    { id: 'q1', data: { text: 'plain' } },
+                    { id: 'q2', data: { imageUrl: secretUrl, caption: 'photo ' + secretUrl } },
+                ];
+            }
+            if (name === 'announcements') {
+                return [
+                    { id: 'a1', data: { text: 'hello ' + secretUrl, link: 'https://firebasestorage.googleapis.com/v0/b/x/o/a.jpg?alt=media' } },
+                ];
+            }
+            throw new Error('unexpected collection ' + name);
+        },
+        updateDoc: function () { throw new Error('ids-only wrote'); },
+    });
+    assert.deepStrictEqual(listed, ['telegram_mirror_queue', 'announcements']);
+    assert.deepStrictEqual(scrub.IDS_ONLY_COLLECTIONS, ['telegram_mirror_queue', 'announcements']);
+    assert.strictEqual(scan.wrote, false);
+    assert.strictEqual(scan.affected, 2);
+    assert.strictEqual(scan.matches.length, 2);
+    assert.strictEqual(scan.matches[0].id, 'q2');
+    assert.strictEqual(scan.matches[0].collection, 'telegram_mirror_queue');
+    assert.ok(scan.matches[0].fields.indexOf('imageUrl') !== -1);
+    assert.ok(scan.matches[0].fields.indexOf('caption') !== -1);
+    assert.strictEqual(scan.matches[1].id, 'a1');
+    const text = logs.join('\n');
+    assert.ok(text.indexOf('doc=telegram_mirror_queue/q2 fields=') !== -1);
+    assert.ok(text.indexOf('imageUrl') !== -1);
+    assert.ok(text.indexOf('caption') !== -1);
+    assert.ok(text.indexOf('doc=announcements/a1 fields=text') !== -1);
+    assert.ok(text.indexOf('ids-only matches=2') !== -1);
+    assert.ok(text.indexOf('q1') === -1);
+    assert.ok(text.indexOf(TOKEN) === -1);
+    assert.ok(text.indexOf('TESTTOKEN') === -1);
+    assert.ok(text.indexOf('api.telegram.org') === -1);
+    assert.ok(text.indexOf(secretUrl) === -1);
+    assert.ok(JSON.stringify(scan).indexOf(TOKEN) === -1);
+    assert.ok(JSON.stringify(scan).indexOf('api.telegram.org') === -1);
+
+    const preparedLogs = [];
+    const prepared = scrub.prepareRun(['--ids-only'], { GCLOUD_PROJECT: 'bitcoin-quest-staging' }, function (line) {
+        preparedLogs.push(line);
+    });
+    assert.strictEqual(prepared.idsOnly, true);
+    assert.strictEqual(prepared.apply, false);
+    assert.ok(preparedLogs.indexOf('projectId=bitcoin-quest-staging') !== -1);
+});
+
+test('apply backup uses mode 0700/0600 and is refused without a valid dir', async function () {
+    const dir = makePrivateBackupDir();
+    const file = scrub.writeBackup(dir, [{ collection: 'global_chat', id: 'n1', data: { text: 'ok' } }], '2026-11-18T00:00:00.000Z');
+    const dirMode = fs.statSync(dir).mode & 0o777;
+    const fileMode = fs.statSync(file).mode & 0o777;
+    assert.strictEqual(dirMode, 0o700);
+    assert.strictEqual(fileMode, 0o600);
+
+    let listed = false;
+    let wrote = false;
+    let caught = null;
+    try {
+        await scrub.runScrub({
+            apply: true,
+            projectId: scrub.APPLY_PROJECT_ID,
+            db: {
+                collection: function () {
+                    return { doc: function () { return { get: async function () { return { exists: false, data: function () { return null; } }; } }; } };
+                },
+            },
+            listDocs: async function () { listed = true; return []; },
+            updateDoc: function () { wrote = true; throw new Error('apply wrote without backup-dir'); },
+            rehost: function () { throw new Error('apply fetched without backup-dir'); },
+        });
+    } catch (err) { caught = err; }
+    assert.ok(caught);
+    assert.strictEqual(caught.code, 'backup-dir-required');
+    assert.strictEqual(listed, false);
+    assert.strictEqual(wrote, false);
+
+    let stagingListed = false;
+    try {
+        await scrub.runScrub({
+            apply: true,
+            projectId: 'bitcoin-quest-staging',
+            backupDir: dir,
+            db: {
+                collection: function () {
+                    return { doc: function () { return { get: async function () { return { exists: false, data: function () { return null; } }; } }; } };
+                },
+            },
+            listDocs: async function () { stagingListed = true; return []; },
+            updateDoc: function () { throw new Error('staging apply wrote'); },
+        });
+    } catch (err) { caught = err; }
+    assert.strictEqual(caught.code, 'apply-project');
+    assert.strictEqual(stagingListed, false);
+});
+
 Promise.all(queue).then(function () {
+    cleanupDirs.forEach(rmDir);
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);
 });
