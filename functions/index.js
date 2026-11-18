@@ -4490,7 +4490,7 @@ exports.pvpTimeoutOpponent = functionsV1.runWith({ enforceAppCheck: true }).http
 exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    if (await guestGate.isGuestCaller(admin, context)) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot spin');
     }
 
@@ -5691,6 +5691,7 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
         const data = change.after.data() || {};
         const pub = {};
         PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in data) pub[f] = data[f]; });
+        if ('points' in data || 'unclaimableXp' in data) pub.points = boardSnapshots.allTimeXp(data);
         try {
             await pubRef.set(pub, { merge: false });
             const beforeData = change.before && change.before.exists ? (change.before.data() || {}) : null;
@@ -5718,6 +5719,7 @@ exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) 
             const d = doc.data();
             const pub = {};
             PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in d) pub[f] = d[f]; });
+            if ('points' in d || 'unclaimableXp' in d) pub.points = boardSnapshots.allTimeXp(d);
             batch.set(db.collection('public_profiles').doc(doc.id), pub, { merge: false });
             count++;
             if (count % batch_size === 0) {
@@ -7903,10 +7905,9 @@ exports.seedWeeklyChallenge = functionsV1.https.onCall(async (data, context) => 
 // Increment community challenge progress (called from client - quiz completion, trivia correct)
 exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    // [SECURITY FIX] Block anonymous users — previously only checked context.auth exists.
-    // Anonymous accounts are free to create; an attacker could spam N anonymous UIDs
-    // and solo-complete the community challenge, triggering the SF boost and badge awards.
-    if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    // Block guests. isGuestCaller also checks Auth, so a stale anonymous token
+    // after an in-place link is treated as signed in, same as awardPoints.
+    if (await guestGate.isGuestCaller(admin, context)) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot contribute to weekly challenges');
     }
     const uid = context.auth.uid;

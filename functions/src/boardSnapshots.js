@@ -42,6 +42,10 @@ const RANK_BEYOND_25 = {
     reason: 'Exact rank past the top 50 is not stored. A true rank is one count query per player, or a full scan of public_profiles, and ghostMode is missing on most profiles so a count cannot drop ghosts. The snapshot keeps the top 50 exact. A signed-in player outside that list sees 50+ and the score already on their profile. No per-player rank query is issued.'
 };
 
+// public_profiles.points is the all-time board score: users.points minus
+// unclaimableXp (missing unclaimableXp counts as 0). syncPublicProfile
+// writes that value. Pre-cutoff moved XP has unclaimableXp 0, so it still
+// counts on this board.
 const BOARDS = {
     xpAll: { key: 'xpAll', docId: 'lb_xp_alltime', field: 'points', intervalMs: 15 * 60 * 1000, maxAgeMs: MAX_AGE_LONG_MS, kind: 'xp' },
     xpWeek: { key: 'xpWeek', docId: 'lb_xp_week', field: 'weeklyXP', intervalMs: 10 * 60 * 1000, maxAgeMs: MAX_AGE_SHORT_MS, kind: 'xp' },
@@ -54,7 +58,7 @@ const BOARDS = {
 const BOARD_KEYS = Object.keys(BOARDS);
 
 const METRIC_FIELDS = {
-    xpAll: ['points'],
+    xpAll: ['points', 'unclaimableXp'],
     xpWeek: ['weeklyXP'],
     xpMonth: ['monthlyXP'],
     pvp: ['pvpWins', 'pvpLosses'],
@@ -68,6 +72,15 @@ const DISPLAY_XP = ['faction', 'earnedHidden', 'lightningAddress', 'lightning'];
 function whole(value) {
     const n = Math.floor(Number(value) || 0);
     return n > 0 ? n : 0;
+}
+
+// All-time board score. Missing unclaimableXp counts as 0, so pre-cutoff
+// moved XP (unclaimableXp 0 or absent) still counts in full.
+function allTimeXp(data) {
+    const points = whole(data && data.points);
+    const unclaimable = whole(data && data.unclaimableXp);
+    const score = points - unclaimable;
+    return score > 0 ? score : 0;
 }
 
 function timeMs(value) {
@@ -221,14 +234,14 @@ function xpRows(profiles, field) {
     (profiles || []).forEach(function (profile) {
         const data = (profile && profile.data) || {};
         if (isGhost(data)) return;
-        const value = whole(data[field]);
+        const value = field === 'points' ? allTimeXp(data) : whole(data[field]);
         if (value <= 0) return;
         rows.push({
             uid: profile.id,
             username: data.username,
             profilePic: data.profilePic,
             value: value,
-            points: whole(data.points),
+            points: allTimeXp(data),
             faction: shortText(data.faction, 40),
             certScholar: hasCert(data, 'cert_scholar'),
             certTech: hasCert(data, 'cert_tech'),
@@ -523,6 +536,7 @@ module.exports = {
     RANK_BEYOND_25: RANK_BEYOND_25,
     BOARDS: BOARDS,
     BOARD_KEYS: BOARD_KEYS,
+    allTimeXp: allTimeXp,
     dirtyKeys: dirtyKeys,
     dirtyPatch: dirtyPatch,
     throttleDirtyPatch: throttleDirtyPatch,

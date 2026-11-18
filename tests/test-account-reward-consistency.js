@@ -42,8 +42,33 @@ function unit() {
     assert.deepStrictEqual(guestMovePatch(300, 2, cut, cut), { unclaimableXp: 300, leaderboardXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
     assert.deepStrictEqual(guestMovePatch(300, 2, null, cut), { unclaimableXp: 300, leaderboardXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
     assert.deepStrictEqual(guestMovePatch(-5, 'x', cut - 1, cut), { unclaimableXp: 0, leaderboardXp: 0, guestMovedXp: 0, guestMovedTickets: 0 });
-    const { GUEST_XP_CUTOFF_MS } = require(path.join(root, 'functions/src/onboardingApi'));
+    const onboarding = require(path.join(root, 'functions/src/onboardingApi'));
+    const { GUEST_XP_CUTOFF_MS, setGuestXpCutoffMs, guestMovePatch: patch } = onboarding;
     assert.ok(Number.isFinite(GUEST_XP_CUTOFF_MS) && GUEST_XP_CUTOFF_MS > Date.UTC(2026, 10, 18));
+    const injected = Date.UTC(2026, 10, 20, 0, 0, 0);
+    setGuestXpCutoffMs(injected);
+    try {
+        assert.strictEqual(onboarding.resolveGuestXpCutoffMs(), injected);
+        assert.deepStrictEqual(patch(300, 2, injected - 1), { unclaimableXp: 0, leaderboardXp: 300, guestMovedXp: 300, guestMovedTickets: 2 });
+        assert.deepStrictEqual(patch(300, 2, injected), { unclaimableXp: 300, leaderboardXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
+    } finally {
+        setGuestXpCutoffMs(null);
+    }
+    assert.strictEqual(onboarding.resolveGuestXpCutoffMs(), GUEST_XP_CUTOFF_MS);
+    const indexSrc = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
+    const spin = indexSrc.slice(indexSrc.indexOf('exports.dailySpin = '), indexSrc.indexOf('exports.pvpStoreAnswerKey'));
+    assert.ok(spin.includes('guestGate.isGuestCaller'));
+    assert.strictEqual(spin.includes("sign_in_provider === 'anonymous'"), false);
+    const weekly = indexSrc.slice(indexSrc.indexOf('exports.incrementWeeklyChallenge'), indexSrc.indexOf('exports.spendTickets = '));
+    assert.ok(weekly.includes('guestGate.isGuestCaller'));
+    assert.strictEqual(weekly.includes("sign_in_provider === 'anonymous'"), false);
+    const onboardSrc = fs.readFileSync(path.join(root, 'functions/src/onboardingApi.js'), 'utf8');
+    const prep = onboardSrc.slice(onboardSrc.indexOf('async function prepareGuestLink'), onboardSrc.indexOf('async function linkGuestAccount'));
+    const link = onboardSrc.slice(onboardSrc.indexOf('async function linkGuestAccount'), onboardSrc.indexOf('async function setUsername'));
+    assert.ok(prep.includes('guestGate.isGuestCaller'));
+    assert.ok(link.includes('guestGate.isGuestCaller'));
+    assert.strictEqual(prep.includes('isAnon(context)'), false);
+    assert.strictEqual(link.includes('isAnon(context)'), false);
     console.log('  ok  unit helpers');
 }
 
@@ -106,7 +131,7 @@ const admin = require('../functions/node_modules/firebase-admin');
 const fns = require('../functions/index.js');
 const { awardBadge } = require('../functions/src/awardBadge');
 const badgeRules = require('../functions/src/badgeRules');
-const { registerOnboarding, GUEST_XP_CUTOFF_MS } = require('../functions/src/onboardingApi');
+const { registerOnboarding, setGuestXpCutoffMs } = require('../functions/src/onboardingApi');
 const functionsV1 = require(require.resolve('firebase-functions/v1', { paths: [path.join(root, 'functions')] }));
 const db = admin.firestore();
 
@@ -242,6 +267,10 @@ async function main() {
     const BEFORE_GUEST = Date.now() + 60 * 60 * 1000; // guest created before this cutoff
 
     await test('production callable still links a guest', async function () {
+        // Cutoff after now: this guest is pre-cutoff. Do not use the wall clock
+        // against the placeholder constant.
+        setGuestXpCutoffMs(Date.now() + 60 * 60 * 1000);
+        try {
         await auth.createUser({ uid: 'linkDest00000000', email: 'dest0@example.com', password: emuPw(), emailVerified: true });
         await auth.createUser({ uid: 'linkGuest0000000' });
         await seedUser('linkGuest0000000', { points: 120, orangeTickets: 1 });
@@ -251,8 +280,13 @@ async function main() {
         const row = await userRow('linkDest00000000');
         assert.strictEqual(row.points, 120);
         assert.strictEqual(row.guestMovedXp, 120);
-        // Production cutoff is the deploy time; a guest created now is before it.
-        assert.strictEqual(row.weeklyXP, Date.now() < GUEST_XP_CUTOFF_MS ? 120 : 0);
+        // Inject a cutoff after "now" so this guest is treated as pre-cutoff.
+        // The production callable reads the override at call time.
+        assert.strictEqual(row.weeklyXP, 120);
+        assert.strictEqual(row.unclaimableXp || 0, 0);
+        } finally {
+            setGuestXpCutoffMs(null);
+        }
     });
 
     await test('guest from before the cutoff moves XP as claimable and leaderboard XP, as today', async function () {
@@ -297,6 +331,83 @@ async function main() {
         assert.strictEqual(row.weeklyXP, 0);
         assert.strictEqual(row.monthlyXP, 0);
         assert.strictEqual(row.guestMovedTickets, 2);
+    });
+
+    await test('isGuestCaller treats a stale anonymous token as signed in and fails closed', async function () {
+        const gate = require('../functions/src/guestGate');
+        function adminOf(record, fail) {
+            return {
+                auth: function () {
+                    return {
+                        getUser: async function () {
+                            if (fail) throw new Error('missing');
+                            return record;
+                        },
+                    };
+                },
+            };
+        }
+        assert.strictEqual(await gate.isGuestCaller(adminOf({}), null), true);
+        assert.strictEqual(await gate.isGuestCaller(adminOf({}), ctx('u1', 'password')), false);
+        assert.strictEqual(await gate.isGuestCaller(adminOf({ providerData: [] }), ctx('u1', 'anonymous')), true);
+        assert.strictEqual(await gate.isGuestCaller(adminOf({ providerData: [{ providerId: 'password' }] }), ctx('u1', 'anonymous')), false);
+        assert.strictEqual(await gate.isGuestCaller(adminOf({}, true), ctx('u1', 'anonymous')), true);
+        assert.strictEqual(await gate.isGuestCaller(adminOf({ providerData: [{ providerId: 'custom' }] }), ctx('ln:abc', 'custom')), false);
+    });
+
+    function errCode(err) {
+        return String((err && (err.code || err.message)) || '');
+    }
+    async function caught(fn) {
+        try { return { res: await fn() }; }
+        catch (e) { return { code: errCode(e), message: String(e && e.message || e) }; }
+    }
+
+    await test('dailySpin and incrementWeeklyChallenge refuse a guest and accept a stale anonymous token', async function () {
+        await auth.createUser({ uid: 'guestSpinUser0001' });
+        await auth.createUser({ uid: 'staleSpinUser0001', email: 'stalespin@example.com', password: emuPw() });
+        await seedUser('guestSpinUser0001');
+        await seedUser('staleSpinUser0001');
+
+        const guestSpin = await caught(function () { return fns.dailySpin.run({}, ctx('guestSpinUser0001', 'anonymous')); });
+        assert.ok(String(guestSpin.code || '').indexOf('permission-denied') !== -1, JSON.stringify(guestSpin));
+        assert.strictEqual((await userRow('guestSpinUser0001')).points, 0);
+        const staleSpin = await caught(function () { return fns.dailySpin.run({}, ctx('staleSpinUser0001', 'anonymous')); });
+        assert.strictEqual(String(staleSpin.code || '').indexOf('permission-denied'), -1, JSON.stringify(staleSpin));
+
+        const guestWeek = await caught(function () { return fns.incrementWeeklyChallenge.run({ goalType: 'quiz' }, ctx('guestSpinUser0001', 'anonymous')); });
+        assert.ok(String(guestWeek.code || '').indexOf('permission-denied') !== -1, JSON.stringify(guestWeek));
+        const staleWeek = await caught(function () { return fns.incrementWeeklyChallenge.run({ goalType: 'quiz' }, ctx('staleSpinUser0001', 'anonymous')); });
+        assert.strictEqual(String(staleWeek.code || '').indexOf('permission-denied'), -1, JSON.stringify(staleWeek));
+        if (staleWeek.res) assert.notStrictEqual(staleWeek.res.reason, 'guest');
+    });
+
+    await test('prepareGuestLink and linkGuestAccount use the same guest check as awardPoints', async function () {
+        await auth.createUser({ uid: 'guestPrepUser0001' });
+        await auth.createUser({ uid: 'stalePrepUser0001', email: 'staleprep@example.com', password: emuPw() });
+        await seedUser('guestPrepUser0001');
+        await seedUser('stalePrepUser0001');
+
+        const guestPrep = await fns.prepareGuestLink.run({}, ctx('guestPrepUser0001', 'anonymous'));
+        assert.strictEqual(guestPrep.ok, true, JSON.stringify(guestPrep));
+
+        const stalePrep = await caught(function () { return fns.prepareGuestLink.run({}, ctx('stalePrepUser0001', 'anonymous')); });
+        assert.ok(String(stalePrep.code || '').indexOf('failed-precondition') !== -1, JSON.stringify(stalePrep));
+
+        const signedPrep = await caught(function () { return fns.prepareGuestLink.run({}, ctx('realAwardUser001', 'password')); });
+        assert.ok(String(signedPrep.code || '').indexOf('failed-precondition') !== -1, JSON.stringify(signedPrep));
+
+        const guestLink = await caught(function () {
+            return fns.linkGuestAccount.run({ anonUid: 'guestPrepUser0001', nonce: 'abcd123456' }, ctx('guestAwardUser01', 'anonymous'));
+        });
+        assert.ok(String(guestLink.code || '').indexOf('permission-denied') !== -1, JSON.stringify(guestLink));
+
+        const staleLink = await caught(function () {
+            return fns.linkGuestAccount.run({ anonUid: 'noSuchGuest01', nonce: 'abcd123456' }, ctx('stalePrepUser0001', 'anonymous'));
+        });
+        assert.strictEqual(String(staleLink.code || '').indexOf('permission-denied'), -1, JSON.stringify(staleLink));
+        assert.strictEqual(staleLink.res && staleLink.res.ok, false);
+        assert.strictEqual(staleLink.res && staleLink.res.error, 'bad_nonce');
     });
 
     await test('cosmetic badge with verified:true writes no Favor', async function () {

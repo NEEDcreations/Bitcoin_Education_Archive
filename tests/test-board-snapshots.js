@@ -136,6 +136,7 @@ test('dirty stamps follow the field that changed and ignore lastSeen', () => {
         return copy;
     }
     assert.deepStrictEqual(boards.dirtyKeys(before, next({ points: 11 })), ['xpAll']);
+    assert.deepStrictEqual(boards.dirtyKeys(before, next({ unclaimableXp: 5 })), ['xpAll']);
     assert.deepStrictEqual(boards.dirtyKeys(before, next({ weeklyXP: 4, lastSeen: 9 })), ['xpWeek']);
     assert.deepStrictEqual(boards.dirtyKeys(before, next({ monthlyXP: 2, lastSeen: 9 })), ['xpMonth']);
     assert.deepStrictEqual(boards.dirtyKeys(before, next({ pvpWins: 1 })), ['pvp']);
@@ -148,6 +149,46 @@ test('dirty stamps follow the field that changed and ignore lastSeen', () => {
     assert.strictEqual(boards.dirtyKeys(null, { points: 1 }).length, boards.BOARD_KEYS.length);
     const patch = boards.dirtyPatch(before, next({ points: 12 }), 42);
     assert.deepStrictEqual(patch, { xpAll: 42 });
+});
+
+test('all-time board ranks by points minus unclaimableXp; missing counts as 0', () => {
+    assert.strictEqual(boards.allTimeXp({ points: 500, unclaimableXp: 200 }), 300);
+    assert.strictEqual(boards.allTimeXp({ points: 500 }), 500);
+    assert.strictEqual(boards.allTimeXp({ points: 500, unclaimableXp: 0 }), 500);
+    assert.strictEqual(boards.allTimeXp({ points: 100, unclaimableXp: 100 }), 0);
+    assert.strictEqual(boards.allTimeXp({ points: 40, unclaimableXp: 80 }), 0);
+    assert.strictEqual(boards.allTimeXp({}), 0);
+
+    const rows = [
+        profile('raw', { username: 'RawHigh', points: 1000, unclaimableXp: 800, weeklyXP: 1000, monthlyXP: 1000 }),
+        profile('mid', { username: 'MidFair', points: 400, weeklyXP: 50, monthlyXP: 50 }),
+        profile('kept', { username: 'FullKeep', points: 300, unclaimableXp: 0, weeklyXP: 200, monthlyXP: 200 }),
+        profile('ghost', { username: 'Ghost', points: 9000, unclaimableXp: 0, ghostMode: true })
+    ];
+    const all = boards.buildXpDoc(rows, boards.BOARDS.xpAll, 10);
+    assert.deepStrictEqual(all.rows.map(function (r) { return r.username; }), ['MidFair', 'FullKeep', 'RawHigh']);
+    assert.deepStrictEqual(all.rows.map(function (r) { return r.value; }), [400, 300, 200]);
+    assert.deepStrictEqual(all.rows.map(function (r) { return r.points; }), [400, 300, 200]);
+    assert.strictEqual(all.rows[0].rank, 1);
+    assert.strictEqual(all.rows[2].rank, 3);
+
+    // Pre-cutoff moved XP (unclaimableXp 0 or absent) still counts in full.
+    const pre = boards.buildXpDoc([
+        profile('a', { username: 'Ada', points: 250 }),
+        profile('b', { username: 'Bea', points: 200, unclaimableXp: 0 })
+    ], boards.BOARDS.xpAll, 10);
+    assert.deepStrictEqual(pre.rows.map(function (r) { return r.username + ':' + r.value; }), ['Ada:250', 'Bea:200']);
+
+    // Weekly and monthly still use their period fields, not the all-time score.
+    const week = boards.buildXpDoc(rows, boards.BOARDS.xpWeek, 10);
+    const month = boards.buildXpDoc(rows, boards.BOARDS.xpMonth, 10);
+    assert.strictEqual(week.rows[0].username, 'RawHigh');
+    assert.strictEqual(week.rows[0].value, 1000);
+    assert.strictEqual(month.rows[0].username, 'RawHigh');
+    assert.strictEqual(month.rows[0].value, 1000);
+    // Displayed all-time points on those rows still subtract unclaimableXp.
+    const rawWeek = week.rows.find(function (r) { return r.username === 'RawHigh'; });
+    assert.strictEqual(rawWeek.points, 200);
 });
 
 test('a board rebuilds only after its interval and only when the marker moved', () => {
@@ -420,6 +461,14 @@ test('the client, the visit path, and the rules match the snapshot plan', () => 
     assert.ok(stamp.includes("console.error('[lb dirty] stamp failed:'"));
     assert.strictEqual(stamp.includes('catch (e) {}'), false);
     assert.ok(stamp.includes('delete lbDirtyStampAt[key]'));
+    const syncAt = index.indexOf('exports.syncPublicProfile');
+    const sync = index.slice(syncAt, index.indexOf('exports.backfillPublicProfiles', syncAt));
+    assert.ok(sync.includes('boardSnapshots.allTimeXp'));
+    assert.ok(sync.includes('pub.points = boardSnapshots.allTimeXp'));
+    const backfillAt = index.indexOf('exports.backfillPublicProfiles');
+    const backfill = index.slice(backfillAt, index.indexOf('exports.backfillLightningAddress', backfillAt));
+    assert.ok(backfill.includes('boardSnapshots.allTimeXp'));
+    assert.ok(backfill.includes('pub.points = boardSnapshots.allTimeXp'));
 });
 
 test('read counts versus the live board, measured on a fake Firestore', async () => {

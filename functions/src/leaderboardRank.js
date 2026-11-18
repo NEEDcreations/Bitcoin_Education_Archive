@@ -25,6 +25,7 @@ const admin = require('./firebaseAdmin.js');
 const questBoard = require('./questBoard');
 const predictionStats = require('./predictionStats');
 const streakBoard = require('./streakBoard');
+const boardSnapshots = require('./boardSnapshots');
 const { offsetDateKey } = require('./offsetDay');
 
 const RATE_MAX = 20;
@@ -305,13 +306,29 @@ async function resolvePlayer(db, data, callerUid) {
     return playerFrom(found.id, profile, user);
 }
 
+function xpBoardValue(player, period) {
+    const field = XP_FIELD[period];
+    if (period === 'alltime') {
+        const user = player && player.user;
+        // Prefer the user doc when it carries points or unclaimableXp so the
+        // score is points minus unclaimableXp. The public profile stores that
+        // same all-time score in points (written by syncPublicProfile).
+        if (user && (Object.prototype.hasOwnProperty.call(user, 'points') || Object.prototype.hasOwnProperty.call(user, 'unclaimableXp'))) {
+            return boardSnapshots.allTimeXp(user);
+        }
+        return boardSnapshots.allTimeXp(player && player.profile);
+    }
+    return whole(player && player.profile && player.profile[field]);
+}
+
 function xpQualified(player, field) {
+    if (field === XP_FIELD.alltime) return xpBoardValue(player, 'alltime') > 0;
     return whole(player.profile[field]) > 0;
 }
 
 async function rankXp(db, player, period, docId) {
     const field = XP_FIELD[period];
-    const value = whole(player.profile[field]);
+    const value = xpBoardValue(player, period);
     if (value <= 0) {
         return { status: 'unqualified', username: player.username, score: 0, have: 0, needed: 1, message: '@' + displayName(player.username) + ' needs XP on this board' };
     }

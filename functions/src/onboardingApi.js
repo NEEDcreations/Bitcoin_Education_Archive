@@ -11,6 +11,7 @@ const { isSatsBanned } = require('./cipherClaim');
 const accountTombstone = require('./accountTombstone');
 const streakBoard = require('./streakBoard');
 const joinDate = require('./joinDate');
+const guestGate = require('./guestGate');
 
 const QUIZ_DOC = /_(quest|trivia|poll_vote)$/;
 const USERNAME_HOUR_MS = 60 * 60 * 1000;
@@ -40,7 +41,23 @@ function isAnon(context) {
 // claimable and counts toward weekly/monthly totals. Guests created at or
 // after it move XP as unclaimable and off the leaderboards, because earning
 // on a guest session is closed from the deploy on.
+//
+// TODO(ship): replace this 11:00 PM ET placeholder with the exact deploy
+// minute in a final commit before going live. Tests inject an override and
+// must not depend on the wall clock against this constant.
 const GUEST_XP_CUTOFF_MS = Date.parse('2026-11-18T23:00:00-05:00');
+
+let guestXpCutoffOverrideMs = null;
+
+function setGuestXpCutoffMs(ms) {
+    guestXpCutoffOverrideMs = (typeof ms === 'number' && Number.isFinite(ms)) ? ms : null;
+}
+
+function resolveGuestXpCutoffMs(explicitMs) {
+    if (typeof explicitMs === 'number' && Number.isFinite(explicitMs)) return explicitMs;
+    if (typeof guestXpCutoffOverrideMs === 'number' && Number.isFinite(guestXpCutoffOverrideMs)) return guestXpCutoffOverrideMs;
+    return GUEST_XP_CUTOFF_MS;
+}
 
 // What a guest link adds to the signed-in account, beyond points and tickets.
 // leaderboardXp is what goes into weeklyXP and monthlyXP. guestMovedXp and
@@ -49,7 +66,7 @@ const GUEST_XP_CUTOFF_MS = Date.parse('2026-11-18T23:00:00-05:00');
 function guestMovePatch(points, tickets, guestCreatedMs, cutoffMs) {
     const xp = Math.max(0, Math.floor(Number(points) || 0));
     const t = Math.max(0, Math.floor(Number(tickets) || 0));
-    const cutoff = cutoffMs == null ? GUEST_XP_CUTOFF_MS : cutoffMs;
+    const cutoff = resolveGuestXpCutoffMs(cutoffMs);
     // Unknown guest age fails closed (unclaimable).
     const beforeCutoff = typeof guestCreatedMs === 'number' && Number.isFinite(guestCreatedMs) && guestCreatedMs < cutoff;
     return {
@@ -171,8 +188,9 @@ function registerOnboarding(deps) {
     const db = deps.db;
     const admin = deps.admin;
     const functionsV1 = deps.functionsV1;
-    // Tests pass a cutoff. Production uses GUEST_XP_CUTOFF_MS.
-    const guestXpCutoffMs = typeof deps.guestXpCutoffMs === 'number' ? deps.guestXpCutoffMs : GUEST_XP_CUTOFF_MS;
+    // Tests pass deps.guestXpCutoffMs or call setGuestXpCutoffMs. Production
+    // reads GUEST_XP_CUTOFF_MS at call time so a test override is visible to
+    // already-registered callables.
     const onCall = function () {
         return functionsV1.runWith({ enforceAppCheck: true }).https.onCall;
     };
@@ -323,7 +341,7 @@ function registerOnboarding(deps) {
 
     async function prepareGuestLink(data, context) {
         const uid = requireUser(context, functionsV1);
-        if (!isAnon(context)) {
+        if (!(await guestGate.isGuestCaller(admin, context))) {
             throw httpsError(functionsV1, 'failed-precondition', 'Guest link is only for a guest session.');
         }
         const ref = db.collection('users').doc(uid);
@@ -349,7 +367,7 @@ function registerOnboarding(deps) {
         const secondFactor = require('./secondFactor');
         await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
         const uid = requireUser(context, functionsV1);
-        if (isAnon(context)) throw httpsError(functionsV1, 'permission-denied', 'Sign in before linking a guest.');
+        if (await guestGate.isGuestCaller(admin, context)) throw httpsError(functionsV1, 'permission-denied', 'Sign in before linking a guest.');
         const anonUid = String((data && data.anonUid) || '');
         const nonce = String((data && data.nonce) || '');
         if (!/^[A-Za-z0-9]{10,128}$/.test(anonUid) || anonUid === uid) {
@@ -436,7 +454,7 @@ function registerOnboarding(deps) {
             const movedPoints = movedGrant.awarded;
             // Moved guest progress stays on the account but is not claimable
             // and is not new leaderboard activity. See guestMovePatch.
-            const movePatch = guestMovePatch(movedPoints, again.tickets, createdAt, guestXpCutoffMs);
+            const movePatch = guestMovePatch(movedPoints, again.tickets, createdAt, deps.guestXpCutoffMs);
             let movedName = '';
             if (nameRef) {
                 const reserved = nameSnap && nameSnap.exists ? reservationView(nameSnap.data()) : null;
@@ -716,5 +734,7 @@ module.exports = {
     quizDocId: quizDocId,
     guestMovePatch: guestMovePatch,
     GUEST_XP_CUTOFF_MS: GUEST_XP_CUTOFF_MS,
+    setGuestXpCutoffMs: setGuestXpCutoffMs,
+    resolveGuestXpCutoffMs: resolveGuestXpCutoffMs,
     offsetDateKey: offsetDateKey,
 };
