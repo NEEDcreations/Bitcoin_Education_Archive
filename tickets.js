@@ -20,6 +20,8 @@ const TICKET_CONFIG = {
 function getReferralCode() {
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
     var authUser = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? auth.currentUser : null;
+    // Guests share without a referral code. Only logged-in accounts refer.
+    if (!authUser) return null;
     if (!user && !authUser) return null;
     // Prefer the code the server stored on the user doc. Fall back to the
     // uid prefix, which is the same code ensureReferralCode writes.
@@ -40,6 +42,8 @@ function getReferralLink() {
 
 function liveRefCode() {
     var code = '';
+    // Guest share links carry no referral code.
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return '';
     try {
         if (typeof getReferralCode === 'function') code = String(getReferralCode() || '');
     } catch (e) { code = ''; }

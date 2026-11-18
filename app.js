@@ -1295,11 +1295,15 @@
             if (typeof showToast === 'function') showToast('Daily Spin is in Settings → Experience Mode (Balanced or Everything).');
             return;
         }
-        // Auth gate — must be signed in to spin
-        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-            if (typeof showSignInPrompt === 'function') showSignInPrompt();
-            else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
-            return;
+        // Guests can spin for fun. The wheel runs on this device only: no server
+        // call, nothing banks, and the prize shows as "if logged in".
+        var guestSpin = !!(window.bqGuest && window.bqGuest.isGuest());
+        if (guestSpin) {
+            var _gToday = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+            if (localStorage.getItem('btc_guest_spin_date') === _gToday) {
+                if (typeof showToast === 'function') showToast('🎡 You already spun today. Log in to spin for real prizes.');
+                return;
+            }
         }
         // Check if already spun today (bypass for bonus spins from Nook)
         var isBonusSpin = !!window._bonusSpinActive;
@@ -1351,6 +1355,7 @@
             '</div>';
         
         document.body.appendChild(modal);
+        if (guestSpin && window.bqGuest) window.bqGuest.mountBanner(modal.firstChild, 'spin');
         
         // Draw the wheel
         var canvas = document.getElementById('spinCanvas');
@@ -1393,7 +1398,18 @@
 
             // Fire the callable on click. The wheel never picks a prize itself.
             var spinFn = (typeof firebase !== 'undefined' && firebase.functions) ? firebase.functions().httpsCallable('dailySpin') : null;
-            var serverSpinPromise = spinFn ? spinFn({}) : Promise.resolve({ data: null });
+            var serverSpinPromise;
+            if (guestSpin) {
+                // Weighted pick on this device. Shown only, never sent or saved.
+                var _gTotal = 0, _gIdx = 0;
+                segments.forEach(function (sg) { _gTotal += sg.weight; });
+                var _gRoll = Math.random() * _gTotal;
+                for (var _gi = 0; _gi < segments.length; _gi++) { _gRoll -= segments[_gi].weight; if (_gRoll <= 0) { _gIdx = _gi; break; } }
+                try { localStorage.setItem('btc_guest_spin_date', (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0])); } catch (e) {}
+                serverSpinPromise = Promise.resolve({ data: { reward: { rewardIndex: _gIdx, guest: true } } });
+            } else {
+                serverSpinPromise = spinFn ? spinFn({}) : Promise.resolve({ data: null });
+            }
             var clock = window._dailySpinClock;
             var spinState = clock.createState();
             spinState.started = Date.now();
@@ -1527,6 +1543,23 @@
 
             function showSpinReward(reward, selectedIndex) {
                 reward = reward || {};
+                if (reward.guest === true) {
+                    var gLanded = segments[selectedIndex] || segments[0];
+                    var gXp = /(\d+) XP/.exec(gLanded.label);
+                    var gText = (window.bqGuest && gXp) ? window.bqGuest.rewardText(Number(gXp[1])) : (window.bqGuest ? window.bqGuest.prizeText(gLanded.label) : gLanded.label);
+                    resultDiv.innerHTML = '';
+                    var gWrap = document.createElement('div');
+                    gWrap.style.cssText = 'animation:fadeSlideIn 0.5s ease-out;';
+                    var gEmoji = document.createElement('div');
+                    gEmoji.style.cssText = 'font-size:3rem;margin-bottom:8px;';
+                    gEmoji.textContent = gLanded.label.split(' ')[0];
+                    gWrap.appendChild(gEmoji);
+                    var gNote = window.bqGuest ? (gXp ? window.bqGuest.rewardNote(Number(gXp[1])) : window.bqGuest.prizeNote(gLanded.label)) : null;
+                    if (gNote) gWrap.appendChild(gNote);
+                    else { var gT = document.createElement('div'); gT.textContent = gText; gWrap.appendChild(gT); }
+                    resultDiv.appendChild(gWrap);
+                    return;
+                }
                 var rewardText = '';
                 var emoji = '🎡';
                 if (reward.rare) {

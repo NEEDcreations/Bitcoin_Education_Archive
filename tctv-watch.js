@@ -331,7 +331,7 @@
     function startTctvDailyWatch() {
         window._tctvWatchAutostart = true;
         if (!watchUser() && typeof window.showToast === 'function') {
-            window.showToast('Sign in to earn XP and orange tickets for watching.');
+            window.showToast((window.bqGuest && window.bqGuest.COPY && window.bqGuest.COPY.tctv) || 'Sign in to earn XP, badges and sats while you watch, and to join the chat.');
         }
         if (typeof window.go === 'function') window.go('timechain-tv');
         else if (typeof location !== 'undefined') location.hash = '#timechain-tv';

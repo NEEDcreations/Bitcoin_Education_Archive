@@ -177,6 +177,7 @@ const rewardNotify = require('./src/rewardNotify');
 const rankReached = require('./src/rankReached');
 const awardActions = require('./src/awardActions');
 const awardEvidence = require('./src/awardEvidence');
+const guestPolicy = require('./src/guestPolicy');
 const ticketGrants = require('./src/ticketGrants');
 const { grantServerTickets, claimNachoChat } = require('./src/grantServerTickets');
 const doubleXp = require('./src/doubleXp');
@@ -3036,6 +3037,9 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
 const beatsPlays = require('./src/beatsPlays');
 
 exports.recordBeatsPlay = functionsV1.https.onCall(async (data, context) => {
+    // Guests can listen, but plays and listen badges count only for logged-in
+    // accounts. Checked first so a guest call does no reads or writes.
+    if (context.auth && guestPolicy.isGuestContext(context)) return { counted: false, reason: 'guest' };
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
@@ -3060,6 +3064,10 @@ exports.titleFlair = functionsV1.https.onCall(async (data, context) => {
 });
 
 exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
+    // Guests (anonymous sessions) never earn XP or badges here. Nothing they
+    // do banks on the uid, so nothing carries over if they link an account.
+    // Checked first so a guest call does no reads or writes.
+    if (context.auth && guestPolicy.isGuestContext(context)) return guestPolicy.guestRewardResult();
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
@@ -6717,6 +6725,9 @@ exports.stravaAuth = functionsV1.runWith({ secrets: [stravaClientSecretParam], s
 exports.syncStravaWalks = functionsV1.runWith({ secrets: [stravaClientSecretParam], serviceAccount: runtimeSa('syncStravaWalks') }).https.onCall(async (data, context) => {
     console.log('[POW] syncStravaWalks called');
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be logged in');
+    if (guestPolicy.isGuestContext(context)) {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Log in to sync Strava');
+    }
     const uid = context.auth.uid;
     console.log('[POW] uid:', uid);
 

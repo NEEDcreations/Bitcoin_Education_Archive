@@ -17,6 +17,10 @@ function lqSaveProgress(p) {
         db.collection('users').doc(auth.currentUser.uid).update({ lqProgress: p }).catch(function(){});
     }
 }
+// Guests: progress is saved on this device with guest markers (guestLessonSeen,
+// guestPassed). Guest marks never pay and never block the first logged-in
+// lesson or pass from paying. They move to the account on sign-up.
+function lqIsGuest() { return !!(window.bqGuest && window.bqGuest.isGuest()); }
 function lqGetTopic(slug) { var p = lqGetProgress(); return p[slug] || { passed: false, lessonSeen: false, attempts: 0, bestScore: 0 }; }
 function lqSaveTopic(slug, data) { var p = lqGetProgress(); p[slug] = Object.assign(lqGetTopic(slug), data); lqSaveProgress(p); }
 
@@ -640,6 +644,8 @@ window.renderLearningQuestHub = function() {
         var statusHtml;
         if (t.passed) {
             statusHtml = '<span style="background:rgba(34,197,94,0.18);color:#22c55e;border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;">✅ Passed</span>';
+        } else if (t.guestPassed) {
+            statusHtml = '<span style="background:rgba(34,197,94,0.10);color:#22c55e;border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;">✅ Passed as guest</span>';
         } else if (t.attempts > 0) {
             statusHtml = '<span style="background:rgba(234,179,8,0.18);color:#eab308;border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;">🟡 ' + t.bestScore + '/5 — Retry</span>';
         } else {
@@ -678,6 +684,7 @@ window.renderLearningQuestHub = function() {
         '</div>' +
         '</div>';
     document.body.appendChild(hub);
+    if (window.bqGuest) window.bqGuest.mountBanner(hub.firstChild, 'learning-quests');
 };
 
 // --- Lesson Slideshow ---
@@ -770,7 +777,9 @@ window._lqOpenTopic = function(slug) {
     window._lqStartQuiz = function(s) {
         if (s === slug) {
             var t = lqGetTopic(slug);
-            if (!t.lessonSeen) {
+            if (lqIsGuest()) {
+                if (!t.guestLessonSeen) lqSaveTopic(slug, { guestLessonSeen: true });
+            } else if (!t.lessonSeen) {
                 lqSaveTopic(slug, { lessonSeen: true });
                 if (typeof awardPoints === 'function') awardPoints(50, '📖 Learning Quest: ' + topic.title + ' lesson', null, null, null, null, { actionKey: 'lq_lesson' });
             }
@@ -797,7 +806,9 @@ window._lqStartQuiz = function(slug) {
     var topic = LQ_TOPICS.find(function(t) { return t.slug === slug; });
     if (!topic) return;
     var t = lqGetTopic(slug);
-    if (!t.lessonSeen) {
+    if (lqIsGuest()) {
+        if (!t.guestLessonSeen) lqSaveTopic(slug, { guestLessonSeen: true });
+    } else if (!t.lessonSeen) {
         lqSaveTopic(slug, { lessonSeen: true });
         if (typeof awardPoints === 'function') awardPoints(50, '📖 Learning Quest: ' + topic.title + ' lesson', null, null, null, null, { actionKey: 'lq_lesson' });
     }
@@ -899,7 +910,12 @@ function _lqShowScore() {
     var newBest = Math.max(t.bestScore || 0, score);
     lqSaveTopic(slug, { attempts: newAttempts, bestScore: newBest });
 
-    var isFirstPass = passed && !t.passed;
+    var lqGuest = lqIsGuest();
+    var isFirstPass = passed && !t.passed && !lqGuest;
+    if (passed && lqGuest) {
+        lqSaveTopic(slug, { guestPassed: true });
+        if (window.bqGuest) window.bqGuest.progress.record('lq:' + slug);
+    }
     if (isFirstPass) {
         lqSaveTopic(slug, { passed: true, passedAt: Date.now() });
         // Pass badgeId so CF writes badge_awards proof (required for SF ownership check)
@@ -929,6 +945,7 @@ function _lqShowScore() {
           '<div style="font-size:1.5rem;margin-bottom:4px;">🎉</div>' +
           '<div style="font-size:1.1rem;font-weight:900;color:#22c55e;">You Passed!</div>' +
           (isFirstPass ? '<div style="font-size:0.8rem;color:rgba(34,197,94,0.7);margin-top:4px;">+100 XP · Badge earned!</div>' : '') +
+          (passed && lqGuest && !t.passed ? '<div id="lqGuestReward"></div>' : '') +
           '</div>'
         : '<div style="background:rgba(239,68,68,0.10);border:1.5px solid #ef4444;border-radius:14px;padding:16px;text-align:center;margin-bottom:20px;">' +
           '<div style="font-size:0.95rem;font-weight:700;color:#ef4444;">' + score + '/5 — Almost! Need 4 to pass</div>' +
@@ -1023,6 +1040,8 @@ window._lqShowDigDeeper = function(slug) {
         '</div>';
 
     document.body.appendChild(overlay);
+    var _lqGr = document.getElementById('lqGuestReward');
+    if (_lqGr && window.bqGuest) { var _lqN = window.bqGuest.rewardNote(100); if (_lqN) _lqGr.appendChild(_lqN); }
 };
 
 // --- Firestore login restore ---
@@ -1041,7 +1060,10 @@ if (typeof auth !== 'undefined' && auth) {
                             lessonSeen: !!(r.lessonSeen || l.lessonSeen),
                             attempts: Math.max(r.attempts||0, l.attempts||0),
                             bestScore: Math.max(r.bestScore||0, l.bestScore||0),
-                            passedAt: r.passedAt || l.passedAt || null
+                            passedAt: r.passedAt || l.passedAt || null,
+                            // Guest marks move over as progress only. They never pay.
+                            guestPassed: !!(r.guestPassed || l.guestPassed),
+                            guestLessonSeen: !!(r.guestLessonSeen || l.guestLessonSeen)
                         };
                     });
                     lqSaveProgress(merged);

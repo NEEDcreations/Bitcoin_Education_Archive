@@ -1817,6 +1817,7 @@ function showQuest(quest, retry) {
     html += '<button class="quest-skip" onclick="skipQuest()">Skip for now</button>';
 
     inner.innerHTML = html;
+    if (window.bqGuest) window.bqGuest.mountBanner(inner, 'quiz');
     modal.classList.add('open');
 
     window._questAnswers = new Array(5).fill(-1);
@@ -2060,6 +2061,11 @@ async function submitQuest() {
     window._questScore = score;
     window._questMsg = msg;
     window._questPts = pts;
+    // Guests: the pass is saved on this device only (guestCompleted). It never
+    // pays, and it does not stop the first logged-in pass from paying.
+    if (window.bqGuest && window.bqGuest.isGuest() && score >= 3 && currentQuest && currentQuest.id) {
+        window.bqGuest.progress.record('quest:' + currentQuest.id);
+    }
 
     // Update header to show score summary + Review Your Answers prompt
     const header = document.querySelector('.quest-header');
@@ -2200,9 +2206,16 @@ function showQuestFinalResults() {
             '<div style="font-size:1.8rem;font-weight:900;color:var(--heading);margin-bottom:8px;">' + score + ' / 5 Correct</div>' +
             '<div style="font-size:1.1rem;color:var(--text-muted);margin-bottom:20px;">' + msg + '</div>' +
             (pts > 0 ? '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">+' + pts + ' XP earned!</div>' : '') +
+            '<div id="questGuestReward" style="margin-bottom:12px;"></div>' +
             recHtml +
             (score < 5 ? '<button class="quest-retry" onclick="retryQuest()">🔄 Retake Quiz' + (isRetry ? '' : ' for 25 pts') + '</button>' : '') +
             '<button class="quest-done" onclick="closeQuest()">Continue Learning →</button>';
+        // Guests see what a logged-in pass pays (same amounts as gradeQuest).
+        var _gq = document.getElementById('questGuestReward');
+        if (_gq && score >= 3 && window.bqGuest && window.bqGuest.isGuest()) {
+            var _gn = window.bqGuest.rewardNote(isRetry ? 25 : (score === 5 ? 100 : 50));
+            if (_gn) _gq.appendChild(_gn);
+        }
     }
 
     const inner = document.getElementById('questInner');
@@ -4095,6 +4108,11 @@ function _renderQuestHubTab() {
     else if (tab === 'citadel') _renderCitadelTab(body);
     else if (tab === 'community') _renderCommunityTab(body);
     else if (tab === 'nook') _renderNookTab(body);
+    // Guest banner above the tab body (once per session). Favor hashing and
+    // claiming stay login-only; the banner is the sign-in note for them.
+    if (window.bqGuest && (tab === 'quiz' || tab === 'flex' || tab === 'favor') && body.parentNode) {
+        window.bqGuest.mountBanner(body.parentNode, tab === 'favor' ? 'favor' : (tab === 'flex' ? 'flex' : 'quiz'));
+    }
 }
 
 // ══════════════════════════════════════════════════════
@@ -8337,6 +8355,11 @@ function _flexCardSuccess(id) {
             streak.className = 'flex-streak';
             streak.innerHTML = '🔥 ×' + total;
             card.querySelector('[class*="flex-card-name"]') && card.children[0] && card.children[0].appendChild(streak);
+        }
+        // Guests: show what a logged-in player earns for this action.
+        if (action && window.bqGuest && window.bqGuest.isGuest()) {
+            var _fg = window.bqGuest.rewardNote(action.pts);
+            if (_fg) card.appendChild(_fg);
         }
         if (nextMilestone) {
             var cnt = document.createElement('div');

@@ -139,26 +139,19 @@ test('chat streak bonuses use the server streak', function () {
     assert.strictEqual(doubled.awarded, 100);
 });
 
-test('anon merge pays the anonymous account points, once, and ignores the client amount', function () {
+test('anon merge never pays: guest progress does not carry over as XP', function () {
     const mem = fresh();
     const spoof = grant(mem, { action: '🔗 Anonymous progress merged', pts: 500, anonUid: 'anonaccount1' });
     assert.strictEqual(spoof.awarded, 0);
-    const paid = grant(mem, { action: '🔗 Anonymous progress merged', pts: 900, anonUid: 'anonaccount1' }, {
+    const proven = grant(mem, { action: '🔗 Anonymous progress merged', pts: 900, anonUid: 'anonaccount1' }, {
         anon: { exists: true, anonymous: true, mergedInto: 'u', points: 80 },
     });
-    assert.strictEqual(paid.awarded, 80);
-    const cap = grant(fresh(), { action: '🔗 Anonymous progress merged', pts: 1, anonUid: 'anonaccount2' }, {
+    assert.strictEqual(proven.awarded, 0);
+    const big = grant(fresh(), { action: '🔗 Anonymous progress merged', pts: 1, anonUid: 'anonaccount2' }, {
         anon: { exists: true, anonymous: true, mergedInto: 'u', points: 900 },
     });
-    assert.strictEqual(cap.awarded, 500);
-    const replay = grant(mem, { action: '🔗 Anonymous progress merged', pts: 500, anonUid: 'anonaccount1' }, {
-        anon: { exists: true, anonymous: true, mergedInto: 'u', points: 80 },
-    });
-    assert.strictEqual(replay.awarded, 0);
-    const other = grant(fresh(), { action: '🔗 Anonymous progress merged', pts: 80, anonUid: 'anonaccount3' }, {
-        anon: { exists: true, anonymous: true, mergedInto: 'someone', points: 80 },
-    });
-    assert.strictEqual(other.awarded, 0);
+    assert.strictEqual(big.awarded, 0);
+    assert.strictEqual(mem.users.u.points, 0);
 });
 
 test('unverified actions share a 100 XP pool and stay out of claimable sats', function () {
