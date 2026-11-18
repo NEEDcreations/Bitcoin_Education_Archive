@@ -10,7 +10,9 @@
 // point the backup at a key they hold.
 //
 // Empty list = the export refuses to run (fails closed, writes no plaintext).
-const AGE_RECIPIENTS = Object.freeze([]);
+const AGE_RECIPIENTS = Object.freeze([
+    'age1elrxxl4kq34ptcaw4a8jspgv50l8qqgyjsrdhjk60dzr9d942g3s2d7ep6', // Phil, made Nov 18, 2026
+]);
 
 function authBackupBucket(projectId) {
     return projectId + '-auth-backups';
