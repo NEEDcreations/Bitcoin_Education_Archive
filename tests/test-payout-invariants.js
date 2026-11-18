@@ -33,9 +33,15 @@ test('A1 reservation is one runTransaction that reads every counter and runs cap
 test('A2 the same transaction increments all three counters and marks paying', function () {
     const after = reservation.slice(reservation.indexOf('if (capCode) refuse(capCode);'));
     ['uidDayRef', 'siteDayRef', 'budgetRef'].forEach(function (r) {
-        assert.ok(new RegExp('t\\.set\\(' + r + ', \\{ sats: ').test(after) || new RegExp('t\\.set\\(' + r + ', budgetRow').test(after), 'increments ' + r);
+        const sats = new RegExp('t\\.set\\(' + r + ', \\{ sats: ');
+        const budget = new RegExp('t\\.set\\(' + r + ', budgetRow');
+        const reserved = new RegExp('t\\.set\\(' + r + ', payoutMsat\\.addReserved\\(');
+        assert.ok(sats.test(after) || budget.test(after) || reserved.test(after), 'increments ' + r);
     });
     assert.ok(/status: 'paying'/.test(after));
+    if (/payoutMsat\.addReserved\(/.test(after)) {
+        assert.ok(/reservedMsat/.test(after), 'reservedMsat written in the same transaction');
+    }
 });
 
 test('A3 the reservation happens before the only wallet call', function () {
