@@ -80,6 +80,16 @@ function faucetLooksStuck(status) {
     return status === 'pending' || status === 'unknown';
 }
 
+// claimCipherWin also writes faucet_invoices/cipher_<hash> (often with winId)
+// status used, so auto-claimed cipher wins and faction prizes would be counted
+// twice if those faucet rows were included in monthly spend.
+function isDuplicateFaucetRow(claim) {
+    if (!claim || claim.source !== 'faucet') return false;
+    if (claim.data && claim.data.winId) return true;
+    if (String(claim.id || '').indexOf('cipher_') === 0) return true;
+    return false;
+}
+
 const WINDOW_FIELDS = Object.freeze({
     sf_block_claims: [
         { field: 'paidAtMs', as: 'ms' },
@@ -263,6 +273,9 @@ async function reconcile(deps, opts) {
         } else if (c.source === 'faucet' && faucetLooksStuck(c.status)) {
             const start = c.payingAtMs || eventMs(c.data, ['payingAtMs', 'tsMs', 'ts', 'createdAtMs']);
             if (start && (nowMs - start) >= stuckAfterMs) stuckAt = start;
+        } else if ((c.source === 'cipher_win' || c.source === 'cipher_sats') && c.status === 'unknown') {
+            const start = c.payingAtMs || eventMs(c.data, ['payingAtMs', 'payingAt', 'tsMs', 'ts', 'createdAtMs', 'createdAt']);
+            if (start && (nowMs - start) >= stuckAfterMs) stuckAt = start;
         }
         if (stuckAt) {
             result.stuckPaying.push({ source: c.source, id: c.id, payingAtMs: stuckAt, status: c.status });
@@ -270,6 +283,8 @@ async function reconcile(deps, opts) {
         // Favor spend is taken from sf_block_payouts only, so it is not
         // double-counted from the claim doc.
         if (c.source === 'favor') return;
+        // Skip faucet mirrors of cipher wins / faction prizes (winId or cipher_ id).
+        if (isDuplicateFaucetRow(c)) return;
         const counts = c.source === 'faucet' ? faucetCountsAsPaid(c.status) : c.status === 'paid';
         if (inMonth(c.data) && counts) {
             result.monthlySpentSats += c.paidSats;
@@ -421,6 +436,7 @@ module.exports = {
     toMs: toMs,
     paidAtMsOf: paidAtMsOf,
     faucetCountsAsPaid: faucetCountsAsPaid,
+    isDuplicateFaucetRow: isDuplicateFaucetRow,
     reconcile: reconcile,
     factory: factory,
     monthStartMs: monthStartMs,

@@ -189,6 +189,55 @@ test('faucet pending or unknown older than 15 minutes is flagged; used and fresh
     assert.strictEqual(r.monthlySpentSats, 200); // only the used row
 });
 
+test('monthly spend skips faucet rows with winId or a cipher_ id so auto-claimed wins are not counted twice', async function () {
+    const db = memDb({
+        'cipher_wins/w1': { status: 'paid', paidAtMs: NOW, amount: 2000, paymentHash: '11'.repeat(16) },
+        'faucet_invoices/cipher_abcd': { tsMs: NOW, status: 'used', amount: 2000, winId: 'w1', paymentHash: '11'.repeat(16) },
+        'faucet_invoices/cipher_no_winid': { tsMs: NOW, status: 'used', amount: 1500, paymentHash: '22'.repeat(16) },
+        'faucet_invoices/with_winId': { tsMs: NOW, status: 'used', amount: 700, winId: 'w2', paymentHash: '33'.repeat(16) },
+        'faucet_invoices/real_faucet': { tsMs: NOW, status: 'used', amount: 300, paymentHash: '44'.repeat(16) },
+    });
+    const r = await recon.reconcile({
+        db: db,
+        emitAlert: async function () { return true; },
+    }, { nowMs: NOW });
+    // 2000 from cipher_wins/w1 + 300 from the real faucet. The three
+    // duplicate faucet rows are skipped.
+    assert.strictEqual(r.monthlySpentSats, 2300);
+    assert.strictEqual(recon.isDuplicateFaucetRow({ source: 'faucet', id: 'cipher_abcd', data: {} }), true);
+    assert.strictEqual(recon.isDuplicateFaucetRow({ source: 'faucet', id: 'with_winId', data: { winId: 'w2' } }), true);
+    assert.strictEqual(recon.isDuplicateFaucetRow({ source: 'faucet', id: 'real_faucet', data: {} }), false);
+    assert.strictEqual(recon.isDuplicateFaucetRow({ source: 'cipher_win', id: 'cipher_abcd', data: { winId: 'w1' } }), false);
+});
+
+test('cipher wins and sats payouts with status unknown older than 15 minutes are flagged; fresh unknown and paid are not', async function () {
+    const db = memDb({
+        'cipher_wins/old_unknown': { status: 'unknown', createdAtMs: NOW - 20 * 60 * 1000, amount: 400, paymentHash: 'aa'.repeat(16) },
+        'cipher_wins/fresh_unknown': { status: 'unknown', createdAtMs: NOW - 60 * 1000, amount: 400, paymentHash: 'bb'.repeat(16) },
+        'cipher_wins/paid': { status: 'paid', paidAtMs: NOW - 20 * 60 * 1000, amount: 400, paymentHash: 'cc'.repeat(16) },
+        'cipher_sats_payouts/old_unknown': { status: 'unknown', ts: { toMillis: function () { return NOW - 16 * 60 * 1000; } }, amount: 250, paymentHash: 'dd'.repeat(16) },
+        'cipher_sats_payouts/fresh_unknown': { status: 'unknown', payingAtMs: NOW - 2 * 60 * 1000, amount: 250, paymentHash: 'ee'.repeat(16) },
+        'cipher_sats_payouts/paid': { status: 'paid', paidAtMs: NOW - 20 * 60 * 1000, amount: 250, paymentHash: 'ff'.repeat(16) },
+    });
+    const emitted = [];
+    const r = await recon.reconcile({
+        db: db,
+        emitAlert: async function (o) { emitted.push(o); return true; },
+    }, { nowMs: NOW });
+    const stuck = r.stuckPaying.map(function (s) { return s.source + ':' + s.id; }).sort();
+    assert.deepStrictEqual(stuck, ['cipher_sats:old_unknown', 'cipher_win:old_unknown']);
+    assert.ok(r.stuckPaying.every(function (s) { return s.status === 'unknown'; }));
+    assert.ok(db.store['payout_reconcile_flags/stuck_cipher_win_old_unknown']);
+    assert.ok(db.store['payout_reconcile_flags/stuck_cipher_sats_old_unknown']);
+    assert.ok(!db.store['payout_reconcile_flags/stuck_cipher_win_fresh_unknown']);
+    assert.ok(!db.store['payout_reconcile_flags/stuck_cipher_sats_fresh_unknown']);
+    assert.ok(!db.store['payout_reconcile_flags/stuck_cipher_win_paid']);
+    assert.ok(!db.store['payout_reconcile_flags/stuck_cipher_sats_paid']);
+    assert.ok(emitted.some(function (a) { return a.kind === 'stuck_paying'; }));
+    // paid cipher win (400) + paid cipher sats (250); unknown and faucet-less
+    assert.strictEqual(r.monthlySpentSats, 650);
+});
+
 test('alert helpers: budget bands and uid masking', function () {
     assert.strictEqual(alerts.budgetBand(79999), '');
     assert.strictEqual(alerts.budgetBand(80000), 'warn');
