@@ -1467,6 +1467,7 @@
                 }
 
                 if (data.status === 'active' && data.currentQ !== undefined) {
+                    clearRoundExplain();
                     if (data.currentQ !== pvpState.currentQ || !document.getElementById('pvpQuestion')) {
                         // Don't render question until countdown animation is done
                         if (!pvpState._countdownDone) {
@@ -1559,12 +1560,24 @@
         });
     }
 
+    // The round explanation belongs to the result screen of the round it
+    // explains. It is never shown once the next question is live (C8).
+    function roundExplainText(matchData) {
+        if (!matchData || matchData.status !== 'question_result') return '';
+        return (matchData.roundExplain && String(matchData.roundExplain).trim()) || '';
+    }
+    function clearRoundExplain() {
+        var box = document.getElementById('pvpRoundExplain');
+        if (box && box.parentNode) box.parentNode.removeChild(box);
+    }
+
     // =============================================
     // RENDER QUESTION
     // =============================================
     function renderQuestion(matchData) {
         var overlay = document.getElementById('pvpOverlay');
         if (!overlay) return;
+        clearRoundExplain();
 
         var qIdx = matchData.currentQ;
         var q = matchData.questions[qIdx];
@@ -1743,7 +1756,7 @@
         if (iWon) { pvpState.streak++; } else { pvpState.streak = 0; }
 
         var oppKey = pvpState.isPlayer1 ? 'player2' : 'player1';
-        var explain = (matchData.roundExplain && String(matchData.roundExplain).trim()) || '';
+        var explain = roundExplainText(matchData);
         overlay.innerHTML =
             '<div style="width:92%;max-width:520px;text-align:center;padding:16px 16px 20px;animation:pvpSlideIn 0.4s ease;">' +
                 '<div style="font-size:3rem;margin-bottom:8px;" aria-hidden="true">' + resultEmoji + '</div>' +
@@ -1751,7 +1764,7 @@
                 (pvpState.streak > 1 ? '<div style="color:var(--accent);font-size:0.85rem;font-weight:700;margin-bottom:8px;">' + pvpState.streak + ' streak! Bonus points!</div>' : '') +
                 pvpScoreBar(matchData[myKey].score, matchData[oppKey].score, pvpState.opponentName) +
                 '<div style="display:flex;gap:6px;justify-content:center;margin:4px 0 12px;">' + buildRoundDots(matchData) + '</div>' +
-                (explain ? '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0 0 14px;padding:12px;border:1px solid var(--border);border-radius:12px;text-align:left;">' + escHtml(explain) + '</div>' : '') +
+                (explain ? '<div id="pvpRoundExplain" style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0 0 14px;padding:12px;border:1px solid var(--border);border-radius:12px;text-align:left;">' + escHtml(explain) + '</div>' : '') +
                 '<div style="color:var(--text-faint);font-size:0.8rem;">Next question in <span id="pvpNextTimer">3</span>s...</div>' +
             '</div>';
 

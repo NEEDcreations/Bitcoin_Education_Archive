@@ -60,7 +60,7 @@ const {
     assertSucceeds,
 } = require('@firebase/rules-unit-testing');
 const {
-    doc, setDoc, updateDoc, serverTimestamp, deleteDoc,
+    doc, setDoc, getDoc, updateDoc, serverTimestamp, deleteDoc,
 } = require('firebase/firestore');
 
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
@@ -226,6 +226,55 @@ async function main() {
             questionStartedAt: serverTimestamp(),
             roundExplain: '',
         }));
+    });
+    // C8: starting the next round must clear the previous round's explanation.
+    await seedMatch(env, 'explain-next-keep', 'question_result', { currentQ: 0, questionWinner: 'player1', roundExplain: 'old' });
+    await check('C8: client cannot start the next question and leave roundExplain set', function () {
+        return assertFails(updateDoc(doc(alice, 'pvp_matches', 'explain-next-keep'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+        }));
+    });
+    await seedMatch(env, 'explain-next-clear', 'question_result', { currentQ: 0, questionWinner: 'player1', roundExplain: 'old' });
+    await check('C8: client can start the next question when it clears roundExplain', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'explain-next-clear'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+            roundExplain: '',
+        }));
+    });
+    await seedMatch(env, 'explain-reroll-keep', 'question_result', { currentQ: 1, questionWinner: 'reroll', roundExplain: 'old' });
+    await check('C8: client cannot start the replacement question and leave roundExplain set', function () {
+        return assertFails(updateDoc(doc(alice, 'pvp_matches', 'explain-reroll-keep'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+        }));
+    });
+    await seedMatch(env, 'explain-none', 'question_result', { currentQ: 0, questionWinner: 'player1' });
+    await check('C8: next question with no explanation on the match still starts', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'explain-none'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+        }));
+    });
+    await seedMatch(env, 'explain-heartbeat', 'question_result', { currentQ: 0, questionWinner: 'player1', roundExplain: 'old' });
+    await check('C8: heartbeat on the result screen is not affected', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'explain-heartbeat'), { player1LastSeen: Date.now() }));
+    });
+    // M5: the pair lock is server-only.
+    await check('M5: client cannot read a pair lock', function () {
+        return assertFails(getDoc(doc(alice, 'pvp_pair_locks', 'pair_x')));
+    });
+    await check('M5: client cannot write a pair lock', function () {
+        return assertFails(setDoc(doc(alice, 'pvp_pair_locks', 'pair_x'), { matchId: 'm' }));
     });
     await seedMatch(env, 'explain-set', 'question_result', { currentQ: 0, questionWinner: 'player1' });
     await check('client cannot write a new roundExplain', function () {

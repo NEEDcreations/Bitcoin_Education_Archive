@@ -581,6 +581,29 @@ function readGuestStamp(keyData) {
     return { version: st.version, player1: st.player1, player2: st.player2, guestMatch: st.player1 || st.player2, missing: false };
 }
 
+// ---- One live match per pair (M5) ----
+// A waiting player can delete and re-create their lobby doc while a match is
+// still running, so "lobby status is waiting" alone does not prove the pair is
+// free. pvpCreateMatch keeps one lock doc per unordered pair, pointing at the
+// pair's latest match, and refuses a new match while that match is still live.
+// The doc id is a hash of the sorted uids, so the lock holds no raw uid.
+const PVP_LIVE_STATUSES = ['countdown', 'active', 'question_result'];
+// A match stuck in a live status (housekeeping missed it) stops blocking the
+// pair after this long. A full 5-question match takes about 3 minutes.
+const PVP_PAIR_LOCK_MS = 30 * 60 * 1000;
+function pvpPairLockId(uidA, uidB) {
+    const pair = [String(uidA || ''), String(uidB || '')].sort();
+    return 'pair_' + require('crypto').createHash('sha256').update(pair[0] + '\n' + pair[1]).digest('hex').slice(0, 40);
+}
+// match is the pair's latest match doc data (or null). Returns true when a new
+// match for the same two players must be refused.
+function pairMatchStillLive(match, nowMs, createdAtMs) {
+    if (!match || PVP_LIVE_STATUSES.indexOf(match.status) === -1) return false;
+    const created = typeof createdAtMs === 'number' && createdAtMs > 0 ? createdAtMs : lastSeenMs(match.createdAt);
+    if (!created) return true;
+    return (nowMs - created) < PVP_PAIR_LOCK_MS;
+}
+
 // ---- Match create caps ----
 // Per-uid hourly caps, plus caps that a fresh anonymous uid cannot reset:
 // one global anonymous-create bucket per hour and one per network (keyed hash).
@@ -757,6 +780,10 @@ module.exports = {
     PVP_ANSWER_PER_MIN: PVP_ANSWER_PER_MIN,
     PVP_ANON_ANSWER_NETWORK_PER_MIN: PVP_ANON_ANSWER_NETWORK_PER_MIN,
     PVP_ANON_ANSWER_NETWORK_PER_HOUR: PVP_ANON_ANSWER_NETWORK_PER_HOUR,
+    PVP_LIVE_STATUSES: PVP_LIVE_STATUSES,
+    PVP_PAIR_LOCK_MS: PVP_PAIR_LOCK_MS,
+    pvpPairLockId: pvpPairLockId,
+    pairMatchStillLive: pairMatchStillLive,
     PVP_CREATE_BURST: 10,
     PVP_CREATE_BURST_MS: 60000,
     PVP_ANON_MATCH_PER_HOUR: 20,

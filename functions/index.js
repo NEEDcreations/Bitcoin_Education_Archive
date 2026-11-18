@@ -189,6 +189,7 @@ const tipService = require('./src/tipService');
 const { assertPublicHost } = require('./src/publicHost');
 const { resolveLnurlInvoice, normalizeLnAddress, RESOLVE_ERROR } = require('./src/lnurlResolve');
 const pvpFlow = require('./src/pvpFlow');
+const pvpPairLock = require('./src/pvpPairLock');
 const guestPolicy = require('./src/guestPolicy');
 const badgeRules = require('./src/badgeRules');
 const { grantFamily, familyFor } = require('./src/grantBadge');
@@ -4901,6 +4902,14 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
         if (p1Uid === callerUid) {
             throw new functionsV1.https.HttpsError('permission-denied', 'Cannot match against yourself');
         }
+        // M5: one live match per pair. player1 can re-create a waiting lobby
+        // while their match is still running, so the lobby status alone is not
+        // enough. Refuse (never open a second match) while the pair's latest
+        // match is still live.
+        const pairLock = await pvpPairLock.readPairLock(tx, db, p1Uid, callerUid, createNow);
+        if (pairLock.liveMatchId) {
+            throw new functionsV1.https.HttpsError('already-exists', 'Already in a match with this player');
+        }
         const p1User = await tx.get(db.collection('users').doc(p1Uid));
         const p2User = await tx.get(db.collection('users').doc(callerUid));
         const chargeRefs = charges.map(chargeRef);
@@ -4960,6 +4969,8 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
             guestStamp: guestStamp,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
+
+        pvpPairLock.writePairLock(tx, pairLock.ref, matchRef.id, createNow);
 
         // Atomically mark lobby as matched
         tx.update(lobbyRef, {
@@ -9271,15 +9282,18 @@ async function pvpHousekeepMatches(now) {
                 status: 'active',
                 questionWinner: null,
                 questionStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+                roundExplain: '',
             });
         } else if ((d.currentQ || 0) + 1 >= 5 || pvpFlow.matchShouldFinish(p1w, p2w)) {
             await doc.ref.update({ status: 'finished' });
         } else {
+            // C8: the round explanation belongs to the result screen only.
             await doc.ref.update({
                 status: 'active',
                 currentQ: (d.currentQ || 0) + 1,
                 questionWinner: null,
                 questionStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+                roundExplain: '',
             });
         }
     }

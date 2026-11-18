@@ -143,6 +143,7 @@ const TESTS = [
     { name: 'PvP Flow', file: 'test-pvp-flow.js' },
     { name: 'PvP guest stamp, caps, and names', file: 'test-pvp-guest-stamp.js' },
     { name: 'PvP badges and played count', file: 'test-pvp-badges.js' },
+    { name: 'PvP one match per pair and round explanation cleared (QA M5, C8)', file: 'test-pvp-pair-lock.js' },
     { name: 'PvP Rules', file: 'test-pvp-rules.js' },
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Nacho live answers', file: 'nacho-quality.js' },
