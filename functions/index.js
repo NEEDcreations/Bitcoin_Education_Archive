@@ -5691,7 +5691,7 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
         const data = change.after.data() || {};
         const pub = {};
         PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in data) pub[f] = data[f]; });
-        if ('points' in data || 'unclaimableXp' in data) pub.points = boardSnapshots.allTimeXp(data);
+        if ('points' in data || 'guestUnclaimableXp' in data) pub.points = boardSnapshots.allTimeXp(data);
         try {
             await pubRef.set(pub, { merge: false });
             const beforeData = change.before && change.before.exists ? (change.before.data() || {}) : null;
@@ -5712,22 +5712,8 @@ exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) 
             throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
         }
         const snap = await db.collection('users').get();
-        const batch_size = 400;
-        let count = 0;
-        let batch = db.batch();
-        snap.forEach(doc => {
-            const d = doc.data();
-            const pub = {};
-            PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in d) pub[f] = d[f]; });
-            if ('points' in d || 'unclaimableXp' in d) pub.points = boardSnapshots.allTimeXp(d);
-            batch.set(db.collection('public_profiles').doc(doc.id), pub, { merge: false });
-            count++;
-            if (count % batch_size === 0) {
-                batch.commit().catch(e => console.error('[backfill] batch commit failed:', e));
-                batch = db.batch();
-            }
-        });
-        if (count % batch_size !== 0) await batch.commit();
+        // Awaits every batch commit, so a failed write fails the call.
+        const count = await boardSnapshots.backfillPublicProfiles(db, snap.docs, PUBLIC_PROFILE_FIELDS, 400);
         console.log('[backfillPublicProfiles] done:', count, 'docs');
         return { success: true, count };
     });
@@ -7235,78 +7221,47 @@ exports.searchUsers = functionsV1.https.onCall(async (data, context) => {
     const afterRank = parseInt(data.afterRank) || 0;
 
     // ── Run both queries in parallel for speed ──────────────────────────────
-    // Path 1: fast prefix search on username_lower index
-    // Path 2: top-500 ranked scan for substring / missing-index fallback
+    // Both read public_profiles, whose points field is the all-time board
+    // score (users.points minus guestUnclaimableXp, floored at 0). Order and
+    // rank match the board. Single-field queries only, no composite index.
+    // Path 1: fast prefix search on username_lower
+    // Path 2: top-500 by board score for substring matches and rank
     const PREFIX_LIMIT = 200;
     const SCAN_LIMIT = 500;
     const [prefixSnap, scanSnap] = await Promise.all([
-        db.collection('users')
+        db.collection('public_profiles')
             .where('username_lower', '>=', query)
             .where('username_lower', '<=', query + '\uf8ff')
             .limit(PREFIX_LIMIT)
             .get(),
-        db.collection('users')
+        db.collection('public_profiles')
             .where('points', '>', 0)
             .orderBy('points', 'desc')
             .limit(SCAN_LIMIT)
             .get()
     ]);
+    const rowsOfSnap = (snap) => { const out = []; snap.forEach(doc => out.push({ id: doc.id, data: doc.data() || {} })); return out; };
+    const prefixRows = rowsOfSnap(prefixSnap);
+    const scanRows = rowsOfSnap(scanSnap);
 
-    const seenUids = new Set();
-    const prefixDocs = [];
-    prefixSnap.forEach(doc => {
-        const d = doc.data();
-        if (d.ghostMode) return;
-        seenUids.add(doc.id);
-        prefixDocs.push({ id: doc.id, data: d });
-    });
-
-    const scanDocs = [];
-    scanSnap.forEach(doc => {
-        if (seenUids.has(doc.id)) return; // already have from prefix path
-        const d = doc.data();
-        if (d.ghostMode) return;
-        const name = (d.username || '').toLowerCase();
-        if (!name.includes(query)) return;
-        scanDocs.push({ id: doc.id, data: d });
-    });
-
-    // ── Merge, assign global rank from scan order, sort by points ───────────
-    // Build a points-desc index from the scan for rank assignment.
-    // Prefix-only docs get rank = 9999 (not in top-500, but still valid results).
-    const rankMap = new Map();
-    let ri = 0;
-    scanSnap.forEach(doc => { rankMap.set(doc.id, ++ri); });
-
-    // For users not in the top-500 scan, fetch their real rank by counting
-    // how many users have more points. Batch these lookups in parallel.
-    const needRankDocs = prefixDocs.filter(({ id }) => !rankMap.has(id) && (prefixDocs.find(p => p.id === id)?.data?.points || 0) > 0);
+    // Prefix matches outside the top 500 get a rank from a count of higher
+    // board scores. Same field as the board, so no new index.
+    const scanIds = new Set(scanRows.map(r => r.id));
+    const needRank = prefixRows.filter(r => !scanIds.has(r.id) && !(r.data && r.data.ghostMode === true) && boardSnapshots.allTimeXp(r.data) > 0);
     const rankFetches = await Promise.all(
-        needRankDocs.map(({ id, data: d }) =>
-            db.collection('users')
-                .where('points', '>', d.points || 0)
+        needRank.map(r =>
+            db.collection('public_profiles')
+                .where('points', '>', boardSnapshots.allTimeXp(r.data))
                 .count()
                 .get()
-                .then(snap => ({ id, rank: snap.data().count + 1 }))
-                .catch(() => ({ id, rank: null }))
+                .then(snap => ({ id: r.id, rank: snap.data().count + 1 }))
+                .catch(() => ({ id: r.id, rank: null }))
         )
     );
-    rankFetches.forEach(({ id, rank }) => { if (rank !== null) rankMap.set(id, rank); });
+    const extraRanks = new Map();
+    rankFetches.forEach(({ id, rank }) => { if (rank !== null) extraRanks.set(id, rank); });
 
-    const toEntry = ({ id, data: d }) => ({
-        uid: id,
-        username: d.username || 'Anon',
-        points: d.points || 0,
-        rank: rankMap.get(id) || null,
-        faction: d.faction || null,
-        country: d.country || null,
-        lightningAddress: d.lightningAddress || d.lightning || null,
-    });
-
-    const merged = [
-        ...prefixDocs.map(toEntry),
-        ...scanDocs.map(toEntry),
-    ].sort((a, b) => b.points - a.points);
+    const merged = boardSnapshots.userSearchEntries(prefixRows, scanRows, query, extraRanks);
 
     // Pagination by rank cursor
     const page = afterRank > 0 ? merged.filter(u => u.rank > afterRank) : merged;

@@ -136,7 +136,9 @@ test('dirty stamps follow the field that changed and ignore lastSeen', () => {
         return copy;
     }
     assert.deepStrictEqual(boards.dirtyKeys(before, next({ points: 11 })), ['xpAll']);
-    assert.deepStrictEqual(boards.dirtyKeys(before, next({ unclaimableXp: 5 })), ['xpAll']);
+    assert.deepStrictEqual(boards.dirtyKeys(before, next({ guestUnclaimableXp: 5 })), ['xpAll']);
+    // unclaimableXp is claim-only; the board does not read it.
+    assert.deepStrictEqual(boards.dirtyKeys(before, next({ unclaimableXp: 5 })), []);
     assert.deepStrictEqual(boards.dirtyKeys(before, next({ weeklyXP: 4, lastSeen: 9 })), ['xpWeek']);
     assert.deepStrictEqual(boards.dirtyKeys(before, next({ monthlyXP: 2, lastSeen: 9 })), ['xpMonth']);
     assert.deepStrictEqual(boards.dirtyKeys(before, next({ pvpWins: 1 })), ['pvp']);
@@ -151,18 +153,22 @@ test('dirty stamps follow the field that changed and ignore lastSeen', () => {
     assert.deepStrictEqual(patch, { xpAll: 42 });
 });
 
-test('all-time board ranks by points minus unclaimableXp; missing counts as 0', () => {
-    assert.strictEqual(boards.allTimeXp({ points: 500, unclaimableXp: 200 }), 300);
+test('all-time board ranks by points minus guestUnclaimableXp; missing counts as 0', () => {
+    assert.strictEqual(boards.allTimeXp({ points: 500, guestUnclaimableXp: 200 }), 300);
+    // A non-guest with unverified-action XP keeps full board points.
+    assert.strictEqual(boards.allTimeXp({ points: 500, unclaimableXp: 200 }), 500);
+    assert.strictEqual(boards.allTimeXp({ points: 500, unclaimableXp: 200, guestUnclaimableXp: 100 }), 400);
+    assert.strictEqual(boards.allTimeXp({ points: 500, guestUnclaimableXp: -50 }), 500);
     assert.strictEqual(boards.allTimeXp({ points: 500 }), 500);
-    assert.strictEqual(boards.allTimeXp({ points: 500, unclaimableXp: 0 }), 500);
-    assert.strictEqual(boards.allTimeXp({ points: 100, unclaimableXp: 100 }), 0);
-    assert.strictEqual(boards.allTimeXp({ points: 40, unclaimableXp: 80 }), 0);
+    assert.strictEqual(boards.allTimeXp({ points: 500, guestUnclaimableXp: 0 }), 500);
+    assert.strictEqual(boards.allTimeXp({ points: 100, guestUnclaimableXp: 100 }), 0);
+    assert.strictEqual(boards.allTimeXp({ points: 40, guestUnclaimableXp: 80 }), 0);
     assert.strictEqual(boards.allTimeXp({}), 0);
 
     const rows = [
-        profile('raw', { username: 'RawHigh', points: 1000, unclaimableXp: 800, weeklyXP: 1000, monthlyXP: 1000 }),
-        profile('mid', { username: 'MidFair', points: 400, weeklyXP: 50, monthlyXP: 50 }),
-        profile('kept', { username: 'FullKeep', points: 300, unclaimableXp: 0, weeklyXP: 200, monthlyXP: 200 }),
+        profile('raw', { username: 'RawHigh', points: 1000, unclaimableXp: 800, guestUnclaimableXp: 800, weeklyXP: 1000, monthlyXP: 1000 }),
+        profile('mid', { username: 'MidFair', points: 400, unclaimableXp: 150, weeklyXP: 50, monthlyXP: 50 }),
+        profile('kept', { username: 'FullKeep', points: 300, guestUnclaimableXp: 0, weeklyXP: 200, monthlyXP: 200 }),
         profile('ghost', { username: 'Ghost', points: 9000, unclaimableXp: 0, ghostMode: true })
     ];
     const all = boards.buildXpDoc(rows, boards.BOARDS.xpAll, 10);
@@ -172,10 +178,10 @@ test('all-time board ranks by points minus unclaimableXp; missing counts as 0', 
     assert.strictEqual(all.rows[0].rank, 1);
     assert.strictEqual(all.rows[2].rank, 3);
 
-    // Pre-cutoff moved XP (unclaimableXp 0 or absent) still counts in full.
+    // Pre-cutoff moved XP (guestUnclaimableXp 0 or absent) still counts in full.
     const pre = boards.buildXpDoc([
         profile('a', { username: 'Ada', points: 250 }),
-        profile('b', { username: 'Bea', points: 200, unclaimableXp: 0 })
+        profile('b', { username: 'Bea', points: 200, guestUnclaimableXp: 0 })
     ], boards.BOARDS.xpAll, 10);
     assert.deepStrictEqual(pre.rows.map(function (r) { return r.username + ':' + r.value; }), ['Ada:250', 'Bea:200']);
 
@@ -186,7 +192,7 @@ test('all-time board ranks by points minus unclaimableXp; missing counts as 0', 
     assert.strictEqual(week.rows[0].value, 1000);
     assert.strictEqual(month.rows[0].username, 'RawHigh');
     assert.strictEqual(month.rows[0].value, 1000);
-    // Displayed all-time points on those rows still subtract unclaimableXp.
+    // Displayed all-time points on those rows still subtract guestUnclaimableXp.
     const rawWeek = week.rows.find(function (r) { return r.username === 'RawHigh'; });
     assert.strictEqual(rawWeek.points, 200);
 });
@@ -465,10 +471,12 @@ test('the client, the visit path, and the rules match the snapshot plan', () => 
     const sync = index.slice(syncAt, index.indexOf('exports.backfillPublicProfiles', syncAt));
     assert.ok(sync.includes('boardSnapshots.allTimeXp'));
     assert.ok(sync.includes('pub.points = boardSnapshots.allTimeXp'));
+    assert.ok(sync.includes("'guestUnclaimableXp' in data"));
+    assert.strictEqual(sync.includes("'unclaimableXp' in data"), false);
     const backfillAt = index.indexOf('exports.backfillPublicProfiles');
     const backfill = index.slice(backfillAt, index.indexOf('exports.backfillLightningAddress', backfillAt));
-    assert.ok(backfill.includes('boardSnapshots.allTimeXp'));
-    assert.ok(backfill.includes('pub.points = boardSnapshots.allTimeXp'));
+    assert.ok(backfill.includes('await boardSnapshots.backfillPublicProfiles('));
+    assert.strictEqual(backfill.includes('.catch('), false, 'no fire-and-forget batch commit');
 });
 
 test('read counts versus the live board, measured on a fake Firestore', async () => {
@@ -516,6 +524,99 @@ test('read counts versus the live board, measured on a fake Firestore', async ()
     console.log('Server rebuild reads, only when dirty: xp/week/month/favor/raid ' + xp.profileReads + ' source docs, pvp ' + pvp.profileReads);
     assert.strictEqual(afterOpen.xp, 1);
     assert.strictEqual(before.xpTab, 150);
+});
+
+test('backfillPublicProfiles awaits every batch commit in order and surfaces a failure', async () => {
+    function fakeDb(failOn) {
+        const log = [];
+        let open = 0;
+        let made = 0;
+        const db = {
+            log: log,
+            collection: function (name) { return { doc: function (id) { return { path: name + '/' + id }; } }; },
+            batch: function () {
+                const n = ++made;
+                const sets = [];
+                return {
+                    set: function (ref, data, opts) { sets.push({ ref: ref.path, data: data, opts: opts }); },
+                    commit: function () {
+                        assert.strictEqual(open, 0, 'a previous commit is still running');
+                        open++;
+                        return new Promise(function (resolve, reject) {
+                            setTimeout(function () {
+                                open--;
+                                log.push({ batch: n, size: sets.length, sets: sets });
+                                if (failOn === n) reject(new Error('commit failed'));
+                                else resolve();
+                            }, 5);
+                        });
+                    },
+                };
+            },
+        };
+        return db;
+    }
+    function users(n) {
+        const out = [];
+        for (let i = 0; i < n; i++) {
+            const d = { username: 'u' + i, points: 100 + i, unclaimableXp: 50, guestUnclaimableXp: i === 0 ? 30 : undefined, email: 'x@secret.test' };
+            if (d.guestUnclaimableXp === undefined) delete d.guestUnclaimableXp;
+            out.push({ id: 'u' + i, data: function () { return d; } });
+        }
+        return out;
+    }
+    const fields = ['username', 'points'];
+    const db = fakeDb(0);
+    const count = await boards.backfillPublicProfiles(db, users(9), fields, 4);
+    assert.strictEqual(count, 9);
+    assert.deepStrictEqual(db.log.map(function (b) { return b.size; }), [4, 4, 1]);
+    const first = db.log[0].sets[0];
+    assert.strictEqual(first.ref, 'public_profiles/u0');
+    assert.deepStrictEqual(first.data, { username: 'u0', points: 70 });
+    assert.deepStrictEqual(first.opts, { merge: false });
+    // unclaimableXp alone does not lower the copied score.
+    assert.strictEqual(db.log[0].sets[1].data.points, 101);
+    const exact = fakeDb(0);
+    assert.strictEqual(await boards.backfillPublicProfiles(exact, users(8), fields, 4), 8);
+    assert.deepStrictEqual(exact.log.map(function (b) { return b.size; }), [4, 4]);
+    const broken = fakeDb(2);
+    await assert.rejects(function () { return boards.backfillPublicProfiles(broken, users(12), fields, 4); }, /commit failed/);
+    assert.strictEqual(broken.log.length, 2, 'stops after the failed batch');
+});
+
+test('searchUsers orders and scores like the all-time board, with no new index', () => {
+    const prefix = [
+        profile('ada', { username: 'Ada', username_lower: 'ada', points: 300 }),
+        profile('adam', { username: 'Adam', username_lower: 'adam', points: 300 }),
+        profile('adaghost', { username: 'AdaGhost', username_lower: 'adaghost', points: 9000, ghostMode: true }),
+        profile('adazero', { username: 'AdaZero', username_lower: 'adazero', points: 0 })
+    ];
+    const scan = [
+        profile('kada', { username: 'Kada', points: 500 }),
+        profile('ada', { username: 'Ada', username_lower: 'ada', points: 300 }),
+        profile('adam', { username: 'Adam', username_lower: 'adam', points: 300 }),
+        profile('bob', { username: 'Bob', points: 250 })
+    ];
+    const out = boards.userSearchEntries(prefix, scan, 'ada', new Map([['adazero', 99]]));
+    assert.deepStrictEqual(out.map(function (e) { return e.uid; }), ['kada', 'ada', 'adam', 'adazero']);
+    assert.deepStrictEqual(out.map(function (e) { return e.points; }), [500, 300, 300, 0]);
+    assert.deepStrictEqual(out.map(function (e) { return e.rank; }), [1, 2, 3, 99]);
+    // Same tie order as the board rows.
+    const board = boards.buildXpDoc(scan, boards.BOARDS.xpAll, 10);
+    const boardOrder = board.rows.map(function (r) { return r.uid; }).filter(function (id) { return id !== 'bob'; });
+    assert.deepStrictEqual(out.filter(function (e) { return e.points > 0; }).map(function (e) { return e.uid; }), boardOrder);
+    // The score is public_profiles.points (users.points minus guestUnclaimableXp).
+    const fromUser = boards.publicProfileOf({ username: 'Gus', points: 800, unclaimableXp: 600, guestUnclaimableXp: 500 }, ['username', 'points']);
+    assert.strictEqual(fromUser.points, 300);
+
+    const index = read('functions/index.js');
+    const at = index.indexOf('exports.searchUsers = ');
+    const body = index.slice(at, index.indexOf('exports.v4vSplitRelay', at));
+    assert.ok(body.includes('boardSnapshots.userSearchEntries('));
+    assert.strictEqual(body.includes("db.collection('users')"), false, 'reads public_profiles, not raw users.points');
+    // Only single-field filters/orders: points alone, username_lower alone.
+    assert.strictEqual((body.match(/\.orderBy\(/g) || []).length, 1);
+    assert.ok(body.includes(".orderBy('points', 'desc')"));
 });
 
 (async function main() {

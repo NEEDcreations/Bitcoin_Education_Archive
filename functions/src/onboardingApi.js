@@ -71,6 +71,9 @@ function guestMovePatch(points, tickets, guestCreatedMs, cutoffMs) {
     const beforeCutoff = typeof guestCreatedMs === 'number' && Number.isFinite(guestCreatedMs) && guestCreatedMs < cutoff;
     return {
         unclaimableXp: beforeCutoff ? 0 : xp,
+        // Same amount, guest-only. The all-time board subtracts this field
+        // and not unclaimableXp, which also holds unverified-action XP.
+        guestUnclaimableXp: beforeCutoff ? 0 : xp,
         leaderboardXp: beforeCutoff ? xp : 0,
         guestMovedXp: xp,
         guestMovedTickets: t,
@@ -468,6 +471,7 @@ function registerOnboarding(deps) {
                     weeklyXP: movePatch.leaderboardXp,
                     monthlyXP: movePatch.leaderboardXp,
                     unclaimableXp: movePatch.unclaimableXp,
+                    guestUnclaimableXp: movePatch.guestUnclaimableXp,
                     guestMovedXp: movePatch.guestMovedXp,
                     guestMovedTickets: movePatch.guestMovedTickets,
                     orangeTickets: again.tickets,
@@ -491,6 +495,7 @@ function registerOnboarding(deps) {
                         update.monthlyXP = admin.firestore.FieldValue.increment(movePatch.leaderboardXp);
                     }
                     if (movePatch.unclaimableXp > 0) update.unclaimableXp = admin.firestore.FieldValue.increment(movePatch.unclaimableXp);
+                    if (movePatch.guestUnclaimableXp > 0) update.guestUnclaimableXp = admin.firestore.FieldValue.increment(movePatch.guestUnclaimableXp);
                     update.guestMovedXp = admin.firestore.FieldValue.increment(movePatch.guestMovedXp);
                 }
                 if (again.tickets > 0) {

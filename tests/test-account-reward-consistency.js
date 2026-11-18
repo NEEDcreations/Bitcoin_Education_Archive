@@ -38,10 +38,10 @@ function unit() {
     assert.strictEqual(gate.hasRealProvider({ providerData: [{ providerId: 'password' }] }), true);
     const { guestMovePatch } = require(path.join(root, 'functions/src/onboardingApi'));
     const cut = Date.UTC(2026, 10, 19, 4, 0, 0);
-    assert.deepStrictEqual(guestMovePatch(300, 2, cut - 1, cut), { unclaimableXp: 0, leaderboardXp: 300, guestMovedXp: 300, guestMovedTickets: 2 });
-    assert.deepStrictEqual(guestMovePatch(300, 2, cut, cut), { unclaimableXp: 300, leaderboardXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
-    assert.deepStrictEqual(guestMovePatch(300, 2, null, cut), { unclaimableXp: 300, leaderboardXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
-    assert.deepStrictEqual(guestMovePatch(-5, 'x', cut - 1, cut), { unclaimableXp: 0, leaderboardXp: 0, guestMovedXp: 0, guestMovedTickets: 0 });
+    assert.deepStrictEqual(guestMovePatch(300, 2, cut - 1, cut), { unclaimableXp: 0, guestUnclaimableXp: 0, leaderboardXp: 300, guestMovedXp: 300, guestMovedTickets: 2 });
+    assert.deepStrictEqual(guestMovePatch(300, 2, cut, cut), { unclaimableXp: 300, guestUnclaimableXp: 300, leaderboardXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
+    assert.deepStrictEqual(guestMovePatch(300, 2, null, cut), { unclaimableXp: 300, guestUnclaimableXp: 300, leaderboardXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
+    assert.deepStrictEqual(guestMovePatch(-5, 'x', cut - 1, cut), { unclaimableXp: 0, guestUnclaimableXp: 0, leaderboardXp: 0, guestMovedXp: 0, guestMovedTickets: 0 });
     const onboarding = require(path.join(root, 'functions/src/onboardingApi'));
     const { GUEST_XP_CUTOFF_MS, setGuestXpCutoffMs, guestMovePatch: patch } = onboarding;
     assert.ok(Number.isFinite(GUEST_XP_CUTOFF_MS) && GUEST_XP_CUTOFF_MS > Date.UTC(2026, 10, 18));
@@ -49,8 +49,8 @@ function unit() {
     setGuestXpCutoffMs(injected);
     try {
         assert.strictEqual(onboarding.resolveGuestXpCutoffMs(), injected);
-        assert.deepStrictEqual(patch(300, 2, injected - 1), { unclaimableXp: 0, leaderboardXp: 300, guestMovedXp: 300, guestMovedTickets: 2 });
-        assert.deepStrictEqual(patch(300, 2, injected), { unclaimableXp: 300, leaderboardXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
+        assert.deepStrictEqual(patch(300, 2, injected - 1), { unclaimableXp: 0, guestUnclaimableXp: 0, leaderboardXp: 300, guestMovedXp: 300, guestMovedTickets: 2 });
+        assert.deepStrictEqual(patch(300, 2, injected), { unclaimableXp: 300, guestUnclaimableXp: 300, leaderboardXp: 0, guestMovedXp: 300, guestMovedTickets: 2 });
     } finally {
         setGuestXpCutoffMs(null);
     }
@@ -70,6 +70,55 @@ function unit() {
     assert.strictEqual(prep.includes('isAnon(context)'), false);
     assert.strictEqual(link.includes('isAnon(context)'), false);
     console.log('  ok  unit helpers');
+}
+
+// isGuestUid with a mocked Auth (no emulator needed).
+async function unitGuestUid() {
+    const gate = require(path.join(root, 'functions/src/guestGate'));
+    const calls = [];
+    function mock(records, fail) {
+        return { auth: function () { return { getUser: async function (uid) {
+            calls.push(uid);
+            if (fail) throw Object.assign(new Error('auth down'), { code: 'auth/internal-error' });
+            if (!(uid in records)) throw Object.assign(new Error('no user'), { code: 'auth/user-not-found' });
+            return records[uid];
+        } }; } };
+    }
+    const recs = {
+        anon: { uid: 'anon', providerData: [] },
+        anonOnly: { uid: 'anonOnly', providerData: [{ providerId: 'anonymous' }] },
+        email: { uid: 'email', providerData: [{ providerId: 'password' }] },
+        google: { uid: 'google', providerData: [{ providerId: 'google.com' }] },
+    };
+    const ok = mock(recs, false);
+    assert.strictEqual(await gate.isGuestUid(ok, 'anon'), true);
+    assert.strictEqual(await gate.isGuestUid(ok, 'anonOnly'), true);
+    assert.strictEqual(await gate.isGuestUid(ok, 'email'), false);
+    assert.strictEqual(await gate.isGuestUid(ok, 'google'), false);
+    assert.strictEqual(await gate.isGuestUid(ok, 'missing'), true, 'user-not-found is a guest, same as isGuestCaller');
+    assert.strictEqual(await gate.isGuestUid(ok, ''), true);
+    assert.strictEqual(await gate.isGuestUid(ok, null), true);
+    calls.length = 0;
+    assert.strictEqual(await gate.isGuestUid(mock({}, true), 'ln:abc'), false);
+    assert.strictEqual(await gate.isGuestUid(mock({}, true), 'nostr:abc'), false);
+    assert.strictEqual(calls.length, 0, 'ln:/nostr: skip the Auth lookup');
+    assert.strictEqual(await gate.isGuestUid(mock(recs, true), 'email'), true, 'lookup error fails closed');
+    assert.strictEqual(await gate.isGuestUid({}, 'email'), true, 'no auth() fails closed');
+    assert.strictEqual(await gate.isGuestUid(undefined, 'email'), true);
+    // isGuestCaller uses the same provider rule.
+    const anonCtx = function (uid) { return { auth: { uid: uid, token: { firebase: { sign_in_provider: 'anonymous' } } } }; };
+    assert.strictEqual(await gate.isGuestCaller(ok, anonCtx('anonOnly')), true);
+    assert.strictEqual(await gate.isGuestCaller(ok, anonCtx('email')), false);
+
+    // K2: the cutoff is a finite, plausible ms timestamp (the ship commit sets
+    // the exact deploy minute; until then it is the 11 PM ET placeholder).
+    const { GUEST_XP_CUTOFF_MS } = require(path.join(root, 'functions/src/onboardingApi'));
+    assert.ok(Number.isFinite(GUEST_XP_CUTOFF_MS));
+    assert.strictEqual(Number.isInteger(GUEST_XP_CUTOFF_MS), true);
+    assert.ok(GUEST_XP_CUTOFF_MS >= Date.parse('2026-11-18T00:00:00-05:00'), 'not before Nov 18 2026 ET');
+    assert.ok(GUEST_XP_CUTOFF_MS <= Date.parse('2026-12-31T23:59:00-05:00'), 'not after Dec 31 2026 ET');
+    assert.strictEqual(GUEST_XP_CUTOFF_MS % 60000, 0, 'a whole minute');
+    console.log('  ok  isGuestUid and cutoff unit checks');
 }
 
 if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST) {
@@ -176,6 +225,7 @@ function emuPw() { return require('crypto').randomBytes(12).toString('hex'); }
 const WELCOME = { action: 'Welcome bonus!', pts: 5 };
 
 async function main() {
+    await test('isGuestUid (mocked Auth) and cutoff constant', unitGuestUid);
     const auth = admin.auth();
     await auth.createUser({ uid: 'guestAwardUser01' });
     await auth.createUser({ uid: 'realAwardUser001', email: 'real1@example.com', password: emuPw(), emailVerified: true });
@@ -309,6 +359,7 @@ async function main() {
         const row = await userRow('linkDest00000001');
         assert.strictEqual(row.points, 400);
         assert.strictEqual(row.unclaimableXp, 310);
+        assert.strictEqual(row.guestUnclaimableXp, 300);
         assert.strictEqual(row.guestMovedXp, 300);
         assert.strictEqual(row.guestMovedTickets, 2);
         assert.strictEqual(row.weeklyXP, 40);
@@ -413,6 +464,7 @@ async function main() {
     await test('cosmetic badge with verified:true writes no Favor', async function () {
         const cosmetic = badgeRules.allIds().find(function (id) { return badgeRules.isCosmeticId(id); });
         assert.ok(cosmetic, 'a cosmetic badge exists');
+        await auth.createUser({ uid: 'cosmeticUser0001', email: 'cosmetic1@example.com', password: emuPw() });
         await seedUser('cosmeticUser0001');
         const res = await awardBadge(db, admin, 'cosmeticUser0001', cosmetic, { verified: true, day: '2026-11-18', source: 'test' });
         assert.strictEqual(res.favor, false, JSON.stringify(res));
@@ -426,11 +478,133 @@ async function main() {
 
     await test('non-cosmetic verified badge still writes Favor', async function () {
         const paying = badgeRules.allIds().find(function (id) { return !badgeRules.isCosmeticId(id) && badgeRules.xpOf(id) > 0 && badgeRules.sfEligible(id) !== false; });
+        await auth.createUser({ uid: 'payingBadgeUser1', email: 'paying1@example.com', password: emuPw() });
         await seedUser('payingBadgeUser1');
         const res = await awardBadge(db, admin, 'payingBadgeUser1', paying, { verified: true, day: '2026-11-18', source: 'test' });
         assert.strictEqual(res.favor, true, paying + ' ' + JSON.stringify(res));
         const sf = await db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc('payingBadgeUser1').get();
         assert.strictEqual(sf.exists, true);
+    });
+
+    // Forum earning paths (triggers on documents a guest can create).
+    const activityCounters = require('../functions/src/activityCounters');
+    const { grantServerTickets } = require('../functions/src/grantServerTickets');
+    const { noteComboZone } = require('../functions/src/comboActivity');
+    const FORUM_POST = function (uid) { return { authorId: uid, authorName: 'x', title: 'A forum post', body: 'Hello Pleb Talk, first post here.', createdAt: Date.now() }; };
+    const FORUM_REPLY = function (uid) { return { authorId: uid, authorName: 'x', postId: 'noSuchParentPost', body: 'A reply on a thread.', createdAt: Date.now() }; };
+    async function awardsOf(uid) {
+        const snap = await db.collection('users').doc(uid).collection('badge_awards').get();
+        return snap.docs.map(function (d) { return d.id; });
+    }
+    async function favorRows(uid) {
+        const sf = await db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(uid).get();
+        const contrib = await db.collection('satoshiFavor').doc('current').collection('contributors')
+            .where(admin.firestore.FieldPath.documentId(), '>=', uid + '_badge_')
+            .where(admin.firestore.FieldPath.documentId(), '<', uid + '_badge_\uf8ff').get();
+        return (sf.exists ? 1 : 0) + contrib.size;
+    }
+
+    await test('guest forum post and reply earn no badge XP, Favor, ticket or combo', async function () {
+        await auth.createUser({ uid: 'forumGuest000001' });
+        await seedUser('forumGuest000001');
+        const post = await activityCounters.recordForumPost(db, admin, FORUM_POST('forumGuest000001'));
+        assert.strictEqual(post.bumped, true, JSON.stringify(post));
+        const reply = await activityCounters.recordForumReply(db, admin, FORUM_REPLY('forumGuest000001'));
+        assert.strictEqual(reply.bumped, true, JSON.stringify(reply));
+        const tickets = await grantServerTickets('forumGuest000001', 'forum_post_ticket');
+        assert.strictEqual(tickets.tickets, 0);
+        const combo = await noteComboZone(db, admin, 'forumGuest000001', 'forum', '2026-11-18');
+        assert.strictEqual(combo.noted, false);
+        const row = await userRow('forumGuest000001');
+        assert.strictEqual(row.points, 0);
+        assert.strictEqual(row.weeklyXP, 0);
+        assert.strictEqual(row.orangeTickets, 0);
+        assert.deepStrictEqual(await awardsOf('forumGuest000001'), []);
+        assert.strictEqual(await favorRows('forumGuest000001'), 0);
+        const direct = await awardBadge(db, admin, 'forumGuest000001', 'forum_first', { day: '2026-11-18' });
+        assert.strictEqual(direct.granted, false);
+        assert.strictEqual(direct.reason, 'guest');
+    });
+
+    await test('signed-in forum post and reply still earn badge XP, Favor and a ticket', async function () {
+        await auth.createUser({ uid: 'forumReal0000001', email: 'forum1@example.com', password: emuPw(), emailVerified: true });
+        await seedUser('forumReal0000001');
+        await activityCounters.recordForumPost(db, admin, FORUM_POST('forumReal0000001'));
+        await activityCounters.recordForumReply(db, admin, FORUM_REPLY('forumReal0000001'));
+        const tickets = await grantServerTickets('forumReal0000001', 'forum_post_ticket');
+        assert.strictEqual(tickets.tickets, 1);
+        const row = await userRow('forumReal0000001');
+        assert.ok(row.points > 0, JSON.stringify(row));
+        assert.strictEqual(row.orangeTickets, 1);
+        const awards = await awardsOf('forumReal0000001');
+        assert.ok(awards.indexOf('forum_first') !== -1, awards.join(','));
+        assert.ok(awards.indexOf('forum_reply_1') !== -1, awards.join(','));
+        assert.ok(await favorRows('forumReal0000001') > 0);
+    });
+
+    await test('account linked in place after a guest forum post keeps no forum XP from it', async function () {
+        await auth.createUser({ uid: 'forumLinkIn00001' });
+        await seedUser('forumLinkIn00001');
+        await activityCounters.recordForumPost(db, admin, FORUM_POST('forumLinkIn00001'));
+        await grantServerTickets('forumLinkIn00001', 'forum_post_ticket');
+        // In-place sign-up: same uid, now with an email sign-in.
+        await auth.updateUser('forumLinkIn00001', { email: 'linkin1@example.com', password: emuPw() });
+        const row = await userRow('forumLinkIn00001');
+        assert.strictEqual(row.points, 0);
+        assert.strictEqual(row.orangeTickets, 0);
+        assert.strictEqual(row.unclaimableXp || 0, 0);
+        assert.deepStrictEqual(await awardsOf('forumLinkIn00001'), []);
+        assert.strictEqual(await favorRows('forumLinkIn00001'), 0);
+        // Nothing was stamped, so the next post after sign-up earns normally.
+        await activityCounters.recordForumPost(db, admin, FORUM_POST('forumLinkIn00001'));
+        const after = await userRow('forumLinkIn00001');
+        assert.ok(after.points > 0, JSON.stringify(after));
+        assert.ok((await awardsOf('forumLinkIn00001')).indexOf('forum_first') !== -1);
+    });
+
+    await test('an Auth lookup error or missing Auth user fails closed', async function () {
+        await auth.createUser({ uid: 'forumErr00000001', email: 'err1@example.com', password: emuPw() });
+        await seedUser('forumErr00000001');
+        const broken = Object.create(admin);
+        broken.auth = function () { return { getUser: async function () { throw new Error('auth unavailable'); } }; };
+        const res = await awardBadge(db, broken, 'forumErr00000001', 'forum_first', { day: '2026-11-18' });
+        assert.strictEqual(res.granted, false);
+        assert.strictEqual(res.reason, 'guest');
+        const combo = await noteComboZone(db, broken, 'forumErr00000001', 'forum', '2026-11-18');
+        assert.strictEqual(combo.noted, false);
+        assert.strictEqual((await userRow('forumErr00000001')).points, 0);
+        await seedUser('forumNoAuth00001');
+        const missing = await awardBadge(db, admin, 'forumNoAuth00001', 'forum_first', { day: '2026-11-18' });
+        assert.strictEqual(missing.reason, 'guest');
+        assert.strictEqual((await grantServerTickets('forumNoAuth00001', 'forum_post_ticket')).tickets, 0);
+    });
+
+    await test('ln: and nostr: users still earn badges and tickets', async function () {
+        for (const uid of ['ln:abcdef0123456789', 'nostr:abcdef0123456789']) {
+            const res = await awardBadge(db, admin, uid, 'forum_first', { verified: true, day: '2026-11-18', source: 'test' });
+            assert.strictEqual(res.granted, true, uid + ' ' + JSON.stringify(res));
+            const t = await grantServerTickets(uid, 'forum_post_ticket');
+            assert.strictEqual(t.tickets, 1, uid);
+        }
+    });
+
+    await test('board score subtracts only guestUnclaimableXp, written by a post-cutoff guest link', async function () {
+        const boards = require('../functions/src/boardSnapshots');
+        await auth.createUser({ uid: 'linkDest00000009', email: 'dest9@example.com', password: emuPw(), emailVerified: true });
+        // Existing account with unverified-action XP in unclaimableXp.
+        const res = await linkFlow('linkGuest0000009', 'linkDest00000009', { points: 100, unclaimableXp: 40 }, AFTER_GUEST);
+        assert.strictEqual(res.ok, true, JSON.stringify(res));
+        const row = await userRow('linkDest00000009');
+        assert.strictEqual(row.points, 400);
+        assert.strictEqual(row.unclaimableXp, 340);
+        assert.strictEqual(row.guestUnclaimableXp, 300);
+        assert.strictEqual(boards.allTimeXp(row), 100);
+        await auth.createUser({ uid: 'linkDest00000010', email: 'dest10@example.com', password: emuPw(), emailVerified: true });
+        const pre = await linkFlow('linkGuest0000010', 'linkDest00000010', null, BEFORE_GUEST);
+        assert.strictEqual(pre.ok, true, JSON.stringify(pre));
+        const preRow = await userRow('linkDest00000010');
+        assert.strictEqual(preRow.guestUnclaimableXp || 0, 0);
+        assert.strictEqual(boards.allTimeXp(preRow), 300);
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

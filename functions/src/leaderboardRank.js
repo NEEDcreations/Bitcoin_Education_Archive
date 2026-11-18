@@ -310,10 +310,10 @@ function xpBoardValue(player, period) {
     const field = XP_FIELD[period];
     if (period === 'alltime') {
         const user = player && player.user;
-        // Prefer the user doc when it carries points or unclaimableXp so the
-        // score is points minus unclaimableXp. The public profile stores that
+        // Prefer the user doc when it carries points or guestUnclaimableXp so
+        // the score is points minus guestUnclaimableXp. The public profile stores that
         // same all-time score in points (written by syncPublicProfile).
-        if (user && (Object.prototype.hasOwnProperty.call(user, 'points') || Object.prototype.hasOwnProperty.call(user, 'unclaimableXp'))) {
+        if (user && (Object.prototype.hasOwnProperty.call(user, 'points') || Object.prototype.hasOwnProperty.call(user, 'guestUnclaimableXp'))) {
             return boardSnapshots.allTimeXp(user);
         }
         return boardSnapshots.allTimeXp(player && player.profile);

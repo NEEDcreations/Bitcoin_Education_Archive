@@ -15,6 +15,7 @@ const badgeTiers = require('./badgeTiers');
 const badgeRules = require('./badgeRules');
 const badgeXp = require('./badgeXpTable');
 const { rewardBlocked } = require('./cipherClaim');
+const { isGuestUid } = require('./guestGate');
 const { planFavorPoint } = require('./favorPool');
 const { offsetDateKey } = require('./offsetDay');
 const { serverHoldsBadge, hiddenOnlyBadge, progressAwardIds } = require('./badgeProfile');
@@ -133,6 +134,13 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         const ledger = ledgerSnap && ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
         if (rewardBlocked(user, ledger)) {
             return { granted: false, success: true, reason: 'banned', awarded: 0, xp: 0, badgeId: badgeId };
+        }
+        // Guests (anonymous Auth, no real sign-in) earn no badge, XP or Favor
+        // from any path, including triggers on documents a guest created.
+        // A failed lookup counts as a guest. Nothing is stamped, so the badge
+        // can still be earned after a real sign-in.
+        if (await isGuestUid(adminSdk, uid)) {
+            return { granted: false, success: true, reason: 'guest', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
         }
         if (awardSnap.exists) {
             return { granted: false, success: false, reason: 'already', awarded: 0, xp: 0, favor: false, badgeId: badgeId };

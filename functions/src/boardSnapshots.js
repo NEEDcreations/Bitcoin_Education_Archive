@@ -43,9 +43,11 @@ const RANK_BEYOND_25 = {
 };
 
 // public_profiles.points is the all-time board score: users.points minus
-// unclaimableXp (missing unclaimableXp counts as 0). syncPublicProfile
-// writes that value. Pre-cutoff moved XP has unclaimableXp 0, so it still
-// counts on this board.
+// guestUnclaimableXp (missing counts as 0, floored at 0). syncPublicProfile
+// writes that value. guestUnclaimableXp holds only guest XP moved by
+// linkGuestAccount after the guest XP cutoff. It is separate from
+// unclaimableXp, which also holds unverified-action XP and stays a claim-only
+// field, so ordinary players keep their full all-time score.
 const BOARDS = {
     xpAll: { key: 'xpAll', docId: 'lb_xp_alltime', field: 'points', intervalMs: 15 * 60 * 1000, maxAgeMs: MAX_AGE_LONG_MS, kind: 'xp' },
     xpWeek: { key: 'xpWeek', docId: 'lb_xp_week', field: 'weeklyXP', intervalMs: 10 * 60 * 1000, maxAgeMs: MAX_AGE_SHORT_MS, kind: 'xp' },
@@ -58,7 +60,7 @@ const BOARDS = {
 const BOARD_KEYS = Object.keys(BOARDS);
 
 const METRIC_FIELDS = {
-    xpAll: ['points', 'unclaimableXp'],
+    xpAll: ['points', 'guestUnclaimableXp'],
     xpWeek: ['weeklyXP'],
     xpMonth: ['monthlyXP'],
     pvp: ['pvpWins', 'pvpLosses'],
@@ -74,11 +76,11 @@ function whole(value) {
     return n > 0 ? n : 0;
 }
 
-// All-time board score. Missing unclaimableXp counts as 0, so pre-cutoff
-// moved XP (unclaimableXp 0 or absent) still counts in full.
+// All-time board score: points minus guestUnclaimableXp. Missing counts as
+// 0, so pre-cutoff moved XP and unverified-action XP still count in full.
 function allTimeXp(data) {
     const points = whole(data && data.points);
-    const unclaimable = whole(data && data.unclaimableXp);
+    const unclaimable = whole(data && data.guestUnclaimableXp);
     const score = points - unclaimable;
     return score > 0 ? score : 0;
 }
@@ -525,6 +527,85 @@ async function refreshMany(db, keys, nowMs, opts) {
     return out;
 }
 
+// Public profile copy of one user doc: the listed fields, with points set to
+// the all-time board score.
+function publicProfileOf(data, fields) {
+    const d = data || {};
+    const pub = {};
+    (fields || []).forEach(function (f) { if (f in d) pub[f] = d[f]; });
+    if ('points' in d || 'guestUnclaimableXp' in d) pub.points = allTimeXp(d);
+    return pub;
+}
+
+// Rewrites public_profiles from user docs in batches. Every batch commit is
+// awaited in order, so a failed commit stops the run and reaches the caller
+// instead of being dropped.
+async function backfillPublicProfiles(db, userDocs, fields, batchSize) {
+    const size = Math.max(1, Math.min(500, Math.floor(Number(batchSize) || 400)));
+    const docs = userDocs || [];
+    let count = 0;
+    let batch = db.batch();
+    let pending = 0;
+    for (let i = 0; i < docs.length; i++) {
+        const doc = docs[i];
+        batch.set(db.collection('public_profiles').doc(doc.id), publicProfileOf(doc.data(), fields), { merge: false });
+        count++;
+        pending++;
+        if (pending === size) {
+            await batch.commit();
+            batch = db.batch();
+            pending = 0;
+        }
+    }
+    if (pending > 0) await batch.commit();
+    return count;
+}
+
+// searchUsers ordering. Same score and order as the all-time board: score
+// desc, then display name, then uid. Ghosts are dropped. prefixRows and
+// scanRows are { id, data } from public_profiles; scanRows is the top of the
+// board in order, and ranks maps uid -> rank for anyone found outside it.
+function userSearchEntries(prefixRows, scanRows, query, ranks) {
+    const q = String(query || '').toLowerCase();
+    const rankMap = new Map();
+    let ri = 0;
+    (scanRows || []).forEach(function (row) { rankMap.set(row.id, ++ri); });
+    if (ranks && typeof ranks.forEach === 'function') {
+        ranks.forEach(function (rank, id) { if (!rankMap.has(id) && rank) rankMap.set(id, rank); });
+    }
+    const seen = new Set();
+    const picked = [];
+    (prefixRows || []).forEach(function (row) {
+        const d = (row && row.data) || {};
+        if (isGhost(d) || seen.has(row.id)) return;
+        seen.add(row.id);
+        picked.push(row);
+    });
+    (scanRows || []).forEach(function (row) {
+        const d = (row && row.data) || {};
+        if (isGhost(d) || seen.has(row.id)) return;
+        if (String(d.username || '').toLowerCase().indexOf(q) === -1) return;
+        seen.add(row.id);
+        picked.push(row);
+    });
+    const entries = picked.map(function (row) {
+        const d = row.data || {};
+        return {
+            uid: row.id,
+            username: d.username || 'Anon',
+            points: allTimeXp(d),
+            rank: rankMap.get(row.id) || null,
+            faction: d.faction || null,
+            country: d.country || null,
+            lightningAddress: d.lightningAddress || d.lightning || null,
+        };
+    });
+    entries.sort(function (a, b) {
+        return byValue({ value: a.points, username: a.username, uid: a.uid }, { value: b.points, username: b.username, uid: b.uid });
+    });
+    return entries;
+}
+
 module.exports = {
     BOARD_SIZE: BOARD_SIZE,
     FETCH_LIMIT: FETCH_LIMIT,
@@ -537,6 +618,9 @@ module.exports = {
     BOARDS: BOARDS,
     BOARD_KEYS: BOARD_KEYS,
     allTimeXp: allTimeXp,
+    publicProfileOf: publicProfileOf,
+    userSearchEntries: userSearchEntries,
+    backfillPublicProfiles: backfillPublicProfiles,
     dirtyKeys: dirtyKeys,
     dirtyPatch: dirtyPatch,
     throttleDirtyPatch: throttleDirtyPatch,
