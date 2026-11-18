@@ -15,6 +15,7 @@ const { assertPublicHost } = require('./publicHost');
 const { applyDailyXp } = require('./applyDailyXp');
 const { paymentHashFromDecoded, rewardBlocked } = require('./cipherClaim');
 const tipBadge = require('./tipBadge');
+const lnurlResolve = require('./lnurlResolve');
 
 // Wallet comes from the NWC_URL secret (bound on confirmTipSent in index.js).
 const { nwcUrl } = require('./nwcSecret');
@@ -530,6 +531,19 @@ async function fetchLnurlInvoice(address, amountSats) {
     const invoiceData = await invoiceRes.json();
     const pr = invoiceData && invoiceData.pr;
     if (!pr || String(pr).toLowerCase().indexOf('lnbc') !== 0) throw httpsError('unavailable', 'Could not reach that wallet');
+    let decoded;
+    try {
+        decoded = bolt11.decode(pr);
+    } catch (e) {
+        throw httpsError('unavailable', 'Could not reach that wallet');
+    }
+    try {
+        lnurlResolve.assertResolvedInvoice(decoded, meta.metadata);
+    } catch (e) {
+        if (e && e.code === 'invoice_expired') throw httpsError('failed-precondition', 'Lightning invoice is expired. Try again.');
+        if (e && e.name === 'LnurlError') throw httpsError('failed-precondition', 'Wallet returned an unexpected invoice');
+        throw httpsError('unavailable', 'Could not reach that wallet');
+    }
     const verifyUrl = invoiceData && invoiceData.verify ? String(invoiceData.verify) : '';
     return { invoice: String(pr), verifyUrl: verifyUrl };
 }

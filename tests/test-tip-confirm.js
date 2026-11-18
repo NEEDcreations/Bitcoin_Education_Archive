@@ -168,6 +168,10 @@ test('badge credit requires a server invoice and an allowlisted verify host', ()
     assert.ok(hops.includes('TIP_FETCH_HOPS = 3'));
     const request = service.slice(service.indexOf('async function requestTipInvoice'));
     assert.ok(request.indexOf('takeTipInvoiceRate') < request.indexOf('fetchLnurlInvoice'));
+    const fetchInv = service.slice(service.indexOf('async function fetchLnurlInvoice'), service.indexOf('async function requestTipInvoice'));
+    assert.ok(fetchInv.includes('lnurlResolve.assertResolvedInvoice'));
+    assert.ok(fetchInv.includes('meta.metadata'));
+    assert.ok(fetchInv.includes('invoice_expired'));
     const client = fs.readFileSync(path.join(__dirname, '..', 'lightning-tips.js.src'), 'utf8');
     const serverAt = client.indexOf('requestTipInvoice');
     assert.ok(serverAt > 0);

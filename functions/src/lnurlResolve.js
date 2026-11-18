@@ -80,6 +80,30 @@ function headerGet(res, name) {
     return res.headers[lower] || res.headers[name] || '';
 }
 
+function assertResolvedInvoice(decoded, metadata, opts) {
+    const o = opts || {};
+    const nowSec = o.nowSec || function () { return Math.floor(Date.now() / 1000); };
+    const ownNodes = ownNodePubkeys(o.ownNodePubkeys);
+    if (typeof metadata !== 'string' || !metadata) {
+        throw LnurlError(RESOLVE_ERROR, 'no_metadata');
+    }
+    // LUD-06: the invoice's description hash must be sha256(metadata).
+    const h = tagValue(decoded, 'purpose_commit_hash');
+    if (typeof h !== 'string' || h.toLowerCase() !== sha256Hex(metadata)) {
+        throw LnurlError(RESOLVE_ERROR, 'description_hash_mismatch');
+    }
+    const exp = Number(decoded.timeExpireDate);
+    if (!Number.isFinite(exp) || exp < nowSec() + MIN_EXPIRY_HEADROOM_SEC) {
+        throw LnurlError('Lightning invoice is expired. Try again.', 'invoice_expired');
+    }
+    const payee = String(decoded.payeeNodeKey || '').toLowerCase();
+    if (!/^0[23][0-9a-f]{64}$/.test(payee)) throw LnurlError(RESOLVE_ERROR, 'no_payee');
+    if (ownNodes.indexOf(payee) !== -1) {
+        throw LnurlError('That Lightning Address can\'t receive this payment.', 'own_node');
+    }
+    return decoded;
+}
+
 function createLnurlResolver(deps) {
     const options = deps || {};
     const assertHost = options.assertPublicHost || require('./publicHost').assertPublicHost;
@@ -158,20 +182,7 @@ function createLnurlResolver(deps) {
         if (!Number.isFinite(got) || got !== msats) {
             throw LnurlError('Lightning Address returned an unexpected amount.', 'amount_mismatch');
         }
-        // LUD-06: the invoice's description hash must be sha256(metadata).
-        const h = tagValue(decoded, 'purpose_commit_hash');
-        if (typeof h !== 'string' || h.toLowerCase() !== sha256Hex(metadata)) {
-            throw LnurlError(RESOLVE_ERROR, 'description_hash_mismatch');
-        }
-        const exp = Number(decoded.timeExpireDate);
-        if (!Number.isFinite(exp) || exp < nowSec() + MIN_EXPIRY_HEADROOM_SEC) {
-            throw LnurlError('Lightning invoice is expired. Try again.', 'invoice_expired');
-        }
-        const payee = String(decoded.payeeNodeKey || '').toLowerCase();
-        if (!/^0[23][0-9a-f]{64}$/.test(payee)) throw LnurlError(RESOLVE_ERROR, 'no_payee');
-        if (ownNodes.indexOf(payee) !== -1) {
-            throw LnurlError('That Lightning Address can\'t receive this payment.', 'own_node');
-        }
+        assertResolvedInvoice(decoded, metadata, { nowSec: nowSec, ownNodePubkeys: options.ownNodePubkeys });
         return decoded;
     }
 
@@ -285,4 +296,6 @@ module.exports = {
     LnurlError: LnurlError,
     createLnurlResolver: createLnurlResolver,
     resolveLnurlInvoice: resolveLnurlInvoice,
+    assertResolvedInvoice: assertResolvedInvoice,
+    tagValue: tagValue,
 };
