@@ -189,6 +189,7 @@ const tipService = require('./src/tipService');
 const { assertPublicHost } = require('./src/publicHost');
 const { resolveLnurlInvoice, normalizeLnAddress, RESOLVE_ERROR } = require('./src/lnurlResolve');
 const pvpFlow = require('./src/pvpFlow');
+const guestPolicy = require('./src/guestPolicy');
 const badgeRules = require('./src/badgeRules');
 const { grantFamily, familyFor } = require('./src/grantBadge');
 const { awardBadge } = require('./src/awardBadge');
@@ -4364,10 +4365,21 @@ exports.pollVote = functionsV1.https.onCall(createSvbVote({
 }));
 
 // ---- PVP Answer Submission (server records the choice; pvpResolveRound grades it) ----
+// Guest = no session, or an anonymous session with no real sign-in method
+// linked (guestPolicy). Username-only accounts are guests. Nostr and
+// Lightning (custom token) sign-ins are logged in.
 function isAnonymousAuth(context) {
-    const token = context && context.auth && context.auth.token;
-    const provider = token && token.firebase && token.firebase.sign_in_provider;
-    return provider === 'anonymous' || !provider;
+    return guestPolicy.isGuestContext(context);
+}
+
+// Charge one rate window inside a transaction. All reads must come first, so
+// the caller passes the snapshot it already read.
+function pvpTxCharge(tx, ref, snap, maxCount, windowMs, nowMs, message) {
+    const planned = pvpFlow.planRateWindow(snap && snap.exists ? snap.data() : null, nowMs, maxCount, windowMs);
+    if (!planned.ok) {
+        throw new functionsV1.https.HttpsError('resource-exhausted', message || 'Too many PvP matches right now. Try again later.');
+    }
+    tx.set(ref, { windowStartMs: planned.windowStartMs, count: planned.count });
 }
 
 async function pvpRateLimit(uid, bucket, maxCount, windowMs) {
@@ -4388,7 +4400,28 @@ async function pvpRateLimit(uid, bucket, maxCount, windowMs) {
 exports.pvpSubmitAnswer = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const uid = context.auth.uid;
-    await pvpRateLimit(uid, 'answer', 30, 60000);
+    const answerNow = Date.now();
+    await pvpRateLimit(uid, 'answer', pvpFlow.PVP_ANSWER_PER_MIN, 60000);
+    // Guests also have a per-network cap (hashed IP when the request has one).
+    if (isAnonymousAuth(context)) {
+        const answerIp = faucetGuard.clientIpFromRequest(context && context.rawRequest);
+        if (answerIp) {
+            try {
+                const { networkRateDocId } = require('./src/rateLimitSalt');
+                const minRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'pvp_anon_ans_min_', answerIp, answerNow));
+                const hourRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'pvp_anon_ans_hour_', answerIp, answerNow));
+                await db.runTransaction(async (tx) => {
+                    const minSnap = await tx.get(minRef);
+                    const hourSnap = await tx.get(hourRef);
+                    pvpTxCharge(tx, minRef, minSnap, pvpFlow.PVP_ANON_ANSWER_NETWORK_PER_MIN, 60000, answerNow, 'Too many PvP requests');
+                    pvpTxCharge(tx, hourRef, hourSnap, pvpFlow.PVP_ANON_ANSWER_NETWORK_PER_HOUR, pvpFlow.PVP_MATCH_HOUR_MS, answerNow, 'Too many PvP requests');
+                });
+            } catch (e) {
+                if (e && e.code === 'resource-exhausted') throw e;
+                // No salt or no IP hash: the per-uid cap still applies.
+            }
+        }
+    }
 
     const { matchId, questionIndex, answerIndex } = data || {};
     if (!matchId || typeof questionIndex !== 'number' || typeof answerIndex !== 'number') {
@@ -4768,10 +4801,9 @@ function pvpSafePic(url) {
 exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     await pvpRateLimit(context.auth.uid, 'create', pvpFlow.PVP_CREATE_BURST, pvpFlow.PVP_CREATE_BURST_MS);
-    const callerHourMax = isAnonymousAuth(context)
-        ? pvpFlow.PVP_ANON_MATCH_PER_HOUR
-        : pvpFlow.PVP_SIGNED_MATCH_PER_HOUR;
-    await pvpRateLimit(context.auth.uid, 'match_hour', callerHourMax, pvpFlow.PVP_MATCH_HOUR_MS);
+    // Guest status is decided here, once, and stamped on the match. Settle
+    // never re-reads it from Auth.
+    const callerGuest = isAnonymousAuth(context);
 
     // [SECURITY FIX] Caller is always player2 (the matchmaker who found an opponent).
     // Pin player2.uid to context.auth.uid — never trust client-supplied uid.
@@ -4806,15 +4838,33 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
     // against each other simultaneously.
     const lobbyRef = db.collection('pvp_lobby').doc(lobbyDocId);
     const lobbyPreview = await lobbyRef.get();
-    if (lobbyPreview.exists) {
-        const previewUid = lobbyPreview.data() && lobbyPreview.data().uid;
-        if (previewUid && previewUid !== callerUid) {
-            const p1Flags = await pvpAccountFlags(previewUid);
-            const p1HourMax = p1Flags.anonymous
-                ? pvpFlow.PVP_ANON_MATCH_PER_HOUR
-                : pvpFlow.PVP_SIGNED_MATCH_PER_HOUR;
-            await pvpRateLimit(previewUid, 'match_hour', p1HourMax, pvpFlow.PVP_MATCH_HOUR_MS);
-        }
+    if (!lobbyPreview.exists) {
+        throw new functionsV1.https.HttpsError('not-found', 'Lobby entry not found');
+    }
+    const previewUid = (lobbyPreview.data() && lobbyPreview.data().uid) || '';
+    if (!previewUid || typeof previewUid !== 'string') {
+        throw new functionsV1.https.HttpsError('internal', 'Lobby doc missing uid');
+    }
+    // Auth lookups cannot run inside a transaction, so player1's guest bit is
+    // read here and the transaction checks the lobby still belongs to them.
+    const p1Guest = previewUid === callerUid ? true : (await pvpAccountFlags(previewUid)).anonymous;
+    const guestStamp = pvpFlow.planGuestStamp(p1Guest, callerGuest);
+    const createNow = Date.now();
+    let networkRef = null;
+    const createIp = faucetGuard.clientIpFromRequest(context && context.rawRequest);
+    if (callerGuest && createIp) {
+        try {
+            const { networkRateDocId } = require('./src/rateLimitSalt');
+            networkRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'pvp_anon_net_', createIp, createNow));
+        } catch (e) { networkRef = null; }
+    }
+    const charges = pvpFlow.planMatchCharges({ p1Guest: p1Guest, p2Guest: callerGuest, hasNetwork: !!networkRef });
+    const hourBucket = Math.floor(createNow / pvpFlow.PVP_MATCH_HOUR_MS);
+    function chargeRef(c) {
+        if (c.who === 'player1') return db.collection('rate_limits').doc('pvp_match_hour_' + previewUid);
+        if (c.who === 'player2') return db.collection('rate_limits').doc('pvp_match_hour_' + callerUid);
+        if (c.who === 'global') return db.collection('rate_limits').doc('pvp_anon_global_' + hourBucket);
+        return networkRef;
     }
     const matchRef = db.collection('pvp_matches').doc(); // pre-generate ID
     let challengedUid = '';
@@ -4826,6 +4876,9 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
             throw new functionsV1.https.HttpsError('not-found', 'Lobby entry not found');
         }
         const lobbyData = lobbySnap.data();
+        if (lobbyData.uid !== previewUid) {
+            throw new functionsV1.https.HttpsError('aborted', 'Lobby changed. Try again.');
+        }
         if (lobbyData.status !== 'waiting') {
             throw new functionsV1.https.HttpsError('already-exists', 'Opponent already matched');
         }
@@ -4843,8 +4896,23 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
         }
         const p1User = await tx.get(db.collection('users').doc(p1Uid));
         const p2User = await tx.get(db.collection('users').doc(callerUid));
-        const p1Name = pvpFlow.safeDisplayName(p1User.exists ? p1User.data().username : lobbyData.name);
-        const p2Name = pvpFlow.safeDisplayName(p2User.exists ? p2User.data().username : (player2 && player2.name));
+        const chargeRefs = charges.map(chargeRef);
+        const chargeSnaps = [];
+        for (let ci = 0; ci < chargeRefs.length; ci++) chargeSnaps.push(await tx.get(chargeRefs[ci]));
+        // All reads are done. Charge the hourly caps inside the claim, so a
+        // refused match charges nobody and a guest match never spends a
+        // signed-in player's cap.
+        for (let ci = 0; ci < chargeRefs.length; ci++) {
+            pvpTxCharge(tx, chargeRefs[ci], chargeSnaps[ci], charges[ci].max, pvpFlow.PVP_MATCH_HOUR_MS, createNow);
+        }
+        // A name from the lobby or the client (guests with no username) goes
+        // through the reserved / staff-name check.
+        const p1Username = p1User.exists ? p1User.data().username : '';
+        const p2Username = p2User.exists ? p2User.data().username : '';
+        // users.username is server-set (setUsername checks reserved names), so
+        // it is used as is, even for a username-only guest.
+        const p1Name = p1Username ? pvpFlow.safeDisplayName(p1Username) : pvpFlow.guestBattleName(lobbyData.name);
+        const p2Name = p2Username ? pvpFlow.safeDisplayName(p2Username) : pvpFlow.guestBattleName(player2 && player2.name);
         const p2Pic = pvpSafePic(player2 && player2.profilePic);
         challengedUid = p1Uid;
         challengerName = p2Name;
@@ -4855,6 +4923,7 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
                 uid: p1Uid,
                 name: p1Name,
                 profilePic: pvpSafePic(lobbyData.profilePic),
+                guest: guestStamp.player1,
                 score: 0, correct: 0, answers: []
             },
             player2: {
@@ -4862,8 +4931,10 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
                 uid: callerUid,
                 name: p2Name,
                 profilePic: p2Pic,
+                guest: guestStamp.player2,
                 score: 0, correct: 0, answers: []
             },
+            guestMatch: guestStamp.guestMatch,
             questions: clientQuestions,
             currentQ: 0,
             status: 'countdown',
@@ -4878,6 +4949,7 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
             playerUids: { player1: p1Uid, player2: callerUid },
             player1Name: p1Name,
             player2Name: p2Name,
+            guestStamp: guestStamp,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
@@ -4901,7 +4973,7 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
         } catch (e) { console.warn('[pvpCreateMatch] push failed', e.message); }
     }
 
-    return { matchId: matchRef.id };
+    return { matchId: matchRef.id, guestMatch: guestStamp.guestMatch };
 });
 
 // ── Scholar Exam: Server-Side Grading ──
@@ -5598,15 +5670,16 @@ exports.onPvpMatchFinished = onDocumentUpdated({
     try {
         const sides = [after.player1, after.player2];
         const sideUids = sides.map(function (side) { return side && side.uid; }).filter(Boolean);
-        const flags = await Promise.all(sideUids.map(function (uid) { return pvpAccountFlags(uid); }));
-        const anyAnon = flags.some(function (f) { return f && f.anonymous; });
+        // Only the create-time stamp decides a guest match (never live Auth).
+        const stampSnap = await db.collection('pvp_answer_keys').doc(matchId).get();
+        const stamp = pvpFlow.readGuestStamp(stampSnap.exists ? stampSnap.data() : null);
         const skipUids = [];
         const rewardUids = [];
         for (let si = 0; si < sideUids.length; si++) {
-            if (anyAnon || (flags[si] && flags[si].anonymous)) skipUids.push(sideUids[si]);
+            if (stamp.guestMatch) skipUids.push(sideUids[si]);
             else rewardUids.push(sideUids[si]);
         }
-        await activityCounters.recordPvpPlayed(db, admin, after, matchId, { skipUids: skipUids });
+        await activityCounters.recordPvpPlayed(db, admin, after, matchId, { skipUids: skipUids, guestMatch: stamp.guestMatch });
         for (let ri = 0; ri < rewardUids.length; ri++) {
             await grantFamily(db, admin, rewardUids[ri], familyFor('pvpWins'));
             await grantFamily(db, admin, rewardUids[ri], familyFor('pvpPlayed'));
@@ -8846,11 +8919,13 @@ async function pvpAccountFlags(uid) {
         userSnap.exists ? userSnap.data() : {},
         ledgerSnap.exists ? ledgerSnap.data() : {}
     );
+    // Same guest rule as everywhere else (guestPolicy): no real provider and
+    // no Nostr / Lightning sign-in. An email alone does not count. Used for
+    // the create-time stamp and the lobby summary only, never at settle.
     let anonymous = true;
     try {
         const authUser = await admin.auth().getUser(uid);
-        const providers = authUser.providerData || [];
-        anonymous = !authUser.email && providers.length === 0;
+        anonymous = guestPolicy.isGuestRecord(authUser, userSnap.exists ? userSnap.data() : null);
     } catch (e) { anonymous = true; }
     return {
         banned: ban.ok !== true,
@@ -8872,28 +8947,12 @@ async function settlePvpMatch(matchId, after) {
     if (!ids || !ids.player1 || !ids.player2) return;
     const p1 = after.player1 || {};
     const p2 = after.player2 || {};
+    // Ban state is read live. Guest status comes only from the create-time
+    // stamp; a missing stamp is treated as a guest match.
     const [f1, f2] = await Promise.all([pvpAccountFlags(ids.player1), pvpAccountFlags(ids.player2)]);
-    const plan = pvpFlow.planPvpReward({
-        matchId: matchId,
-        status: after.status,
-        alreadyGranted: false,
-        forfeitedBy: after.forfeitedBy || '',
-        forfeitReason: after.forfeitReason || '',
-        player1: {
-            uid: ids.player1,
-            name: keyData.player1Name || '',
-            score: p1.score || 0,
-            roundWins: pvpFlow.countWins(p1.answers),
-            banned: f1.banned, anonymous: f1.anonymous,
-        },
-        player2: {
-            uid: ids.player2,
-            name: keyData.player2Name || '',
-            score: p2.score || 0,
-            roundWins: pvpFlow.countWins(p2.answers),
-            banned: f2.banned, anonymous: f2.anonymous,
-        },
-    });
+    const settled = pvpFlow.settleRewardPlan({ matchId: matchId, after: after, keyData: keyData, flags1: f1, flags2: f2 });
+    const stamp = settled.stamp;
+    const plan = settled.plan;
     if (!plan.grant) {
         if (plan.reason === 'disconnect' || plan.reason === 'guest_match' || plan.guestMatch === true) {
             await db.collection('pvp_matches').doc(matchId).set({ rewardsGranted: true, rewards: {} }, { merge: true });
@@ -8954,8 +9013,8 @@ async function settlePvpMatch(matchId, after) {
                 upd.weeklyXP = admin.firestore.FieldValue.increment(write.weeklyXP);
                 upd.monthlyXP = admin.firestore.FieldValue.increment(write.monthlyXP);
             }
-            const skipAnonStats = plan.guestMatch === true
-                || (p.uid === ids.player1 ? f1 : f2).anonymous === true;
+            const skipAnonStats = plan.guestMatch === true || stamp.guestMatch === true
+                || (p.uid === ids.player1 ? stamp.player1 : stamp.player2) === true;
             if (!skipAnonStats) {
                 if (p.pvpWins) upd.pvpWins = admin.firestore.FieldValue.increment(p.pvpWins);
                 if (p.pvpLosses) upd.pvpLosses = admin.firestore.FieldValue.increment(p.pvpLosses);

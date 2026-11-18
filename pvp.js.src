@@ -19,11 +19,30 @@
         { id: 'pvp_100',   name: 'PVP Legend',  emoji: '👑', desc: 'Won 100 PVP matches',      threshold: 100, pts: 1000 },
     ];
 
+    // Same guest rule as the server (functions/src/guestPolicy.js): no session,
+    // or an anonymous session with no real sign-in method linked. Username-only
+    // accounts are guests. Nostr / Lightning (custom token) sessions are not.
     function isPvpGuest() {
+        if (typeof window !== 'undefined' && window.bqGuest && typeof window.bqGuest.isGuest === 'function') {
+            try { return window.bqGuest.isGuest(); } catch (e) {}
+        }
         var auth = getAuth();
         if (!auth || !auth.currentUser) return true;
-        return auth.currentUser.isAnonymous === true;
+        var u = auth.currentUser;
+        if (u.isAnonymous !== true) return false;
+        var ids = u.providerData || [];
+        for (var i = 0; i < ids.length; i++) {
+            var pid = ids[i] && ids[i].providerId;
+            if (pid && pid !== 'anonymous') return false;
+        }
+        return true;
     }
+
+    function pvpOpenSignIn() {
+        if (typeof window !== 'undefined' && window.bqGuest && typeof window.bqGuest.openSignIn === 'function') { window.bqGuest.openSignIn(); return; }
+        if (typeof showSignInPrompt === 'function') showSignInPrompt();
+    }
+    if (typeof window !== 'undefined') window.pvpOpenSignIn = pvpOpenSignIn;
 
     function pvpGuestBanner() {
         if (!isPvpGuest()) return '';
@@ -31,14 +50,25 @@
     }
 
     function pvpGuestResultNote(iWon, isDraw, myScore) {
-        if (!isPvpGuest()) return '';
+        // The server stamps guest status when the match starts. Signing in
+        // later does not change what this match earns.
+        var stampedGuest = pvpState.myStampGuest === true;
+        if (!isPvpGuest() && !stampedGuest) {
+            if (pvpState.matchGuest === true) {
+                return '<div style="margin:12px 0 0;padding:8px 12px;border:1px solid rgba(148,163,184,0.35);border-radius:8px;color:#94a3b8;font-size:0.8rem;text-align:center;line-height:1.4;">Your opponent played as a guest, so this match earns no XP, badges or stats.</div>';
+            }
+            return '';
+        }
+        if (!isPvpGuest() && stampedGuest) {
+            return '<div style="margin:12px 0 0;padding:8px 12px;border:1px solid rgba(148,163,184,0.35);border-radius:8px;color:#94a3b8;font-size:0.8rem;text-align:center;line-height:1.4;">You played this match as a guest, so it earns nothing. Your next match counts.</div>';
+        }
         var n = iWon ? 50 : (isDraw ? 5 : ((Number(myScore) || 0) > 0 ? 25 : 0));
         var label = n > 0
             ? ('+' + n + ' XP if logged in')
             : 'Log in to earn XP, badges, OrangeTix and sats';
         return '<div style="margin:12px 0 0;padding:8px 12px;border:1px solid rgba(148,163,184,0.35);border-radius:8px;color:#94a3b8;font-size:0.8rem;text-align:center;line-height:1.4;">' +
             label +
-            ' <button type="button" onclick="if(typeof showSignInPrompt===\'function\')showSignInPrompt();" style="margin-left:8px;padding:4px 10px;border:none;border-radius:6px;background:#f7931a;color:#111;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Log in</button></div>';
+            ' <button type="button" onclick="if(typeof pvpOpenSignIn===\'function\')pvpOpenSignIn();" style="margin-left:8px;padding:4px 10px;border:none;border-radius:6px;background:#f7931a;color:#111;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Log in</button></div>';
     }
 
     function serverPvpWins() {
@@ -754,6 +784,9 @@
         }
 
         pvpState.matchId = null;
+        pvpState.myName = '';
+        pvpState.matchGuest = false;
+        pvpState.myStampGuest = false;
         pvpState.currentQ = 0;
         pvpState.myScore = 0;
         pvpState.opponentScore = 0;
@@ -1024,8 +1057,17 @@
     }
 
     function lobbyDisplayName() {
-        var name = String(getMyDisplayName() || '').replace(/[\r\n<>\[\]()@#*`_~|\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
+        // Same characters the rules and the server (safeDisplayName) refuse.
+        var name = String(getMyDisplayName() || '').replace(/[\r\n<>\[\]()@#*`_~|\\"']/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
         if (name.length < 2) name = 'Bitcoiner';
+        // Guests cannot use staff or brand names (the server folds look-alikes too).
+        var hasUsername = false;
+        try { hasUsername = !!(typeof currentUser !== 'undefined' && currentUser && currentUser.username); } catch (e) {}
+        if (!hasUsername) {
+            var low = name.toLowerCase();
+            if (/(needcreations|bitcoin ?quest|bitcoin ?education|rufus|nacho|admin|moderator|staff|official|support|603 ?btc)/.test(low)
+                || /^(the |real |official )?(phil|mod|mods|bq)$/.test(low)) name = 'Guest Bitcoiner';
+        }
         return name;
     }
 
@@ -1219,7 +1261,7 @@
 
         pvpState._countdownDone = false;
 
-        var myName = getMyDisplayName();
+        var myName = pvpState.myName || getMyDisplayName();
         var oppName = pvpState.opponentName;
         var myInfo = getPlayerBadgeInfo(myName, getMyUid());
         var myPfp = getMyProfilePic();
@@ -1386,6 +1428,12 @@
 
                 var myKey = pvpState.isPlayer1 ? 'player1' : 'player2';
                 var oppKey = pvpState.isPlayer1 ? 'player2' : 'player1';
+
+                // Names and guest status come from the server-written match doc.
+                if (data[oppKey] && data[oppKey].name) pvpState.opponentName = String(data[oppKey].name);
+                if (data[myKey] && data[myKey].name) pvpState.myName = String(data[myKey].name);
+                pvpState.matchGuest = data.guestMatch === true;
+                pvpState.myStampGuest = !!(data[myKey] && data[myKey].guest === true);
 
                 pvpState.myScore = data[myKey].score;
                 pvpState.opponentScore = data[oppKey].score;

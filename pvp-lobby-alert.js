@@ -130,7 +130,7 @@
             if (typeof window.enterPVPMode === 'function') window.enterPVPMode();
         }
         if (typeof window.enterPVPMode === 'function') { go(); return; }
-        var src = 'pvp.js?v=20261118_v2590';
+        var src = 'pvp.js?v=20261118_v2601';
         var existing = document.querySelector('script[src="' + src + '"]');
         if (existing) { setTimeout(go, 400); return; }
         var s = document.createElement('script');

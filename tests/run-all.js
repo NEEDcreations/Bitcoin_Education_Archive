@@ -141,6 +141,8 @@ const TESTS = [
     { name: 'Account rules', file: 'test-account-rules.js' },
     { name: 'PvP Questions', file: 'test-pvp-questions.js' },
     { name: 'PvP Flow', file: 'test-pvp-flow.js' },
+    { name: 'PvP guest stamp, caps, and names', file: 'test-pvp-guest-stamp.js' },
+    { name: 'PvP badges and played count', file: 'test-pvp-badges.js' },
     { name: 'PvP Rules', file: 'test-pvp-rules.js' },
     { name: 'Nacho Feb 26 facts', file: 'test-nacho-facts.js' },
     { name: 'Nacho live answers', file: 'nacho-quality.js' },

@@ -1413,6 +1413,16 @@ service cloud.firestore {
                  || url.matches('https://lh3\\.googleusercontent\\.com/.*'));
     }
 
+    function pvpHasServerUsername() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('username', '') is string
+             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('username', '').size() >= 3;
+    }
+    function pvpLobbyNameAllowed(name) {
+      return !name.lower().matches('.*(needcreations|bitcoin ?quest|bitcoin ?education|rufus|nacho|admin|moderator|staff|official|support|603 ?btc).*')
+             && !name.lower().matches('(the |real |official )?(phil|mod|mods|bq)');
+    }
+
     match /pvp_lobby/{docId} {
       allow read: if request.auth != null;
       // Signed-in (including anonymous), own uid, strict field list. No extra payload.
@@ -1424,7 +1434,14 @@ service cloud.firestore {
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
                     && request.resource.data.name.size() <= 30
-                    && request.resource.data.name.matches('[^\\[\\]()@#*`_]+')
+                    // Same characters safeDisplayName strips on the server
+                    // (pvpFlow.js), so the lobby shows what the match will show.
+                    && request.resource.data.name.matches("[^\\r\\n<>\\[\\]()@#*`_~|\\\\\"']+")
+                    // Plain staff and brand names. The server also folds
+                    // look-alike letters and replaces any it catches.
+                    // A player with a server-approved username is not policed
+                    // here (the match uses that username).
+                    && (pvpHasServerUsername() || pvpLobbyNameAllowed(request.resource.data.name))
                     && pvpPicOk(request.resource.data.profilePic)
                     && request.resource.data.createdAt == request.time
                     && request.resource.data.lastSeen is number

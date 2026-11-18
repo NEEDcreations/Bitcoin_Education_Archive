@@ -20,7 +20,7 @@ const CONSOLATION_POINTS = 25;
 
 function safeDisplayName(name) {
     const cleaned = String(name || '')
-        .replace(/[\r\n<>\[\]()@#*`_~|\\]/g, ' ')
+        .replace(/[\r\n<>\[\]()@#*`_~|\\"']/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
         .slice(0, 30);
@@ -510,6 +510,153 @@ function planRateWindow(existing, nowMs, maxCount, windowMs) {
     return { ok: true, windowStartMs: existing.windowStartMs, count: count + 1, reset: false };
 }
 
+// ---- Guest battle names ----
+// Guests pick their own battle name. Staff and brand names are refused, after
+// folding case, accents, look-alike letters and digit swaps.
+const CONFUSABLE = {
+    '0': 'o', '1': 'i', '!': 'i', '|': 'i', 'l': 'i', '3': 'e', '4': 'a', '@': 'a',
+    '5': 's', '$': 's', '7': 't', '8': 'b', '9': 'g', '2': 'z', '6': 'g',
+    'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x', 'і': 'i',
+    'ј': 'j', 'ѕ': 's', 'һ': 'h', 'ԁ': 'd', 'ո': 'n', 'м': 'm', 'т': 't', 'в': 'b', 'н': 'h', 'к': 'k',
+    'α': 'a', 'ο': 'o', 'ε': 'e', 'ι': 'i', 'ν': 'v', 'ρ': 'p', 'τ': 't', 'κ': 'k', 'η': 'n', 'μ': 'm',
+};
+function foldName(name) {
+    let s = String(name || '');
+    try { s = s.normalize('NFKD'); } catch (e) {}
+    s = s.replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    let out = '';
+    for (const ch of s) out += Object.prototype.hasOwnProperty.call(CONFUSABLE, ch) ? CONFUSABLE[ch] : ch;
+    return out.replace(/[^a-z]/g, '');
+}
+// Refused anywhere in the name.
+const RESERVED_ANYWHERE = ['needcreations', 'bitcoinquest', 'bitcoineducation', 'rufus', 'nacho',
+    'admin', 'moderator', 'staff', 'support', 'official', 'system', 'satoshisfavor', '603btc'];
+// Refused as the whole name (after a real/the/official prefix or suffix).
+const RESERVED_WHOLE = ['phil', 'mod', 'mods', 'bq', 'team', 'dev', 'owner', 'founder', 'bot'];
+const RESERVED_ANYWHERE_F = RESERVED_ANYWHERE.map(foldName);
+const RESERVED_WHOLE_F = RESERVED_WHOLE.map(foldName);
+const AFFIX_F = ['real', 'the', 'its', 'iam', 'official', 'team', 'hq', 'bot', 'here'].map(foldName);
+function isReservedBattleName(name) {
+    const f = foldName(name);
+    if (!f) return false;
+    for (let i = 0; i < RESERVED_ANYWHERE_F.length; i++) if (f.indexOf(RESERVED_ANYWHERE_F[i]) >= 0) return true;
+    let core = f;
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (let i = 0; i < AFFIX_F.length; i++) {
+            const a = AFFIX_F[i];
+            if (core.length > a.length && core.indexOf(a) === 0) { core = core.slice(a.length); changed = true; }
+            if (core.length > a.length && core.slice(-a.length) === a) { core = core.slice(0, -a.length); changed = true; }
+        }
+    }
+    return RESERVED_WHOLE_F.indexOf(core) >= 0 || RESERVED_WHOLE_F.indexOf(f) >= 0;
+}
+const GUEST_FALLBACK_NAME = 'Guest Bitcoiner';
+// The name a guest (or any lobby/client-supplied name) shows in a match.
+function guestBattleName(raw) {
+    const s = safeDisplayName(raw);
+    if (s === 'a Bitcoiner') return GUEST_FALLBACK_NAME;
+    return isReservedBattleName(s) ? GUEST_FALLBACK_NAME : s;
+}
+
+// ---- Guest stamp ----
+// Whether each player was a guest is decided once, when the match is created,
+// and stored on the server-only answer-key doc (and mirrored on the match doc
+// for the UI). Settle, badges and the played count read only this stamp, so a
+// guest who links a sign-in method after the match cannot turn it into a paid
+// signed-in match.
+const GUEST_STAMP_VERSION = 1;
+function planGuestStamp(p1Guest, p2Guest) {
+    const a = p1Guest !== false;
+    const b = p2Guest !== false;
+    return { version: GUEST_STAMP_VERSION, player1: a, player2: b, guestMatch: a || b };
+}
+// Reads the stamp. A missing or malformed stamp fails closed: guest match.
+function readGuestStamp(keyData) {
+    const st = keyData && keyData.guestStamp;
+    if (!st || st.version !== GUEST_STAMP_VERSION || typeof st.player1 !== 'boolean' || typeof st.player2 !== 'boolean') {
+        return { version: 0, player1: true, player2: true, guestMatch: true, missing: true };
+    }
+    return { version: st.version, player1: st.player1, player2: st.player2, guestMatch: st.player1 || st.player2, missing: false };
+}
+
+// ---- Match create caps ----
+// Per-uid hourly caps, plus caps that a fresh anonymous uid cannot reset:
+// one global anonymous-create bucket per hour and one per network (keyed hash).
+// A signed-in player's hourly cap is charged only for a signed-in match.
+const PVP_ANON_GLOBAL_PER_HOUR = 300;
+const PVP_ANON_NETWORK_PER_HOUR = 30;
+function planMatchCharges(input) {
+    const src = input || {};
+    const p1Guest = src.p1Guest !== false;
+    const p2Guest = src.p2Guest !== false;
+    const guestMatch = p1Guest || p2Guest;
+    const out = [];
+    if (guestMatch) {
+        if (p1Guest) out.push({ who: 'player1', bucket: 'match_hour', max: 20 });
+        if (p2Guest) out.push({ who: 'player2', bucket: 'match_hour', max: 20 });
+        out.push({ who: 'global', bucket: 'anon_global', max: PVP_ANON_GLOBAL_PER_HOUR });
+        if (p2Guest && src.hasNetwork) out.push({ who: 'network', bucket: 'anon_net', max: PVP_ANON_NETWORK_PER_HOUR });
+    } else {
+        out.push({ who: 'player1', bucket: 'match_hour', max: 60 });
+        out.push({ who: 'player2', bucket: 'match_hour', max: 60 });
+    }
+    return out;
+}
+
+// ---- Answer caps ----
+// Every player has a per-uid burst cap (same 30/minute as before). Guests also
+// get a per-network (IP hash, when the request has an IP) burst and hourly cap,
+// so a new anonymous uid cannot reset the answer limit.
+const PVP_ANSWER_PER_MIN = 30;
+const PVP_ANON_ANSWER_NETWORK_PER_MIN = 40;
+const PVP_ANON_ANSWER_NETWORK_PER_HOUR = 150;
+function planAnswerCharges(input) {
+    const src = input || {};
+    const out = [{ who: 'player', bucket: 'answer', max: PVP_ANSWER_PER_MIN, windowMs: 60000 }];
+    if (src.guest && src.hasNetwork) {
+        out.push({ who: 'network', bucket: 'anon_ans_min', max: PVP_ANON_ANSWER_NETWORK_PER_MIN, windowMs: 60000 });
+        out.push({ who: 'network', bucket: 'anon_ans_hour', max: PVP_ANON_ANSWER_NETWORK_PER_HOUR, windowMs: 60 * 60 * 1000 });
+    }
+    return out;
+}
+
+// Settle plan from the match, its answer-key doc and live ban flags. Guest
+// status comes only from the create-time stamp on the key doc; whatever the
+// live flags say about anonymous is ignored.
+function settleRewardPlan(input) {
+    const src = input || {};
+    const after = src.after || {};
+    const keyData = src.keyData || {};
+    const ids = keyData.playerUids || {};
+    const f1 = src.flags1 || {};
+    const f2 = src.flags2 || {};
+    const stamp = readGuestStamp(keyData);
+    const p1 = after.player1 || {};
+    const p2 = after.player2 || {};
+    const plan = planPvpReward({
+        matchId: src.matchId,
+        status: after.status,
+        alreadyGranted: false,
+        forfeitedBy: after.forfeitedBy || '',
+        forfeitReason: after.forfeitReason || '',
+        player1: {
+            uid: ids.player1, name: keyData.player1Name || '', score: p1.score || 0,
+            roundWins: countWins(p1.answers), banned: f1.banned === true, anonymous: stamp.player1,
+        },
+        player2: {
+            uid: ids.player2, name: keyData.player2Name || '', score: p2.score || 0,
+            roundWins: countWins(p2.answers), banned: f2.banned === true, anonymous: stamp.player2,
+        },
+    });
+    if (stamp.guestMatch && plan.grant) {
+        // Belt and braces: a stamped guest match never grants.
+        return { stamp: stamp, plan: Object.assign({}, plan, { grant: false, reason: 'guest_match', guestMatch: true, players: zeroGuestMatchRewards(plan.players) }) };
+    }
+    return { stamp: stamp, plan: plan };
+}
+
 module.exports = {
     LOBBY_SHOUT_MS: LOBBY_SHOUT_MS,
     ALERT_COOLDOWN_MS: ALERT_COOLDOWN_MS,
@@ -554,6 +701,21 @@ module.exports = {
     planRateWindow: planRateWindow,
     guestMatchBlocksRewards: guestMatchBlocksRewards,
     zeroGuestMatchRewards: zeroGuestMatchRewards,
+    foldName: foldName,
+    isReservedBattleName: isReservedBattleName,
+    guestBattleName: guestBattleName,
+    GUEST_FALLBACK_NAME: GUEST_FALLBACK_NAME,
+    planGuestStamp: planGuestStamp,
+    readGuestStamp: readGuestStamp,
+    GUEST_STAMP_VERSION: GUEST_STAMP_VERSION,
+    planMatchCharges: planMatchCharges,
+    settleRewardPlan: settleRewardPlan,
+    PVP_ANON_GLOBAL_PER_HOUR: PVP_ANON_GLOBAL_PER_HOUR,
+    PVP_ANON_NETWORK_PER_HOUR: PVP_ANON_NETWORK_PER_HOUR,
+    planAnswerCharges: planAnswerCharges,
+    PVP_ANSWER_PER_MIN: PVP_ANSWER_PER_MIN,
+    PVP_ANON_ANSWER_NETWORK_PER_MIN: PVP_ANON_ANSWER_NETWORK_PER_MIN,
+    PVP_ANON_ANSWER_NETWORK_PER_HOUR: PVP_ANON_ANSWER_NETWORK_PER_HOUR,
     PVP_CREATE_BURST: 10,
     PVP_CREATE_BURST_MS: 60000,
     PVP_ANON_MATCH_PER_HOUR: 20,

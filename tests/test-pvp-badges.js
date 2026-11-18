@@ -109,13 +109,13 @@ async function main() {
             'users/a': { pvpPlayed: 0 },
             'users/b': { pvpPlayed: 4 },
         });
-        const first = await recordPvpPlayed(db, admin, after, 'match-1', { skipUids: ['b'] });
+        const first = await recordPvpPlayed(db, admin, after, 'match-1', { skipUids: ['b'], guestMatch: false });
         assert.strictEqual(first.bumped, true);
         assert.deepStrictEqual(first.uids, ['a']);
         assert.strictEqual(db.docs['users/a'].pvpPlayed, 1);
         assert.strictEqual(db.docs['users/b'].pvpPlayed, 4);
         assert.ok(db.docs['pvp_played/match-1']);
-        const second = await recordPvpPlayed(db, admin, after, 'match-1', { skipUids: [] });
+        const second = await recordPvpPlayed(db, admin, after, 'match-1', { skipUids: [], guestMatch: false });
         assert.strictEqual(second.bumped, false);
         assert.strictEqual(second.reason, 'already');
         assert.strictEqual(db.docs['users/a'].pvpPlayed, 1);
@@ -129,10 +129,23 @@ async function main() {
             'users/a': { pvpPlayed: 1 },
             'users/c': { pvpPlayed: 0 },
         });
-        const both = await recordPvpPlayed(db2, admin, finished, 'match-2');
+        const both = await recordPvpPlayed(db2, admin, finished, 'match-2', { guestMatch: false });
         assert.strictEqual(both.bumped, true);
         assert.strictEqual(db2.docs['users/a'].pvpPlayed, 2);
         assert.strictEqual(db2.docs['users/c'].pvpPlayed, 1);
+    });
+
+    await test('recordPvpPlayed: a guest match (or a missing stamp) bumps nobody', async function () {
+        const after = { status: 'finished', player1: { uid: 'a' }, player2: { uid: 'b' } };
+        const db = memoryDb({ 'users/a': { pvpPlayed: 3 }, 'users/b': { pvpPlayed: 0 } });
+        const r = await recordPvpPlayed(db, admin, after, 'match-g', { guestMatch: true });
+        assert.deepStrictEqual(r.uids, []);
+        assert.strictEqual(db.docs['users/a'].pvpPlayed, 3);
+        assert.strictEqual(db.docs['users/b'].pvpPlayed, 0);
+        const db2 = memoryDb({ 'users/a': { pvpPlayed: 3 }, 'users/b': { pvpPlayed: 0 } });
+        const r2 = await recordPvpPlayed(db2, admin, after, 'match-h');
+        assert.deepStrictEqual(r2.uids, []);
+        assert.strictEqual(db2.docs['users/a'].pvpPlayed, 3);
     });
 
     console.log(failed ? ('\n' + failed + ' failed') : ('\n' + passed + ' passed'));

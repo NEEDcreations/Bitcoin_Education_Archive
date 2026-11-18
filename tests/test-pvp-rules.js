@@ -233,6 +233,24 @@ async function main() {
             roundExplain: 'secret',
         }));
     });
+    // Guest battle names: markup / quote characters and staff or brand names.
+    const anon2 = authed(env, 'anon2', 'anonymous');
+    for (const bad of ['<b>Ada</b>', 'Ada "x"', "Ada's", 'Ada~', 'a|b', 'Phil', 'real phil', 'NEEDcreations', 'Nacho Fan', 'Rufus', 'admin', 'Bitcoin Quest', 'mod', '603btc']) {
+        await check('guest lobby name refused: ' + bad, function () {
+            return assertFails(setDoc(doc(anon2, 'pvp_lobby', 'anon2'), Object.assign(lobby(), { uid: 'anon2', name: bad })));
+        });
+    }
+    await check('guest lobby plain name accepted', function () {
+        return assertSucceeds(setDoc(doc(anon2, 'pvp_lobby', 'anon2'), Object.assign(lobby(), { uid: 'anon2', name: 'Hodler 21' })));
+    });
+    await env.withSecurityRulesDisabled(async function (ctx) {
+        await setDoc(doc(ctx.firestore(), 'users', 'nachofan'), { username: 'nachofan' });
+    });
+    const nachofan = authed(env, 'nachofan', 'google.com');
+    await check('a player with a server username is not blocked by the staff-name list', function () {
+        return assertSucceeds(setDoc(doc(nachofan, 'pvp_lobby', 'nachofan'), Object.assign(lobby(), { uid: 'nachofan', name: 'nachofan' })));
+    });
+
     await check('anonymous cannot write pvp_played', function () {
         return assertFails(setDoc(doc(anon, 'pvp_played', 'm1'), { matchId: 'm1' }));
     });

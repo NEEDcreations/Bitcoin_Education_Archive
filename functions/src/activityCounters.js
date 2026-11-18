@@ -101,6 +101,11 @@ async function recordPvpPlayed(db, adminSdk, after, matchId, opts) {
     const id = typeof matchId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(matchId) ? matchId : '';
     if (!id) return { bumped: false, reason: 'no_match' };
     const options = opts || {};
+    // Guest matches never count. The caller passes the create-time stamp;
+    // without guestMatch === false nothing is bumped (fail closed).
+    if (options.guestMatch !== false) {
+        options.skipUids = [(after.player1 || {}).uid, (after.player2 || {}).uid].concat(options.skipUids || []);
+    }
     const skip = {};
     (options.skipUids || []).forEach(function (uid) {
         const s = cleanUid(uid);
