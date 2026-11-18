@@ -41,6 +41,26 @@ test('claim and daily caps are 200 sats', function() {
     assert.strictEqual(guard.assessClaimAmount(99).ok, false);
 });
 
+test('reasonable points ceiling scales with account age and floors at one day', function() {
+    assert.strictEqual(guard.maxReasonablePoints(1), 2600);
+    assert.strictEqual(guard.maxReasonablePoints(10), 7100);
+    assert.strictEqual(guard.maxReasonablePoints(30), 17100);
+    assert.strictEqual(guard.maxReasonablePoints(0), 2600);
+    assert.strictEqual(guard.maxReasonablePoints(-5), 2600);
+    assert.strictEqual(guard.maxReasonablePoints('7'), 5600);
+    assert.strictEqual(guard.maxReasonablePoints('nope'), 2600);
+});
+
+test('claimSats persists a suspicious-points flag instead of only logging', function() {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+    const start = src.indexOf('exports.claimSats');
+    const end = src.indexOf('function _withTimeout');
+    const body = src.slice(start, end);
+    assert.ok(body.indexOf('maxReasonablePoints = faucetGuard.maxReasonablePoints(accountDays)') !== -1);
+    assert.ok(body.indexOf('signalData.suspiciousPoints = true') !== -1);
+    assert.ok(body.indexOf('suspiciousPointsThreshold = maxReasonablePoints') !== -1);
+});
+
 test('a lightning address is required and a raw invoice is ignored', function() {
     const missing = guard.requireLightningAddress({ invoice: 'lnbc1something' });
     assert.strictEqual(missing.ok, false);
