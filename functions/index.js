@@ -16,7 +16,7 @@ const {
     turnstileSecret,
     turnstileSecretKey,
 } = require('./src/sensitiveSecrets');
-const { runtimeSa } = require('./src/runtimeServiceAccounts');
+const { runtimeSa, withRuntimeSa } = require('./src/runtimeServiceAccounts');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const admin = require('./src/firebaseAdmin.js');
@@ -8691,7 +8691,7 @@ async function mirrorChatRetract(beforeSnap, afterSnap) {
     }
     return null;
 }
-exports.onGlobalChatTelegram = onDocumentCreated({ document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onGlobalChatTelegram') }, async (event) => {
+exports.onGlobalChatTelegram = onDocumentCreated(withRuntimeSa('onGlobalChatTelegram', { document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret] }), async (event) => {
     const snap = event.data;
     if (!snap) return null;
     return mirrorChatCreate('global_chat', event.params.msgId, snap.data());
@@ -8704,26 +8704,26 @@ exports.onGlobalChatEasterEgg = onDocumentCreated({ document: 'global_chat/{msgI
     catch (e) { console.warn('[easterEgg] failed'); }
     return null;
 });
-exports.onAnnouncementsTelegram = onDocumentCreated({ document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onAnnouncementsTelegram') }, async (event) => {
+exports.onAnnouncementsTelegram = onDocumentCreated(withRuntimeSa('onAnnouncementsTelegram', { document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret] }), async (event) => {
     const snap = event.data;
     if (!snap) return null;
     return mirrorChatCreate('announcements', event.params.msgId, snap.data());
 });
-exports.onGlobalChatTelegramUpdated = onDocumentUpdated({ document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onGlobalChatTelegramUpdated') }, async (event) => {
+exports.onGlobalChatTelegramUpdated = onDocumentUpdated(withRuntimeSa('onGlobalChatTelegramUpdated', { document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret] }), async (event) => {
     const change = event.data || {};
     return mirrorChatRetract(change.before, change.after);
 });
-exports.onGlobalChatTelegramDeleted = onDocumentDeleted({ document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onGlobalChatTelegramDeleted') }, async (event) => {
+exports.onGlobalChatTelegramDeleted = onDocumentDeleted(withRuntimeSa('onGlobalChatTelegramDeleted', { document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret] }), async (event) => {
     return mirrorChatRetract(event.data, null);
 });
-exports.onAnnouncementsTelegramUpdated = onDocumentUpdated({ document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onAnnouncementsTelegramUpdated') }, async (event) => {
+exports.onAnnouncementsTelegramUpdated = onDocumentUpdated(withRuntimeSa('onAnnouncementsTelegramUpdated', { document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret] }), async (event) => {
     const change = event.data || {};
     return mirrorChatRetract(change.before, change.after);
 });
-exports.onAnnouncementsTelegramDeleted = onDocumentDeleted({ document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onAnnouncementsTelegramDeleted') }, async (event) => {
+exports.onAnnouncementsTelegramDeleted = onDocumentDeleted(withRuntimeSa('onAnnouncementsTelegramDeleted', { document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret] }), async (event) => {
     return mirrorChatRetract(event.data, null);
 });
-exports.flushTelegramMirror = onSchedule({ schedule: '* * * * *', timeZone: 'UTC', secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('flushTelegramMirror') }, async () => {
+exports.flushTelegramMirror = onSchedule(withRuntimeSa('flushTelegramMirror', { schedule: '* * * * *', timeZone: 'UTC', secrets: [tgBotTokenSecret] }), async () => {
     try {
         await flushTelegramMirror(db, Date.now());
     } catch (e) {

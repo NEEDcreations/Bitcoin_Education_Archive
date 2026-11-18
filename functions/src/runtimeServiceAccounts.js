@@ -106,21 +106,37 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
 
 const DEFAULT_PROJECT = 'bitcoin-education-archive';
 
-// Holdover: these four TOTP callables still run as the project's default
-// App Engine account (<project>@appspot.gserviceaccount.com) on the listed
-// projects, because their own fn-totp-* accounts were never created there and
-// a deploy that names a missing account fails. Their manifest entries above
-// stay, so runtime-sa-plan.js still plans the accounts for the follow-up move.
+// Holdover: these functions still run as the project's default runtime
+// account on the listed projects, because their own fn-* accounts were
+// never created there and a deploy that names a missing account fails.
+// Their manifest entries above stay, so runtime-sa-plan.js still plans the
+// accounts for the follow-up move.
 // The holdover keys ONLY on the project id (GCLOUD_PROJECT), which the
 // Firebase CLI sets during function discovery; .env values are not visible
 // there. Staging keeps its own accounts; a like-live QA deploy adds
 // 'bitcoin-quest-staging' to these lists in an uncommitted scratch edit.
-// Secrets are unaffected: each function still binds TOTP_ENCRYPTION_KEY.
+// Secrets are unaffected: each function still binds the secrets in its
+// own `secrets:` option.
+//
+// Gen1 TOTP callables (totpStepUp, totpCheck, totpSetup,
+// regenerateRecoveryCodes): runtimeSaOrDefault returns the App Engine
+// default (<project>@appspot.gserviceaccount.com), which is how they
+// already run on live. Secrets stay TOTP_ENCRYPTION_KEY.
+// Gen2 Telegram mirror functions (the seven below): withRuntimeSa omits
+// serviceAccount on live so they stay on the default compute SA. Do not
+// pass the App Engine account; that would change their live identity.
 const DEFAULT_SA_HOLDOVER = Object.freeze({
     totpStepUp: Object.freeze(['bitcoin-education-archive']),
     totpCheck: Object.freeze(['bitcoin-education-archive']),
     totpSetup: Object.freeze(['bitcoin-education-archive']),
     regenerateRecoveryCodes: Object.freeze(['bitcoin-education-archive']),
+    flushTelegramMirror: Object.freeze(['bitcoin-education-archive']),
+    onAnnouncementsTelegram: Object.freeze(['bitcoin-education-archive']),
+    onAnnouncementsTelegramDeleted: Object.freeze(['bitcoin-education-archive']),
+    onAnnouncementsTelegramUpdated: Object.freeze(['bitcoin-education-archive']),
+    onGlobalChatTelegram: Object.freeze(['bitcoin-education-archive']),
+    onGlobalChatTelegramDeleted: Object.freeze(['bitcoin-education-archive']),
+    onGlobalChatTelegramUpdated: Object.freeze(['bitcoin-education-archive']),
 });
 
 const EXTRA_ROLES = Object.freeze({
@@ -139,13 +155,33 @@ function runtimeSa(functionName) {
     return entry.id + '@' + projectId() + '.iam.gserviceaccount.com';
 }
 
+function isDefaultSaHoldover(functionName) {
+    if (!Object.prototype.hasOwnProperty.call(DEFAULT_SA_HOLDOVER, functionName)) return false;
+    return DEFAULT_SA_HOLDOVER[functionName].indexOf(projectId()) !== -1;
+}
+
 // runtimeSa() plus the holdover above. Still throws for unknown functions.
+// On a listed live holdover this returns the App Engine default. Use it for
+// the gen1 TOTP callables (that is their current account). Do not use it
+// for the gen2 Telegram mirrors; use withRuntimeSa so the field is omitted.
 function runtimeSaOrDefault(functionName) {
     const own = runtimeSa(functionName);
-    if (!Object.prototype.hasOwnProperty.call(DEFAULT_SA_HOLDOVER, functionName)) return own;
-    const project = projectId();
-    if (DEFAULT_SA_HOLDOVER[functionName].indexOf(project) === -1) return own;
-    return project + '@appspot.gserviceaccount.com';
+    if (!isDefaultSaHoldover(functionName)) return own;
+    return projectId() + '@appspot.gserviceaccount.com';
+}
+
+// Spread into a function's options. Still throws for unknown functions.
+// On a listed live holdover the serviceAccount key is omitted, so gen2
+// stays on the default compute SA. Otherwise sets the dedicated account.
+function withRuntimeSa(functionName, opts) {
+    const own = runtimeSa(functionName);
+    const out = Object.assign({}, opts || {});
+    if (isDefaultSaHoldover(functionName)) {
+        delete out.serviceAccount;
+        return out;
+    }
+    out.serviceAccount = own;
+    return out;
 }
 
 function projectId() {
@@ -163,5 +199,7 @@ module.exports = {
     EXTRA_ROLES: EXTRA_ROLES,
     runtimeSa: runtimeSa,
     runtimeSaOrDefault: runtimeSaOrDefault,
+    isDefaultSaHoldover: isDefaultSaHoldover,
+    withRuntimeSa: withRuntimeSa,
     DEFAULT_SA_HOLDOVER: DEFAULT_SA_HOLDOVER,
 };

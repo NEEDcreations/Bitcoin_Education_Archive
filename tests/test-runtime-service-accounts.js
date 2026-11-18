@@ -16,7 +16,7 @@ function test(name, fn) {
 
 process.env.GCLOUD_PROJECT = 'bitcoin-education-archive';
 process.env.FIREBASE_CONFIG = JSON.stringify({ projectId: 'bitcoin-education-archive', storageBucket: 'bitcoin-education-archive.firebasestorage.app' });
-const { RUNTIME_SERVICE_ACCOUNTS, runtimeSa, runtimeSaOrDefault, DEFAULT_SA_HOLDOVER } = require(path.join(fnRoot, 'src', 'runtimeServiceAccounts.js'));
+const { RUNTIME_SERVICE_ACCOUNTS, runtimeSa, runtimeSaOrDefault, isDefaultSaHoldover, withRuntimeSa, DEFAULT_SA_HOLDOVER } = require(path.join(fnRoot, 'src', 'runtimeServiceAccounts.js'));
 const planMod = require(path.join(fnRoot, 'scripts', 'runtime-sa-plan.js'));
 const endpoints = planMod.loadEndpoints();
 const plan = planMod.buildPlan(endpoints);
@@ -30,18 +30,33 @@ test('manifest lists exactly the secret-bound exports (59)', function () {
     assert.strictEqual(secretBound.length, 59);
 });
 
-const HOLDOVER = ['regenerateRecoveryCodes', 'totpCheck', 'totpSetup', 'totpStepUp'];
+const TOTP_HOLDOVER = ['regenerateRecoveryCodes', 'totpCheck', 'totpSetup', 'totpStepUp'];
+const TELEGRAM_MIRROR_HOLDOVER = [
+    'flushTelegramMirror',
+    'onAnnouncementsTelegram',
+    'onAnnouncementsTelegramDeleted',
+    'onAnnouncementsTelegramUpdated',
+    'onGlobalChatTelegram',
+    'onGlobalChatTelegramDeleted',
+    'onGlobalChatTelegramUpdated',
+];
+const HOLDOVER = TOTP_HOLDOVER.concat(TELEGRAM_MIRROR_HOLDOVER).sort();
 const LIVE_APPSPOT = 'bitcoin-education-archive@appspot.gserviceaccount.com';
 
-test('every secret-bound function runs as its own account (live TOTP holdover excepted)', function () {
+function expectedLiveServiceAccount(n) {
+    if (endpoints[n].secrets.length === 0) return null;
+    if (TELEGRAM_MIRROR_HOLDOVER.indexOf(n) !== -1) return null;
+    if (TOTP_HOLDOVER.indexOf(n) !== -1) return LIVE_APPSPOT;
+    return RUNTIME_SERVICE_ACCOUNTS[n].id + '@bitcoin-education-archive.iam.gserviceaccount.com';
+}
+
+test('every secret-bound function runs as its own account (live TOTP and Telegram-mirror holdover excepted)', function () {
     secretBound.forEach(function (n) {
-        const want = HOLDOVER.indexOf(n) !== -1 ? LIVE_APPSPOT
-            : RUNTIME_SERVICE_ACCOUNTS[n].id + '@bitcoin-education-archive.iam.gserviceaccount.com';
-        assert.strictEqual(endpoints[n].serviceAccount, want, n);
+        assert.strictEqual(endpoints[n].serviceAccount, expectedLiveServiceAccount(n), n);
     });
 });
 
-test('TOTP holdover: exactly totpStepUp, totpCheck, totpSetup, regenerateRecoveryCodes, live only', function () {
+test('holdover: exactly the four TOTP callables and seven Telegram mirrors, live only', function () {
     assert.deepStrictEqual(Object.keys(DEFAULT_SA_HOLDOVER).sort(), HOLDOVER);
     HOLDOVER.forEach(function (n) {
         assert.deepStrictEqual(Array.from(DEFAULT_SA_HOLDOVER[n]), ['bitcoin-education-archive'], n);
@@ -52,14 +67,76 @@ test('TOTP holdover: exactly totpStepUp, totpCheck, totpSetup, regenerateRecover
 });
 
 test('TOTP holdover keeps TOTP_ENCRYPTION_KEY bound on all four (secrets unchanged)', function () {
-    HOLDOVER.forEach(function (n) {
+    TOTP_HOLDOVER.forEach(function (n) {
         assert.deepStrictEqual(endpoints[n].secrets, ['TOTP_ENCRYPTION_KEY'], n);
         assert.strictEqual(endpoints[n].gen, 1, n);
         assert.strictEqual(endpoints[n].trigger, 'callable', n);
     });
 });
 
-test('runtimeSaOrDefault: live -> appspot default for the four, own account for every other function', function () {
+test('Telegram mirror holdover: the seven omit serviceAccount on live and keep TG_BOT_TOKEN bound', function () {
+    TELEGRAM_MIRROR_HOLDOVER.forEach(function (n) {
+        assert.strictEqual(endpoints[n].serviceAccount, null, n);
+        assert.deepStrictEqual(endpoints[n].secrets, ['TG_BOT_TOKEN'], n);
+        assert.strictEqual(endpoints[n].gen, 2, n);
+    });
+    assert.strictEqual(endpoints.flushTelegramMirror.trigger, 'schedule');
+    ['onGlobalChatTelegram', 'onGlobalChatTelegramUpdated', 'onGlobalChatTelegramDeleted',
+        'onAnnouncementsTelegram', 'onAnnouncementsTelegramUpdated', 'onAnnouncementsTelegramDeleted'].forEach(function (n) {
+        assert.strictEqual(endpoints[n].trigger, 'event', n);
+    });
+});
+
+test('withRuntimeSa: live omits the account for the seven, own account for every other function and on staging', function () {
+    const saved = process.env.GCLOUD_PROJECT;
+    try {
+        process.env.GCLOUD_PROJECT = 'bitcoin-education-archive';
+        manifest.forEach(function (n) {
+            const got = withRuntimeSa(n, { retry: true });
+            if (TELEGRAM_MIRROR_HOLDOVER.indexOf(n) !== -1 || TOTP_HOLDOVER.indexOf(n) !== -1) {
+                assert.strictEqual(got.serviceAccount, undefined, 'live ' + n);
+                assert.strictEqual(Object.prototype.hasOwnProperty.call(got, 'serviceAccount'), false, 'live key ' + n);
+            } else {
+                assert.strictEqual(got.serviceAccount, runtimeSa(n), 'live ' + n);
+            }
+            assert.strictEqual(got.retry, true, n);
+        });
+        process.env.GCLOUD_PROJECT = 'bitcoin-quest-staging';
+        manifest.forEach(function (n) {
+            const got = withRuntimeSa(n, { retry: true });
+            assert.strictEqual(got.serviceAccount, runtimeSa(n), 'staging ' + n);
+        });
+        process.env.GCLOUD_PROJECT = 'bitcoin-education-archive';
+        assert.ok(isDefaultSaHoldover('flushTelegramMirror'));
+        assert.ok(isDefaultSaHoldover('totpStepUp'));
+        assert.strictEqual(isDefaultSaHoldover('handleTelegramWebhook'), false);
+        process.env.GCLOUD_PROJECT = 'bitcoin-quest-staging';
+        assert.strictEqual(isDefaultSaHoldover('flushTelegramMirror'), false);
+        assert.strictEqual(isDefaultSaHoldover('totpStepUp'), false);
+    } finally {
+        process.env.GCLOUD_PROJECT = saved;
+    }
+});
+
+test('resolved live service account is unchanged for every export except the seven mirrors, which have no explicit SA', function () {
+    names.forEach(function (n) {
+        assert.strictEqual(endpoints[n].serviceAccount, expectedLiveServiceAccount(n), n);
+    });
+    // The seven used to resolve to a dedicated fn-* account in this PR; they
+    // must now omit it. Every other secret-bound export still matches the
+    // previous live contract (TOTP holdover -> appspot, otherwise fn-*).
+    secretBound.forEach(function (n) {
+        if (TELEGRAM_MIRROR_HOLDOVER.indexOf(n) !== -1) return;
+        const previous = TOTP_HOLDOVER.indexOf(n) !== -1 ? LIVE_APPSPOT
+            : RUNTIME_SERVICE_ACCOUNTS[n].id + '@bitcoin-education-archive.iam.gserviceaccount.com';
+        assert.strictEqual(endpoints[n].serviceAccount, previous, 'unchanged ' + n);
+    });
+    names.filter(function (n) { return endpoints[n].secrets.length === 0; }).forEach(function (n) {
+        assert.strictEqual(endpoints[n].serviceAccount, null, 'no-secret ' + n);
+    });
+});
+
+test('runtimeSaOrDefault: live -> appspot default for every holdover name, own account for every other function', function () {
     const saved = process.env.GCLOUD_PROJECT;
     try {
         process.env.GCLOUD_PROJECT = 'bitcoin-education-archive';
@@ -262,6 +339,35 @@ test('runtimeSaOrDefault is used only by the TOTP key callables in secondFactor.
         const rel = path.relative(fnRoot, p);
         const n = (fs.readFileSync(p, 'utf8').match(/runtimeSaOrDefault\(/g) || []).length;
         if (rel === path.join('src', 'secondFactor.js')) assert.strictEqual(n, 2, rel);
+        else if (rel === path.join('src', 'runtimeServiceAccounts.js')) assert.strictEqual(n, 1, rel);
+        else assert.strictEqual(n, 0, rel);
+    });
+});
+
+test('withRuntimeSa is used only by the seven Telegram mirrors in index.js', function () {
+    const src = fs.readFileSync(path.join(fnRoot, 'index.js'), 'utf8');
+    const namesUsed = [];
+    const re = /withRuntimeSa\('([^']+)'/g;
+    let m;
+    while ((m = re.exec(src)) !== null) namesUsed.push(m[1]);
+    namesUsed.sort();
+    assert.deepStrictEqual(namesUsed, TELEGRAM_MIRROR_HOLDOVER.slice().sort());
+    TELEGRAM_MIRROR_HOLDOVER.forEach(function (n) {
+        assert.strictEqual(src.indexOf("runtimeSa('" + n + "')"), -1, n);
+    });
+    const files = [];
+    (function walk(d) {
+        fs.readdirSync(d).forEach(function (f) {
+            if (f === 'node_modules' || f === 'scripts' || f.startsWith('.')) return;
+            const p = path.join(d, f);
+            if (fs.statSync(p).isDirectory()) walk(p);
+            else if (p.endsWith('.js')) files.push(p);
+        });
+    })(fnRoot);
+    files.forEach(function (p) {
+        const rel = path.relative(fnRoot, p);
+        const n = (fs.readFileSync(p, 'utf8').match(/withRuntimeSa\(/g) || []).length;
+        if (rel === 'index.js') assert.strictEqual(n, 7, rel);
         else if (rel === path.join('src', 'runtimeServiceAccounts.js')) assert.strictEqual(n, 1, rel);
         else assert.strictEqual(n, 0, rel);
     });
