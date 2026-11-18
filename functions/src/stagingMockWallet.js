@@ -14,17 +14,19 @@
 //   mockPayOutcome:     'paid' (default) | 'refuse' (code PAYMENT_FAILED)
 //                       | 'refuse_ours' (code INSUFFICIENT_BALANCE)
 //                       | 'message_only' (code INTERNAL, message mentions PAYMENT_FAILED)
+//                       | 'refuse_text' (message 'PAYMENT_FAILED', NO error.code)
 //                       | 'timeout' ([TIMEOUT] payInvoice, no code)
 //   mockLookupOutcome:  'pending' (default) | 'failed' | 'settled'
-//                       | 'empty' ({}) | 'error' (throws NOT_FOUND) | 'unclassified'
+//                       | 'unknown' / 'empty' ({}) | 'error' (throws NOT_FOUND)
+//                       | 'unclassified' ({ state: 'mystery' })
 //   mockBalanceOutcome: 'ok' (default) | 'timeout' ([TIMEOUT] getBalance) | 'low' (0 sats)
 //   mockWalletBalanceSats, mockFeesPaidMsat, mockBlankPubkey: as for Favor.
 
 const crypto = require('crypto');
 
 const STAGING_PROJECT = 'bitcoin-quest-staging';
-const PAY_OUTCOMES = ['paid', 'refuse', 'refuse_ours', 'message_only', 'timeout'];
-const LOOKUP_OUTCOMES = ['pending', 'failed', 'settled', 'empty', 'error', 'unclassified'];
+const PAY_OUTCOMES = ['paid', 'refuse', 'refuse_ours', 'message_only', 'refuse_text', 'timeout'];
+const LOOKUP_OUTCOMES = ['pending', 'failed', 'settled', 'unknown', 'empty', 'error', 'unclassified'];
 const BALANCE_OUTCOMES = ['ok', 'timeout', 'low'];
 const MOCK_NODE_PUBKEY = '02' + 'ab'.repeat(32);
 
@@ -89,6 +91,7 @@ function createMockWallet(rawCfg) {
                 case 'refuse': throw codedError('PAYMENT_FAILED', 'PAYMENT_FAILED');
                 case 'refuse_ours': throw codedError('INSUFFICIENT_BALANCE', 'INSUFFICIENT_BALANCE');
                 case 'message_only': throw codedError('receiver said: PAYMENT_FAILED (staging mock)', 'INTERNAL');
+                case 'refuse_text': throw new Error('PAYMENT_FAILED');
                 case 'timeout': throw new Error('[TIMEOUT] payInvoice timed out after 30000ms');
                 default: return { preimage: crypto.randomBytes(32).toString('hex'), fees_paid: cfg.mockFeesPaidMsat || 0 };
             }
@@ -97,6 +100,7 @@ function createMockWallet(rawCfg) {
             switch (cfg.mockLookupOutcome) {
                 case 'failed': return { state: 'failed' };
                 case 'settled': return { state: 'settled', preimage: crypto.randomBytes(32).toString('hex') };
+                case 'unknown':
                 case 'empty': return {};
                 case 'error': throw codedError('NOT_FOUND', 'NOT_FOUND');
                 case 'unclassified': return { state: 'mystery' };

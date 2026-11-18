@@ -79,6 +79,25 @@ test('gate: on staging, the existing mockWallet flag must be exactly true', func
     });
 });
 
+test('refuse_text really has no error.code; message_only has INTERNAL', function() {
+    return withProject('bitcoin-quest-staging', async function() {
+        const a = smw.createMockWallet({ mockWallet: true, mockPayOutcome: 'refuse_text' });
+        await assert.rejects(a.payInvoice({}), function(e) { return e.message === 'PAYMENT_FAILED' && e.code === undefined; });
+        const b = smw.createMockWallet({ mockWallet: true, mockPayOutcome: 'message_only' });
+        await assert.rejects(b.payInvoice({}), function(e) { return /PAYMENT_FAILED/.test(e.message) && e.code === 'INTERNAL'; });
+        assert.strictEqual(cipher.explicitPayRefusal({ message: 'PAYMENT_FAILED' }), false);
+    });
+});
+
+test('inert off staging for every outcome: no wallet is ever built', function() {
+    return withProject('bitcoin-education-archive', async function() {
+        smw.PAY_OUTCOMES.forEach(function(p) { smw.LOOKUP_OUTCOMES.forEach(function(l) {
+            assert.throws(function() { smw.createMockWallet({ mockWallet: true, mockPayOutcome: p, mockLookupOutcome: l }); }, /staging only/);
+        }); });
+        assert.strictEqual(await smw.load(fakeDb({ mockWallet: true, mockPayOutcome: 'paid' })), null);
+    });
+});
+
 test('config: unknown values fall back to paid / pending / ok', function() {
     const c = smw.readMockConfig({ mockWallet: true, mockPayOutcome: 'free_money', mockLookupOutcome: 'paid_please', mockBalanceOutcome: 'huge' });
     assert.strictEqual(c.mockPayOutcome, 'paid');
@@ -113,6 +132,10 @@ onStaging('(f) exact refusal + lookup empty -> HELD', { mockPayOutcome: 'refuse'
 onStaging('(f) exact refusal + unclassified -> HELD', { mockPayOutcome: 'refuse', mockLookupOutcome: 'unclassified' }, { after: 'unknown' });
 onStaging('(c) message-only PAYMENT_FAILED with code INTERNAL -> lookup, not a refusal', { mockPayOutcome: 'message_only', mockLookupOutcome: 'pending' }, { decision: 'lookup', refused: false, after: 'unknown' });
 onStaging('(c) message-only + lookup failed -> refund as theirs', { mockPayOutcome: 'message_only', mockLookupOutcome: 'failed' }, { after: 'refund', kind: 'theirs' });
+onStaging('refuse_text: PAYMENT_FAILED only in the message, no code -> lookup, not a refusal', { mockPayOutcome: 'refuse_text', mockLookupOutcome: 'pending' }, { decision: 'lookup', refused: false, after: 'unknown' });
+onStaging('refuse_text + lookup failed -> refund as theirs', { mockPayOutcome: 'refuse_text', mockLookupOutcome: 'failed' }, { after: 'refund', kind: 'theirs' });
+onStaging('lookup unknown after exact refusal -> HELD', { mockPayOutcome: 'refuse', mockLookupOutcome: 'unknown' }, { refused: true, after: 'unknown' });
+onStaging('mockWalletBalanceSats below the floor -> WALLET_LOW refund before pay, ours', { mockWalletBalanceSats: 500 }, { decision: 'refund', kind: 'ours' });
 onStaging('(d) pay timeout -> lookup, not a refusal', { mockPayOutcome: 'timeout', mockLookupOutcome: 'pending' }, { decision: 'lookup', refused: false, after: 'unknown' });
 onStaging('settle: refusal + lookup settled -> record once', { mockPayOutcome: 'refuse', mockLookupOutcome: 'settled' }, { after: 'record' });
 onStaging('our side: INSUFFICIENT_BALANCE + lookup failed -> refund, ours', { mockPayOutcome: 'refuse_ours', mockLookupOutcome: 'failed' }, { after: 'refund', kind: 'ours' });
