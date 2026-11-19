@@ -70,8 +70,8 @@ test('bqHasScript matches the root-relative and the old relative form, and refus
     assert.strictEqual(sb.bqHasScript(''), false);
     assert.strictEqual(sb.bqHasScript('/x.js"]'), false);
     assert.ok(html.indexOf('window.bqHasScript = function') < html.indexOf('var _priorityScripts'), 'defined before the loaders');
-    assert.ok(/function _injectScript\(src\) \{\s*if \(window\.bqHasScript\(src\)\) return;/.test(html));
-    assert.ok(html.includes('return !window.bqHasScript(src);'));
+    assert.ok(/function _injectScript\(src\) \{\s*if \(typeof window\.bqHasScript === 'function' && window\.bqHasScript\(src\)\) return;/.test(html));
+    assert.ok(html.includes("return typeof window.bqHasScript === 'function' ? !window.bqHasScript(src) : true;"));
 });
 
 test('on-demand loaders in app code use root-relative srcs and tolerant lookups', () => {

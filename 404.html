@@ -2379,7 +2379,7 @@ window.bqHasScript = function (src) {
         // a relative src would load /app/<file> (404). The relative form is
         // still checked so a tag added by an older loader is not loaded twice.
         function _injectScript(src) {
-            if (window.bqHasScript(src)) return;
+            if (typeof window.bqHasScript === 'function' && window.bqHasScript(src)) return;
             var s = document.createElement('script');
             s.src = src;
             s.async = true;
@@ -2650,7 +2650,7 @@ window.bqHasScript = function (src) {
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {
             var _toLoad = scripts.filter(function(src) {
-                return !window.bqHasScript(src);
+                return typeof window.bqHasScript === 'function' ? !window.bqHasScript(src) : true;
             });
             var _loaded = 0;
             function _onScriptLoad() {

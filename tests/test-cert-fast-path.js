@@ -157,9 +157,12 @@ function flush() {
 function hashScript() {
     const html = read('index.html');
     const blocks = html.match(/<script>([\s\S]*?)<\/script>/g) || [];
+    const unwrap = function (b) { return b.replace(/^<script>/, '').replace(/<\/script>$/, ''); };
+    const helper = blocks.find(function (b) { return b.includes('window.bqHasScript = function'); });
     const block = blocks.find(function (b) { return b.includes('var _hashScripts'); });
+    assert.ok(helper, 'bqHasScript helper');
     assert.ok(block, 'hash script block');
-    return block.replace(/^<script>/, '').replace(/<\/script>$/, '');
+    return unwrap(helper) + '\n' + unwrap(block);
 }
 
 function buttons(root) {
