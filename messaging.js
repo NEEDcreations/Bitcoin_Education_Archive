@@ -734,13 +734,12 @@ window.showUserProfile = function(uid) {
         // Profile picture or rank emoji avatar
         // Also fall back to in-memory currentUser.profilePic for own profile (guards stale Firestore cache)
         var _picUrl = u.profilePic || (auth && auth.currentUser && auth.currentUser.uid === uid && typeof currentUser !== 'undefined' && currentUser ? (currentUser.profilePic || '') : '') || '';
-        var _safePickUrl = _picUrl ? (typeof sanitizeUrl === 'function' ? sanitizeUrl(_picUrl) : _picUrl) : '';
+        var _safePickUrl = (_picUrl && typeof sanitizeUrl === 'function') ? sanitizeUrl(_picUrl) : '';
         var _initials = (uName || 'B').charAt(0).toUpperCase();
         var _isOwnProfile = auth && auth.currentUser && auth.currentUser.uid === uid;
-        var _isDataImg = _safePickUrl && _safePickUrl.substring(0,11) === 'data:image/';
         var avatarHtml = _safePickUrl
             ? '<div style="position:relative;display:inline-block;margin-bottom:8px;">' +
-                '<img src="' + (_isDataImg ? _safePickUrl : (typeof escapeHtml === 'function' ? escapeHtml(_safePickUrl) : _safePickUrl)) + '" ' +
+                '<img src="' + escapeHtml(_safePickUrl) + '" ' +
                 'style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);' + (_hasProfileFrame ? 'box-shadow:0 0 0 3px #f7931a,0 0 16px rgba(247,147,26,0.4);' : '') + 'display:block;" ' +
                 'onerror="this.style.display=\'none\'">' +
                 '</div>'
@@ -1211,7 +1210,7 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 // Image support
                 var imgHtml = '';
                 if (m.imageUrl) {
-                    imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+                    imgHtml = '<img src="' + escapeHtml(sanitizeUrl(m.imageUrl)) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
                 }
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +

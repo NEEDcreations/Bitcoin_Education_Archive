@@ -66,15 +66,18 @@ function escapeHtml(str) {
     return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// ---- Safe URL (blocks javascript:, data:, vbscript:, blob: URIs) ----
+// ---- Safe URL ----
+// One shared URL check. Returns the trimmed URL when it is http(s) with a
+// host, a same-site path, or a base64 raster data image, and '' otherwise.
+// It does not escape: callers escape the result for the HTML context.
 function sanitizeUrl(url) {
-    if (!url) return '';
-    url = url.trim();
-    // Allow data:image/ URLs (base64 profile pictures stored by the app)
-    if (/^data:image\//i.test(url)) return url;
-    // Block all other data:, javascript:, vbscript:, blob: URLs
-    if (/^(javascript|data|vbscript|blob):/i.test(url)) return '';
-    return url;
+    if (typeof url !== 'string' || !url) return '';
+    var u = url.trim();
+    if (!u || /[\u0000-\u0020\u007f-\u009f]/.test(u)) return '';
+    if (/^https?:\/\/[^\/\\]/i.test(u)) return u;
+    if (/^\/(?![\/\\])/.test(u)) return u;
+    if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(u)) return u;
+    return '';
 }
 
 // ---- Time Ago ----
@@ -9432,7 +9435,7 @@ window.forumViewPost = async function(postId, fromPopState) {
             // [VULN-5 FIX] sanitizeUrl blocks javascript:/data:/vbscript: before writing into href
             var safeLink = typeof sanitizeUrl === 'function' ? sanitizeUrl(p.link) : '';
             if (safeLink) {
-                html += '<a href="' + fEsc(safeLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(safeLink).substring(0, 60) + (safeLink.length > 60 ? '...' : '') + '</a><br>';
+                html += '<a href="' + fEsc(safeLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(safeLink.substring(0, 60)) + (safeLink.length > 60 ? '...' : '') + '</a><br>';
             }
         }
 
@@ -10032,18 +10035,22 @@ window.forumSwitchTab = function(tab) {
 };
 
 // ---- Simple Markdown to HTML ----
+// Undo fEsc on a captured url so it is escaped exactly once on output.
+function mdUnEsc(s) {
+    return String(s).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
 function mdToHtml(md) {
     if (!md) return '';
     var h = fEsc(md);
     // Images: ![alt](url) — [VULN-5 FIX] sanitize src to block javascript:/data: schemes
     h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url) {
-        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
+        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(mdUnEsc(url)) : '';
         if (!safe) return '';
         return '<img src="' + fEsc(safe) + '" alt="' + alt + '" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">';
     });
     // Links: [text](url) — [VULN-5 FIX] sanitize href to block javascript: scheme
     h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, text, url) {
-        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
+        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(mdUnEsc(url)) : '';
         if (!safe) return fEsc(text);
         return '<a href="' + fEsc(safe) + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">' + text + '</a>';
     });
@@ -13753,13 +13760,12 @@ window.showUserProfile = function(uid) {
         // Profile picture or rank emoji avatar
         // Also fall back to in-memory currentUser.profilePic for own profile (guards stale Firestore cache)
         var _picUrl = u.profilePic || (auth && auth.currentUser && auth.currentUser.uid === uid && typeof currentUser !== 'undefined' && currentUser ? (currentUser.profilePic || '') : '') || '';
-        var _safePickUrl = _picUrl ? (typeof sanitizeUrl === 'function' ? sanitizeUrl(_picUrl) : _picUrl) : '';
+        var _safePickUrl = (_picUrl && typeof sanitizeUrl === 'function') ? sanitizeUrl(_picUrl) : '';
         var _initials = (uName || 'B').charAt(0).toUpperCase();
         var _isOwnProfile = auth && auth.currentUser && auth.currentUser.uid === uid;
-        var _isDataImg = _safePickUrl && _safePickUrl.substring(0,11) === 'data:image/';
         var avatarHtml = _safePickUrl
             ? '<div style="position:relative;display:inline-block;margin-bottom:8px;">' +
-                '<img src="' + (_isDataImg ? _safePickUrl : (typeof escapeHtml === 'function' ? escapeHtml(_safePickUrl) : _safePickUrl)) + '" ' +
+                '<img src="' + escapeHtml(_safePickUrl) + '" ' +
                 'style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);' + (_hasProfileFrame ? 'box-shadow:0 0 0 3px #f7931a,0 0 16px rgba(247,147,26,0.4);' : '') + 'display:block;" ' +
                 'onerror="this.style.display=\'none\'">' +
                 '</div>'
@@ -14230,7 +14236,7 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 // Image support
                 var imgHtml = '';
                 if (m.imageUrl) {
-                    imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+                    imgHtml = '<img src="' + escapeHtml(sanitizeUrl(m.imageUrl)) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
                 }
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
@@ -17411,7 +17417,7 @@ function walletRouteReady() {
 
 var WALLET_SCRIPT_SRCS = [
     'lightning.js?v=20261023_v2323',
-    'lightning-tips.js?v=20261119_v2655',
+    'lightning-tips.js?v=20261119_v2658',
     'wallet-router.js?v=20261104_v2482'
 ];
 var _walletTapQueued = false;

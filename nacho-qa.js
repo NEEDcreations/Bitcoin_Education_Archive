@@ -14,12 +14,18 @@ if (typeof escapeHtml !== 'function') {
     };
 }
 
-function sanitizeUrl(url) {
-    if (!url) return '';
-    var u = String(url).trim();
-    // Only allow http/https URLs
-    if (!/^https?:\/\//i.test(u)) return '';
-    return escapeHtml(u);
+// The URL check comes from utils.js. This file only fills it in when loaded
+// on its own, with the same rules. Callers escape the result.
+if (typeof sanitizeUrl !== 'function') {
+    var sanitizeUrl = function(url) {
+        if (typeof url !== 'string' || !url) return '';
+        var u = url.trim();
+        if (!u || /[\u0000-\u0020\u007f-\u009f]/.test(u)) return '';
+        if (/^https?:\/\/[^\/\\]/i.test(u)) return u;
+        if (/^\/(?![\/\\])/.test(u)) return u;
+        if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(u)) return u;
+        return '';
+    };
 }
 
 // Secret detector. Mirrors workers/nacho-search/secret-detect.mjs. Runs before any request leaves the device.

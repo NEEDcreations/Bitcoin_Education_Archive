@@ -48,7 +48,12 @@ function tipBindDm(box, opts, amount) {
 
 // ─── Tip options ─────────────────────────────────────────
 var TIP_MAX_SATS = 10000000;
-function tipText(v, max) { return typeof v === 'string' ? v.slice(0, max) : ''; }
+function tipText(v, max) {
+    if (typeof v !== 'string') return '';
+    var s = v.slice(0, max);
+    var c = s.charCodeAt(s.length - 1);
+    return (c >= 0xD800 && c <= 0xDBFF) ? s.slice(0, -1) : s;
+}
 function tipSats(v) {
     return (typeof v === 'number' && Number.isSafeInteger(v) && v > 0 && v <= TIP_MAX_SATS) ? v : null;
 }

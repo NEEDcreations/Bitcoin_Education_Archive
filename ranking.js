@@ -17,10 +17,12 @@ function spendableXp(user) {
     return (Number(u.points) || 0) - (Number(u.pointsClaimed) || 0) - (Number(u.pointsDonated) || 0) - (Number(u.pointsExchanged) || 0) - unclaimable;
 }
 
-function escapeHtml(str) {
-    return String(str == null ? '' : str).replace(/[&<>"']/g, function (ch) {
-        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
-    });
+if (typeof escapeHtml !== 'function') {
+    var escapeHtml = function (str) {
+        return String(str == null ? '' : str).replace(/[&<>"']/g, function (ch) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+        });
+    };
 }
 
 function safeJSON(key, fallback) {
@@ -9060,7 +9062,7 @@ function showSettingsPage(tab) {
         var settingsEmoji = getUserDisplayEmoji(lvl);
         var _pfpUrl = currentUser ? currentUser.profilePic || '' : '';
         var _pfpHtml = _pfpUrl
-            ? ('<img src="' + (_pfpUrl && /^data:image\//i.test(_pfpUrl) ? _pfpUrl : escapeHtml(sanitizeUrl(_pfpUrl))) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Click to change photo">')
+            ? ('<img src="' + escapeHtml(sanitizeUrl(_pfpUrl)) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Click to change photo">')
             : '<div style="font-size:2.5rem;margin-bottom:0;">' + settingsEmoji + '</div>';
         // Build title pill for own profile
         var _activeTitleId = currentUser ? currentUser.activeTitle || '' : '';
@@ -9131,7 +9133,7 @@ function showSettingsPage(tab) {
             '<div style="text-align:center;">' +
                 (_pfpUrl
                     ? ('<div style="position:relative;display:inline-block;margin-bottom:12px;cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Click to change photo">' +
-                        '<img src="' + (_pfpUrl && /^data:image\//i.test(_pfpUrl) ? _pfpUrl : escapeHtml(sanitizeUrl(_pfpUrl))) + '" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 16px rgba(247,147,26,0.3);display:block;" onerror="this.style.display=\'none\'">' +
+                        '<img src="' + escapeHtml(sanitizeUrl(_pfpUrl)) + '" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 16px rgba(247,147,26,0.3);display:block;" onerror="this.style.display=\'none\'">' +
                         '<div style="position:absolute;bottom:2px;right:2px;background:var(--accent);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;border:2px solid var(--bg-side);">✏️</div>' +
                        '</div>')
                     : '<div style="width:96px;height:96px;border-radius:50%;background:var(--bg);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:2.5rem;margin:0 auto 12px;">👤</div>') +

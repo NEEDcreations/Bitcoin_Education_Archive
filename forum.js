@@ -500,7 +500,7 @@ window.forumViewPost = async function(postId, fromPopState) {
             // [VULN-5 FIX] sanitizeUrl blocks javascript:/data:/vbscript: before writing into href
             var safeLink = typeof sanitizeUrl === 'function' ? sanitizeUrl(p.link) : '';
             if (safeLink) {
-                html += '<a href="' + fEsc(safeLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(safeLink).substring(0, 60) + (safeLink.length > 60 ? '...' : '') + '</a><br>';
+                html += '<a href="' + fEsc(safeLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(safeLink.substring(0, 60)) + (safeLink.length > 60 ? '...' : '') + '</a><br>';
             }
         }
 
@@ -1100,18 +1100,22 @@ window.forumSwitchTab = function(tab) {
 };
 
 // ---- Simple Markdown to HTML ----
+// Undo fEsc on a captured url so it is escaped exactly once on output.
+function mdUnEsc(s) {
+    return String(s).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
 function mdToHtml(md) {
     if (!md) return '';
     var h = fEsc(md);
     // Images: ![alt](url) — [VULN-5 FIX] sanitize src to block javascript:/data: schemes
     h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url) {
-        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
+        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(mdUnEsc(url)) : '';
         if (!safe) return '';
         return '<img src="' + fEsc(safe) + '" alt="' + alt + '" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">';
     });
     // Links: [text](url) — [VULN-5 FIX] sanitize href to block javascript: scheme
     h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, text, url) {
-        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
+        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(mdUnEsc(url)) : '';
         if (!safe) return fEsc(text);
         return '<a href="' + fEsc(safe) + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">' + text + '</a>';
     });
