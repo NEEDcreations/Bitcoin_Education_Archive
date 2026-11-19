@@ -175,6 +175,30 @@ test('quotes in URLs, alt text and link text stay inside their attribute or text
     assert.strictEqual(img.attrs.find(function (x) { return x.name === 'alt'; }).value, 'a" b');
 });
 
+test('image alt with url and quotes stays inert', function () {
+    [
+        '![x http://a.b/" onerror="alert(1) y](https://example.com/i.png)',
+        '![x https://a.b/" onerror="x() y](https://example.com/i.png)',
+        '![http://a.b/" onerror="x()](https://example.com/i.png)',
+        "![x http://a.b/' onerror='x() y](https://example.com/i.png)",
+        '![x http://a.b/" onclick="x() y](https://example.com/i.png)',
+    ].forEach(function (input) {
+        const html = assertClean(input);
+        const imgs = tags(html).filter(function (x) { return x.name === 'img'; });
+        assert.strictEqual(imgs.length, 1, html);
+        const img = imgs[0];
+        assert.strictEqual(img.attrs.find(function (x) { return x.name === 'src'; }).value, 'https://example.com/i.png');
+        const alt = img.attrs.find(function (x) { return x.name === 'alt'; });
+        assert.ok(alt, html);
+        assert.ok(/https?:\/\/a\.b\//.test(alt.value), alt.value);
+        assert.ok(/["']/.test(alt.value), alt.value);
+        img.attrs.forEach(function (a) {
+            assert.ok(!/^on/i.test(a.name), a.name);
+            assert.ok(['src', 'alt', 'style'].indexOf(a.name) !== -1, a.name);
+        });
+    });
+});
+
 test('event attributes never appear, whatever the nesting', function () {
     ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'ONERROR', 'OnLoad', 'onanimationstart', 'onpointerenter'].forEach(function (ev) {
         assertClean('![a](https://x.example/[b](https://y.example ' + ev + '=x()))');
