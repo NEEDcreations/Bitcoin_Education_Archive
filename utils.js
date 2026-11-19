@@ -55,6 +55,8 @@ function safeJSON(key, fallback) {
 // ---- HTML Escape ----
 // Prevents XSS in user-generated content rendered as innerHTML
 function escapeHtml(str) {
+    if (typeof str === 'number') str = String(str);
+    else if (typeof str !== 'string') return '';
     if (!str) return '';
     var div = document.createElement('div');
     div.appendChild(document.createTextNode(str));

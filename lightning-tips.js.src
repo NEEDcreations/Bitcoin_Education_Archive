@@ -110,6 +110,7 @@ async function makeInvoice(amountSats, memo) {
  */
 window.showTipOverlay = function(opts) {
     opts = opts || {};
+    if (opts.recipientName !== undefined && typeof opts.recipientName !== 'string') return;
     var name = opts.recipientName || 'this user';
     var amount = opts.suggestedAmount || '';
     var fixed = opts.fixedAmount || false;
@@ -498,7 +499,7 @@ window.tipButtonHtml = function(p) {
     var pad = size === 'md' ? 'padding:8px 16px;font-size:0.82rem;' : 'padding:4px 12px;font-size:0.72rem;';
     
     var argsJson = JSON.stringify({
-        recipientName: p.recipientName || '',
+        recipientName: typeof p.recipientName === 'string' ? p.recipientName : '',
         recipientUid: p.recipientUid || '',
         context: p.context || '',
         contextId: p.contextId || '',

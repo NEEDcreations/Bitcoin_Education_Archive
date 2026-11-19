@@ -55,6 +55,8 @@ function safeJSON(key, fallback) {
 // ---- HTML Escape ----
 // Prevents XSS in user-generated content rendered as innerHTML
 function escapeHtml(str) {
+    if (typeof str === 'number') str = String(str);
+    else if (typeof str !== 'string') return '';
     if (!str) return '';
     var div = document.createElement('div');
     div.appendChild(document.createTextNode(str));
@@ -10629,7 +10631,7 @@ window.articleView = async function(articleId) {
         
         // Tip button
         if (typeof tipButtonHtml === 'function') {
-            html += tipButtonHtml({ recipientName: a.authorName, recipientUid: a.authorId, context: 'article', contextId: articleId, label: '⚡ Tip Author', size: 'md' });
+            html += tipButtonHtml({ recipientName: typeof a.authorName === 'string' ? a.authorName : '', recipientUid: a.authorId, context: 'article', contextId: articleId, label: '⚡ Tip Author', size: 'md' });
         }
         
         // Delete for admin/author

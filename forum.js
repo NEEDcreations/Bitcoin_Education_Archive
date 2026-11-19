@@ -1699,7 +1699,7 @@ window.articleView = async function(articleId) {
         
         // Tip button
         if (typeof tipButtonHtml === 'function') {
-            html += tipButtonHtml({ recipientName: a.authorName, recipientUid: a.authorId, context: 'article', contextId: articleId, label: '⚡ Tip Author', size: 'md' });
+            html += tipButtonHtml({ recipientName: typeof a.authorName === 'string' ? a.authorName : '', recipientUid: a.authorId, context: 'article', contextId: articleId, label: '⚡ Tip Author', size: 'md' });
         }
         
         // Delete for admin/author
