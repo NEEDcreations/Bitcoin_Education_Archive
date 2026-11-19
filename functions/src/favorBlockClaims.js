@@ -865,9 +865,11 @@ function createBlockClaimService(deps) {
                 const feesMsat = Number(payResult.fees_paid != null ? payResult.fees_paid : payResult.feesPaid) || 0;
                 return await markPaid(payResult.preimage, 'pay', feesMsat / 1000);
             }
-            if (!deps.shouldLookupPay({ phase: 'pay', error: payError, payResult: payResult })) {
-                await release('pay_failed');
-            }
+            // No preimage: always look the payment up, even after an explicit
+            // refusal code (PAYMENT_FAILED etc.), since an HTLC can still be in
+            // flight. Only a confirmed-failed lookup releases (and counts toward
+            // the attempt cap); pending/error/unknown hold below with counters
+            // still reserved and no auto-retry.
             const settlement = await deps.lookupSettlement({
                 lookup: function () { return withTimeout(wallet.lookupInvoice({ payment_hash: inv.paymentHash }), 10000, 'lookupInvoice'); },
                 sleep: function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); },

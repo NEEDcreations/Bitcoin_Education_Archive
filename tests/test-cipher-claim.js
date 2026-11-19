@@ -7,6 +7,7 @@ const {
     lookupRequestFromDecoded,
     shouldLookupPay,
     payErrorAction,
+    explicitPayRefusal,
     EXPLICIT_PAY_REFUSALS,
     classifyLookup,
     decideAfterLookups,
@@ -100,7 +101,7 @@ later('payment hash is read from the decoded invoice', function() {
     assert.strictEqual(lookupRequestFromDecoded({ tags: [] }), null);
 });
 
-later('only an explicit wallet refusal skips the lookup and releases', function() {
+later('an explicit wallet refusal in the pay phase is looked up, not released (N5)', function() {
     assert.strictEqual(payErrorAction({ phase: 'balance', error: new Error('[TIMEOUT] getBalance') }), 'release');
     assert.strictEqual(shouldLookupPay({ phase: 'balance', error: new Error('[TIMEOUT] getBalance') }), false);
     assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error('[TIMEOUT] payInvoice') }), 'lookup');
@@ -109,12 +110,103 @@ later('only an explicit wallet refusal skips the lookup and releases', function(
     assert.strictEqual(payErrorAction({ phase: 'pay', payResult: { preimage: 'ee' } }), 'paid');
     EXPLICIT_PAY_REFUSALS.forEach(function(code) {
         const err = Object.assign(new Error('wallet refused'), { code: code });
-        assert.strictEqual(payErrorAction({ phase: 'pay', error: err }), 'release', code);
-        assert.strictEqual(shouldLookupPay({ phase: 'pay', error: err }), false, code);
-        // Exact code only: a message that merely contains the code is looked up.
+        // Still recognised as an explicit refusal (exact code only)...
+        assert.strictEqual(explicitPayRefusal(err), true, code);
+        // ...but in the pay phase it must be looked up: an HTLC can be in flight.
+        assert.strictEqual(payErrorAction({ phase: 'pay', error: err }), 'lookup', code);
+        assert.strictEqual(shouldLookupPay({ phase: 'pay', error: err }), true, code);
+        // Before the pay call it still releases.
+        assert.strictEqual(payErrorAction({ phase: 'balance', error: err }), 'release', code);
+        // A message that merely contains the code is not a refusal and is looked up.
+        assert.strictEqual(explicitPayRefusal(new Error(code)), false, code);
         assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error(code) }), 'lookup', code);
     });
     assert.deepStrictEqual(EXPLICIT_PAY_REFUSALS, ['PAYMENT_FAILED', 'INSUFFICIENT_BALANCE', 'QUOTA_EXCEEDED', 'RATE_LIMITED']);
+});
+
+// Drives the same pay -> payErrorAction -> lookupSettlement sequence claimCipherWin
+// uses, against the staging mock wallet, counting pay calls.
+async function cipherWinFlow(mockCfg) {
+    const prev = process.env.GCLOUD_PROJECT;
+    process.env.GCLOUD_PROJECT = 'bitcoin-quest-staging';
+    try {
+        const wallet = require('../functions/src/stagingMockWallet').createMockWallet(Object.assign({ mockWallet: true }, mockCfg));
+        let pays = 0;
+        let payResult = null;
+        let payError = null;
+        try {
+            pays++;
+            payResult = await wallet.payInvoice({ invoice: 'lnbc1' });
+            if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
+        } catch (e) { payError = e; }
+        if (payResult && payResult.preimage) return { outcome: 'paid', pays: pays };
+        if (!shouldLookupPay({ phase: 'pay', error: payError, payResult: payResult })) return { outcome: 'released_without_lookup', pays: pays };
+        let lookups = 0;
+        const settlement = await lookupSettlement({
+            lookup: function() { lookups++; return wallet.lookupInvoice({ payment_hash: 'aa' }); },
+            sleep: async function() {},
+            attempts: 3,
+            intervalMs: 0,
+        });
+        const outcome = settlement.action === 'paid' ? 'paid' : settlement.action === 'release' ? 'release' : 'hold';
+        return { outcome: outcome, pays: pays, lookups: lookups };
+    } finally {
+        if (prev === undefined) delete process.env.GCLOUD_PROJECT; else process.env.GCLOUD_PROJECT = prev;
+    }
+}
+
+later('claimCipherWin: PAYMENT_FAILED + lookup pending holds (HTLC in flight)', async function() {
+    const r = await cipherWinFlow({ mockPayOutcome: 'refuse', mockLookupOutcome: 'pending' });
+    assert.strictEqual(r.outcome, 'hold');
+    assert.strictEqual(r.pays, 1);
+    assert.ok(r.lookups >= 1);
+});
+
+later('claimCipherWin: PAYMENT_FAILED + lookup failed releases', async function() {
+    const r = await cipherWinFlow({ mockPayOutcome: 'refuse', mockLookupOutcome: 'failed' });
+    assert.strictEqual(r.outcome, 'release');
+    assert.strictEqual(r.pays, 1);
+    assert.strictEqual(r.lookups, 1);
+});
+
+later('claimCipherWin: PAYMENT_FAILED + lookup settled is paid once, never re-paid', async function() {
+    const r = await cipherWinFlow({ mockPayOutcome: 'refuse', mockLookupOutcome: 'settled' });
+    assert.strictEqual(r.outcome, 'paid');
+    assert.strictEqual(r.pays, 1);
+});
+
+later('claimCipherWin: PAYMENT_FAILED + lookup error or empty holds', async function() {
+    assert.strictEqual((await cipherWinFlow({ mockPayOutcome: 'refuse', mockLookupOutcome: 'error' })).outcome, 'hold');
+    assert.strictEqual((await cipherWinFlow({ mockPayOutcome: 'refuse', mockLookupOutcome: 'unknown' })).outcome, 'hold');
+    assert.strictEqual((await cipherWinFlow({ mockPayOutcome: 'refuse_ours', mockLookupOutcome: 'pending' })).outcome, 'hold');
+});
+
+later('claimCipherWin: PAYMENT_FAILED only in the message is still looked up', async function() {
+    const text = await cipherWinFlow({ mockPayOutcome: 'refuse_text', mockLookupOutcome: 'pending' });
+    assert.strictEqual(text.outcome, 'hold');
+    assert.ok(text.lookups >= 1);
+    const msg = await cipherWinFlow({ mockPayOutcome: 'message_only', mockLookupOutcome: 'failed' });
+    assert.strictEqual(msg.outcome, 'release');
+    assert.strictEqual(msg.lookups, 1);
+});
+
+later('claimCipherWin wiring: release only after a failed lookup, invoice row kept with its hash', function() {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'functions', 'src', 'gifting.js'), 'utf8');
+    const body = src.slice(src.indexOf('const claimCipherWin = '), src.indexOf('function winForUser('));
+    assert.ok(body.length > 1000, 'claimCipherWin body found');
+    // releaseUnpaid (deletes the invoice row) only runs on the pre-pay branch.
+    assert.strictEqual(body.split('await releaseUnpaid()').length - 1, 1);
+    const prePay = body.indexOf('if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {');
+    const lookup = body.indexOf('await lookupSettlement(');
+    const firstRelease = body.indexOf('await releaseUnpaid()');
+    assert.ok(prePay !== -1 && lookup !== -1 && prePay < firstRelease && firstRelease < lookup);
+    // After the lookup: release keeps a failed row with the payment hash.
+    assert.ok(/if \(settlement\.action === 'release'\) \{\s*await releaseAfterFailedLookup\(lookupReq\.payment_hash\);/.test(body));
+    const relFn = body.slice(body.indexOf('async function releaseAfterFailedLookup'), body.indexOf('async function holdUnknown'));
+    assert.ok(relFn.indexOf('invoiceRef.delete') === -1);
+    assert.ok(/status: 'failed',\s*paymentHash: paymentHash \|\| ''/.test(relFn));
+    // Anything else after the lookup holds.
+    assert.ok(/await holdUnknown\(lookupReq\.payment_hash\);/.test(body.slice(lookup)));
 });
 
 later('settled lookup is paid, failed lookup releases, pending holds', function() {

@@ -177,10 +177,11 @@ function makeHarness(opts) {
                     h.statusAtPay.push(cid.length);
                     h.pays.push(req.invoice);
                     if (h.payMode === 'refuse') { const e = new Error('PAYMENT_FAILED'); e.code = 'PAYMENT_FAILED'; throw e; }
+                    if (h.payMode === 'refuse_text') throw new Error('PAYMENT_FAILED'); // message only, no code
                     if (h.payMode === 'timeout') throw new Error('[TIMEOUT] payInvoice');
                     return { preimage: crypto.randomBytes(32).toString('hex'), fees_paid: h.routingFeeMsat || 0 };
                 },
-                lookupInvoice: async function () { return { state: h.lookupState }; },
+                lookupInvoice: async function () { h.lookups = (h.lookups || 0) + 1; return { state: h.lookupState }; },
             };
         },
         resolveInvoice: async function (ln, sats) {
@@ -524,11 +525,48 @@ test('unknown payment result is held for a person and never retried', async func
     assert.strictEqual(h.pays.length, 1);
 });
 
-test('repeat wallet refusals stop after 3 attempts (manual review, no loop) and obey the cooldown', async function () {
+test('repeat wallet refusals: PAYMENT_FAILED + pending lookup is held_unknown on the first try, counters reserved, never retried (N5)', async function () {
     const h = makeHarness();
     await freeze(h, 1);
     h.payMode = 'refuse';
+    h.lookupState = 'pending'; // an HTLC still in flight after the refusal
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'held_unknown');
+    assert.ok(h.lookups >= 1, 'a refusal is looked up');
+    const c = h.db.store.get('sf_block_claims/e1_b3');
+    assert.strictEqual(c.status, 'unknown');
+    assert.strictEqual(c.needsReview, true);
+    assert.ok(c.paymentHash, 'payment hash kept on the claim');
+    const site = h.db.store.get('sf_claim_counters/site_2026-11-14');
+    assert.ok(site && site.sats > 0, 'counters stay reserved');
+    h.clock += 3600000; h.payMode = 'paid';
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'held_unknown');
+    assert.strictEqual(h.pays.length, 1, 'no automatic second pay');
+});
+
+test('PAYMENT_FAILED + error/empty/unclassified lookup also holds', async function () {
+    for (const st of ['', 'mystery']) {
+        const h = makeHarness();
+        await freeze(h, 1);
+        h.payMode = 'refuse'; h.lookupState = st;
+        assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'held_unknown', st);
+        assert.strictEqual(h.pays.length, 1);
+    }
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.payMode = 'refuse';
+    const realWallet = h.deps.wallet;
+    h.deps.wallet = function (cfg) { const w = realWallet(cfg); w.lookupInvoice = async function () { const e = new Error('NOT_FOUND'); e.code = 'NOT_FOUND'; throw e; }; return w; };
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'held_unknown');
+    assert.strictEqual(h.pays.length, 1);
+});
+
+test('PAYMENT_FAILED + confirmed-failed lookup releases; 3 confirmed failures go to manual review (no loop) and obey the cooldown', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.payMode = 'refuse';
+    h.lookupState = 'failed';
     assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'pay_failed');
+    assert.strictEqual(h.lookups, 1, 'released only after the lookup');
     assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'cooldown');
     h.clock += 120000;
     assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'pay_failed');
@@ -538,6 +576,33 @@ test('repeat wallet refusals stop after 3 attempts (manual review, no loop) and 
     h.clock += 120000; h.payMode = 'paid';
     assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'manual_review');
     assert.strictEqual(h.pays.length, 3);
+    const site = h.db.store.get('sf_claim_counters/site_2026-11-14');
+    assert.strictEqual(site.sats, 0, 'confirmed failures release their reservations');
+});
+
+test('PAYMENT_FAILED + settled lookup is paid exactly once, never re-paid', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.payMode = 'refuse';
+    h.lookupState = 'settled';
+    const r = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.strictEqual(r.success, true, JSON.stringify(r));
+    assert.strictEqual(h.db.store.get('sf_block_claims/e1_b3').status, 'paid');
+    assert.strictEqual(h.db.store.get('sf_block_claims/e1_b3').paidVia, 'lookup');
+    h.clock += 3600000; h.payMode = 'paid';
+    const again = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.notStrictEqual(again.success, true);
+    assert.strictEqual(h.pays.length, 1, 'no second pay');
+});
+
+test('PAYMENT_FAILED only in the message (no code) is looked up and held', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.payMode = 'refuse_text';
+    h.lookupState = 'pending';
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'held_unknown');
+    assert.ok(h.lookups >= 1);
+    assert.strictEqual(h.pays.length, 1);
 });
 
 test('wallet balance floor halts claims and alerts', async function () {
@@ -1140,8 +1205,9 @@ test('review release: does not reset attempts or bypass fee_halt, route-hint che
 test('review release: a repeat_failures block (attempts >= maxAttempts) is refused, writes nothing, is audited, never resets attempts', async function () {
     const h = makeHarness();
     await freeze(h, 1);
-    // Real path: three wallet refusals put the block in review as repeat_failures.
+    // Real path: three wallet refusals, each confirmed failed by lookup, put the block in review as repeat_failures.
     h.payMode = 'refuse';
+    h.lookupState = 'failed';
     for (let i = 0; i < 3; i++) {
         assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'pay_failed');
         h.clock += 120000;

@@ -374,11 +374,11 @@ function decideFaucetPayment(info) {
     if (action === 'paid') {
         return { action: 'record', preimage: (src.payResult && src.payResult.preimage) || '' };
     }
-    if (action === 'release' && src.phase !== 'pay') {
+    if (action === 'release') {
         // The send never started, so nothing can settle.
         return { action: 'refund', reason: 'balance' };
     }
-    if (action === 'release') {
+    if (cipher.explicitPayRefusal(src.error)) {
         // An explicit refusal during the pay call is confirmed by lookup first.
         // An HTLC can still be in flight when a node reports PAYMENT_FAILED.
         return { action: 'lookup', refused: true, reason: 'refused' };
