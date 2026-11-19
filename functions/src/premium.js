@@ -2477,16 +2477,26 @@ async function purgePremiumForAccount(db, uid, nowMs) {
             createdAtMs: t, resolved: false,
         });
     }
-    // Founders' holds keyed by this uid.
+    // Founders' holds and hold cooldowns keyed by this account: the uid, and
+    // 'email:<key>' for email purchases it claimed.
+    const holdKeys = [uid].concat(keys.map(function (k) { return 'email:' + k; }));
     const cRef = db.collection(COL.counters).doc('founders');
     const c = await cRef.get();
     if (c.exists) {
         const holds = Object.assign({}, c.data().holds || {});
         let changed = false;
-        Object.keys(holds).forEach(function (id) { if (holds[id] && holds[id].uid === uid) { holds[id] = Object.assign({}, holds[id], { uid: masked }); changed = true; } });
+        Object.keys(holds).forEach(function (id) { if (holds[id] && holdKeys.indexOf(holds[id].uid) !== -1) { holds[id] = Object.assign({}, holds[id], { uid: masked }); changed = true; } });
         if (changed) await cRef.update({ holds: holds });
     }
-    const drop = [entRef, db.collection(COL.allowance).doc(uid), db.collection(COL.rate).doc(uid)].concat(claimed.docs.map(function (d) { return d.ref; }));
+    // Cooldown rows that point at this account's orders (the per-network one
+    // stays, it is keyed by a keyed network hash, but loses the order link).
+    for (const id of seen) {
+        const rows = await db.collection(COL.rate).where('orderId', '==', id).get();
+        for (const d of rows.docs) { await d.ref.update({ orderId: null }); out.cooldownsUnlinked = (out.cooldownsUnlinked || 0) + 1; }
+    }
+    const drop = [entRef, db.collection(COL.allowance).doc(uid), db.collection(COL.rate).doc(uid)]
+        .concat(holdKeys.map(function (k) { return db.collection(COL.rate).doc(foundersCooldownId(k)); }))
+        .concat(claimed.docs.map(function (d) { return d.ref; }));
     for (const r of drop) {
         const s = await r.get();
         if (s.exists) { await r.delete(); out.deleted++; }
@@ -2586,6 +2596,7 @@ module.exports = {
     STAGING_PROJECT,
     SECRET_NAMES,
     COL,
+    foundersCooldownId,
     ALLOWANCE_PER_MONTH,
     EMBERS_PER_MONTH,
     EMBERS_CAP,

@@ -1635,6 +1635,43 @@ test('User Data: account deletion masks uid on orders/ledger/review, clears emai
     assert.strictEqual(left.indexOf('old@example.com'), -1);
     assert.strictEqual(left.indexOf('"uid":"old"'), -1);
 });
+test('User Data (QA D1): account deletion also drops the rate doc and Founders cooldowns keyed to the account, unlinks network cooldowns, masks holds', async function () {
+    const a = setup();
+    const o = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('old', '198.51.100.161'));
+    assert.ok(a.db.store.has('premium_rate/old'));
+    // Hold lapses; the next Founders checkout writes the account and network cooldowns.
+    a.clock.now = T0 + 11 * MIN;
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('other1', '198.51.100.162'));
+    assert.ok(a.db.store.has('premium_rate/fcool_old'));
+    const ipCool = Array.from(a.db.store.keys()).filter(function (k) { return k.indexOf('premium_rate/fcoolip_') === 0; });
+    assert.strictEqual(ipCool.length, 1);
+    assert.strictEqual(a.db.store.get(ipCool[0]).orderId, o.orderId);
+    // A live hold of the account, too (a fresh one after its cooldown).
+    a.db.store.get('premium_counters/founders').holds.ordlivehold000001xxxx = { uid: 'old', ipHash: 'x', expMs: a.clock.now + 5 * MIN };
+    // Public email purchase claimed by the account, with its own email-keyed cooldown.
+    await publicPost(a, { plan: 'monthly', rail: 'card', email: 'old@example.com', turnstileToken: 'ok-token' });
+    await stripePost(a, completed(lastOrderId(a), a.db.store.get('premium_orders/' + lastOrderId(a)).providerSessionId, { amount_total: 500 }));
+    await a.h.claimPremiumByEmail({}, ctx('old'));
+    const ek = Array.from(a.db.store.keys()).filter(function (k) { return k.indexOf('premium_orders/') === 0; }).map(function (k) { return a.db.store.get(k).emailKey; }).filter(Boolean)[0];
+    assert.ok(ek, 'claimed email purchase has an email key');
+    a.db.store.set('premium_rate/' + premium.foundersCooldownId('email:' + ek), { untilMs: a.clock.now + MIN, orderId: 'x' });
+    const res = await premium.purgePremiumForAccount(a.db, 'old', a.clock.now);
+    assert.ok(!a.db.store.has('premium_rate/old'), 'per-account rate doc removed');
+    assert.ok(!a.db.store.has('premium_rate/fcool_old'), 'account Founders cooldown removed');
+    assert.ok(!a.db.store.has('premium_rate/' + premium.foundersCooldownId('email:' + ek)), 'email-keyed cooldown removed');
+    assert.ok(a.db.store.has(ipCool[0]), 'network cooldown kept (keyed hash, anti-abuse)');
+    assert.strictEqual(a.db.store.get(ipCool[0]).orderId, null);
+    assert.ok(res.cooldownsUnlinked >= 1);
+    const holds = a.db.store.get('premium_counters/founders').holds;
+    Object.keys(holds).forEach(function (id) { assert.notStrictEqual(holds[id].uid, 'old'); });
+    const ord = a.db.store.get('premium_orders/' + o.orderId);
+    assert.strictEqual(ord.uid, premium.maskDeletedUid('old'));
+    assert.strictEqual(ord.emailKey, null);
+    assert.strictEqual(ord.trialEmailKey, null);
+    const left = storeJson(a);
+    assert.strictEqual(left.indexOf('"uid":"old"'), -1);
+    assert.strictEqual(left.indexOf('old@example.com'), -1);
+});
 test('Retention: orders, events, review, ledger, trial markers, admin audit are permanent everywhere', async function () {
     const perm = premium.PERMANENT_COLLECTIONS;
     ['premium_orders', 'premium_events', 'premium_review', 'premium_allowance_ledger', 'premium_trial_markers', 'premium_admin_audit'].forEach(function (c) { assert.ok(perm.indexOf(c) !== -1, c); });

@@ -175,6 +175,7 @@ review row so a human cancels it in Stripe.
 | getPremiumStatus, claimPremiumAllowance | callable, App Check | none |
 | adminRevokePremium | callable, App Check, admin claim + fresh 2FA step-up, audit row | none (not deployed) |
 | premiumExpirySweep | hourly schedule (expiry, email retention, holds alert) | none |
+| deleteAccount | callable (existing); runs the Premium scrub (`purgePremiumForAccount`) | existing (DELETION_HMAC_SECRET) |
 
 ## Fails closed when
 
@@ -295,3 +296,20 @@ Live (Phil only, after Red Team / QA / Security GO):
 - A refused Founders' checkout (hold open, cooldown, sold out, busy) still uses
   one attempt from the per-account hourly window; the refusal answer itself is
   unchanged until that limit is reached.
+
+## Live deploy list for #322 (named deploy, in order)
+
+Functions (by name, never all): createPremiumCheckout, premiumPublicCheckout,
+createPremiumPortal, premiumStripeWebhook, premiumBtcpayWebhook (once BTCPay
+exists), claimPremiumByEmail, getPremiumStatus, claimPremiumAllowance,
+premiumExpirySweep, **deleteAccount** (carries the Premium account-deletion
+scrub; QA D1, Nov 18). Then rules, then hosting.
+
+## Round 6 (Nov 18, QA D1)
+
+Account deletion also removes `premium_rate/fcool_<uid>` and
+`premium_rate/fcool_email:<key>` for email purchases the account claimed,
+masks Founders holds keyed by either, and clears the `orderId` link on any
+cooldown row (the per-network cooldown itself stays: keyed hash, anti-abuse).
+Orders keep the masked uid with every email field and email hash cleared; the
+entitlement, allowance and per-account rate docs are deleted, as before.
