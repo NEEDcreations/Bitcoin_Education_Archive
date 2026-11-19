@@ -601,6 +601,12 @@
     // =============================================
     // Quick PVP name prompt for anonymous users
     window._pvpQuickName = function() {
+        var existing = document.getElementById('pvpNameOverlay');
+        if (existing) {
+            var existingInp = document.getElementById('pvpQuickNameInput');
+            if (existingInp) existingInp.focus();
+            return;
+        }
         var overlay = document.createElement('div');
         overlay.id = 'pvpNameOverlay';
         overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:20px;';
@@ -613,18 +619,27 @@
             window.removeEventListener('popstate', _pvpNamePop);
         }, { once: true });
         overlay.innerHTML =
-            '<div style="background:#1a1a2e;border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:360px;width:100%;text-align:center;animation:fadeSlideIn 0.3s;">' +
+            '<div style="background:#1a1a2e;border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:360px;width:100%;text-align:center;animation:fadeSlideIn 0.3s;position:relative;z-index:1;pointer-events:auto;" onclick="event.stopPropagation();">' +
                 '<div style="font-size:2.5rem;margin-bottom:12px;">⚔️</div>' +
                 '<h3 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 6px;">Enter the Arena</h3>' +
                 '<p style="color:var(--text-muted);font-size:0.85rem;margin:0 0 20px;">Choose a battle name to play PVP trivia!</p>' +
+                '<form id="pvpQuickNameForm" action="#" style="margin:0;">' +
                 '<input type="text" id="pvpQuickNameInput" maxlength="20" placeholder="Your battle name" style="width:100%;padding:14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;box-sizing:border-box;text-align:center;margin-bottom:12px;" autofocus>' +
-                '<button onclick="pvpQuickNameSubmit()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;">⚔️ Enter Battle</button>' +
+                '<button type="submit" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;">⚔️ Enter Battle</button>' +
+                '</form>' +
                 '<div style="margin-top:12px;padding:10px;background:rgba(247,147,26,0.05);border:1px dashed rgba(247,147,26,0.2);border-radius:8px;">' +
                     '<div style="color:var(--text-faint);font-size:0.72rem;line-height:1.4;">Want to save your wins and get on the leaderboard permanently?</div>' +
-                    '<button onclick="document.getElementById(\'pvpNameOverlay\').remove();if(typeof showUsernamePrompt===\'function\')showUsernamePrompt();sessionStorage.setItem(\'btc_pvp_pending\',\'true\')" style="margin-top:6px;padding:6px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Create Account Instead →</button>' +
+                    '<button type="button" onclick="document.getElementById(\'pvpNameOverlay\').remove();if(typeof showUsernamePrompt===\'function\')showUsernamePrompt();sessionStorage.setItem(\'btc_pvp_pending\',\'true\')" style="margin-top:6px;padding:6px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Create Account Instead →</button>' +
                 '</div>' +
             '</div>';
         document.body.appendChild(overlay);
+        var form = document.getElementById('pvpQuickNameForm');
+        if (form) {
+            form.addEventListener('submit', function(ev) {
+                ev.preventDefault();
+                if (typeof window.pvpQuickNameSubmit === 'function') window.pvpQuickNameSubmit();
+            });
+        }
         setTimeout(function() { var inp = document.getElementById('pvpQuickNameInput'); if (inp) inp.focus(); }, 100);
     };
 
