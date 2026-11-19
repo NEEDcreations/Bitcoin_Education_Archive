@@ -2,8 +2,21 @@
 
 Code: `functions/src/premiumPricing.js` (prices, discounts, config) and
 `functions/src/premium.js` (checkout, webhooks, entitlements). Public page:
-`premium.html` + `premium.js`. Tests: `tests/test-premium-checkout.js`,
-`tests/test-premium-page.js`, `tests/rules/premium-rules.js`.
+`premium.html` + `premium.js`. In-app buy screen: `premium-buy.js`
+(`/?premium=buy`, `/?premium=founders`, `window.bqOpenPremium()`). Route:
+`workers/seo-router/worker.js` (`/premium`, noindex until `PREMIUM_PAGE_PUBLIC`).
+Tests: `tests/test-premium-checkout.js`, `tests/test-premium-page.js`,
+`tests/test-premium-buy.js`, `tests/test-premium-route.js`, `tests/rules/premium-rules.js`.
+
+## Phil's decisions (Nov 18, 2026)
+
+- **Charged at purchase on every plan.** No deferred billing. `billingStartsAt` is gone (ignored if present).
+- **Perks:** Embers (100/mo, roll over to 300) and Citadel perks start `perksStartAt` = Jan 3, 2027 12:00 AM ET for anyone who bought earlier. Every other perk starts at purchase.
+- **No free trial.** `trialsEnabled` must be exactly `true` to offer one (missing = off); `trialDays` is then 1..14. Planned for about early Feb 2027.
+- **No refunds on any plan.** Monthly/Yearly cancel at period end and keep paid time (portal `subscription_cancel.mode=at_period_end`, `proration_behavior=none`). Founders and bitcoin payments are final. Shown before payment: the server refuses a checkout without `acceptNoRefunds: true` (`terms_required`), and Stripe's pay button carries the same text (`REFUND_POLICY`). Orders record `refundPolicy` and `noRefundAckAtMs`.
+- **Kill switch:** `createPremiumCheckout` (card and BTCPay invoice create) and `premiumPublicCheckout` refuse new orders while `config/killSwitch` is on, and fail closed if it can't be read (`kill_switch`, HTTP 503 on the public route). `premiumStripeWebhook`, `premiumBtcpayWebhook`, `getPremiumStatus` and the sweep keep running.
+- **Offline checkout dropped:** the app stays online; nothing special is kept for offline.
+- **Founders seat never returns to sale** (refunded seats count as `retired`; `sold` never decrements).
 
 Nothing here is live. Checkout is closed by default (`checkoutEnabled: false`),
 Lightning is closed by default (`lightningEnabled: false`), and the code refuses
@@ -46,8 +59,9 @@ existingUserDiscountPct: 5
 stackMode: 'additive'           // or 'sequential'
 existingUserCutoffMs: null      // accounts created before this are "existing"
 checkoutLaunchedAtMs: null      // fallback cutoff
-billingStartsAt: null           // e.g. '2027-01-03T00:00:00-05:00' (string or ms)
-trialDays: 7                    // 0..14
+perksStartAt: '2027-01-03T00:00:00-05:00' // Embers + Citadel perks start (default; string or perksStartAtMs)
+trialsEnabled: false            // must be exactly true to offer a trial; missing = no trial
+trialDays: 0                    // 1..14, only read when trialsEnabled === true
 publicOrdersPerHour: 60         // global cap on public-page orders per hour (all IPs)
 maxLiveFoundersHolds: 25        // cap on Founders' seats in checkout at once
 foundersHoldsAlertThreshold: 15 // holds at/above this for > 1 hour -> review row + admin alert
@@ -57,30 +71,25 @@ existingUserDiscountEndsAtMs    // may end the 5% earlier; clamped to 2027-01-01
 foundersRequireVerifiedEmail: true // Founders in-app requires a verified email; false turns this off. Absent = on
 ```
 
-## billingStartsAt
+## Charging and perk start
 
-Implemented with Stripe subscription trials (not `billing_cycle_anchor`):
-no charge today and no proration invoice. A plain N-day trial uses
-`subscription_data.trial_period_days` so the hosted page shows the full
-N days. When `billingStartsAt` is in the future, the session still uses
-`trial_end` (Jan 3, or Jan 3 + trial days); `trial_period_days` would
-start the clock at checkout and charge too soon.
-
-| | Flag unset (default) | Flag = 2027-01-03T00:00:00-05:00 |
+| | Before Jan 3, 2027 12:00 AM ET | After |
 |---|---|---|
-| Monthly/Yearly, first-time subscriber | 7-day free trial from today; first charge day 8; perks start now | $0 today; trial_end = Jan 10 (Jan 3 + 7 days); perks start Jan 3 |
-| Monthly/Yearly, trial already used | charged today; perks start now | $0 today; first charge Jan 3; perks start Jan 3 |
-| Founders | charged today, seat sold now, perks start now | charged today, seat sold now, perks start Jan 3 |
-| Lightning prepaid / Yearly | paid now, time counts from now | paid now, time counts from Jan 3 |
+| Monthly/Yearly (card) | charged today; renews monthly/yearly from today; Embers + Citadel perks wait for Jan 3, other perks now | charged today; all perks now |
+| Founders (card or bitcoin) | charged today, seat sold now; Embers + Citadel perks Jan 3 | charged today, all perks now |
+| Bitcoin prepaid months / Yearly | paid now; time counts from now; Embers + Citadel perks Jan 3 | paid now, all perks now |
 
-Checkout page text (Stripe `custom_text.submit`):
+Entitlements record `deferredPerksStartAtMs`; `getPremiumStatus` returns
+`perksStartAtMs`, `deferredPerksOpen`, `citadelPerks`, `chargedAtPurchase: true`,
+`trialsOpen`, `trialDays` and `refundPolicy`. `claimPremiumAllowance` returns
+`perks_start` before Jan 3.
 
-- Flag unset, trial: "You will not be charged today. Your first charge is on <date>. Cancel any time before then and you pay nothing."
-- Flag set, trial: "Premium perks unlock with Citadel Spark on Jan 3, 2027. You will not be charged today. Your first charge is on Jan 10, 2027. Cancel any time before then and you pay nothing."
-- Flag set, Founders: "Premium perks unlock with Citadel Spark on Jan 3, 2027. You're charged today and your Founders' seat is reserved now."
-- Flag unset, no trial: no extra text (Stripe shows the amount due today).
+Stripe pay-button text (`custom_text.submit`): "You're charged today." + (Founders line)
++ "Embers and Citadel perks start Jan 3, 2027 at 12:00 AM ET. Your other Premium
+perks start right away." (only before Jan 3) + the no-refunds text.
 
-Entitlements bought early carry `startsAtMs`; `premiumExpirySweep` (hourly) turns them on once that time passes.
+Discounts are baked into the subscription's `price_data`, so a subscriber who
+buys with the existing-player 5% before Jan 1 keeps that price on renewals.
 
 ## Data model (all server-only)
 
@@ -135,13 +144,13 @@ review row so a human cancels it in Stripe.
 ## Abuse controls
 
 - **IP:** `faucetGuard.clientIpFromRequest` (rightmost X-Forwarded-For entry, which Google's front end appends; forged left entries are ignored). The same IP goes to Turnstile as `remoteip`. Founders holds and the public `ip_` rate key hash `faucetGuard.networkKeys(ip)` (IPv6 /64 `rangeId`, exact IPv4 `exactId`), so addresses in one IPv6 /64 share a bucket. A Firebase Hosting rewrite or any other proxy in front of the function would append another address and break this (the rightmost entry would then be the proxy, not the client).
-- **Turnstile:** server checks success, `action === 'premium_checkout'` (premium.html sets `data-action`), and the hostname against the environment's allowlist (live: bitcoineducation.quest, www; staging: bitcoin-quest-staging.web.app, *.bitcoin-quest.pages.dev, localhost). Unknown project = no origins, no pass.
+- **Turnstile:** server checks success, `action === 'premium_checkout'` (premium.html sets `data-action`), and the hostname against the environment's allowlist (live: bitcoineducation.quest, www; staging: bitcoin-quest-staging.web.app, *.bitcoin-quest.pages.dev, dev.bitcoineducation.quest, bq-staging.pages.dev and its previews, localhost). Unknown project = no origins, no pass.
 - **Rate:** 10 public orders per network per hour (IPv6 /64 or exact IPv4), 6 in-app per account per hour, `publicOrdersPerHour` across all public orders.
 - **Founders:** in-app only (sign-in required; the public page sends Founders buyers to `/?premium=founders`). A verified email is required unless `foundersRequireVerifiedEmail` is set to false (default is true when absent). One live hold per account and per network (IPv6 /64 or exact IPv4); at most `maxLiveFoundersHolds` live holds. Holds at/above `foundersHoldsAlertThreshold` for over an hour raise one `founders_holds_high` review row and an `admin_notifications` alert.
 - **Cancellations:** `customer.subscription.updated` / `.deleted` decide how a canceled subscription ends. Fraud, a dispute or trial reuse (`cancellation_details.reason` `payment_disputed`, a `cancellation_details.comment` or `metadata.bqCancelReason` of `fraud` / `trial_reused`, or an order already in `trial_reused` review) ends the subscription's time immediately; fraud and disputes also write a `subscription_revoked` review row. The server's own trial-reuse cancel sends `cancellation_details[comment]=trial_reused`. A trial canceled before `trial_end` (status `trialing`, or `ended_at` before `trial_end`) keeps access only until `trial_end`, with no grace period; undoing a scheduled trial cancel restores `trial_end` + grace for the first charge. Paid periods keep their paid time plus the 3-day grace period.
 - **Trials:** when a trial is granted, the card fingerprint (re-read from the Checkout Session) and canonical email are recorded as keyed-hash markers. A known email gets a paid checkout with no trial; a known card found after checkout, or a trial order whose card fingerprint could not be read, sends the order to review (`trial_reused`) with no Premium, and the Stripe subscription is canceled immediately (`subscription_canceled` on the review row) so nothing is charged at `trial_end`. `checkout.session.completed` and `invoice.paid` share one idempotent trial gate, so a $0 `subscription_create` invoice that arrives first cannot grant time without passing the fingerprint and email checks. `already_paid` never skips that gate.
 - **$0 invoices:** granted only for the order's trial opening invoice (order has trialEndMs, `billing_reason === 'subscription_create'`, first invoice). Anything else -> review `stripe_zero_invoice`. Renewals must equal the order's unitCents.
-- **Refunds, disputes, failed payments:** entitlements found by stripeCustomerId (account and email-held) get `frozen: true`; frozen means no perks and no allowance until an admin restores with `adminRevokePremium`. A review row carries uid, orderId and customerId, and an `admin_notifications` row (type `premium_review`) alerts a human in the admin panel feed.
+- **Refunds (by hand only), disputes, failed payments:** a dispute or a full refund freezes the order owner's entitlement and any found by stripeCustomerId (`frozen: true`: no perks, no allowance until an admin restores with `adminRevokePremium`). A partial refund only writes a review row (`partial: true`). A full refund of a paid Founders order adds 1 to `premium_counters/founders.retired` once (`order.seatRetired`) and never decrements `sold`. `invoice.payment_failed` writes a review row only (Stripe retries; the subscription's own status ends access). A review row carries uid, orderId and customerId, and an `admin_notifications` row (type `premium_review`) alerts a human in the admin panel feed.
 - **Portal:** always opened with our own configuration (`stripePortalConfigId`). Promotion codes and plan switching are off in that configuration (`features.subscription_update.enabled=false`, `default_allowed_updates=[]`), created by `functions/scripts/premium-portal-config.js`. Stripe's default portal configuration is never used.
 - **BTCPay:** on settle, the invoice and its `/payment-methods` are re-read; any payment on a non-Lightning method (BTC / BTC-CHAIN) -> review `not_lightning`, no grant. An unreadable response fails the webhook so BTCPay retries.
 - **Claim:** `claimPremiumByEmail` refuses banned and minor accounts.
@@ -179,13 +188,16 @@ spent. Extra Embers cannot be bought. Cosmetic only: never sats, never raffles,
 chances, packs or battle items. The module has a test that fails if it ever
 references sats balances, points, tickets or NWC.
 
-## Setup steps for Phil (staging first)
+## Setup steps for Phil
 
-1. Create staging runtime service accounts for the 6 new secret-bound functions (incl. fn-premium-claim) and grant secret access (needs Phil's OK: new IAM).
-2. Add Secret Manager secrets on staging: PREMIUM_HASH_KEY (32+ random bytes), STRIPE_SECRET_KEY (sk_test_), STRIPE_WEBHOOK_SECRET, and later BTCPAY_*.
-2b. Run `node functions/scripts/premium-portal-config.js --apply` with the staging test key and set `stripePortalConfigId`.
-3. Deploy rules + functions by name to `bitcoin-quest-staging`.
-4. Add a Stripe test webhook endpoint pointing at `premiumStripeWebhook` with events: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.expired, invoice.paid, invoice.payment_failed, customer.subscription.updated, customer.subscription.deleted, charge.refunded, charge.dispute.created.
-5. Write `premium_config/settings` on staging with `checkoutEnabled: true`.
-6. Lightning: BTCPay store (Lightning only) connected to a new receive-only Alby Hub wallet; webhook to `premiumBtcpayWebhook`; then `lightningEnabled: true`.
-7. `/premium` route: the seo-router Worker needs a route for `/premium` and its CSP `connect-src` must allow the functions host (staging host for previews).
+Staging (done): test secrets, fn-premium-* service accounts, test webhook, portal config, `checkoutEnabled: true`.
+
+Live (Phil only, after Red Team / QA / Security GO):
+1. Stripe live mode: create a restricted or secret live key; add `STRIPE_SECRET_KEY` (sk_live_/rk_live_) and `PREMIUM_HASH_KEY` to Secret Manager on `bitcoin-education-archive`.
+2. Stripe live webhook to `https://us-central1-bitcoin-education-archive.cloudfunctions.net/premiumStripeWebhook` with: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.expired, invoice.paid, invoice.payment_failed, customer.subscription.updated, customer.subscription.deleted, charge.refunded, charge.dispute.created. Put its signing secret in `STRIPE_WEBHOOK_SECRET`.
+3. Live portal config (`premium-portal-config.js` is test-only today; create the same settings in the Dashboard: cancel at period end, no proration, no plan switching, no promo codes) and set `stripePortalConfigId`.
+4. Live runtime service accounts + secret access for the premium functions (new IAM).
+5. Alby Hub: create a new, separate receive-only wallet/connection for Premium (no spend permission).
+6. BTCPay: a Lightning-only store paying into that wallet; Greenfield API key with `btcpay.store.canviewinvoices`, `btcpay.store.cancreateinvoice` only; webhook to `premiumBtcpayWebhook` (InvoiceSettled, InvoiceExpired, InvoiceInvalid) with a secret. Secrets: `BTCPAY_URL`, `BTCPAY_STORE_ID`, `BTCPAY_API_KEY`, `BTCPAY_WEBHOOK_SECRET`.
+7. Config: `existingUserCutoffMs` (or `checkoutLaunchedAtMs`) so the 5% works, then `lightningEnabled: true` and finally `checkoutEnabled: true`.
+8. Public page: flip `PREMIUM_PAGE_PUBLIC` (seo-router) and `PAGE_OPEN_ON_LIVE` (premium.js) together, and deploy the Worker.
