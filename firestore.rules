@@ -1005,9 +1005,16 @@ service cloud.firestore {
         );
     }
 
+    // Doc ids end up in rendered markup and routes. Client-created ids must be
+    // plain tokens matching the client FORUM_ID_RE (^[A-Za-z0-9_-]{1,256}$).
+    function forumDocIdOk(id) {
+      return id is string && id.matches('^[A-Za-z0-9_-]{1,256}$');
+    }
+
     match /forum_posts/{postId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && forumDocIdOk(postId)
                     && request.resource.data.keys().hasAll(['title', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 5
@@ -1052,6 +1059,8 @@ service cloud.firestore {
     match /forum_replies/{replyId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && forumDocIdOk(replyId)
+                    && forumDocIdOk(request.resource.data.get('postId', null))
                     && request.resource.data.keys().hasAll(['postId', 'body', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
@@ -1676,6 +1685,7 @@ service cloud.firestore {
     match /articles/{articleId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && forumDocIdOk(articleId)
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.title is string
@@ -1737,6 +1747,8 @@ service cloud.firestore {
     match /article_replies/{replyId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && forumDocIdOk(replyId)
+                    && (!('articleId' in request.resource.data) || forumDocIdOk(request.resource.data.articleId))
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.body is string

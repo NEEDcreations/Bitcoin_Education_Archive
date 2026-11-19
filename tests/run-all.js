@@ -195,6 +195,7 @@ const TESTS = [
     { name: 'Username repick rules', file: 'rules/username-repick-rules.js' },
     { name: 'Claim requirement rules', file: 'rules/claim-req-rules.js' },
     { name: 'Forum mirror rules attack', file: 'rules/forum-mirror-attack.js' },
+    { name: 'Forum doc-id rules', file: 'rules/forum-docid-rules.js' },
     { name: 'Kill switch rules (offline writes)', file: 'rules/kill-switch-rules.js' },
     { name: 'SF block-claim rules', file: 'rules/sf-block-claims-rules.js' },
     { name: 'Raid bosses', file: 'test-raid-boss.js' },
