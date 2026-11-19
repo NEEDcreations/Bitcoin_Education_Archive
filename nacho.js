@@ -684,14 +684,37 @@ function createNacho() {
             letter-spacing: 1px;
         }
         .nacho-x {
-            color: var(--text-faint, #666);
-            font-size: 0.75rem;
+            flex: 0 0 auto;
+            box-sizing: border-box;
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            min-height: 44px;
+            margin: 0;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 2px solid #f8fafc;
+            border-radius: 10px;
+            color: #f8fafc;
+            font-size: 1.15rem;
+            font-weight: 800;
+            line-height: 1;
             cursor: pointer;
-            opacity: 0.4;
-            transition: opacity 0.2s;
-            padding: 2px 4px;
+            opacity: 1;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
-        .nacho-x:hover { opacity: 1; }
+        .nacho-x:hover, .nacho-x:focus-visible { background: rgba(248,250,252,0.12); outline: none; }
+        [data-theme="light"] .nacho-x {
+            border-color: #0f172a;
+            color: #0f172a;
+        }
+        [data-theme="light"] .nacho-x:hover,
+        [data-theme="light"] .nacho-x:focus-visible { background: rgba(15,23,42,0.08); }
         #nacho-text { word-wrap: break-word; max-height: none; overflow: visible; padding-right: 4px; }
 
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
@@ -957,12 +980,13 @@ function createNacho() {
                 max-width: none !important;
                 width: auto !important;
                 min-width: 0 !important;
-                max-height: 45vh;
+                max-height: 35vh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
-                font-size: 0.85rem;
-                padding: 12px 14px;
-                border-radius: 14px;
+                font-size: 0.82rem;
+                line-height: 1.4;
+                padding: 10px 12px;
+                border-radius: 16px 16px 12px 12px;
                 z-index: 200050;
             }
             #nacho-bubble::before,
@@ -973,9 +997,9 @@ function createNacho() {
             #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 18px; }
             #nacho-avatar { width: 48px; height: 48px; min-width: 48px; min-height: 48px; }
             #nacho-bubble {
-                max-height: 45vh;
-                font-size: 0.82rem;
-                padding: 12px 14px;
+                max-height: 35vh;
+                font-size: 0.8rem;
+                padding: 10px 12px;
             }
             #nacho-avatar .nacho-name { font-size: 0.65rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(220px, 74vw); white-space: normal; padding: 5px 8px; }
         }
@@ -1087,7 +1111,7 @@ function createNacho() {
         '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\'&&this.getAttribute(\'data-trivia\')!==\'1\')hideBubble(true)">' +
             '<div class="nacho-header">' +
                 '<span class="nacho-label"><span id="nacho-pose-emoji">🦌</span> <span id="nacho-bubble-name">' + ((typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho') + '</span> says</span>' +
-                '<span class="nacho-x" onclick="event.stopPropagation();window._nachoTriviaXClose=true;hideBubble(true)">✕</span>' +
+                '<button type="button" class="nacho-x" aria-label="Close" onclick="event.stopPropagation();window._nachoTriviaXClose=true;hideBubble(true)">✕</button>' +
             '</div>' +
             '<div id="nacho-text"></div>' +
         '</div>';

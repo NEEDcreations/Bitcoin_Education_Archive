@@ -91,7 +91,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
 
-    <link rel="preload" href="/bundle.min.js?v=20261118_v2602" as="script">
+    <link rel="preload" href="/bundle.min.js?v=20261119_v2622" as="script">
 
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image" referrerpolicy="no-referrer">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
@@ -1015,7 +1015,7 @@
             .sidebar-expand-btn { display: none !important; }
             .sidebar-collapse-btn { display: none !important; }
             body { flex-direction: column; }
-            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: var(--bq-mobile-bar-h, calc(110px + env(safe-area-inset-top, 0px))); padding-bottom: calc(var(--above-fab) + 44px + var(--fab-gap)); touch-action: pan-y; contain: content; }
+            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: var(--bq-mobile-bar-h, calc(110px + env(safe-area-inset-top, 0px))); padding-bottom: calc(var(--above-fab) + 44px + var(--fab-gap)); scroll-padding-bottom: calc(var(--above-fab) + 44px + var(--fab-gap)); touch-action: pan-y; contain: content; }
             .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 100; overflow: hidden; gap: 6px; }
             .mobile-bar h2 { color: var(--accent); font-size: clamp(11px, 3.1vw, 0.85rem); font-weight: 900; text-transform: uppercase; letter-spacing: 0; line-height: 1.05; }
             .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
@@ -1038,8 +1038,8 @@
             .share-btn { padding: 6px 10px; font-size: 0.75rem; }
             /* Scroll arrows share the FAB clearance: one gap above the row,
                inset from the right edge, so they miss the quest cards' lower row. */
-            .back-to-top { bottom: var(--above-fab) !important; right: var(--fab-edge); width: 44px; height: 44px; font-size: 0.95rem; z-index: 180; transform: none !important; }
-            .scroll-to-bottom { bottom: var(--above-fab) !important; right: calc(var(--fab-edge) + 44px + 8px); width: 44px; height: 44px; font-size: 0.95rem; z-index: 180; transform: none !important; }
+            .back-to-top { bottom: calc(var(--above-fab) + 44px + 8px) !important; right: var(--fab-edge); width: 44px; height: 44px; font-size: 0.95rem; z-index: 180; transform: none !important; }
+            .scroll-to-bottom { bottom: var(--above-fab) !important; right: var(--fab-edge); width: 44px; height: 44px; font-size: 0.95rem; z-index: 180; transform: none !important; }
             .home-page { padding: 30px 16px; min-height: auto; }
             .home-title { font-size: 2rem; letter-spacing: -1px; }
             .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
@@ -1266,7 +1266,8 @@
     #homeMoreToggle { width:100%; margin:0 0 12px; padding:12px 14px; background:transparent; border:1px dashed #334155; border-radius:12px; color:#94a3b8; font-weight:800; font-family:inherit; cursor:pointer; text-align:left; }
     #homeMore[hidden] { display:none !important; }
     #todayFoldLine { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px; margin-top:10px; color:#94a3b8; font-size:0.78rem; font-weight:700; }
-    #todayFoldLine #todayMoreToggle { width:auto; margin:0; min-height:44px; padding:10px 12px; background:none !important; border:none; color:#94a3b8; font-weight:700; font-size:0.78rem; }
+    #todayFoldLine #todayMoreToggle { width:auto; margin:0; min-height:44px; padding:10px 14px; background:#111827 !important; border:1px solid #475569; border-radius:12px; color:#f8fafc; font-weight:800; font-size:0.85rem; }
+    [data-theme="light"] #todayFoldLine #todayMoreToggle { background-color:#f8fafc !important; color:#0f172a; border-color:#64748b; }
     #todayRaidLine { background:none; border:none; color:#94a3b8; font:inherit; font-weight:700; cursor:pointer; padding:4px 2px; }
     #todayRaidLine::before { content:'· '; }
     #todayRaidLine[hidden] { display:none !important; }
@@ -1290,7 +1291,8 @@
         body.fab-tools-open #aiToolsBtn { bottom:calc(10px + (48px - 44px) / 2 + 44px + 10px + (48px + 10px) * 2) !important; }
     }
     @media (max-width: 900px) {
-        .home-page { padding:12px 12px calc(72px + env(safe-area-inset-bottom, 0px)); }
+        .home-page { padding:12px 12px calc(var(--above-fab) + 44px + var(--fab-gap)); }
+        #homeLearnCard, #homeMoreToggle { margin-right: calc(44px + var(--fab-edge, 12px) + 8px); }
         #chatOverlayBtn { right:calc(var(--fab-edge) + var(--fab-size) + var(--fab-space)) !important; }
         #nacho-toggle { right:var(--fab-edge) !important; left:auto !important; bottom:var(--fab-bottom) !important; width:var(--fab-size) !important; height:var(--fab-size) !important; }
         body.fab-tools-open #aiToolsBtn,
@@ -2318,7 +2320,7 @@
 
     <script src="/kill-switch.js?v=20261111_v2551" defer></script>
     <script src="/ranking.js?v=20261119_v2615" defer></script>    <!-- Critical: needed for initial page render -->
-    <script src="/bundle.min.js?v=20261118_v2602" defer fetchpriority="high"></script>
+    <script src="/bundle.min.js?v=20261119_v2622" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="/features.registry.js?v=20261114_v2565" defer></script>

@@ -50,18 +50,51 @@ test('Honey Badgers donation labels use #faf5ff on #4c1d95 (at least 4.5:1)', fu
     assert.ok(ratio >= 4.5, 'contrast ' + ratio.toFixed(2) + ' is under 4.5:1');
 });
 
-test('More Quests toggle is at least 44px tall in both rules', function () {
+test('More Quests toggle is a 44px high-contrast secondary button in both themes', function () {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('#todayMoreToggle { width: 100%;') && html.includes('min-height: 44px;'));
-    assert.ok(html.includes('#todayFoldLine #todayMoreToggle { width:auto; margin:0; min-height:44px; padding:10px 12px;'));
+    assert.ok(html.includes('#todayFoldLine #todayMoreToggle { width:auto; margin:0; min-height:44px; padding:10px 14px; background:#111827 !important; border:1px solid #475569;'));
+    assert.ok(html.includes('[data-theme="light"] #todayFoldLine #todayMoreToggle { background-color:#f8fafc !important; color:#0f172a; border-color:#64748b; }'));
+    assert.ok(!html.includes('background:none !important; border:none; color:#94a3b8'));
     assert.ok(!html.includes('#todayFoldLine #todayMoreToggle { width:auto; margin:0; padding:4px 2px;'));
+    const dark = contrast('f8fafc', '111827');
+    const light = contrast('0f172a', 'f8fafc');
+    assert.ok(dark >= 4.5, 'dark More Quests contrast ' + dark.toFixed(2));
+    assert.ok(light >= 4.5, 'light More Quests contrast ' + light.toFixed(2));
 });
 
-test('service worker cache pin is v2615', function () {
+test('service worker cache pin is v2622', function () {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2615'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2622'"));
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2615'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2605'"));
+});
+
+test('home mobile padding clears the floating stack and stacks scroll arrows', function () {
+    const html = read('index.html');
+    assert.ok(html.includes('.home-page { padding:12px 12px calc(var(--above-fab) + 44px + var(--fab-gap)); }'));
+    assert.ok(!html.includes('.home-page { padding:12px 12px calc(72px + env(safe-area-inset-bottom, 0px)); }'));
+    assert.ok(html.includes('padding-bottom: calc(var(--above-fab) + 44px + var(--fab-gap)); scroll-padding-bottom: calc(var(--above-fab) + 44px + var(--fab-gap));'));
+    assert.ok(html.includes('.back-to-top { bottom: calc(var(--above-fab) + 44px + 8px) !important; right: var(--fab-edge);'));
+    assert.ok(html.includes('.scroll-to-bottom { bottom: var(--above-fab) !important; right: var(--fab-edge);'));
+    assert.ok(!html.includes('.scroll-to-bottom { bottom: var(--above-fab) !important; right: calc(var(--fab-edge) + 44px + 8px);'));
+});
+
+test('Nacho mobile sheet is capped at 35vh with a 44px high-contrast close', function () {
+    const src = read('nacho.js');
+    assert.ok(src.includes('class="nacho-x" aria-label="Close"'));
+    assert.ok(src.includes('<button type="button" class="nacho-x"'));
+    assert.ok(!src.includes('<span class="nacho-x"'));
+    assert.ok(src.includes('width: 44px;') && src.includes('min-height: 44px;') && src.includes('color: #f8fafc;'));
+    assert.ok(src.includes('[data-theme="light"] .nacho-x {') && src.includes('color: #0f172a;'));
+    assert.ok(!src.includes('opacity: 0.4;'));
+    assert.strictEqual((src.match(/max-height: 35vh;/g) || []).length, 2);
+    assert.ok(!src.includes('max-height: 45vh;') || src.indexOf('max-height: 45vh;') < src.indexOf('@media (max-width: 900px)'));
+    const dark = contrast('f8fafc', '111827');
+    const light = contrast('0f172a', 'f8fafc');
+    assert.ok(dark >= 4.5, 'dark Nacho close contrast ' + dark.toFixed(2));
+    assert.ok(light >= 4.5, 'light Nacho close contrast ' + light.toFixed(2));
 });
 
 if (failed) {
