@@ -282,6 +282,17 @@
     var shows = {};
     var signedIn = false;
     var waitTimer = null;
+    var secondFactorHold = false;
+
+    function isSecondFactorHold() {
+        if (secondFactorHold) return true;
+        if (root._btcTotpHold) return true;
+        var document = doc();
+        if (document && document.getElementById) {
+            if (document.getElementById('totpSignInOverlay') || document.getElementById('mfaSignInOverlay')) return true;
+        }
+        return false;
+    }
 
     function stepState(kind) {
         return state[kind] || 'pending';
@@ -289,6 +300,7 @@
 
     function pump() {
         if (!signedIn) return;
+        if (isSecondFactorHold()) return;
         for (var i = 0; i < ORDER.length; i++) {
             var kind = ORDER[i];
             var cur = stepState(kind);
@@ -330,7 +342,19 @@
         },
         holdUntilSignedIn: function () {
             signedIn = false;
+            secondFactorHold = false;
         },
+        holdForSecondFactor: function () {
+            secondFactorHold = true;
+            for (var i = 0; i < ORDER.length; i++) {
+                if (state[ORDER[i]] === 'showing') state[ORDER[i]] = 'ready';
+            }
+        },
+        releaseSecondFactor: function () {
+            secondFactorHold = false;
+            pump();
+        },
+        isSecondFactorHold: function () { return isSecondFactorHold(); },
         isSignedIn: function () { return signedIn; },
         ready: function (kind, fn) {
             if (ORDER.indexOf(kind) === -1) return;
@@ -352,6 +376,7 @@
         },
         isTurn: function (kind) {
             if (!signedIn) return false;
+            if (isSecondFactorHold()) return false;
             for (var i = 0; i < ORDER.length; i++) {
                 var cur = ORDER[i];
                 if (cur === kind) return stepState(cur) === 'showing' || stepState(cur) === 'ready';

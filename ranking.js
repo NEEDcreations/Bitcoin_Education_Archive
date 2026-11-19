@@ -106,8 +106,43 @@ function noteTotpHold(uid) {
             modal.classList.remove('open');
             if (modal.style) modal.style.zIndex = '';
         }
+        var tos = document.getElementById('tosModal');
+        if (tos && tos.classList && tos.classList.contains('open')) {
+            tos.classList.remove('open');
+            if (tos.setAttribute) tos.setAttribute('aria-hidden', 'true');
+        }
+        var intro = document.getElementById('btcIntroOverlay');
+        if (intro && intro.remove) intro.remove();
     } catch (e) {}
+    if (window.btcOnboardingQueue && window.btcOnboardingQueue.holdForSecondFactor) {
+        try { window.btcOnboardingQueue.holdForSecondFactor(); } catch (eHold) {}
+    }
 }
+
+function _startSignedInPopupQueue() {
+    if (window._btcTotpHold) {
+        if (window.btcOnboardingQueue && window.btcOnboardingQueue.holdForSecondFactor) {
+            try { window.btcOnboardingQueue.holdForSecondFactor(); } catch (e1) {}
+        }
+        return;
+    }
+    try {
+        if (typeof document !== 'undefined' && document.getElementById &&
+            (document.getElementById('totpSignInOverlay') || document.getElementById('mfaSignInOverlay'))) {
+            if (window.btcOnboardingQueue && window.btcOnboardingQueue.holdForSecondFactor) {
+                window.btcOnboardingQueue.holdForSecondFactor();
+            }
+            return;
+        }
+    } catch (e2) {}
+    if (window.btcOnboardingQueue) {
+        try {
+            if (window.btcOnboardingQueue.releaseSecondFactor) window.btcOnboardingQueue.releaseSecondFactor();
+            window.btcOnboardingQueue.onSignedIn();
+        } catch (eQueue) {}
+    }
+}
+window._startSignedInPopupQueue = _startSignedInPopupQueue;
 function clearTotpHold() {
     window._btcTotpHold = false;
     window._btcTotpHoldUid = '';
@@ -1087,8 +1122,23 @@ function initRanking() {
                 if (window.btcAuthDisplay && window.btcAuthDisplay.hideSigningShell) {
                     try { window.btcAuthDisplay.hideSigningShell(); } catch (eShell) {}
                 }
-                if (window.btcOnboardingQueue) {
-                    try { window.btcOnboardingQueue.onSignedIn(); } catch (eQueue) {}
+                var _cacheForQueue = null;
+                try {
+                    var _cpq = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+                    if (_cpq && _cpq.uid === user.uid && _cpq.data) _cacheForQueue = _cpq;
+                } catch (eCacheQ) {}
+                var _queueNeeds2fa = _cacheForQueue && (_cacheForQueue.twoFa === true || (_cacheForQueue.data && _cacheForQueue.data.totpEnabled));
+                var _queueKnownOff = _cacheForQueue && (_cacheForQueue.twoFa === false || (_cacheForQueue.data && _cacheForQueue.data.totpEnabled === false));
+                if (_queueNeeds2fa && !totpVerifiedFor(user.uid)) {
+                    window._btcTotpHold = true;
+                    if (window.btcOnboardingQueue && window.btcOnboardingQueue.holdForSecondFactor) {
+                        try { window.btcOnboardingQueue.holdForSecondFactor(); } catch (eHoldQ) {}
+                    }
+                } else if (_queueKnownOff || totpVerifiedFor(user.uid)) {
+                    _startSignedInPopupQueue();
+                } else if (window.btcOnboardingQueue && window.btcOnboardingQueue.holdForSecondFactor) {
+                    // Unknown 2FA status: wait for loadUser so welcome/terms do not cover the prompt.
+                    try { window.btcOnboardingQueue.holdForSecondFactor(); } catch (eHoldU) {}
                 }
                 // Sync experienceMode from Firestore (cross-device continuity)
                 if (typeof window.syncExperienceModeFromFirestore === 'function') {
@@ -3762,13 +3812,6 @@ async function loadUser(uid, prefetchedDoc) {
     // checks still verify the live token on each callable.
     settleAdminClaim();
     if (doc.exists) {
-        // TOS check — show acceptance modal if user hasn't accepted current version
-        if (currentUser && !auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
-            _showTosModal();
-        } else if (window.btcOnboardingQueue) {
-            window.btcOnboardingQueue.skip('terms');
-        }
-
         // Authenticator gate. The server, not a localStorage flag, decides.
         // Phone sign-in is enforced by Firebase before we get here.
         // 2FA accounts still wait here. Everyone else paints, then the same
@@ -3812,6 +3855,13 @@ async function loadUser(uid, prefetchedDoc) {
                 return;
             }
             clearTotpHold();
+        }
+        // 2FA is done or was not required. Other post-sign-in popups may start.
+        if (typeof _startSignedInPopupQueue === 'function') _startSignedInPopupQueue();
+        if (currentUser && !auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
+            _showTosModal();
+        } else if (window.btcOnboardingQueue) {
+            window.btcOnboardingQueue.skip('terms');
         }
         window._myPeers = new Set(currentUser.peers || []);
         // Restore visited channels so we don't re-award
@@ -11817,6 +11867,12 @@ window.clearUserLocalStorage = clearUserLocalStorage;
 
 // ---- TOS Acceptance Modal (existing users) ----
 function _openTosModalNow() {
+    if (window._btcTotpHold || (document.getElementById && (document.getElementById('totpSignInOverlay') || document.getElementById('mfaSignInOverlay')))) {
+        if (window.btcOnboardingQueue && window.btcOnboardingQueue.holdForSecondFactor) {
+            try { window.btcOnboardingQueue.holdForSecondFactor(); } catch (eTosHold) {}
+        }
+        return;
+    }
     var m = document.getElementById('tosModal');
     if (m) m.classList.add('open');
     document.querySelectorAll('.rank-toast').forEach(function(el) { el.remove(); });
@@ -12920,10 +12976,6 @@ window._showTotpSignInChallenge = function() {
     noteTotpHold(auth && auth.currentUser && auth.currentUser.uid);
     clearTotpVerified();
     if (auth && auth.currentUser) holdAuthDisplayForTotp(auth.currentUser.uid);
-    if (tosBlocking()) {
-        window.runAfterTos(function() { window._showTotpSignInChallenge(); });
-        return;
-    }
     if (document.getElementById('totpSignInOverlay')) return;
     var overlay = document.createElement('div');
     overlay.id = 'totpSignInOverlay';
@@ -13015,9 +13067,8 @@ window._submitTotpSignIn = async function() {
 
 // Show MFA sign-in challenge when user with phone 2FA tries to sign in
 window._showMFASignInChallenge = async function(resolver) {
-    if (tosBlocking()) {
-        window.runAfterTos(function() { window._showMFASignInChallenge(resolver); });
-        return;
+    if (window.btcOnboardingQueue && window.btcOnboardingQueue.holdForSecondFactor) {
+        try { window.btcOnboardingQueue.holdForSecondFactor(); } catch (eMfaHold) {}
     }
     // Guard against double-fire (direct catch + race catch both triggering)
     if (document.getElementById('mfaSignInOverlay')) return;

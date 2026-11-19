@@ -313,7 +313,7 @@ function extract(name) {
 
 test('2FA hold resets the auth button to the guest control', () => {
     const vm = require('vm');
-    const hold = src.slice(src.indexOf('if (window._btcTotpHold)'), src.indexOf('Check all possible ways a user can be'));
+    const hold = src.slice(src.indexOf('// The authenticator check has not passed. Do not turn this into Settings.'), src.indexOf('Check all possible ways a user can be'));
     assert.ok(hold.indexOf('applyGuestAuthButton(btn)') !== -1);
     assert.ok(hold.indexOf('return;') > hold.indexOf('applyGuestAuthButton(btn)'));
     assert.strictEqual(hold.indexOf('showSettings'), -1);

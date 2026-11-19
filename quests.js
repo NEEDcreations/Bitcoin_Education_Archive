@@ -2524,9 +2524,6 @@ function _renderFavorTab(body) {
                 '<button type="button" id="sfNoFactionChooseBtn" onclick="window._openFactionPicker()">Choose a faction</button>' +
             '</div>' +
         '</div>' +
-        '<div id="sfAdminBackfill" style="display:none;margin-top:8px;text-align:center;">' +
-            '<button onclick="window._runFactionBackfill()" style="padding:5px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:7px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Backfill historical data (admin)</button>' +
-        '</div>' +
     '</div>';
     // -- end faction scoreboard --
 
@@ -2728,22 +2725,6 @@ window.closeQuestHubForFavor = function() {
     window._qhReopenOnMinerClose = true;
 };
 
-// Admin one-click backfill
-window._runFactionBackfill = function() {
-    if (typeof firebase === 'undefined') return;
-    var btn = document.querySelector('#sfAdminBackfill button');
-    if (btn) { btn.textContent = '⏳ Running backfill...'; btn.disabled = true; }
-    firebase.functions().httpsCallable('backfillFactionTotals')({}).then(function(r) {
-        var d = r.data;
-        if (typeof showToast === 'function') showToast('✅ Backfill done! 🐝 ' + (d.totals && d.totals.cyber_hornets || 0) + ' vs 🦡 ' + (d.totals && d.totals.honey_badgers || 0));
-        if (btn) { btn.textContent = '✅ Done!'; }
-    }).catch(function(err) {
-        if (typeof showToast === 'function') showToast('❌ Backfill error: ' + err.message);
-        if (btn) { btn.textContent = '⚡ Backfill historical data (admin)'; btn.disabled = false; }
-        console.error('[BACKFILL]', err);
-    });
-};
-
 function _sfQuip(f) {
     var q = (typeof window.bqFactionQuip === 'function') ? window.bqFactionQuip(f) : '';
     if (!q) q = f === 'cyber_hornets' ? 'The swarm protects the network.' : "Honey badger don't care.";
@@ -2835,13 +2816,6 @@ function _startFactionScoreboardListener() {
             }
         }
         if (poolRow) poolRow.style.display = (userFaction === 'cyber_hornets' || userFaction === 'honey_badgers') ? 'block' : 'none';
-
-        // Show backfill button for admin
-        var elAdmin = document.getElementById('sfAdminBackfill');
-        if (elAdmin) {
-            var isAdmin = window._isAdminClaim === true; // Firebase custom claim only
-            elAdmin.style.display = isAdmin ? 'block' : 'none';
-        }
 
         // Highlight user's faction card
         var userFaction2 = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.faction || '') : '';
@@ -4991,7 +4965,7 @@ function _renderCharityTabInner(body) {
         '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">⚔️ Faction Giving</div>' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.8rem;">' +
             '<span style="color:#f7e400;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;">🐝 Cyber Hornets</span>' +
-            '<span style="color:#1a1a1a;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000,0 0 3px #fff;">🦡 Honey Badgers</span>' +
+            '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-weight:800;line-height:1.35;background:#4c1d95;color:#faf5ff;">🦡 Honey Badgers</span>' +
         '</div>' +
         '<div style="display:flex;border-radius:8px;overflow:hidden;height:14px;margin-bottom:6px;">' +
             '<div id="charityHornetBar" style="width:' + hornetsPct + '%;background:linear-gradient(90deg,#f7e400,#f59e0b);transition:0.5s;"></div>' +
@@ -5225,7 +5199,7 @@ window._renderCharityHome = function() {
             '<div style="font-size:1.3rem;font-weight:900;color:var(--heading);">' + total.toLocaleString() + ' <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted);">sats pledged</span></div>' +
             '<div style="display:flex;gap:12px;margin-top:8px;font-size:0.75rem;">' +
                 '<span style="color:#f7e400;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000;">🐝 ' + hornets.toLocaleString() + ' XP</span>' +
-                '<span style="color:#1a1a1a;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,1px 1px 0 #000,-1px 1px 0 #000,0 0 3px #fff;">🦡 ' + badgers.toLocaleString() + ' XP</span>' +
+                '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-weight:800;line-height:1.35;background:#4c1d95;color:#faf5ff;">🦡 ' + badgers.toLocaleString() + ' XP</span>' +
             '</div>' +
         '</div>';
     }).catch(function() {});

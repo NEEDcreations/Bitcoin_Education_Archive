@@ -288,7 +288,8 @@ console.log('');
         assert.ok(market.includes('window._isAdminClaim === true'));
         assert.ok(forum.includes('window._isAdminClaim === true'));
         assert.ok(ux.includes('window._isAdminClaim === true'));
-        assert.ok(quests.includes("var isAdmin = window._isAdminClaim === true;"));
+        assert.ok(!quests.includes('window._runFactionBackfill'));
+        assert.ok(!quests.includes('_isAdminClaim'));
         assert.ok(beats.split('\n').filter((l) => /_isAdminClaim === true/.test(l)).length >= 3);
     });
 

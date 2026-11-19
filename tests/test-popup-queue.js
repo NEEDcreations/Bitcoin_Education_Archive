@@ -298,6 +298,59 @@ test('PvP lobby alert opts out of the sheet stack', function () {
     assert.ok(src.includes('#pvpLobbyAlert{left:auto;right:24px;bottom:80px;width:380px;}'));
 });
 
+test('a 2FA hold keeps gift, terms and welcome from showing until it is released', function () {
+    const env = bootQueue();
+    const q = env.sandbox.btcOnboardingQueue;
+    const seen = [];
+    q.holdForSecondFactor();
+    q.ready('gift', function () { seen.push('gift'); });
+    q.ready('terms', function () { seen.push('terms'); });
+    q.ready('pace', function () { seen.push('pace'); });
+    q.onSignedIn();
+    assert.deepStrictEqual(seen, []);
+    assert.strictEqual(q.isSecondFactorHold(), true);
+    assert.strictEqual(q.isTurn('gift'), false);
+    q.releaseSecondFactor();
+    assert.deepStrictEqual(seen, ['gift']);
+    q.done('gift');
+    assert.deepStrictEqual(seen, ['gift', 'terms']);
+});
+
+test('live 2FA overlays block the queue even without an explicit hold', function () {
+    const env = bootQueue();
+    env.sandbox.document.getElementById = function (id) {
+        return id === 'totpSignInOverlay' ? { id: id } : null;
+    };
+    const q = env.sandbox.btcOnboardingQueue;
+    const seen = [];
+    q.ready('gift', function () { seen.push('gift'); });
+    q.onSignedIn();
+    assert.deepStrictEqual(seen, []);
+    env.sandbox.document.getElementById = function () { return null; };
+    q.pump();
+    assert.deepStrictEqual(seen, ['gift']);
+});
+
+test('ranking shows the 2FA prompt without waiting for Terms, and defers TOS until 2FA is done', function () {
+    const ranking = read('ranking.js');
+    const show = ranking.slice(ranking.indexOf('window._showTotpSignInChallenge = function'), ranking.indexOf('window._submitTotpSignIn'));
+    assert.ok(show.includes('noteTotpHold'));
+    assert.ok(!show.includes('runAfterTos'));
+    assert.ok(!show.includes('tosBlocking()'));
+    const mfaStart = ranking.indexOf('window._showMFASignInChallenge = async function');
+    const mfaEnd = ranking.indexOf('if (document.getElementById(\x27mfaSignInOverlay\x27)) return;');
+    const mfa = ranking.slice(mfaStart, mfaEnd);
+    assert.ok(!mfa.includes('runAfterTos'));
+    assert.ok(ranking.includes('function _startSignedInPopupQueue'));
+    assert.ok(ranking.includes('holdForSecondFactor'));
+    const loadIdx = ranking.indexOf('async function loadUser(uid, prefetchedDoc)');
+    const peersIdx = ranking.indexOf('window._myPeers = new Set(currentUser.peers || [])', loadIdx);
+    const load = ranking.slice(loadIdx, peersIdx);
+    const tosAt = load.indexOf('_showTosModal()');
+    const totpAt = load.indexOf('_showTotpSignInChallenge()');
+    assert.ok(totpAt > 0 && tosAt > totpAt, 'TOS must come after the 2FA challenge in loadUser');
+});
+
 test('Global Chat button is only CSS-hidden while body.btc-sheet-open is set', function () {
     const src = read('popup-stack.js');
     assert.ok(src.includes("'body.btc-sheet-open #chatOverlayBtn,'"));
