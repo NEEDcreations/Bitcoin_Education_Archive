@@ -47,9 +47,9 @@ Files: `citadel-shop.js` (new, lazy-loaded by the Citadel tab in `quests.js`),
 
 | Name | Input | Output |
 |---|---|---|
-| `getCitadelShopStatus` | `{}` | `{ success, premiumActive, open, flags: { referralWeekPremiumBuy }, stages: {walls,turret,vault,tower,keep}, lessonParts: {lesson_walls: true, ...}, lessonBuilt: {...}, lessonGrantPending, weekSpent, weekCap, weekResetsAt, newTickets }` |
-| `buyCitadelStage` | `{ partId, stage, requestId }` | `{ success, partId, stage, price, stages, weekSpent, weekCap, newTickets, repeat? }` or `{ success: false, code, message }` |
-| `buildCitadelPart` | `{ lessonPartId, requestId }` | `{ success, lessonPartId, lessonBuilt, repeat? }` or `{ success: false, code, message }` |
+| `getCitadelShopStatus` | `{}` | `{ success, premiumActive, open, buildOpen, flags: { referralWeekPremiumBuy }, stages: {walls,...} (built), ownedStages: {walls,...} (collected), parts: { walls: { owned, built, total }, ... }, lessonParts: {lesson_walls: true, ...}, lessonBuilt: {...}, lessonGrantPending, weekSpent, weekCap, weekResetsAt, newTickets }` |
+| `buyCitadelStage` | `{ partId, stage, requestId }` | `{ success, partId, stage, price, ownedStages, stages, weekSpent, weekCap, newTickets, repeat? }` or `{ success: false, code, message }` |
+| `buildCitadelPart` | `{ lessonPartId, requestId }` or `{ partId, stage, requestId }` | `{ success, lessonPartId, lessonBuilt, repeat? }` or `{ success, partId, stage, stages, ownedStages, repeat? }` or `{ success: false, code, message }` |
 | `claimLessonParts` | `{}` | `{ success, granted: [lessonPartId], lessonParts }` |
 
 `requestId` is a client random id for idempotency. Error `code` values the UI
@@ -68,9 +68,16 @@ result back with no second debit.
   ET) in one transaction with the OrangeTix debit. Reject if
   `spent + price > 120`. Hard cap, no partial stages.
 - **Balance:** debit `orangeTickets` in the same transaction; reject below price.
-- **Part ownership and order:** `stage` must equal `stages[partId] + 1` and not
-  exceed the part's stage count. `buildCitadelPart` requires the lesson part to
-  be owned and not built.
+- **Collect now, build later (Phil, Nov 18):** from Jan 3 players collect parts;
+  building stays locked. Buying puts the stage in `citadel.ownedStages` (it does
+  not build it). `stage` must equal `ownedStages[partId] + 1` and not exceed the
+  part's stage count. `buildCitadelPart` builds the next collected paid stage
+  (`stage == stages[partId] + 1 <= ownedStages[partId]`) or an owned, unbuilt
+  lesson part, only when `config/citadelShop.buildOpen === true` (missing or any
+  other value = closed, on staging and live; `openEarly` never opens building;
+  error `not_build_open`, "Building opens later."). A later build timer attaches
+  to `buildCitadelPart`. Older docs with `stages` and no `ownedStages` count
+  built stages as collected.
 - **Prices:** server catalog only (draft: Walls 4x75, Lightning Turret 2x100,
   Vault 2x120, Node Tower 3x100, Keep 4x115 = 1,500). Ignore any client price.
 - **Referral flag:** only honor referral-week Premium buying when
@@ -125,7 +132,8 @@ order players see them). Scarcity, Why Bitcoin and Privacy grant nothing here.
 - `users/{uid}.premium.active`, `users/{uid}.premium.lapsedAt`
 - `users/{uid}.orangeTickets`
 - `users/{uid}.created`
-- `users/{uid}.citadel.stages.{walls|turret|vault|tower|keep}` (numbers)
+- `users/{uid}.citadel.ownedStages.{walls|turret|vault|tower|keep}` (collected, numbers)
+- `users/{uid}.citadel.stages.{walls|turret|vault|tower|keep}` (built, numbers, <= ownedStages)
 - `users/{uid}.citadel.lessonParts.{lesson_*}` (true when earned)
 - `users/{uid}.citadel.lessonBuilt.{lesson_*}` (true when built)
 - `weekSpent`, `weekCap` come from `getCitadelShopStatus` (kept in
