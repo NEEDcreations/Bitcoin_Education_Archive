@@ -25,5 +25,9 @@
   },
   "engines": {
     "node": "22"
+  },
+  "overrides": {
+    "bitcoinjs-lib": "6.1.8",
+    "body-parser": "2.4.0"
   }
 }
