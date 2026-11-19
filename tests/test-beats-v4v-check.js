@@ -208,6 +208,32 @@ test('split amounts that sum to the tip are still paid', async () => {
     assert.ok(t.els.v4vTipResult.innerHTML.includes('2 payment(s) sent'));
 });
 
+test('a share that rounds to 0 sats says so instead of no payment route', async () => {
+    const a = makeInvoice('lnbc10u');
+    const t = setup({ invoices: [
+        artist('ada', 1000, a),
+        { name: 'zoe', amountSats: 0, canPay: false, canPayLnurl: false, canKeysend: false },
+    ] });
+    await t.sandbox.beatsExecuteV4VTip('track1');
+    assert.deepStrictEqual(t.paid, [a]);
+    const html = t.els.v4vTipResult.innerHTML;
+    assert.ok(html.includes('share rounds to 0 sats'));
+    assert.ok(!html.includes('no payment route available'));
+});
+
+test('an unpaid share above 0 still mentions no payment route', async () => {
+    const a = makeInvoice('lnbc10u');
+    const t = setup({ invoices: [
+        artist('ada', 1000, a),
+        { name: 'bob', amountSats: 50, canPay: false, canPayLnurl: false, canKeysend: false },
+    ] });
+    await t.sandbox.beatsExecuteV4VTip('track1');
+    assert.deepStrictEqual(t.paid, [a]);
+    const html = t.els.v4vTipResult.innerHTML;
+    assert.ok(html.includes('no payment route available'));
+    assert.ok(!html.includes('share rounds to 0 sats'));
+});
+
 (async () => {
     for (const run of pending) await run();
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

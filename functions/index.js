@@ -7463,19 +7463,21 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
 
     const { trackId, amountSats } = data || {};
     if (!trackId) throw new functionsV1.https.HttpsError('invalid-argument', 'trackId required');
-    if (!amountSats || amountSats < 10) throw new functionsV1.https.HttpsError('invalid-argument', 'amountSats must be >= 10');
-    if (amountSats > 10000000) throw new functionsV1.https.HttpsError('invalid-argument', 'amountSats too large');
+    const amt = Number(amountSats);
+    if (!Number.isSafeInteger(amt) || amt < 10 || amt > 1e7) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'amountSats must be a whole number from 10 to 10000000');
+    }
 
     const trackDoc = await admin.firestore().collection('beats_tracks').doc(trackId).get();
     if (!trackDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
     const track    = trackDoc.data();
     if (track.hidden === true) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
-    const splits = track.v4vSplits || [];
-    if (!v4vAlloc.v4vSplitsOk(splits)) {
-        throw new functionsV1.https.HttpsError('failed-precondition', 'No V4V splits defined for this track');
+    const splits = v4vAlloc.v4vPayableSplits(track.v4vSplits || []);
+    if (!splits) {
+        throw new functionsV1.https.HttpsError('failed-precondition', 'This track has invalid or no payable V4V splits.');
     }
-    const amounts = v4vAlloc.allocateV4vSats(amountSats, splits);
-    if (!amounts) throw new functionsV1.https.HttpsError('failed-precondition', 'No V4V splits defined for this track');
+    const amounts = v4vAlloc.allocateV4vSats(amt, splits);
+    if (!amounts) throw new functionsV1.https.HttpsError('failed-precondition', 'Could not allocate this tip across the track\'s V4V splits.');
     const totalSplit = splits.reduce((s, r) => s + r.split, 0);
 
     // Build invoice requests
@@ -7545,13 +7547,13 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
         await admin.firestore().collection('beats_v4v_events').add({
             trackId,
             trackTitle:  track.title || '',
-            amountSats,
+            amountSats:  amt,
             splits:      invoices.map(i => ({ name: i.name, sats: i.amountSats, splitPct: i.splitPct })),
             createdAt:   admin.firestore.FieldValue.serverTimestamp()
         });
     } catch(e) { /* non-blocking */ }
 
-    return { invoices, totalSats: amountSats, trackTitle: track.title };
+    return { invoices, totalSats: amt, trackTitle: track.title };
 });
 
 // Helper: fetch LNURL-pay invoice for a Lightning address.

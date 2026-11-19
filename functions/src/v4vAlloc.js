@@ -7,9 +7,21 @@ function v4vSplitsOk(list) {
     if (!Array.isArray(list) || list.length < 1 || list.length > V4V_SPLITS_MAX) return false;
     for (let i = 0; i < list.length; i++) {
         const s = list[i] && list[i].split;
-        if (typeof s !== 'number' || !Number.isFinite(s) || s <= 0) return false;
+        if (typeof s !== 'number' || !Number.isSafeInteger(s) || s < 1) return false;
     }
     return true;
+}
+
+function v4vPayableSplits(list) {
+    if (!Array.isArray(list)) return null;
+    const payable = [];
+    for (let i = 0; i < list.length; i++) {
+        const row = list[i];
+        if (row && row.split === 0) continue;
+        payable.push(row);
+    }
+    if (!v4vSplitsOk(payable)) return null;
+    return payable;
 }
 
 function allocateV4vSats(amountSats, splits) {
@@ -35,5 +47,6 @@ function allocateV4vSats(amountSats, splits) {
 module.exports = {
     V4V_SPLITS_MAX: V4V_SPLITS_MAX,
     v4vSplitsOk: v4vSplitsOk,
+    v4vPayableSplits: v4vPayableSplits,
     allocateV4vSats: allocateV4vSats,
 };

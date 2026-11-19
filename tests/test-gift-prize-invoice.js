@@ -36,10 +36,13 @@ function loadResolve() {
     const end = src.indexOf('\nconst claimCipherWin');
     if (start < 0 || end < 0 || end <= start) throw new Error('could not find _resolvePrizeInvoice');
     const tipConfirm = require('../functions/src/tipConfirm');
+    const favorBlockClaims = require('../functions/src/favorBlockClaims');
     const sandbox = {
         bolt11: { decode: function() { return sandbox._decoded; } },
         resolveLnurlInvoice: async function() { throw new Error('lnurl should not run'); },
         tipConfirm: tipConfirm,
+        checkRouteFees: favorBlockClaims.checkRouteFees,
+        favorBlockClaims: favorBlockClaims,
         console: { error: function() {}, log: function() {}, warn: function() {} },
     };
     vm.createContext(sandbox);
@@ -74,6 +77,26 @@ function bolt() {
         const body = src.slice(start, end);
         assert.ok(body.includes('tipConfirm.invoiceSatsFromDecoded'));
         assert.ok(!body.includes('Math.floor((decoded.millisatoshis || 0) / 1000)'));
+    });
+
+    await testAsync('an invoice with route fees over the limit is refused', async function() {
+        const s = loadResolve();
+        s._decoded = {
+            millisatoshis: '1000000',
+            timeExpireDate: Math.floor(Date.now() / 1000) + 600,
+            tags: [{ tagName: 'routing_info', data: [{ fee_base_msat: 1000000, fee_proportional_millionths: 0 }] }],
+        };
+        await assert.rejects(function() { return s._resolvePrizeInvoice(bolt(), '', 1000); }, function(err) {
+            return err && /routing fees are too high/.test(err.message);
+        });
+    });
+
+    test('the prize path uses the shared route fee check', function() {
+        const src = fs.readFileSync(path.join(root, 'functions/src/gifting.js'), 'utf8');
+        const start = src.indexOf('async function _resolvePrizeInvoice');
+        const end = src.indexOf('\nconst claimCipherWin');
+        const body = src.slice(start, end);
+        assert.ok(body.includes('checkRouteFees'));
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
