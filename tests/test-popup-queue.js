@@ -7,13 +7,30 @@ const vm = require('vm');
 const root = path.join(__dirname, '..');
 function read(name) { return fs.readFileSync(path.join(root, name), 'utf8'); }
 
-function bootQueue() {
+function bootQueue(opts) {
     const listeners = {};
     const history = [];
+    const timers = [];
+    let timerSeq = 0;
+    const captureTimers = !!(opts && opts.captureTimers);
     const sandbox = {
         console: console,
-        setTimeout: function (fn) { return setTimeout(fn, 0); },
-        clearTimeout: clearTimeout,
+        setTimeout: function (fn, ms) {
+            if (captureTimers) {
+                const id = ++timerSeq;
+                timers.push({ id: id, fn: fn, ms: ms });
+                return id;
+            }
+            return setTimeout(fn, 0);
+        },
+        clearTimeout: function (id) {
+            if (captureTimers) {
+                const i = timers.findIndex(function (t) { return t.id === id; });
+                if (i >= 0) timers.splice(i, 1);
+                return;
+            }
+            clearTimeout(id);
+        },
         WeakMap: WeakMap,
         MutationObserver: function () { this.observe = function () {}; },
         document: {
@@ -41,7 +58,16 @@ function bootQueue() {
     sandbox.globalThis = sandbox;
     vm.createContext(sandbox);
     vm.runInContext(read('popup-stack.js'), sandbox, { filename: 'popup-stack.js' });
-    return { sandbox: sandbox, history: history, listeners: listeners };
+    return {
+        sandbox: sandbox,
+        history: history,
+        listeners: listeners,
+        timers: timers,
+        flushTimers: function () {
+            const due = timers.splice(0, timers.length);
+            due.forEach(function (t) { t.fn(); });
+        }
+    };
 }
 
 let passed = 0;
@@ -349,6 +375,55 @@ test('ranking shows the 2FA prompt without waiting for Terms, and defers TOS unt
     const tosAt = load.indexOf('_showTosModal()');
     const totpAt = load.indexOf('_showTotpSignInChallenge()');
     assert.ok(totpAt > 0 && tosAt > totpAt, 'TOS must come after the 2FA challenge in loadUser');
+});
+
+test('the 12s gift/terms skip does not fire while a 2FA hold is on', function () {
+    const env = bootQueue({ captureTimers: true });
+    const q = env.sandbox.btcOnboardingQueue;
+    const seen = [];
+    q.holdForSecondFactor();
+    q.onSignedIn();
+    q.ready('gift', function () { seen.push('gift'); });
+    q.ready('terms', function () { seen.push('terms'); });
+    assert.deepStrictEqual(seen, []);
+    assert.strictEqual(env.timers.length, 0, 'onSignedIn must not arm the skip timer during a 2FA hold');
+    env.flushTimers();
+    assert.deepStrictEqual(seen, []);
+    assert.strictEqual(q.stateOf('gift'), 'ready');
+    assert.strictEqual(q.stateOf('terms'), 'ready');
+    q.releaseSecondFactor();
+    assert.deepStrictEqual(seen, ['gift']);
+    assert.strictEqual(env.timers.length, 1, 'release should arm the skip timer for any later pending steps');
+});
+
+test('a skip timer already running is cancelled when a 2FA hold starts', function () {
+    const env = bootQueue({ captureTimers: true });
+    const q = env.sandbox.btcOnboardingQueue;
+    const seen = [];
+    q.ready('gift', function () { seen.push('gift'); });
+    q.onSignedIn();
+    assert.deepStrictEqual(seen, ['gift']);
+    assert.strictEqual(env.timers.length, 1);
+    q.holdForSecondFactor();
+    assert.strictEqual(env.timers.length, 0, 'hold must clear the skip timer');
+    env.flushTimers();
+    assert.strictEqual(q.stateOf('terms'), 'pending');
+    q.releaseSecondFactor();
+    // hold moved the in-flight gift step back to ready, so it may show again.
+    q.done('gift');
+    q.ready('terms', function () { seen.push('terms'); });
+    assert.ok(seen.indexOf('terms') !== -1);
+    assert.strictEqual(q.stateOf('terms'), 'showing');
+});
+
+test('loadUser releases the popup queue when the user doc is missing', function () {
+    const ranking = read('ranking.js');
+    const idx = ranking.indexOf('User exists in auth but not in Firestore');
+    assert.ok(idx > 0);
+    const end = ranking.indexOf('function homeSignedInNow()', idx);
+    const block = ranking.slice(idx, end);
+    assert.ok(block.includes('clearTotpHold()'));
+    assert.ok(block.includes('_startSignedInPopupQueue()'));
 });
 
 test('Global Chat button is only CSS-hidden while body.btc-sheet-open is set', function () {

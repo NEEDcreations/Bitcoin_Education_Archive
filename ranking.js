@@ -4294,6 +4294,10 @@ async function loadUser(uid, prefetchedDoc) {
             updateRankUI();
             updateAuthButton();
         }
+        // A missing profile cannot require 2FA. Release the unknown-status hold
+        // so welcome/terms are not stuck for this session.
+        clearTotpHold();
+        if (typeof _startSignedInPopupQueue === 'function') _startSignedInPopupQueue();
     }
 }
 

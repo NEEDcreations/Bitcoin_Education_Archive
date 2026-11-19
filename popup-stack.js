@@ -319,11 +319,23 @@
         }
     }
 
+    function clearWait() {
+        if (waitTimer) {
+            root.clearTimeout(waitTimer);
+            waitTimer = null;
+        }
+    }
+
     function armWait() {
         if (waitTimer) return;
+        if (isSecondFactorHold()) return;
         waitTimer = root.setTimeout(function () {
             waitTimer = null;
             if (!signedIn) return;
+            if (isSecondFactorHold()) {
+                armWait();
+                return;
+            }
             if (stepState('gift') === 'pending') state.gift = 'skip';
             if (stepState('terms') === 'pending') state.terms = 'skip';
             pump();
@@ -334,7 +346,7 @@
         order: ORDER.slice(),
         onSignedIn: function () {
             signedIn = true;
-            armWait();
+            if (!isSecondFactorHold()) armWait();
             if (typeof root.btcBeginSignedInOnboarding === 'function') {
                 try { root.btcBeginSignedInOnboarding(); } catch (e) {}
             }
@@ -343,15 +355,18 @@
         holdUntilSignedIn: function () {
             signedIn = false;
             secondFactorHold = false;
+            clearWait();
         },
         holdForSecondFactor: function () {
             secondFactorHold = true;
+            clearWait();
             for (var i = 0; i < ORDER.length; i++) {
                 if (state[ORDER[i]] === 'showing') state[ORDER[i]] = 'ready';
             }
         },
         releaseSecondFactor: function () {
             secondFactorHold = false;
+            if (signedIn) armWait();
             pump();
         },
         isSecondFactorHold: function () { return isSecondFactorHold(); },
