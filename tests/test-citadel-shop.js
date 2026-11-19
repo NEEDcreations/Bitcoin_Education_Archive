@@ -18,8 +18,8 @@ vm.runInContext(src, sandbox, { filename: 'citadel-shop.js' });
 const CS = sandbox.window.CitadelShop;
 const NOW = Date.parse('2026-11-19T13:00:00Z');
 const OLD = NOW - 30 * 86400000;
-function view(u, flags) { return CS.computeView(u, { now: NOW, signedIn: true, flags: flags || CS.DEFAULT_FLAGS, open: true }); }
-function html(u, flags) { return CS.renderHtml(view(u, flags)); }
+function view(u, flags, extra) { return CS.computeView(u, Object.assign({ now: NOW, signedIn: true, flags: flags || CS.DEFAULT_FLAGS, open: true, buildOpen: true }, extra || {})); }
+function html(u, flags, extra) { return CS.renderHtml(view(u, flags, extra)); }
 
 const ALL_LESSONS = { lesson_walls: true, lesson_turret: true, lesson_vault: true, lesson_tower: true, lesson_keep: true };
 const free = { orangeTickets: 500, created: OLD, citadel: { lessonParts: ALL_LESSONS } };
@@ -135,11 +135,13 @@ test('closed shop (server open=false) disables buy and build with no buttons', (
     v.lessons.forEach(l => assert.strictEqual(l.action, 'soon'));
     const h = CS.renderHtml(v);
     assert.ok(!h.includes('data-cs-buy=') && !h.includes('data-cs-build='));
-    assert.ok(h.includes('data-cs-closed="1"') && h.includes('Building opens Jan 3, 2027'));
-    assert.ok(h.indexOf('Building opens Jan 3, 2027') < h.indexOf('cs-progress'), 'banner is at the top');
+    assert.ok(h.includes('data-cs-closed="1"') && h.includes('Start collecting parts Jan 3, 2027. Building opens later.'));
+    assert.ok(!h.includes('Building opens Jan 3'), 'no promise that building opens on Jan 3');
+    assert.ok(h.indexOf('Start collecting parts Jan 3, 2027') < h.indexOf('cs-progress'), 'banner is at the top');
     const freeClosed = CS.renderHtml(CS.computeView(free, { now: NOW, signedIn: true, flags: CS.DEFAULT_FLAGS, open: false }));
     assert.ok(freeClosed.includes('data-cs-premium="1"') && freeClosed.includes('Get Premium'));
-    assert.ok(freeClosed.includes('Get Premium to unlock buying Citadel parts'));
+    assert.ok(freeClosed.includes('Get Premium to collect Citadel parts.'));
+    assert.ok(!freeClosed.includes('when building opens'), 'Premium copy does not tie buying to building');
     assert.ok(!freeClosed.includes('January 3, 2027'), 'date is not buried in the Premium copy');
     assert.ok(src.includes("if (typeof d.open === 'boolean') shopOpen = d.open;"), 'open comes from the server status');
     assert.ok(src.includes('shopOpen === true'), 'unknown open state is treated as closed');
@@ -151,7 +153,76 @@ test('unknown or missing server open state defaults to closed', () => {
     v.lessons.forEach(l => assert.strictEqual(l.action, 'soon'));
     const h = CS.renderHtml(v);
     assert.ok(!h.includes('data-cs-buy=') && !h.includes('data-cs-build='));
-    assert.ok(h.includes('data-cs-closed="1"') && h.includes('Building opens Jan 3, 2027'));
+    assert.ok(h.includes('data-cs-closed="1"') && h.includes('Start collecting parts Jan 3, 2027. Building opens later.'));
+    assert.strictEqual(v.buildOpen, false, 'unknown build state is closed');
+    assert.ok(src.includes("if (typeof d.buildOpen === 'boolean') buildOpen = d.buildOpen === true;"));
+});
+
+// ---- Collect now, build later (Phil, Nov 18) ----
+const collector = { orangeTickets: 500, created: OLD, premium: { active: true },
+    citadel: { ownedStages: { walls: 3, turret: 2 }, stages: { walls: 1 }, weekSpent: 0, lessonParts: { lesson_keep: true } } };
+
+test('open but building closed: buy works, banner and locked Build say Building opens later', () => {
+    const v = view(collector, null, { buildOpen: false });
+    assert.strictEqual(v.open, true);
+    assert.strictEqual(v.buildOpen, false);
+    const walls = v.parts.find(p => p.id === 'walls');
+    assert.strictEqual(walls.have, 3);
+    assert.strictEqual(walls.built, 1);
+    assert.strictEqual(walls.toBuild, 2);
+    assert.strictEqual(walls.action, 'buy');
+    assert.strictEqual(walls.buildAction, 'soon');
+    v.lessons.filter(l => l.owned).forEach(l => assert.strictEqual(l.action, 'soon'));
+    const h = CS.renderHtml(v);
+    assert.ok(h.includes('data-cs-build-closed="1" role="status">Building opens later.</div>'));
+    assert.ok(!h.includes('data-cs-closed="1"'));
+    assert.ok(h.includes('data-cs-buy="walls" data-stage="4"'), 'next buy follows collected stages');
+    assert.ok(!h.includes('data-cs-build-part=') && !h.includes('data-cs-build='), 'no live build buttons');
+    assert.ok(h.includes('data-reason="not_build_open">' ) && h.includes('Building opens later</button>'));
+    assert.ok(h.includes('All stages collected'), 'turret fully collected, not built');
+});
+
+test('building open: no banner, Build buttons for the next collected stage and lesson parts', () => {
+    const v = view(collector);
+    const h = CS.renderHtml(v);
+    assert.ok(!h.includes('cs-banner'), 'no banner once building opens');
+    assert.ok(h.includes('data-cs-build-part="walls" data-stage="2"'));
+    assert.ok(h.includes('data-cs-build-part="turret" data-stage="1"'));
+    assert.ok(!h.includes('data-cs-build-part="vault"'), 'nothing collected, nothing to build');
+    assert.ok(h.includes('data-cs-build="lesson_keep"'));
+    assert.ok(src.includes("runAction(CALLABLES.build, { partId: t.getAttribute('data-cs-build-part'), stage: Number(t.getAttribute('data-stage')), requestId: reqId() }, t);"));
+});
+
+test('inventory shows collected but unbuilt stages; progress counts built', () => {
+    const v = view(collector, null, { buildOpen: false });
+    assert.strictEqual(v.built, 1);
+    assert.strictEqual(v.collected, 5);
+    assert.strictEqual(v.waiting, 4);
+    const h = CS.renderHtml(v);
+    assert.ok(h.includes('1 / 15 stages'));
+    assert.ok(h.includes('data-cs-waiting="4"'));
+    assert.ok(h.includes('data-cs-unbuilt="2">2 collected, not built yet'));
+    assert.ok(h.includes('3 / 4 collected · 1 built'));
+    assert.ok(!h.includes('No parts yet'));
+    const onlyCollected = { orangeTickets: 0, created: OLD, citadel: { ownedStages: { vault: 1 } } };
+    const ho = html(onlyCollected, null, { buildOpen: false });
+    assert.ok(ho.includes('1 / 2 collected · 0 built'), 'free or lapsed players still see collected parts');
+    assert.ok(!ho.includes('data-cs-build-part'));
+});
+
+test('non-Premium with collected parts sees no build action', () => {
+    const lapsed = JSON.parse(JSON.stringify(collector)); lapsed.premium = { active: false, lapsedAt: 1 };
+    const v = view(lapsed);
+    v.parts.filter(p => p.toBuild > 0).forEach(p => assert.strictEqual(p.buildAction, 'locked'));
+    const h = CS.renderHtml(v);
+    assert.ok(!h.includes('data-cs-build-part=') && !h.includes('data-cs-build='));
+});
+
+test('buttons stay 44px and the new copy has no unsafe markup', () => {
+    assert.ok(src.includes('.cs-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:44px;'));
+    assert.ok(src.includes('.cs-row{display:flex;align-items:flex-start;flex-wrap:wrap;'), 'rows wrap at 375px');
+    assert.ok(src.includes('overflow-wrap:anywhere;}'));
+    assert.ok(!/insertAdjacentHTML|document\.write|eval\(/.test(src));
 });
 
 test('new account cannot buy before the minimum age', () => {
@@ -164,15 +235,15 @@ test('no em-dashes in the shop source', () => {
     assert.ok(!/\\u2014/.test(src));
 });
 
-test('SW is v2623 and quests.js loads citadel-shop.js at v2623', () => {
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2623'"));
+test('SW is v2631 and quests.js loads citadel-shop.js at v2631', () => {
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2631'"));
     const q = read('quests.js');
-    assert.ok(q.includes("var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2623';"));
+    assert.ok(q.includes("var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2631';"));
     assert.ok(!q.includes('USE XP TO CONSTRUCT YOUR OWN CITADEL'));
     assert.strictEqual(read('index.html'), read('404.html'));
     assert.ok(read('index.html').includes('ranking.js?v=20261119_v2617'));
-    assert.ok(read('index.html').includes('quests.js?v=20261119_v2623'));
-    assert.ok(read('index.html').includes('miniapp-share.js?v=20261119_v2623'));
+    assert.ok(read('index.html').includes('quests.js?v=20261119_v2631'));
+    assert.ok(read('index.html').includes('miniapp-share.js?v=20261119_v2631'));
     assert.ok(q.includes("z-index:400000") && q.includes('questHubShareSlot'));
     assert.ok(read('miniapp-share.js').includes("mount(doc.getElementById('questHubShareSlot'), 'quests')"));
     assert.ok(read('index.html').includes('body:has(#questHubOverlay) .fab-btn'));

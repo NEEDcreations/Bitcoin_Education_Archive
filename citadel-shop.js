@@ -47,6 +47,10 @@
     // ET on live). Closed until the server answers, and closed if the server
     // omits open, so a missing flag cannot look like an open shop.
     var shopOpen = false;
+    // Building is a separate step with its own server switch (buildOpen in
+    // getCitadelShopStatus). Closed until the server says true. Buying collects
+    // parts into inventory; building turns collected parts into built stages.
+    var buildOpen = false;
 
     // Draft catalog (Rewards draft, Nov 19, 2026). Server owns the real prices.
     var PARTS = [
@@ -101,20 +105,27 @@
         var u = user || {};
         var f = (opt && opt.flags) || flags;
         var open = (opt && typeof opt.open === 'boolean') ? opt.open : shopOpen === true;
+        var canBuild = (opt && typeof opt.buildOpen === 'boolean') ? opt.buildOpen : buildOpen === true;
         var now = (opt && opt.now) || Date.now();
         var c = u.citadel || {};
         var premium = !!(u.premium && u.premium.active === true);
         var lapsed = !premium && !!(u.premium && u.premium.lapsedAt);
         var signedIn = !!(opt && opt.signedIn !== undefined ? opt.signedIn : (u && Object.keys(u).length));
         var stagesIn = c.stages || {};
+        var ownedIn = c.ownedStages || {};
         var hideOwned = lapsed && CONFIG.LAPSED_PARTS_MODE === 'hide';
-        var owned = {};
-        var built = 0, partsDone = 0;
+        // owned = collected stages (bought), builtBy = built stages. A built
+        // stage always counts as collected.
+        var owned = {}, builtBy = {};
+        var built = 0, collected = 0, partsDone = 0;
         PARTS.forEach(function (p) {
-            var have = hideOwned ? 0 : Math.min(n(stagesIn[p.id]), p.stages);
+            var b = hideOwned ? 0 : Math.min(n(stagesIn[p.id]), p.stages);
+            var have = hideOwned ? 0 : Math.max(b, Math.min(n(ownedIn[p.id]), p.stages));
             owned[p.id] = have;
-            built += have;
-            if (have >= p.stages) partsDone++;
+            builtBy[p.id] = b;
+            built += b;
+            collected += have;
+            if (b >= p.stages) partsDone++;
         });
         var cap = n(c.weekCap) || CONFIG.WEEKLY_CAP_OT;
         var spent = Math.min(n(c.weekSpent), cap);
@@ -137,19 +148,23 @@
                 else if (p.price > balance) { action = 'disabled'; reason = 'balance'; }
                 else action = 'buy';
             } else if (done) action = 'complete';
-            return { id: p.id, name: p.name, icon: p.icon, price: p.price, stages: p.stages, have: have, done: done, action: action, reason: reason };
+            var b = builtBy[p.id];
+            var toBuild = have - b;
+            var buildAction = toBuild <= 0 ? 'none' : (!premium ? 'locked' : (canBuild ? 'build' : 'soon'));
+            return { id: p.id, name: p.name, icon: p.icon, price: p.price, stages: p.stages, have: have, done: done, action: action, reason: reason,
+                built: b, toBuild: toBuild, buildStage: b + 1, buildAction: buildAction };
         });
         var lessons = LESSON_PARTS.map(function (lp) {
             var has = lessonOwned[lp.id] === true;
             var isBuilt = lessonBuilt[lp.id] === true;
-            var action = !has ? 'not_earned' : (isBuilt ? 'built' : (!premium ? 'locked' : (open ? 'build' : 'soon')));
+            var action = !has ? 'not_earned' : (isBuilt ? 'built' : (!premium ? 'locked' : (canBuild ? 'build' : 'soon')));
             return { id: lp.id, name: lp.name, part: lp.part, lesson: lp.lesson, title: lp.title, owned: has, built: isBuilt, action: action };
         });
         return {
-            premium: premium, lapsed: lapsed, signedIn: signedIn, open: open,
+            premium: premium, lapsed: lapsed, signedIn: signedIn, open: open, buildOpen: canBuild,
             showGetPremium: !premium,
             referralWeek: f.referralWeekPremiumBuy === true,
-            built: built, partsDone: partsDone,
+            built: built, collected: collected, waiting: collected - built, partsDone: partsDone,
             progressLabel: CONFIG.PROGRESS_LABEL_MODE === 'parts'
                 ? (partsDone + ' / ' + PARTS.length + ' parts')
                 : (built + ' / ' + TOTAL_STAGES + ' stages'),
@@ -160,29 +175,43 @@
         };
     }
 
+    function buildBtn(p) {
+        if (p.buildAction === 'build') {
+            return '<button class="cs-btn cs-buy" type="button" data-cs-build-part="' + p.id + '" data-stage="' + p.buildStage + '">' + icon('castle', 18) + ' Build stage ' + p.buildStage + '</button>';
+        }
+        if (p.buildAction === 'soon') return '<button class="cs-btn cs-locked" type="button" disabled aria-disabled="true" data-reason="not_build_open">' + icon('lock', 18) + ' Building opens later</button>';
+        if (p.buildAction === 'locked') return '<button class="cs-btn cs-locked" type="button" disabled aria-disabled="true">' + icon('lock', 18) + ' Premium only</button>';
+        return '';
+    }
+
     function partCard(p) {
-        var sub = p.done ? (p.price * p.stages) + ' OrangeTix total \u00b7 complete'
+        var sub = p.done ? (p.price * p.stages) + ' OrangeTix total \u00b7 all collected'
             : p.price + ' OrangeTix \u00b7 stage ' + (p.have + 1) + ' of ' + p.stages + ' \u00b7 ' + (p.price * p.stages) + ' total';
+        if (p.have > 0) sub += ' \u00b7 ' + p.built + ' of ' + p.stages + ' built';
         var btn;
         if (p.action === 'locked') {
             btn = '<button class="cs-btn cs-locked" type="button" disabled aria-disabled="true">' + icon('lock', 18) + ' Premium only</button>';
         } else if (p.action === 'complete') {
-            btn = '<div class="cs-btn cs-owned">' + icon('check', 18) + ' Complete</div>';
+            btn = p.built >= p.stages
+                ? '<div class="cs-btn cs-owned">' + icon('check', 18) + ' Complete</div>'
+                : '<div class="cs-btn cs-owned" data-cs-collected="1">' + icon('check', 18) + ' All stages collected</div>';
         } else if (p.action === 'disabled') {
             var why = p.reason === 'not_open' ? 'Opens Jan 3, 2027' : p.reason === 'weekly_cap' ? 'Weekly limit reached' : p.reason === 'account_age' ? 'Account too new' : 'Not enough OrangeTix';
             btn = '<button class="cs-btn cs-locked" type="button" disabled aria-disabled="true" data-reason="' + p.reason + '">' + why + '</button>';
         } else {
             btn = '<button class="cs-btn cs-buy" type="button" data-cs-buy="' + p.id + '" data-stage="' + (p.have + 1) + '">' + icon('ticket', 18) + ' Buy \u00b7 ' + p.price + ' OrangeTix</button>';
         }
+        // A locked "Premium only" build button would repeat the buy one.
+        var bb = p.buildAction === 'locked' && p.action === 'locked' ? '' : buildBtn(p);
         return '<article class="cs-card" data-part="' + p.id + '"><div class="cs-card-top"><div class="cs-part-icon">' + icon(p.icon, 22) + '</div>' +
-            '<div><h3>' + p.name + '</h3><div class="cs-sub">' + sub + '</div></div></div>' + btn + '</article>';
+            '<div><h3>' + p.name + '</h3><div class="cs-sub">' + sub + '</div></div></div>' + btn + bb + '</article>';
     }
 
     function lessonRow(l) {
         var right;
         if (!l.owned) right = '<span class="cs-dim">Pass \u201c' + l.title + '\u201d to earn it</span>';
         else if (l.action === 'built') right = '<div class="cs-btn cs-owned cs-small">' + icon('check', 16) + ' Built</div>';
-        else if (l.action === 'soon') right = '<button class="cs-btn cs-locked cs-small" type="button" disabled aria-disabled="true" data-reason="not_open">Opens Jan 3</button>';
+        else if (l.action === 'soon') right = '<button class="cs-btn cs-locked cs-small" type="button" disabled aria-disabled="true" data-reason="not_build_open">Building opens later</button>';
         else if (l.action === 'build') right = '<button class="cs-btn cs-buy cs-small" type="button" data-cs-build="' + l.id + '">Build</button>';
         else right = '<button class="cs-btn cs-locked cs-small" type="button" disabled aria-disabled="true">' + icon('lock', 16) + ' Premium only</button>';
         return '<div class="cs-row" data-lesson="' + l.id + '"><div class="cs-part-icon cs-sm">' + icon('book', 18) + '</div>' +
@@ -191,14 +220,16 @@
 
     function renderHtml(v) {
         var h = '<div class="bq-cshop">';
-        if (!v.open) h += '<div class="cs-banner" data-cs-closed="1" role="status">Building opens Jan 3, 2027</div>';
+        if (!v.open) h += '<div class="cs-banner" data-cs-closed="1" role="status">Start collecting parts Jan 3, 2027. Building opens later.</div>';
+        else if (!v.buildOpen) h += '<div class="cs-banner" data-cs-build-closed="1" role="status">Building opens later.</div>';
         h += '<section class="cs-panel cs-progress" aria-label="Citadel progress"><div class="cs-prow"><div class="cs-plabel">' + v.progressLabel + '</div>' +
             '<div class="cs-meta">' + (v.premium
                 ? fmt(v.balance) + ' OrangeTix \u00b7 ' + v.spent + ' / ' + v.cap + ' used this week'
                 : 'Premium unlocks buying') + '</div></div>' +
             '<div class="cs-track" role="progressbar" aria-valuemin="0" aria-valuemax="' + TOTAL_STAGES + '" aria-valuenow="' + v.built + '" aria-label="Citadel stages built"><div class="cs-fill" style="width:' + v.pct + '%"></div></div>';
-        if (v.premium || v.built > 0) {
-            h += '<div class="cs-breakdown">' + v.parts.map(function (p) { return '<div><b>' + p.name + '</b> ' + p.have + ' / ' + p.stages + '</div>'; }).join('') + '</div>' +
+        if (v.waiting > 0) h += '<p class="cs-note" data-cs-waiting="' + v.waiting + '">' + v.waiting + ' collected ' + (v.waiting === 1 ? 'stage' : 'stages') + ' waiting to be built.</p>';
+        if (v.premium || v.collected > 0) {
+            h += '<div class="cs-breakdown">' + v.parts.map(function (p) { return '<div><b>' + p.name + '</b> ' + p.built + ' / ' + p.stages + '</div>'; }).join('') + '</div>' +
                 '<p class="cs-note">A basic Citadel is 15 stages across five parts. Parts are paid with OrangeTix you\u2019ve earned. Paying never speeds up collecting parts.</p>';
         }
         if (v.premium) {
@@ -212,7 +243,7 @@
 
         if (v.showGetPremium) {
             h += '<section class="cs-panel cs-cta" id="csGetPremium"><div class="cs-kicker">Premium</div>' +
-                '<p class="cs-copy">Get Premium to unlock buying Citadel parts and cosmetics when building opens. Plans from $5 a month, $50 a year, or Founders\u2019 Lifetime for $150 (500 seats). Your other Premium perks start when you buy.</p>' +
+                '<p class="cs-copy">Get Premium to collect Citadel parts. Plans from $5 a month, $50 a year, or Founders\u2019 Lifetime for $150 (500 seats). Your other Premium perks start when you buy.</p>' +
                 (v.referralWeek ? '<p class="cs-copy" data-cs-referral="1">Referral week: Premium can be bought here this week.</p>' : '') +
                 '<button class="cs-btn cs-primary" type="button" data-cs-premium="1">' + icon('sparkles', 18) + ' Get Premium</button></section>';
         }
@@ -224,12 +255,14 @@
         h += '<div class="cs-head"><h2>Parts shop</h2><span class="cs-hint">Draft prices \u00b7 OrangeTix</span></div>' +
             '<div class="cs-grid">' + v.parts.map(partCard).join('') + '</div>';
 
-        h += '<div class="cs-head"><h2>Parts inventory</h2><span class="cs-hint">Your built stages</span></div><section class="cs-panel cs-inv">';
-        if (v.built === 0) {
+        h += '<div class="cs-head"><h2>Parts inventory</h2><span class="cs-hint">Collected and built stages</span></div><section class="cs-panel cs-inv">';
+        if (v.collected === 0) {
             h += '<div class="cs-empty"><strong>No parts yet</strong>When you buy a stage with OrangeTix you\u2019ve earned, it will show up here.</div>';
         } else {
             h += '<div class="cs-list">' + v.parts.map(function (p) {
-                return '<div class="cs-row"><div class="cs-part-icon cs-sm">' + icon(p.icon, 18) + '</div><div class="cs-row-name">' + p.name + '</div><div class="cs-count">' + p.have + ' / ' + p.stages + '</div></div>';
+                var tag = p.toBuild > 0 ? '<span class="cs-tag" data-cs-unbuilt="' + p.toBuild + '">' + p.toBuild + ' collected, not built yet</span>' : '';
+                return '<div class="cs-row" data-inv="' + p.id + '"><div class="cs-part-icon cs-sm">' + icon(p.icon, 18) + '</div><div class="cs-row-name">' + p.name + tag + '</div>' +
+                    '<div class="cs-count">' + p.have + ' / ' + p.stages + ' collected \u00b7 ' + p.built + ' built</div></div>';
             }).join('') + '</div>';
         }
         h += '</section>';
@@ -281,7 +314,7 @@
         '.bq-cshop .cs-row-name{flex:1 1 8rem;min-width:0;font-size:0.875rem;font-weight:800;color:var(--heading);overflow-wrap:anywhere;}',
         '.bq-cshop .cs-dim{flex:1 1 10rem;min-width:0;overflow-wrap:anywhere;}',
         '.bq-cshop .cs-tag{display:block;font-size:0.75rem;font-weight:700;color:var(--cs-dim);}',
-        '.bq-cshop .cs-count{font-size:0.875rem;font-weight:800;color:var(--text);}',
+        '.bq-cshop .cs-count{font-size:0.875rem;font-weight:800;color:var(--text);min-width:0;overflow-wrap:anywhere;}',
         '.bq-cshop .cs-empty{text-align:center;padding:20px 12px;color:var(--cs-dim);font-size:0.875rem;line-height:1.5;}',
         '.bq-cshop .cs-empty strong{display:block;color:var(--heading);font-size:1rem;margin-bottom:6px;}',
         '.bq-cshop .cs-link{background:none;border:none;padding:0 2px;min-height:44px;color:var(--text);font:inherit;font-weight:800;text-decoration:underline;cursor:pointer;}'
@@ -307,6 +340,7 @@
         if (!u || !d) return;
         u.citadel = u.citadel || {};
         if (d.stages) u.citadel.stages = d.stages;
+        if (d.ownedStages) u.citadel.ownedStages = d.ownedStages;
         if (d.lessonParts) u.citadel.lessonParts = d.lessonParts;
         if (d.lessonBuilt) u.citadel.lessonBuilt = d.lessonBuilt;
         if (typeof d.weekSpent === 'number') u.citadel.weekSpent = d.weekSpent;
@@ -319,6 +353,7 @@
         }
         if (d.flags) flags = { referralWeekPremiumBuy: d.flags.referralWeekPremiumBuy === true };
         if (typeof d.open === 'boolean') shopOpen = d.open;
+        if (typeof d.buildOpen === 'boolean') buildOpen = d.buildOpen === true;
     }
 
     function openPremium() {
@@ -353,7 +388,7 @@
     }
 
     function onClick(e) {
-        var t = e.target && e.target.closest ? e.target.closest('[data-cs-premium],[data-cs-buy],[data-cs-build]') : null;
+        var t = e.target && e.target.closest ? e.target.closest('[data-cs-premium],[data-cs-buy],[data-cs-build],[data-cs-build-part]') : null;
         if (!t || !live()) return;
         if (t.hasAttribute('data-cs-premium')) { openPremium(); return; }
         var u = user();
@@ -362,6 +397,8 @@
             runAction(CALLABLES.buy, { partId: t.getAttribute('data-cs-buy'), stage: Number(t.getAttribute('data-stage')), requestId: reqId() }, t);
         } else if (t.hasAttribute('data-cs-build')) {
             runAction(CALLABLES.build, { lessonPartId: t.getAttribute('data-cs-build'), requestId: reqId() }, t);
+        } else if (t.hasAttribute('data-cs-build-part')) {
+            runAction(CALLABLES.build, { partId: t.getAttribute('data-cs-build-part'), stage: Number(t.getAttribute('data-stage')), requestId: reqId() }, t);
         }
     }
 

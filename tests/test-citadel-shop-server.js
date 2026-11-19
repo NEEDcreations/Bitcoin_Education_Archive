@@ -121,7 +121,7 @@ test('lesson map matches the client CONFIG.LESSON_PART_MAP', function () {
     });
 });
 
-test('Premium buy debits OrangeTix, advances the stage, records the purchase', async function () {
+test('Premium buy debits OrangeTix, collects the stage into inventory, records the purchase', async function () {
     const t = setup();
     const r = await buy(t, PREM, 'walls', 1, 'reqAAAAAAAA1');
     assert.strictEqual(r.success, true);
@@ -130,7 +130,10 @@ test('Premium buy debits OrangeTix, advances the stage, records the purchase', a
     assert.strictEqual(r.weekSpent, 75);
     const u = t.get('users/' + PREM);
     assert.strictEqual(u.orangeTickets, 425);
-    assert.strictEqual(u.citadel.stages.walls, 1);
+    assert.strictEqual(u.citadel.ownedStages.walls, 1, 'bought stage goes to inventory');
+    assert.strictEqual(u.citadel.stages, undefined, 'buying never builds');
+    assert.strictEqual(r.ownedStages.walls, 1);
+    assert.strictEqual(r.stages.walls, 0);
     const wk = core.weekInfo(NOW);
     const w = t.get('citadel_weekly/' + PREM + '_' + wk.key);
     assert.strictEqual(w.spent, 75);
@@ -235,7 +238,7 @@ test('double requestId returns the first result and debits once', async function
     assert.strictEqual(b.repeat, true);
     assert.strictEqual(b.newTickets, a.newTickets);
     assert.strictEqual(t.get('users/' + PREM).orangeTickets, 425);
-    assert.strictEqual(t.get('users/' + PREM).citadel.stages.walls, 1);
+    assert.strictEqual(t.get('users/' + PREM).citadel.ownedStages.walls, 1);
 });
 
 test('double requestId in parallel still debits once', async function () {
@@ -265,7 +268,7 @@ test('free player buy is rejected with no writes', async function () {
 });
 
 test('lapsed Premium cannot buy or build, and keeps bought stages', async function () {
-    const t = setup();
+    const t = setup({ config: { buildOpen: true } });
     assert.strictEqual((await buy(t, LAPSED, 'walls', 3)).code, 'not_premium');
     t.db.store.set('users/' + LAPSED, { orangeTickets: 500, citadel: { stages: { walls: 2 }, lessonParts: { lesson_walls: true } } });
     assert.strictEqual((await t.svc.build(ctx(LAPSED), { lessonPartId: 'lesson_walls', requestId: req() })).code, 'not_premium');
@@ -321,7 +324,7 @@ test('lesson grant is closed before Jan 3 too; status reports no pending grant',
 });
 
 test('a purchase row owned by another uid is never replayed', async function () {
-    const t = setup();
+    const t = setup({ config: { buildOpen: true } });
     // uid 'premUid000001' + '_' + 'x_reqCOLLIDE' collides with uid 'premUid000001_x' + 'reqCOLLIDE'
     t.db.store.set('premium_entitlements/premUid000001_x', ACTIVE_ENT);
     t.db.store.set('users/premUid000001_x', { orangeTickets: 500 });
@@ -408,7 +411,7 @@ test('status reports pending grant, week, flags and Premium', async function () 
 });
 
 test('build: Premium only, owned lesson part only, once, no OrangeTix', async function () {
-    const t = setup();
+    const t = setup({ config: { buildOpen: true } });
     assert.strictEqual((await t.svc.build(ctx(PREM), { lessonPartId: 'lesson_keep', requestId: req() })).code, 'not_owned');
     await t.svc.claimLessons(ctx(PREM));
     const r = await t.svc.build(ctx(PREM), { lessonPartId: 'lesson_keep', requestId: 'reqBUILD0001' });
@@ -485,16 +488,16 @@ test('banned and rewardBlocked accounts cannot buy, build or claim lessons', asy
         assert.strictEqual((await t.svc.claimLessons(ctx(PREM))).code, 'banned');
         assert.strictEqual(JSON.stringify([...t.db.store]), before, 'no writes');
     }
-    const banned = setup();
+    const banned = setup({ config: { buildOpen: true } });
     banned.db.store.set('users/' + PREM, Object.assign(banned.get('users/' + PREM), { banned: true, citadel: { lessonParts: { lesson_keep: true } } }));
     await refuse(banned);
-    const reason = setup();
+    const reason = setup({ config: { buildOpen: true } });
     reason.db.store.set('users/' + PREM, Object.assign(reason.get('users/' + PREM), { ban_reason: 'abuse', citadel: { lessonParts: { lesson_keep: true } } }));
     await refuse(reason);
-    const sats = setup();
+    const sats = setup({ config: { buildOpen: true } });
     sats.db.store.set('users/' + PREM, Object.assign(sats.get('users/' + PREM), { satsDisabled: true, citadel: { lessonParts: { lesson_keep: true } } }));
     await refuse(sats);
-    const ledger = setup();
+    const ledger = setup({ config: { buildOpen: true } });
     ledger.db.store.set('users/' + PREM, Object.assign(ledger.get('users/' + PREM), { citadel: { lessonParts: { lesson_keep: true } } }));
     ledger.db.store.set('faucet_ledger/' + PREM, { banned: true });
     await refuse(ledger);
@@ -511,7 +514,7 @@ test('banned and rewardBlocked accounts cannot buy, build or claim lessons', asy
 
 test('frozen, revoked and pending-start entitlements cannot buy or build', async function () {
     async function notPremium(ent) {
-        const t = setup();
+        const t = setup({ config: { buildOpen: true } });
         t.db.store.set('premium_entitlements/' + PREM, Object.assign({}, ACTIVE_ENT, ent));
         t.db.store.set('users/' + PREM, Object.assign(t.get('users/' + PREM), { citadel: { lessonParts: { lesson_keep: true } } }));
         const beforeTickets = t.get('users/' + PREM).orangeTickets;
@@ -558,6 +561,157 @@ test('firstWindowEndMs is off by default and stretches the first week when set',
     const nextWeek = await buy(later, PREM, 'walls', 2);
     assert.strictEqual(nextWeek.success, true, 'without the hook, Jan 5 is a new week');
     assert.strictEqual(nextWeek.weekSpent, 75);
+});
+
+// ---------- collect now, build later (Phil, Nov 18) ----------
+function buildPart(t, uid, partId, stage, requestId) {
+    return t.svc.build(ctx(uid), { partId: partId, stage: stage, requestId: requestId || req() });
+}
+
+test('buy goes to inventory: stage order follows collected stages, nothing is built', async function () {
+    const t = setup();
+    assert.strictEqual((await buy(t, PREM, 'walls', 1)).success, true);
+    t.db.store.set('citadel_weekly/' + PREM + '_' + core.weekInfo(NOW).key, { weekKey: core.weekInfo(NOW).key, spent: 0 });
+    assert.strictEqual((await buy(t, PREM, 'walls', 1)).code, 'wrong_stage', 'stage 1 is already collected');
+    const r2 = await buy(t, PREM, 'walls', 2);
+    assert.strictEqual(r2.success, true);
+    const u = t.get('users/' + PREM);
+    assert.deepStrictEqual(u.citadel.ownedStages, { walls: 2 });
+    assert.strictEqual(u.citadel.stages, undefined);
+    const s = await t.svc.status(ctx(PREM));
+    assert.strictEqual(s.ownedStages.walls, 2);
+    assert.strictEqual(s.stages.walls, 0);
+    assert.deepStrictEqual(s.parts.walls, { owned: 2, built: 0, total: 4 });
+});
+
+test('a fully collected part cannot be bought again even before it is built', async function () {
+    const t = setup();
+    t.db.store.set('users/' + PREM, { orangeTickets: 500, citadel: { ownedStages: { turret: 2 } } });
+    assert.strictEqual((await buy(t, PREM, 'turret', 3)).code, 'already_owned');
+});
+
+test('older docs: built stages count as collected', function () {
+    const st = core.stateFrom({ citadel: { stages: { walls: 2 }, ownedStages: { walls: 1, keep: 9 } } });
+    assert.strictEqual(st.ownedStages.walls, 2);
+    assert.strictEqual(st.stages.walls, 2);
+    assert.strictEqual(st.ownedStages.keep, 4, 'clamped to the part size');
+});
+
+test('build is closed while buildOpen is off, even with openEarly on staging', async function () {
+    const cases = [
+        setup(),
+        setup({ config: { openEarly: true }, staging: true }),
+        setup({ config: { buildOpen: 'true' } }),
+        setup({ config: { buildOpen: 1 } }),
+        setup({ now: Date.UTC(2026, 11, 1), config: { openEarly: true }, staging: true }),
+    ];
+    for (const t of cases) {
+        t.db.store.set('users/' + PREM, { orangeTickets: 500, citadel: { ownedStages: { walls: 1 }, lessonParts: { lesson_keep: true } } });
+        const before = JSON.stringify([...t.db.store]);
+        const p = await buildPart(t, PREM, 'walls', 1);
+        assert.strictEqual(p.code, 'not_build_open');
+        assert.strictEqual(p.message, 'Building opens later.');
+        assert.strictEqual((await t.svc.build(ctx(PREM), { lessonPartId: 'lesson_keep', requestId: req() })).code, 'not_build_open');
+        assert.strictEqual(JSON.stringify([...t.db.store]), before, 'no writes');
+        assert.strictEqual((await t.svc.status(ctx(PREM))).buildOpen, false);
+    }
+    const src = fs.readFileSync(path.join(root, 'functions/src/citadelShop.js'), 'utf8');
+    assert.ok(src.includes('buildOpen: d.buildOpen === true,'), 'only a literal true opens building');
+});
+
+test('openEarly still opens buying on staging while building stays closed', async function () {
+    const before = Date.UTC(2026, 11, 1);
+    const t = setup({ now: before, config: { openEarly: true }, staging: true });
+    assert.strictEqual((await buy(t, PREM, 'walls', 1)).success, true);
+    const s = await t.svc.status(ctx(PREM));
+    assert.strictEqual(s.open, true);
+    assert.strictEqual(s.buildOpen, false);
+    assert.strictEqual((await buildPart(t, PREM, 'walls', 1)).code, 'not_build_open');
+});
+
+test('build works with buildOpen: collected stage moves to built in one transaction', async function () {
+    const t = setup({ config: { buildOpen: true } });
+    assert.strictEqual((await buy(t, PREM, 'walls', 1)).success, true);
+    const tickets = t.get('users/' + PREM).orangeTickets;
+    const r = await buildPart(t, PREM, 'walls', 1, 'reqBUILDW001');
+    assert.strictEqual(r.success, true);
+    assert.strictEqual(r.stages.walls, 1);
+    assert.strictEqual(r.ownedStages.walls, 1);
+    const u = t.get('users/' + PREM);
+    assert.strictEqual(u.citadel.stages.walls, 1);
+    assert.strictEqual(u.citadel.ownedStages.walls, 1);
+    assert.strictEqual(u.orangeTickets, tickets, 'building costs no OrangeTix');
+    const row = t.get('citadel_purchases/' + PREM + '_reqBUILDW001');
+    assert.strictEqual(row.kind, 'build');
+    assert.strictEqual(row.partId, 'walls');
+    assert.strictEqual(new Date(row.expireAt).getTime(), row.retainUntilMs);
+    const s = await t.svc.status(ctx(PREM));
+    assert.strictEqual(s.buildOpen, true);
+    assert.deepStrictEqual(s.parts.walls, { owned: 1, built: 1, total: 4 });
+});
+
+test('double build: same requestId replays, a new requestId is refused, parallel builds once', async function () {
+    const t = setup({ config: { buildOpen: true } });
+    t.db.store.set('users/' + PREM, { orangeTickets: 500, citadel: { ownedStages: { walls: 2 } } });
+    const first = await buildPart(t, PREM, 'walls', 1, 'reqDBL000001');
+    assert.strictEqual(first.success, true);
+    const again = await buildPart(t, PREM, 'walls', 1, 'reqDBL000001');
+    assert.strictEqual(again.repeat, true);
+    assert.strictEqual((await buildPart(t, PREM, 'walls', 1)).code, 'already_built');
+    assert.strictEqual(t.get('users/' + PREM).citadel.stages.walls, 1);
+    const par = await Promise.all([buildPart(t, PREM, 'walls', 2), buildPart(t, PREM, 'walls', 2), buildPart(t, PREM, 'walls', 2)]);
+    assert.strictEqual(par.filter(function (x) { return x.success; }).length, 1);
+    assert.strictEqual(t.get('users/' + PREM).citadel.stages.walls, 2);
+    assert.strictEqual((await buildPart(t, PREM, 'walls', 3)).code, 'not_collected');
+});
+
+test('cannot build a part that is not collected, or out of order', async function () {
+    const t = setup({ config: { buildOpen: true } });
+    const before = JSON.stringify([...t.db.store]);
+    assert.strictEqual((await buildPart(t, PREM, 'walls', 1)).code, 'not_collected');
+    assert.strictEqual((await t.svc.build(ctx(PREM), { lessonPartId: 'lesson_walls', requestId: req() })).code, 'not_owned');
+    assert.strictEqual(JSON.stringify([...t.db.store]), before, 'no writes');
+    t.db.store.set('users/' + PREM, { orangeTickets: 500, citadel: { ownedStages: { walls: 3 } } });
+    assert.strictEqual((await buildPart(t, PREM, 'walls', 2)).code, 'wrong_stage');
+    assert.strictEqual((await buildPart(t, PREM, 'walls', 0)).code, 'bad_request');
+    assert.strictEqual((await buildPart(t, PREM, 'nope', 1)).code, 'bad_request');
+    assert.strictEqual((await t.svc.build(ctx(PREM), { lessonPartId: 'lesson_walls', partId: 'walls', stage: 1, requestId: req() })).code, 'bad_request');
+    assert.strictEqual((await t.svc.build(ctx(PREM), { partId: 'walls', requestId: req() })).code, 'bad_request');
+});
+
+test('paid build keeps Premium, ban and kill switch checks', async function () {
+    const free = setup({ config: { buildOpen: true } });
+    free.db.store.set('users/' + FREE, { orangeTickets: 500, citadel: { ownedStages: { walls: 1 } } });
+    assert.strictEqual((await buildPart(free, FREE, 'walls', 1)).code, 'not_premium');
+    const banned = setup({ config: { buildOpen: true } });
+    banned.db.store.set('users/' + PREM, { orangeTickets: 500, banned: true, citadel: { ownedStages: { walls: 1 } } });
+    assert.strictEqual((await buildPart(banned, PREM, 'walls', 1)).code, 'banned');
+    const off = setup({ config: { buildOpen: true }, offline: true });
+    assert.strictEqual((await buildPart(off, PREM, 'walls', 1)).code, 'kill_switch');
+    assert.strictEqual((await buildPart(setup({ config: { buildOpen: true } }), GUEST, 'walls', 1)).code, 'guest');
+});
+
+test('a buy requestId never replays as a build', async function () {
+    const t = setup({ config: { buildOpen: true } });
+    assert.strictEqual((await buy(t, PREM, 'walls', 1, 'reqKIND00001')).success, true);
+    assert.strictEqual((await buildPart(t, PREM, 'walls', 1, 'reqKIND00001')).code, 'bad_request');
+    assert.strictEqual(t.get('users/' + PREM).citadel.stages, undefined);
+});
+
+test('status fields: open, buildOpen fail closed, owned and built per part, lesson grant on open', async function () {
+    const t = setup();
+    t.db.store.set('users/' + PREM, { orangeTickets: 500, lqPassed: ['lq_mining'], citadel: { ownedStages: { walls: 3, keep: 1 }, stages: { walls: 1 } } });
+    const s = await t.svc.status(ctx(PREM));
+    assert.strictEqual(s.open, true);
+    assert.strictEqual(s.buildOpen, false);
+    assert.deepStrictEqual(s.parts.walls, { owned: 3, built: 1, total: 4 });
+    assert.deepStrictEqual(s.parts.keep, { owned: 1, built: 0, total: 4 });
+    assert.deepStrictEqual(s.parts.vault, { owned: 0, built: 0, total: 2 });
+    assert.strictEqual(s.lessonGrantPending, true, 'grant follows open, not buildOpen');
+    const closed = await setup({ now: Date.UTC(2026, 11, 1), config: { buildOpen: true } }).svc.status(ctx(FREE));
+    assert.strictEqual(closed.open, false);
+    assert.strictEqual(closed.buildOpen, true);
+    assert.strictEqual(closed.lessonGrantPending, false);
 });
 
 test('no em-dashes in server code', function () {

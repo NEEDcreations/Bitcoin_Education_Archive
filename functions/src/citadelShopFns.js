@@ -75,7 +75,8 @@ function factory(functionsV1, opts) {
         await stepUp(data, context);
         return service().buy(context, data);
     });
-    // Input { lessonPartId, requestId } only. No OrangeTix.
+    // Input { lessonPartId, requestId } or { partId, stage, requestId }. No OrangeTix.
+    // Opens only with config/citadelShop.buildOpen === true.
     const buildCitadelPart = onCallApp(async function (data, context) {
         await stepUp(data, context);
         return service().build(context, data);

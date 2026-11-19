@@ -10,7 +10,14 @@
 // Collections (Admin SDK writes only; rules deny all client access):
 //   citadel_weekly/{uid}_{weekKey}      weekly spend counter, expireAt = week end + 14 days
 //   citadel_purchases/{uid}_{requestId} one row per buy or build, kept 13 months
-// Player state lives on users/{uid}.citadel { stages, lessonParts, lessonBuilt }.
+// Player state lives on users/{uid}.citadel:
+//   ownedStages { partId: n }  paid stages collected (bought), 0..part.stages
+//   stages      { partId: n }  paid stages built, always <= ownedStages
+//   lessonParts { id: true }   lesson parts collected (earned)
+//   lessonBuilt { id: true }   lesson parts built
+// Buying only collects. Building is a separate step (buildCitadelPart) behind
+// config/citadelShop.buildOpen, so a build timer can attach there later.
+// Docs written before ownedStages existed count every built stage as owned.
 
 const { rewardBlocked } = require('./cipherClaim');
 
@@ -26,6 +33,9 @@ const TRIAL_CAN_BUY = false;
 const PRE_JAN3_OT_SPENDABLE = true;
 // Citadel opens with Premium perks: Jan 3, 2027 12:00 AM ET. Staging may open
 // early with config/citadelShop.openEarly === true (ignored on live).
+// Building is separate: it opens only when config/citadelShop.buildOpen === true
+// (missing or anything else means closed, on staging and live). openEarly
+// never opens building (Phil, Nov 18: collect from Jan 3, build later).
 const OPENS_AT_MS = Date.UTC(2027, 0, 3, 5, 0, 0);
 const COUNTER_KEEP_DAYS = 14;
 const PURCHASE_KEEP_MONTHS = 13;
@@ -55,6 +65,7 @@ const MESSAGES = {
     guest: 'Sign in with an account to use the Citadel shop.',
     kill_switch: 'Bitcoin Quest is offline for maintenance. Please try again later.',
     not_open: 'The Citadel opens January 3, 2027 at 12:00 AM ET.',
+    not_build_open: 'Building opens later.',
     bad_request: 'That request is not valid.',
     not_premium: 'Buying and building parts needs Premium.',
     trial: 'Parts can be bought once your paid Premium starts.',
@@ -66,7 +77,8 @@ const MESSAGES = {
     weekly_cap: 'That would go over this week\u2019s ' + WEEKLY_CAP_OT + ' OrangeTix limit for parts.',
     balance: 'Not enough OrangeTix.',
     not_owned: 'You have not earned that lesson part yet.',
-    already_built: 'That lesson part is already built.',
+    not_collected: 'Collect that part before building it.',
+    already_built: 'That part is already built.',
     banned: 'This account cannot use the Citadel shop.',
 };
 
@@ -75,9 +87,11 @@ function fail(code) { return { success: false, code: code, message: MESSAGES[cod
 // A requestId replay returns the first result only to the uid that made it.
 // Doc ids are uid + '_' + requestId, so a row owned by another uid (an id
 // collision) is refused instead of leaking that player's result.
-function replayOf(row, uid) {
+// kind ('stage' or 'build') keeps a buy requestId from replaying as a build.
+function replayOf(row, uid, kind) {
     const d = row || {};
     if (d.uid !== uid || !d.result) return fail('bad_request');
+    if (kind && d.kind !== kind) return fail('bad_request');
     return Object.assign({ repeat: true }, d.result);
 }
 
@@ -167,12 +181,18 @@ function premiumSummaryLocal(ent, nowMs) {
 
 function cleanMap(m) { return m && typeof m === 'object' ? m : {}; }
 
+function clampStage(v, id) {
+    const n = Math.floor(Number(v) || 0);
+    return Math.max(0, Math.min(n, PARTS[id].stages));
+}
+
 function stateFrom(user) {
     const c = cleanMap(user && user.citadel);
     const stages = {};
+    const ownedStages = {};
     Object.keys(PARTS).forEach(function (id) {
-        const n = Math.floor(Number(cleanMap(c.stages)[id]) || 0);
-        stages[id] = Math.max(0, Math.min(n, PARTS[id].stages));
+        stages[id] = clampStage(cleanMap(c.stages)[id], id);
+        ownedStages[id] = Math.max(stages[id], clampStage(cleanMap(c.ownedStages)[id], id));
     });
     const lessonParts = {};
     const lessonBuilt = {};
@@ -180,7 +200,16 @@ function stateFrom(user) {
         if (cleanMap(c.lessonParts)[id] === true) lessonParts[id] = true;
         if (cleanMap(c.lessonBuilt)[id] === true) lessonBuilt[id] = true;
     });
-    return { stages: stages, lessonParts: lessonParts, lessonBuilt: lessonBuilt };
+    return { stages: stages, ownedStages: ownedStages, lessonParts: lessonParts, lessonBuilt: lessonBuilt };
+}
+
+// Per-part summary for the status call: collected, built, total.
+function partsSummary(st) {
+    const out = {};
+    Object.keys(PARTS).forEach(function (id) {
+        out[id] = { owned: st.ownedStages[id], built: st.stages[id], total: PARTS[id].stages };
+    });
+    return out;
 }
 
 function pendingLessons(user) {
@@ -217,10 +246,14 @@ function createCitadelShopService(deps) {
             referralWeekPremiumBuy: d.referralWeekPremiumBuy === true,
             openEarly: d.openEarly === true && !!(deps.isStaging && deps.isStaging()),
             firstWindowEndMs: Number.isFinite(firstEnd) && firstEnd > 0 ? firstEnd : undefined,
+            // Fail closed: only a literal true opens building. Not tied to
+            // openEarly or the Jan 3 open time.
+            buildOpen: d.buildOpen === true,
         };
     }
 
     function isOpen(flags, nowMs) { return nowMs >= OPENS_AT_MS || flags.openEarly === true; }
+    function isBuildOpen(flags) { return !!flags && flags.buildOpen === true; }
 
     // Shared gates before any write. Returns a fail() or null.
     async function gate(context) {
@@ -256,7 +289,10 @@ function createCitadelShopService(deps) {
             premiumActive: summary(ent, nowMs).active,
             flags: { referralWeekPremiumBuy: flags.referralWeekPremiumBuy },
             open: isOpen(flags, nowMs),
+            buildOpen: isBuildOpen(flags),
             stages: st.stages,
+            ownedStages: st.ownedStages,
+            parts: partsSummary(st),
             lessonParts: st.lessonParts,
             lessonBuilt: st.lessonBuilt,
             lessonGrantPending: !guest && isOpen(flags, nowMs) && pendingLessons(user).length > 0,
@@ -286,7 +322,7 @@ function createCitadelShopService(deps) {
 
         const out = await db.runTransaction(async function (tx) {
             const s = await Promise.all([tx.get(r.op), tx.get(r.user), tx.get(r.week), tx.get(r.ent), tx.get(r.ledger)]);
-            if (s[0].exists) return replayOf(s[0].data(), uid);
+            if (s[0].exists) return replayOf(s[0].data(), uid, 'stage');
             if (!s[1].exists) return fail('no_profile');
             const user = s[1].data() || {};
             if (rewardBlocked(user, s[4].exists ? (s[4].data() || {}) : {})) return fail('banned');
@@ -294,7 +330,8 @@ function createCitadelShopService(deps) {
             if (pg) return fail(pg);
             if (tooYoung(createdMs, nowMs)) return fail('account_age');
             const st = stateFrom(user);
-            const have = st.stages[partId];
+            // Stage order follows what the player has collected, not built.
+            const have = st.ownedStages[partId];
             if (have >= part.stages) return fail('already_owned');
             if (stage !== have + 1) return fail('wrong_stage');
             const week = s[2].exists ? (s[2].data() || {}) : {};
@@ -303,16 +340,19 @@ function createCitadelShopService(deps) {
             const balance = Math.max(0, Math.floor(Number(user.orangeTickets) || 0));
             if (balance < part.price) return fail('balance');
 
-            const newStages = Object.assign({}, st.stages);
-            newStages[partId] = have + 1;
+            // The bought stage goes to inventory (ownedStages). It is built later
+            // with buildCitadelPart once building opens.
+            const newOwned = Object.assign({}, st.ownedStages);
+            newOwned[partId] = have + 1;
             const result = {
                 success: true, partId: partId, stage: stage, price: part.price,
-                stages: newStages, weekSpent: spent + part.price, weekCap: WEEKLY_CAP_OT,
+                ownedStages: newOwned, stages: Object.assign({}, st.stages),
+                weekSpent: spent + part.price, weekCap: WEEKLY_CAP_OT,
                 newTickets: balance - part.price,
             };
-            const stagesPatch = {};
-            stagesPatch[partId] = have + 1;
-            tx.set(r.user, { orangeTickets: balance - part.price, citadel: { stages: stagesPatch } }, { merge: true });
+            const ownedPatch = {};
+            ownedPatch[partId] = have + 1;
+            tx.set(r.user, { orangeTickets: balance - part.price, citadel: { ownedStages: ownedPatch } }, { merge: true });
             tx.set(r.week, { uid: uid, weekKey: wk.key, spent: spent + part.price, updatedAtMs: nowMs, expireAt: new Date(wk.endMs + COUNTER_KEEP_DAYS * DAY_MS) });
             tx.create(r.op, Object.assign({
                 uid: uid, kind: 'stage', partId: partId, stage: stage, price: part.price, weekKey: wk.key,
@@ -324,41 +364,70 @@ function createCitadelShopService(deps) {
         return out;
     }
 
+    // Builds one collected-but-unbuilt part: a paid stage { partId, stage } or
+    // a lesson part { lessonPartId }. Opens only with config/citadelShop.buildOpen.
+    // The part moves from collected to built in one transaction, and the stage
+    // check plus the requestId row make a second build of the same part
+    // impossible. Today a build finishes at once; a later build timer can hook
+    // in here (write a pending build instead of the built count).
     async function build(context, data) {
         const g = await gate(context);
         if (g) return g;
         const uid = context.auth.uid;
         const d = data || {};
-        const id = typeof d.lessonPartId === 'string' && Object.prototype.hasOwnProperty.call(LESSON_PART_MAP, d.lessonPartId) ? d.lessonPartId : null;
+        const has = function (m, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(m, k); };
+        const lessonId = has(LESSON_PART_MAP, d.lessonPartId) ? d.lessonPartId : null;
+        const partId = has(PARTS, d.partId) ? d.partId : null;
+        const stage = Number.isInteger(d.stage) ? d.stage : null;
         const requestId = cleanRequestId(d.requestId);
-        if (!id || !requestId) return fail('bad_request');
+        // Exactly one target: a lesson part, or a paid part with its stage.
+        if (!requestId || (lessonId && d.partId !== undefined) || (!lessonId && (!partId || !stage))) return fail('bad_request');
         const nowMs = now();
         const flags = await readFlags();
-        if (!isOpen(flags, nowMs)) return fail('not_open');
+        if (!isBuildOpen(flags)) return fail('not_build_open');
         const r = refs(uid, requestId, weekInfo(nowMs, flags.firstWindowEndMs).key);
 
         const out = await db.runTransaction(async function (tx) {
             const s = await Promise.all([tx.get(r.op), tx.get(r.user), tx.get(r.ent), tx.get(r.ledger)]);
-            if (s[0].exists) return replayOf(s[0].data(), uid);
+            if (s[0].exists) return replayOf(s[0].data(), uid, 'build');
             if (!s[1].exists) return fail('no_profile');
             if (rewardBlocked(s[1].data() || {}, s[3].exists ? (s[3].data() || {}) : {})) return fail('banned');
             const pg = premiumGate(s[2].exists ? s[2].data() : null, flags, nowMs, false);
             if (pg) return fail(pg);
             const st = stateFrom(s[1].data() || {});
-            if (!st.lessonParts[id]) return fail('not_owned');
-            if (st.lessonBuilt[id]) return fail('already_built');
-            const built = Object.assign({}, st.lessonBuilt);
-            built[id] = true;
-            const result = { success: true, lessonPartId: id, lessonBuilt: built };
+            if (lessonId) {
+                if (!st.lessonParts[lessonId]) return fail('not_owned');
+                if (st.lessonBuilt[lessonId]) return fail('already_built');
+                const built = Object.assign({}, st.lessonBuilt);
+                built[lessonId] = true;
+                const result = { success: true, lessonPartId: lessonId, lessonBuilt: built };
+                const patch = {};
+                patch[lessonId] = true;
+                tx.set(r.user, { citadel: { lessonBuilt: patch } }, { merge: true });
+                tx.create(r.op, Object.assign({
+                    uid: uid, kind: 'build', lessonPartId: lessonId, result: result,
+                }, purchaseMeta(nowMs)));
+                return result;
+            }
+            const builtNow = st.stages[partId];
+            if (stage <= builtNow) return fail('already_built');
+            if (stage > st.ownedStages[partId]) return fail('not_collected');
+            if (stage !== builtNow + 1) return fail('wrong_stage');
+            const stages = Object.assign({}, st.stages);
+            stages[partId] = stage;
+            const result = {
+                success: true, partId: partId, stage: stage,
+                stages: stages, ownedStages: Object.assign({}, st.ownedStages),
+            };
             const patch = {};
-            patch[id] = true;
-            tx.set(r.user, { citadel: { lessonBuilt: patch } }, { merge: true });
+            patch[partId] = stage;
+            tx.set(r.user, { citadel: { stages: patch } }, { merge: true });
             tx.create(r.op, Object.assign({
-                uid: uid, kind: 'build', lessonPartId: id, result: result,
+                uid: uid, kind: 'build', partId: partId, stage: stage, result: result,
             }, purchaseMeta(nowMs)));
             return result;
         });
-        log('[citadel] build ' + (out.success ? 'ok' : out.code) + (out.repeat ? ' repeat' : '') + ' uid=' + maskUid(uid) + ' id=' + id);
+        log('[citadel] build ' + (out.success ? 'ok' : out.code) + (out.repeat ? ' repeat' : '') + ' uid=' + maskUid(uid) + ' id=' + (lessonId || partId));
         return out;
     }
 
@@ -403,6 +472,7 @@ module.exports = {
     weekInfo,
     pendingLessons,
     stateFrom,
+    partsSummary,
     maskUid,
     PARTS,
     LESSON_PART_MAP,
