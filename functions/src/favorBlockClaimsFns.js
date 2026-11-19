@@ -285,7 +285,33 @@ function factory(functionsV1, deps) {
         return service().resolveReview(context.auth.uid, { epoch: d.epoch, block: d.block, action: d.action, note: d.note });
     });
 
+    // Admin (read only): per-epoch block status (unclaimed, manual review,
+    // paying, unknown, paid, rejected) and the fee_halt readout. Masked uids
+    // and addresses only. Writes nothing, so no step-up and no kill-switch gate.
+    const adminFavorBlockStatus = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async function (data, context) {
+        requireAdmin(context);
+        const d = data || {};
+        return service().adminBlockStatus({ epochNumbers: Array.isArray(d.epochNumbers) ? d.epochNumbers : undefined });
+    });
+
+    // Admin: release every manual-review block of one epoch to its frozen
+    // winner. Input { epoch, note } only. Each block goes through the same
+    // service().resolveReview as adminResolveFavorReview. Never pays; binds no
+    // wallet secret; fresh admin step-up; App Check; kill-switch gated.
+    const adminReleaseAllFavorReview = functionsV1.runWith({
+        enforceAppCheck: true,
+        timeoutSeconds: 120,
+    }).https.onCall(async function (data, context) {
+        requireAdmin(context);
+        const secondFactor = require('./secondFactor');
+        await secondFactor.requireAdminStepUp(secondFactor.stamp(data, context), 'adminReleaseAllFavorReview');
+        const d = data || {};
+        return service().releaseAllReview(context.auth.uid, { epoch: d.epoch, note: d.note });
+    });
+
     return {
+        adminFavorBlockStatus: adminFavorBlockStatus,
+        adminReleaseAllFavorReview: adminReleaseAllFavorReview,
         adminResolveFavorReview: adminResolveFavorReview,
         claimFavorBlock: claimFavorBlock,
         myFavorEpochClaims: myFavorEpochClaims,

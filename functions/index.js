@@ -7154,6 +7154,8 @@ exports.myFavorEpochClaims = favorBlockClaimFns.myFavorEpochClaims;
 exports.adminSetFavorClaims = favorBlockClaimFns.adminSetFavorClaims;
 exports.adminFreezeFavorEpoch = favorBlockClaimFns.adminFreezeFavorEpoch;
 exports.adminResolveFavorReview = favorBlockClaimFns.adminResolveFavorReview;
+exports.adminReleaseAllFavorReview = favorBlockClaimFns.adminReleaseAllFavorReview;
+exports.adminFavorBlockStatus = favorBlockClaimFns.adminFavorBlockStatus;
 
 // Payout reconciliation (live since #365 shipped Nov 18, 2026): ledger match, stuck-paying
 // flags, optional wallet listing behind config/payoutReconcile.listWallet.

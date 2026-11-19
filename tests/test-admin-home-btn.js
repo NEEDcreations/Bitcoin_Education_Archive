@@ -225,7 +225,7 @@ console.log('');
         sb.syncHomeAdminBtn();
         doc.getElementById('homeAdminBtn').click();
         await flush();
-        const s = doc.scripts().find((x) => /admin-panel\.js\?v=20261116_v2581$/.test(x.src));
+        const s = doc.scripts().find((x) => /admin-panel\.js\?v=20261119_v2673$/.test(x.src));
         assert.ok(s, 'panel script requested');
         vm.runInContext(read('admin-panel.js'), sb, { filename: 'admin-panel.js' });
         s.onload();

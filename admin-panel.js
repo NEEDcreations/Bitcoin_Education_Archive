@@ -474,8 +474,9 @@
     // release a manual-review block. Every action is a callable that checks
     // the admin claim and a fresh authenticator code on the server. This UI
     // never writes Firestore directly. It only reads two admin-readable paths:
-    // config/satoshiFavorPayouts and sf_payout_results. Every value is shown
-    // with textContent, never parsed as HTML.
+    // config/satoshiFavorPayouts and sf_payout_results, plus the read-only
+    // adminFavorBlockStatus callable for live block status and the fee halt.
+    // Every value is shown with textContent, never parsed as HTML.
 
     var SF_MAX_EPOCH = 9999;
 
@@ -534,6 +535,67 @@
             else { s.claimable.push(b); s.claimableSats += Number(b.amount) || 0; }
         });
         return s;
+    }
+
+    var SF_STATUS_COPY = {
+        unclaimed: 'Unclaimed',
+        manual_review: 'Manual review',
+        paying: 'Paying now',
+        unknown: 'Payment unknown (check wallet)',
+        paid: 'Paid',
+        rejected: 'Rejected'
+    };
+    var SF_STATUS_ORDER = ['unclaimed', 'manual_review', 'paying', 'unknown', 'paid', 'rejected'];
+
+    // Server status rows -> a safe, display-only shape. Unknown statuses are
+    // dropped; numbers are coerced. Nothing here is trusted as HTML.
+    function sfNormalizeStatus(data) {
+        var d = data && typeof data === 'object' ? data : {};
+        var epochs = Array.isArray(d.epochs) ? d.epochs : [];
+        var out = [];
+        epochs.forEach(function (e) {
+            var n = Number(e && e.epochNumber);
+            if (!(n >= 1 && n <= SF_MAX_EPOCH) || Math.floor(n) !== n) return;
+            var counts = {};
+            var sats = {};
+            SF_STATUS_ORDER.forEach(function (k) { counts[k] = 0; sats[k] = 0; });
+            var blocks = [];
+            (Array.isArray(e.blocks) ? e.blocks : []).forEach(function (b) {
+                if (!b || !SF_STATUS_COPY.hasOwnProperty(b.status)) return;
+                var amt = Math.max(0, Math.floor(Number(b.amount) || 0));
+                counts[b.status] += 1;
+                sats[b.status] += amt;
+                blocks.push({
+                    block: Math.floor(Number(b.block) || 0), amount: amt, status: b.status,
+                    uid: String(b.uid || '').slice(0, 8), payTo: String(b.payTo || '').slice(0, 80),
+                    reviewReason: String(b.reviewReason || '').slice(0, 60), released: b.released === true,
+                    attempts: Math.max(0, Math.floor(Number(b.attempts) || 0)),
+                    paidAtMs: typeof b.paidAtMs === 'number' ? b.paidAtMs : null
+                });
+            });
+            out.push({ epochNumber: n, blocks: blocks, counts: counts, sats: sats });
+        });
+        out.sort(function (a, b) { return a.epochNumber - b.epochNumber; });
+        var h = d.feeHalt && typeof d.feeHalt === 'object' ? d.feeHalt : null;
+        return { ok: d.ok === true, epochs: out, feeHalt: h ? {
+            halted: h.halted === true,
+            reason: String(h.reason || '').slice(0, 60),
+            routingFeeSats: typeof h.routingFeeSats === 'number' ? h.routingFeeSats : null,
+            limitSats: typeof h.limitSats === 'number' ? h.limitSats : null,
+            epoch: typeof h.epoch === 'number' ? h.epoch : null,
+            block: typeof h.block === 'number' ? h.block : null,
+            atMs: typeof h.atMs === 'number' ? h.atMs : null,
+            clearedAtMs: typeof h.clearedAtMs === 'number' ? h.clearedAtMs : null
+        } : null };
+    }
+
+    function sfFeeHaltText(h) {
+        if (!h) return 'not loaded';
+        if (!h.halted) return 'Off' + (h.clearedAtMs ? ' (cleared ' + new Date(h.clearedAtMs).toLocaleString() + ')' : '');
+        var t = 'HALTED';
+        if (h.routingFeeSats != null) t += ': fee ' + sfSats(h.routingFeeSats) + ' sats' + (h.limitSats != null ? ' over the ' + sfSats(h.limitSats) + '-sat limit' : '');
+        if (h.epoch != null) t += ' (epoch ' + h.epoch + (h.block != null ? ', block ' + h.block : '') + ')';
+        return t;
     }
 
     function sfErr(e) {
@@ -713,6 +775,14 @@
         rBox.appendChild(el('p', null, 'Loading\u2026'));
         sheet.appendChild(rBox);
 
+        // 6. Blocks by epoch (live status from the server, read only)
+        sheet.appendChild(el('h3', null, 'Blocks by epoch'));
+        sheet.appendChild(el('p', null, 'Every frozen block and where it stands: unclaimed, manual review, paid. Release all sends every manual-review block in an epoch back to its frozen winner, one at a time, with the same checks as the single Release button. It never pays by itself.'));
+        var bBox = el('div');
+        bBox.id = 'sfuBlocks';
+        bBox.appendChild(el('p', null, 'Loading\u2026'));
+        sheet.appendChild(bBox);
+
         var closeRow = el('div', 'sfu-row');
         var closeBtn = sfButton('Close', 'sfu-cancel', 'sfuClose');
         closeRow.appendChild(closeBtn);
@@ -724,7 +794,7 @@
         closeBtn.addEventListener('click', closeFavorUi);
         root.addEventListener('click', function (ev) { if (ev.target === root) closeFavorUi(); });
 
-        var state = { cfg: null, preview: null, previewEpoch: null };
+        var state = { cfg: null, preview: null, previewEpoch: null, status: null, allMsg: {} };
 
         function paintState() {
             sfClear(stateBox);
@@ -741,8 +811,9 @@
             if (c.updatedBy) sfKv(stateBox, 'Last changed by', String(c.updatedBy));
             if (c.updatedAtMs) sfKv(stateBox, 'Last changed', new Date(Number(c.updatedAtMs)).toLocaleString());
             // sf_claim_counters/fee_halt is server-only (rules deny all client
-            // reads), so its state is not shown here.
-            sfKv(stateBox, 'Fee halt', 'not readable here');
+            // reads). Its state comes from the read-only adminFavorBlockStatus.
+            var fh = state.status && state.status.feeHalt;
+            sfKv(stateBox, 'Fee halt', sfFeeHaltText(fh), fh ? (fh.halted ? 'bad' : 'ok') : '');
             chk.checked = on;
             epochsIn.value = eps.join(', ');
         }
@@ -769,6 +840,18 @@
 
         function paintReview(rows) {
             sfClear(rBox);
+            // Once live status is loaded, drop blocks that already left review
+            // (released, paid, rejected). Epochs without live status stay.
+            if (state.status) {
+                rows = rows.filter(function (r) {
+                    var ep = null;
+                    state.status.epochs.forEach(function (e) { if (e.epochNumber === r.epoch) ep = e; });
+                    if (!ep) return true;
+                    var b = null;
+                    ep.blocks.forEach(function (x) { if (x.block === r.block) b = x; });
+                    return !b || b.status === 'manual_review';
+                });
+            }
             if (!rows.length) { rBox.appendChild(el('p', 'ok', 'No blocks waiting for review.')); return; }
             rows.forEach(function (r) {
                 var card = el('div', 'sfu-card');
@@ -963,10 +1046,99 @@
             });
         });
 
-        refresh.addEventListener('click', function () { loadState(); loadReview(); });
+        function paintBlocks() {
+            sfClear(bBox);
+            var st = state.status;
+            if (!st) { bBox.appendChild(el('p', 'bad', 'Could not read block status.')); return; }
+            if (!st.epochs.length) { bBox.appendChild(el('p', null, 'No frozen epochs yet.')); return; }
+            st.epochs.forEach(function (e) {
+                var card = el('div', 'sfu-card');
+                card.setAttribute('data-epoch', String(e.epochNumber));
+                card.appendChild(el('p', null, 'Epoch ' + e.epochNumber));
+                SF_STATUS_ORDER.forEach(function (k) {
+                    if (!e.counts[k] && k !== 'unclaimed' && k !== 'paid' && k !== 'manual_review') return;
+                    sfKv(card, SF_STATUS_COPY[k], e.counts[k] + ' blocks, ' + sfSats(e.sats[k]) + ' sats',
+                        k === 'paid' ? 'ok' : (k === 'manual_review' || k === 'unknown' ? 'warn' : ''));
+                });
+                var ul = el('ul');
+                e.blocks.forEach(function (b) {
+                    var line = 'Block ' + b.block + ': ' + SF_STATUS_COPY[b.status] + ', ' + sfSats(b.amount) + ' sats to ' + (b.payTo || 'no address') +
+                        ' (' + (b.uid || '?') + ')';
+                    if (b.status === 'manual_review' && b.reviewReason) line += ' \u2014 ' + (SF_REVIEW_COPY[b.reviewReason] || b.reviewReason);
+                    if (b.released && b.status === 'unclaimed') line += ' \u2014 released, waiting for the winner';
+                    if (b.attempts) line += ' \u2014 ' + b.attempts + ' attempt' + (b.attempts === 1 ? '' : 's');
+                    if (b.paidAtMs) line += ' \u2014 paid ' + new Date(b.paidAtMs).toLocaleString();
+                    ul.appendChild(el('li', b.status === 'paid' ? 'ok' : (b.status === 'manual_review' || b.status === 'unknown' ? 'warn' : ''), line));
+                });
+                card.appendChild(ul);
+                var msg = state.allMsg[e.epochNumber];
+                if (msg && !(e.counts.manual_review > 0)) {
+                    var done = el('div', msg.cls, msg.text);
+                    done.id = 'sfuReleaseAllStatus_' + e.epochNumber;
+                    card.appendChild(done);
+                }
+                if (e.counts.manual_review > 0) {
+                    var noteId = 'sfuAllNote_' + e.epochNumber;
+                    var note = sfInput(noteId, 'Note for Release all (required, admins only)', card, { maxlength: '280', placeholder: 'Why every review block in this epoch is safe to release' });
+                    var row = el('div', 'sfu-row');
+                    var all = sfButton('Release all ' + e.counts.manual_review + ' in epoch ' + e.epochNumber, 'sfu-go warn');
+                    all.id = 'sfuReleaseAll_' + e.epochNumber;
+                    row.appendChild(all);
+                    card.appendChild(row);
+                    var stl = el('div', 'sfu-status');
+                    stl.id = 'sfuReleaseAllStatus_' + e.epochNumber;
+                    if (msg) { stl.textContent = msg.text; stl.className = msg.cls; }
+                    card.appendChild(stl);
+                    all.addEventListener('click', function () {
+                        var n = (note.value || '').trim();
+                        stl.className = 'sfu-status';
+                        if (n.length < 3) { stl.textContent = 'Add a short note first.'; return; }
+                        if (!sfConfirm('Release all ' + e.counts.manual_review + ' manual-review blocks in epoch ' + e.epochNumber + ' (' + sfSats(e.sats.manual_review) + ' sats) to their frozen winners? Each winner can then claim with every normal check.')) return;
+                        all.disabled = true;
+                        stl.textContent = 'Checking your sign-in\u2026';
+                        sfGuarded('adminReleaseAllFavorReview', 'adminReleaseAllFavorReview', { epoch: e.epochNumber, note: n }).then(function (d) {
+                            all.disabled = false;
+                            if (d.cancelled) { stl.textContent = 'Enter a fresh authenticator code to continue.'; return; }
+                            if (!d.ok) { stl.textContent = 'Not released: ' + String(d.code || 'refused') + '.'; stl.className = 'sfu-status bad'; return; }
+                            var res = Array.isArray(d.results) ? d.results : [];
+                            var bad = res.filter(function (x) { return x && x.code !== 'released' && x.code !== 'noop'; });
+                            var skipped = Array.isArray(d.skipped) ? d.skipped.length : 0;
+                            stl.textContent = 'Released ' + (Number(d.released) || 0) + ' of ' + res.length + '.' +
+                                (bad.length ? ' Refused: ' + bad.map(function (x) { return 'block ' + Number(x.block) + ' (' + String(x.code) + ')'; }).join(', ') + '.' : '') +
+                                (skipped ? ' Skipped ' + skipped + ' in flight; use the single Release button after checking the wallet.' : '');
+                            stl.className = 'sfu-status ' + (bad.length ? 'warn' : 'ok');
+                            // Keep the result visible after the status repaint.
+                            state.allMsg[e.epochNumber] = { text: stl.textContent, cls: stl.className };
+                            loadStatus().then(loadReview);
+                        }).catch(function (err) {
+                            all.disabled = false;
+                            stl.textContent = sfErr(err);
+                            stl.className = 'sfu-status bad';
+                        });
+                    });
+                }
+                bBox.appendChild(card);
+            });
+        }
+
+        function loadStatus() {
+            return sfCall('adminFavorBlockStatus', {}).then(function (d) {
+                state.status = sfNormalizeStatus(d);
+                if (!state.status.ok) state.status = null;
+                paintBlocks();
+                if (state.cfg) paintState();
+            }).catch(function (e) {
+                state.status = null;
+                sfClear(bBox);
+                bBox.appendChild(el('p', 'bad', 'Could not read block status. ' + sfErr(e)));
+            });
+        }
+
+        refresh.addEventListener('click', function () { loadState(); loadStatus().then(loadReview); });
 
         loadState();
         loadReview();
+        loadStatus().then(loadReview);
     }
 
     window.bqOpenFavorClaims = openFavorClaims;
@@ -975,7 +1147,9 @@
         parseEpoch: sfParseEpoch,
         summarizeFreeze: sfSummarizeFreeze,
         maskUid: sfMaskUid,
-        maskLn: sfMaskLn
+        maskLn: sfMaskLn,
+        normalizeStatus: sfNormalizeStatus,
+        feeHaltText: sfFeeHaltText
     };
 
     window.bqAdminPanelTools = GROUPS;

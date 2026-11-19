@@ -1048,7 +1048,131 @@ function createBlockClaimService(deps) {
         return done(out[0], out[1], out[2], lookupKind ? { lookup: lookupKind } : null);
     }
 
-    return { claim: claim, listMine: listMine, freezeEpoch: freezeEpoch, loadConfig: loadConfig, catchUpBlockTotal: catchUpBlockTotal, resolveReview: resolveReview };
+    // Live status of one frozen block for admins. The frozen manualReview flag
+    // is permanent, so an admin release (reviewReleased) is honored here, the
+    // same way listMine honors it for the winner.
+    function liveBlockStatus(row, cd, rejected) {
+        if (rejected || (cd && cd.status === 'rejected')) return 'rejected';
+        if (cd && (cd.status === 'paid' || cd.status === 'paying' || cd.status === 'unknown' || cd.status === 'manual_review')) return cd.status;
+        if (row.manualReview && !(cd && cd.reviewReleased === true)) return 'manual_review';
+        return 'unclaimed';
+    }
+
+    async function readEpochBlocks(e) {
+        const snap = await db.collection('sf_payout_results').doc(resultId(e)).get();
+        const res = snap.exists ? (snap.data() || {}) : null;
+        if (!res || res.version !== RESULT_VERSION || !Array.isArray(res.blocks)) return null;
+        const rows = [];
+        for (let j = 0; j < res.blocks.length && j < BLOCKS_PER_EPOCH; j++) {
+            const row = res.blocks[j];
+            if (!row || row.block !== j) continue;
+            const cid = claimId(e, row.block);
+            const c = await db.collection('sf_block_claims').doc(cid).get();
+            const rj = await db.collection('sf_claim_reviews').doc(cid + '_rejected').get();
+            const cd = c.exists ? (c.data() || {}) : null;
+            rows.push({ row: row, cd: cd, status: liveBlockStatus(row, cd, rj.exists) });
+        }
+        return rows;
+    }
+
+    // Admin (read only): every frozen epoch's blocks with live status, plus
+    // the fee_halt doc and the claim switches. Uids and addresses are masked.
+    // Never writes. The caller (Fns) has already checked the admin claim.
+    async function adminBlockStatus(data) {
+        const d = data && typeof data === 'object' ? data : {};
+        let epochs = [];
+        if (Array.isArray(d.epochNumbers)) {
+            epochs = d.epochNumbers.slice(0, 50).map(function (e) { return intStrict(e, 1, MAX_EPOCH_NUMBER); }).filter(function (e) { return e != null; });
+        } else {
+            const all = await db.collection('sf_payout_results').get();
+            (all.docs || []).forEach(function (doc) {
+                const m = /^epoch_(\d{1,4})$/.exec(String(doc.id || ''));
+                const e = m ? intStrict(Number(m[1]), 1, MAX_EPOCH_NUMBER) : null;
+                if (e != null) epochs.push(e);
+            });
+        }
+        epochs = Array.from(new Set(epochs)).sort(function (a, b) { return a - b; }).slice(0, 200);
+        const out = [];
+        for (let i = 0; i < epochs.length; i++) {
+            const rows = await readEpochBlocks(epochs[i]);
+            if (!rows) continue;
+            const counts = { unclaimed: 0, manual_review: 0, paying: 0, unknown: 0, paid: 0, rejected: 0 };
+            const sats = { unclaimed: 0, manual_review: 0, paying: 0, unknown: 0, paid: 0, rejected: 0 };
+            const blocks = rows.map(function (x) {
+                counts[x.status] += 1;
+                sats[x.status] += Number(x.row.amount) || 0;
+                const cd = x.cd || {};
+                return {
+                    block: x.row.block, amount: Number(x.row.amount) || 0, status: x.status,
+                    uid: maskUid(x.row.uid), payTo: maskLn(x.row.frozenLn),
+                    reviewReason: x.row.manualReview ? String(x.row.manualReview).slice(0, 60) : '',
+                    released: cd.reviewReleased === true,
+                    attempts: Number(cd.attempts) || 0,
+                    paidAtMs: typeof cd.paidAtMs === 'number' ? cd.paidAtMs : null,
+                    lastAttemptMs: typeof cd.lastAttemptMs === 'number' ? cd.lastAttemptMs : null,
+                };
+            });
+            out.push({ epochNumber: epochs[i], blocks: blocks, counts: counts, sats: sats });
+        }
+        const haltSnap = await db.collection('sf_claim_counters').doc(FEE_HALT_DOC_ID).get();
+        const h = haltSnap.exists ? (haltSnap.data() || {}) : {};
+        const feeHalt = {
+            halted: h.halted === true,
+            reason: h.halted === true ? String(h.reason || '').slice(0, 60) : '',
+            epoch: h.halted === true && typeof h.epoch === 'number' ? h.epoch : null,
+            block: h.halted === true && typeof h.block === 'number' ? h.block : null,
+            routingFeeSats: h.halted === true && typeof h.routingFeeSats === 'number' ? h.routingFeeSats : null,
+            limitSats: h.halted === true && typeof h.limitSats === 'number' ? h.limitSats : null,
+            atMs: typeof h.atMs === 'number' ? h.atMs : null,
+            clearedAtMs: typeof h.clearedAtMs === 'number' ? h.clearedAtMs : null,
+            clearedBy: h.clearedBy ? String(h.clearedBy).slice(0, 20) : '',
+        };
+        const cfg = await loadConfig();
+        return { ok: true, epochs: out, feeHalt: feeHalt, claimsEnabled: cfg.claimsEnabled === true, enabledEpochs: cfg.enabledEpochs };
+    }
+
+    // Admin: release every manual-review block of one epoch, one at a time,
+    // through resolveReview (the same path as the single Release button).
+    // Input { epoch, note } only. Never pays. Blocks that are paying or
+    // unknown are skipped: they need the single-block path and a person.
+    // Every block's own resolveReview call is audited, plus one summary row.
+    async function releaseAllReview(adminUid, data) {
+        const d = data && typeof data === 'object' ? data : {};
+        const epoch = intStrict(d.epoch, 1, MAX_EPOCH_NUMBER);
+        const note = typeof d.note === 'string' ? d.note.trim().slice(0, 280) : '';
+        const by = maskUid(adminUid);
+        if (epoch == null) {
+            await audit({ type: 'admin_review_all', by: by, epoch: null, code: 'bad_id', note: note });
+            return { ok: false, code: 'bad_id' };
+        }
+        if (note.length < 3) {
+            await audit({ type: 'admin_review_all', by: by, epoch: epoch, code: 'note_required', note: note });
+            return { ok: false, code: 'note_required' };
+        }
+        const rows = await readEpochBlocks(epoch);
+        if (!rows) {
+            await audit({ type: 'admin_review_all', by: by, epoch: epoch, code: 'epoch_not_ready', note: note });
+            return { ok: false, code: 'epoch_not_ready' };
+        }
+        const results = [];
+        const skipped = [];
+        for (let i = 0; i < rows.length; i++) {
+            const x = rows[i];
+            if (x.status !== 'manual_review') {
+                if (x.status === 'paying' || x.status === 'unknown') skipped.push({ block: x.row.block, status: x.status });
+                continue;
+            }
+            const r = await resolveReview(adminUid, { epoch: epoch, block: x.row.block, action: 'release', note: 'release all: ' + note });
+            results.push({ block: x.row.block, code: r.code, ok: r.ok === true });
+        }
+        const released = results.filter(function (r) { return r.code === 'released'; }).length;
+        await audit({ type: 'admin_review_all', by: by, epoch: epoch, code: 'done', note: note, released: released,
+            tried: results.length, results: results, skipped: skipped });
+        return { ok: true, code: 'done', epoch: epoch, released: released, tried: results.length, results: results, skipped: skipped };
+    }
+
+    return { claim: claim, listMine: listMine, freezeEpoch: freezeEpoch, loadConfig: loadConfig, catchUpBlockTotal: catchUpBlockTotal, resolveReview: resolveReview,
+        adminBlockStatus: adminBlockStatus, releaseAllReview: releaseAllReview };
 }
 
 module.exports = {

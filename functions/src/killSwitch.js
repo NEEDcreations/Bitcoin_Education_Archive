@@ -66,6 +66,7 @@ const GATED = Object.freeze({
         'claimCipherWin',
         'claimFavorBlock',
         'adminResolveFavorReview',
+        'adminReleaseAllFavorReview',
         'adminResolveCipherSatsClaim',
         'adminMarkCipherWinPaid',
         'adminApproveFactionPayout',

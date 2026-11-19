@@ -60,6 +60,7 @@ function sandbox(opts) {
     const o = opts || {};
     const doc = makeDoc();
     const calls = [];
+    const statusCalls = [];
     const stepUps = [];
     const confirms = [];
     let proofN = 0;
@@ -80,7 +81,9 @@ function sandbox(opts) {
             }),
             functions: () => ({
                 httpsCallable: (fn) => (payload) => {
-                    calls.push({ fn, payload });
+                    // The read-only status callable runs on open; keep it out of
+                    // the action call log so action tests stay exact.
+                    (fn === 'adminFavorBlockStatus' ? statusCalls : calls).push({ fn, payload });
                     const r = responses[fn];
                     return Promise.resolve({ data: typeof r === 'function' ? r(payload) : (r || { ok: true }) });
                 },
@@ -90,7 +93,7 @@ function sandbox(opts) {
     sb.window = sb;
     vm.createContext(sb);
     vm.runInContext(PANEL, sb, { filename: 'admin-panel.js' });
-    return { sb, doc, calls, stepUps, confirms };
+    return { sb, doc, calls, statusCalls, stepUps, confirms };
 }
 
 const byId = (doc, id) => doc.getElementById(id);
@@ -293,6 +296,97 @@ const EPOCH1 = {
         assert.ok(byId(doc, 'sfuReview').textContent.includes('Released'));
     });
 
+    const STATUS = {
+        ok: true,
+        feeHalt: { halted: true, reason: 'routing_fee_over_limit', routingFeeSats: 77, limitSats: 50, epoch: 1, block: 2, atMs: 1 },
+        epochs: [{ epochNumber: 1, blocks: [
+            { block: 0, amount: 4200, status: 'paid', uid: 'uidAA\u2026', payTo: 'am\u2026@getalby.com', attempts: 1, paidAtMs: 1700000000000 },
+            { block: 1, amount: 4200, status: 'manual_review', uid: 'uidBB\u2026', payTo: 'ni\u2026@walletofsatoshi.com', reviewReason: 'address_changed_after_close' },
+            { block: 2, amount: 4200, status: 'unclaimed', uid: '<img src=x onerror=alert(1)>', payTo: '' },
+            { block: 3, amount: 4200, status: 'manual_review', uid: 'uidDD\u2026', payTo: 'dd\u2026@x.com', reviewReason: 'no_address' },
+            { block: 4, amount: 4200, status: 'evil_status', uid: 'x', payTo: 'x' },
+        ] }],
+    };
+
+    await test('block status: per-epoch counts (unclaimed, manual review, paid), fee halt readout, all via textContent', async function () {
+        const { sb, doc, statusCalls, calls, stepUps } = sandbox({ results: [EPOCH1], responses: { adminFavorBlockStatus: STATUS } });
+        const before = doc.innerHtmlWrites;
+        sb.bqOpenFavorClaims(); await settle();
+        assert.strictEqual(statusCalls.length, 1, 'status is read once on open');
+        assert.deepStrictEqual(JSON.parse(JSON.stringify(statusCalls[0].payload)), {});
+        assert.strictEqual(calls.length, 0); assert.strictEqual(stepUps.length, 0, 'reading status needs no step-up');
+        const bt = byId(doc, 'sfuBlocks').textContent;
+        assert.ok(bt.includes('Epoch 1'));
+        assert.ok(bt.includes('Unclaimed1 blocks, 4,200 sats'), bt);
+        assert.ok(bt.includes('Manual review2 blocks, 8,400 sats'), bt);
+        assert.ok(bt.includes('Paid1 blocks, 4,200 sats'), bt);
+        assert.ok(bt.includes('Block 0: Paid'));
+        assert.ok(bt.includes('(<img src)'), 'shown as text, clipped to 8 chars: ' + bt);
+        assert.ok(!bt.includes('evil_status'), 'unknown statuses dropped');
+        assert.strictEqual(doc.innerHtmlWrites, before, 'never innerHTML');
+        const st = byId(doc, 'sfuState').textContent;
+        assert.ok(/Fee haltHALTED: fee 77 sats over the 50-sat limit \(epoch 1, block 2\)/.test(st), st);
+        const h = sb.bqFavorAdmin;
+        assert.ok(/^Off/.test(h.feeHaltText({ halted: false })));
+        assert.strictEqual(h.feeHaltText(null), 'not loaded');
+        assert.strictEqual(h.normalizeStatus({ ok: true, epochs: [{ epochNumber: 'x' }, { epochNumber: 0 }] }).epochs.length, 0);
+    });
+
+    await test('release all: note required, confirm, one fresh step-up, then adminReleaseAllFavorReview { epoch, note } only', async function () {
+        let n = 0;
+        const { sb, doc, calls, stepUps, confirms, statusCalls } = sandbox({ results: [EPOCH1], responses: {
+            adminFavorBlockStatus: function () { n++; return STATUS; },
+            adminReleaseAllFavorReview: { ok: true, code: 'done', released: 1, tried: 2, results: [{ block: 1, code: 'released', ok: true }, { block: 3, code: 'no_frozen_address', ok: false }], skipped: [] },
+        } });
+        sb.bqOpenFavorClaims(); await settle();
+        const btn = byId(doc, 'sfuReleaseAll_1');
+        assert.ok(btn && /Release all 2 in epoch 1/.test(btn.textContent));
+        btn.click(); await settle();
+        assert.strictEqual(calls.length, 0, 'no note, no call');
+        assert.ok(byId(doc, 'sfuReleaseAllStatus_1').textContent.includes('note'));
+        byId(doc, 'sfuAllNote_1').value = 'Both checked with the winners';
+        btn.click(); await settle();
+        assert.strictEqual(confirms.length, 1);
+        assert.ok(/Release all 2 manual-review blocks in epoch 1 \(8,400 sats\)/.test(confirms[0]));
+        assert.deepStrictEqual(stepUps, ['adminReleaseAllFavorReview']);
+        assert.strictEqual(calls.length, 1);
+        assert.strictEqual(calls[0].fn, 'adminReleaseAllFavorReview');
+        assert.deepStrictEqual(JSON.parse(JSON.stringify(calls[0].payload)), { epoch: 1, note: 'Both checked with the winners', freshProofId: 'proof-1' });
+        await settle();
+        assert.ok(n >= 2, 'status reloads after release all');
+        assert.ok(statusCalls.length >= 2);
+        const out = byId(doc, 'sfuReleaseAllStatus_1');
+        assert.ok(/Released 1 of 2\. Refused: block 3 \(no_frozen_address\)/.test(out.textContent), out.textContent);
+    });
+
+    await test('release all: a declined confirm or cancelled step-up sends nothing; no button when nothing is in review', async function () {
+        const a = sandbox({ results: [EPOCH1], confirm: false, responses: { adminFavorBlockStatus: STATUS } });
+        a.sb.bqOpenFavorClaims(); await settle();
+        byId(a.doc, 'sfuAllNote_1').value = 'checked';
+        byId(a.doc, 'sfuReleaseAll_1').click(); await settle();
+        assert.strictEqual(a.calls.length, 0); assert.strictEqual(a.stepUps.length, 0);
+        const b = sandbox({ results: [EPOCH1], cancel: true, responses: { adminFavorBlockStatus: STATUS } });
+        b.sb.bqOpenFavorClaims(); await settle();
+        byId(b.doc, 'sfuAllNote_1').value = 'checked';
+        byId(b.doc, 'sfuReleaseAll_1').click(); await settle();
+        assert.strictEqual(b.calls.length, 0);
+        assert.ok(byId(b.doc, 'sfuReleaseAllStatus_1').textContent.includes('fresh authenticator code'));
+        const none = JSON.parse(JSON.stringify(STATUS));
+        none.epochs[0].blocks.forEach(function (x) { if (x.status === 'manual_review') x.status = 'paid'; });
+        const c = sandbox({ results: [EPOCH1], responses: { adminFavorBlockStatus: none } });
+        c.sb.bqOpenFavorClaims(); await settle();
+        assert.strictEqual(byId(c.doc, 'sfuReleaseAll_1'), null);
+        // Live status shows block 1 already left review, so its single Release card is gone too.
+        assert.ok(byId(c.doc, 'sfuReview').textContent.includes('No blocks waiting for review'));
+    });
+
+    await test('block status: non-admins never open the tool or call the status callable', async function () {
+        const { sb, doc, statusCalls } = sandbox({ admin: false, responses: { adminFavorBlockStatus: STATUS } });
+        sb.bqOpenFavorClaims(); await settle();
+        assert.strictEqual(byId(doc, 'bqFavorUi'), null);
+        assert.strictEqual(statusCalls.length, 0);
+    });
+
     await test('source: the Favor tool never writes innerHTML or Firestore, and never rejects a block', function () {
         const i = PANEL.indexOf("// ---- Satoshi's Favor claims (admin)");
         const j = PANEL.indexOf('window.bqFavorAdmin = {');
@@ -304,6 +398,9 @@ const EPOCH1 = {
         const ranking = read('ranking.js');
         assert.ok(ranking.includes("adminFreezeFavorEpoch: 'Enter a fresh authenticator code"));
         assert.ok(ranking.includes("adminResolveFavorReview: 'Enter a fresh authenticator code"));
+        assert.ok(ranking.includes("adminReleaseAllFavorReview: 'Enter a fresh authenticator code"));
+        assert.ok(/adminReleaseAllFavorReview: 1,/.test(ranking) && /adminFavorBlockStatus: 1,/.test(ranking), 'both wait for App Check');
+        assert.ok(ranking.includes("/admin-panel.js?v=20261119_v2673"));
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
