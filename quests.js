@@ -4784,16 +4784,27 @@ function _renderNookHistory() {
 }
 
 // ── CITADEL TAB ──
+// The Citadel shop lives in citadel-shop.js, loaded the first time this tab opens.
+var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2616';
 function _renderCitadelTab(body) {
-    body.innerHTML =
-        '<div style="text-align:center;padding:32px 16px;">' +
-        '<div style="font-size:3rem;margin-bottom:16px;">🏰</div>' +
-        '<div style="display:inline-block;background:linear-gradient(135deg,#f59e0b22,#d9770622);border:1px solid #f59e0b55;border-radius:16px;padding:24px 28px;max-width:360px;">' +
-        '<div style="font-size:0.7rem;font-weight:900;letter-spacing:2px;color:#f59e0b;text-transform:uppercase;margin-bottom:10px;">Coming Soon</div>' +
-        '<div style="font-size:1.15rem;font-weight:800;color:var(--heading);line-height:1.4;margin-bottom:12px;">USE XP TO CONSTRUCT YOUR OWN CITADEL!</div>' +
-        '<div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;">Spend your hard-earned XP to build, upgrade, and defend your own Bitcoin citadel. Stack XP now — construction begins soon.</div>' +
-        '</div>' +
-        '</div>';
+    if (window.CitadelShop && typeof window.CitadelShop.render === 'function') {
+        window.CitadelShop.render(body);
+        return;
+    }
+    body.innerHTML = '<div style="text-align:center;padding:32px 16px;color:var(--text-muted);font-size:0.85rem;">Loading Citadel\u2026</div>';
+    var s = document.querySelector('script[src="' + CITADEL_SHOP_SRC + '"]');
+    if (!s) {
+        s = document.createElement('script');
+        s.src = CITADEL_SHOP_SRC;
+        s.async = true;
+        document.body.appendChild(s);
+    }
+    s.addEventListener('load', function () {
+        if (body.isConnected !== false && window._questHubTab === 'citadel' && window.CitadelShop) window.CitadelShop.render(body);
+    });
+    s.addEventListener('error', function () {
+        body.innerHTML = '<div style="text-align:center;padding:32px 16px;color:var(--text-muted);font-size:0.85rem;">Citadel could not load. Please try again.</div>';
+    });
 }
 
 // ── CHARITY TAB ──
