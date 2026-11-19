@@ -354,7 +354,9 @@ function deferredPerksOpen(nowMs, perksStartAtMs) {
     const start = Number(perksStartAtMs) > 0 ? Number(perksStartAtMs) : pricing.PERKS_START_MS;
     return Number(nowMs) >= start;
 }
-// Citadel build slots and cosmetics: active paid Premium after perksStartAt.
+// Citadel perks are cosmetic only (Citadel spec, Nov 18): active paid Premium
+// after perksStartAt. They never speed up collecting parts, timers or
+// cooldowns, and Citadel parts code must never read this flag.
 function citadelPerksAllowed(ent, nowMs, perksStartAtMs) {
     return isPremiumActive(ent, nowMs) && deferredPerksOpen(nowMs, perksStartAtMs);
 }
@@ -401,6 +403,23 @@ function mergeEntitlements(a, b, nowMs) {
     return x;
 }
 
+// premium_rate doc id for a Founders' hold cooldown (holdKey is a uid or
+// 'email:'+keyed hash, never a plain email).
+function foundersCooldownId(holdKey) {
+    return 'fcool_' + String(holdKey || '').replace(/[^A-Za-z0-9_:-]/g, '_').slice(0, 200);
+}
+
+// Bitcoin checkout link must be https on the exact configured BTCPay host
+// (Red Team F3). Unset host = refused.
+function btcpayLinkOk(url, cfg) {
+    const host = cfg && cfg.btcpayHost;
+    if (!host || typeof url !== 'string') return false;
+    try {
+        const u = new URL(url);
+        return u.protocol === 'https:' && u.hostname === host && !u.username && !u.password && (u.port === '' || u.port === '443');
+    } catch (e) { return false; }
+}
+
 function liveHolds(holds, nowMs) {
     const out = {};
     Object.keys(holds || {}).forEach(function (id) {
@@ -431,7 +450,7 @@ function checkoutNote(q, perksStartMs, trialEndMs) {
         parts.push("You're charged today.");
     }
     if (q.lifetime) parts.push("Founders' Lifetime is a one-time payment and never renews.");
-    if (perksStartMs) parts.push('Embers and Citadel perks start ' + fmtEt(perksStartMs) + ' at 12:00 AM ET. Your other Premium perks start right away.');
+    if (perksStartMs) parts.push('Embers and Citadel cosmetics start ' + fmtEt(perksStartMs) + ' at 12:00 AM ET. Your other Premium perks start right away.');
     parts.push(pricing.REFUND_POLICY.text);
     return parts.join(' ').slice(0, 1200);
 }
@@ -592,7 +611,7 @@ function createPremiumHandlers(deps) {
     // Shared order + provider session creation.
     // who: { uid|null, email|null, holdKey, rateKey, customerId|null }
     async function startOrder(q, who, cfg, nowMs, src, channel) {
-        if (q.rail === 'lightning' && !cfg.lightningEnabled) throw fail('failed-precondition', 'Bitcoin checkout opens soon.', 'lightning_closed');
+        if (q.rail === 'lightning' && (!cfg.lightningEnabled || !cfg.btcpayHost)) throw fail('failed-precondition', 'Bitcoin checkout opens soon.', 'lightning_closed');
         const orderId = newId();
         const provider = q.rail === 'card' ? 'stripe' : 'btcpay';
         // Phil, Nov 18: every plan is charged at purchase and Premium starts
@@ -605,23 +624,31 @@ function createPremiumHandlers(deps) {
         const trialDays = q.cardMode === 'subscription' && cfg.trialsEnabled === true && cfg.trialDays > 0 && who.trialEligible ? cfg.trialDays : 0;
         const trialEndMs = trialDays > 0 ? nowMs + trialDays * 86400000 : null;
         const expectedTotalCents = trialEndMs ? 0 : q.amountCents;
-        const holdMs = (q.rail === 'card' ? STRIPE_CHECKOUT_MINUTES : BTCPAY_INVOICE_MINUTES) * 60000 + HOLD_GRACE_MS;
+        // Founders' card holds use the shorter config hold (Red Team F2); a
+        // bitcoin hold stays matched to the BTCPay invoice it covers.
+        const holdMs = q.lifetime && q.rail === 'card'
+            ? cfg.foundersCardHoldMinutes * 60000
+            : (q.rail === 'card' ? STRIPE_CHECKOUT_MINUTES : BTCPAY_INVOICE_MINUTES) * 60000 + HOLD_GRACE_MS;
+        const cooldownMs = (Number(cfg.foundersHoldCooldownMinutes) || 0) * 60000;
         if (provider === 'stripe') stripeKey(); else btcpayCfg(); // before any seat is held
+        let capHit = false;
 
         const orderRef = ref(COL.orders, orderId);
         const counterRef = ref(COL.counters, 'founders');
         const rateRef = ref(COL.rate, who.rateKey);
         const globalRef = channel === 'public' ? ref(COL.rate, GLOBAL_PUBLIC_RATE_ID) : null;
+        const coolRef = q.lifetime && cooldownMs > 0 ? ref(COL.rate, foundersCooldownId(who.holdKey)) : null;
         const limit = who.uid ? ORDERS_PER_HOUR : PUBLIC_ORDERS_PER_HOUR_PER_IP;
         function windowCount(d) {
             const ws = Number(d.windowStartMs) || 0;
             const inW = nowMs - ws < 3600000;
             return { inWindow: inW, windowStart: ws, count: inW ? (Number(d.count) || 0) : 0 };
         }
-        await db.runTransaction(async function (tx) {
+        try { await db.runTransaction(async function (tx) {
             const rateSnap = await tx.get(rateRef);
             const globalSnap = globalRef ? await tx.get(globalRef) : null;
             const counterSnap = q.lifetime ? await tx.get(counterRef) : null;
+            const coolSnap = coolRef ? await tx.get(coolRef) : null;
             const rate = rateSnap.exists ? rateSnap.data() : {};
             const w = windowCount(rate);
             const inWindow = w.inWindow;
@@ -638,7 +665,17 @@ function createPremiumHandlers(deps) {
                 const c = counterSnap.exists ? counterSnap.data() : { sold: 0, holds: {} };
                 const holds = liveHolds(c.holds, nowMs);
                 const mine = Object.keys(holds).filter(function (id) { return holds[id].uid === who.holdKey; });
-                if (mine.length) throw fail('failed-precondition', "You already have a Founders' checkout open. Finish it or wait about 35 minutes.", 'hold_exists');
+                if (mine.length) throw fail('failed-precondition', "You already have a Founders' checkout open. Finish it or try again in a few minutes.", 'hold_exists');
+                // Cooldown after an unpaid Founders' hold lapsed (Red Team F2).
+                // Holds that lapsed unpaid are pruned here and each owner gets a
+                // cooldown doc (TTL expireAt), so it holds even after pruning.
+                const lapsed = cooldownMs > 0 ? Object.keys(c.holds || {}).filter(function (id) { return !holds[id] && c.holds[id]; }) : [];
+                const myLapsed = lapsed.filter(function (id) { return c.holds[id].uid === who.holdKey && Number(c.holds[id].expMs) + cooldownMs > nowMs; });
+                const coolUntil = Math.max(coolSnap && coolSnap.exists ? Number(coolSnap.data().untilMs) || 0 : 0,
+                    myLapsed.reduce(function (m, id) { return Math.max(m, Number(c.holds[id].expMs) + cooldownMs); }, 0));
+                if (coolUntil > nowMs) {
+                    throw fail('resource-exhausted', "Your last Founders' checkout timed out. Try again in " + Math.max(1, Math.ceil((coolUntil - nowMs) / 60000)) + ' minutes.', 'founders_cooldown');
+                }
                 // One live Founders' hold per network (IPv6 /64 or exact IPv4; keyed hash only).
                 const sameIp = who.ipHash ? Object.keys(holds).filter(function (id) { return holds[id].ipHash === who.ipHash; }) : [];
                 if (sameIp.length) throw fail('failed-precondition', "A Founders' checkout is already open from this network. Finish it or wait about 35 minutes.", 'hold_exists_ip');
@@ -646,8 +683,15 @@ function createPremiumHandlers(deps) {
                     throw fail('resource-exhausted', "Founders' Lifetime is sold out.", 'founders_sold_out');
                 }
                 if (Object.keys(holds).length >= cfg.maxLiveFoundersHolds) {
-                    throw fail('resource-exhausted', "Lots of people are checking out Founders' right now. Try again in about 30 minutes.", 'founders_busy');
+                    capHit = true;
+                    throw fail('resource-exhausted', "Lots of people are checking out Founders' right now. Try again in a few minutes.", 'founders_busy');
                 }
+                lapsed.forEach(function (id) {
+                    const h = c.holds[id];
+                    const until = Number(h.expMs) + cooldownMs;
+                    if (!h.uid || until <= nowMs) return;
+                    tx.set(ref(COL.rate, foundersCooldownId(h.uid)), { untilMs: until, orderId: id, expireAt: new Date(until + 3600000) });
+                });
                 holds[orderId] = { uid: who.holdKey, ipHash: who.ipHash || null, expMs: nowMs + holdMs };
                 tx.set(counterRef, Object.assign({}, c, { sold: Number(c.sold) || 0, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: nowMs }));
             }
@@ -694,7 +738,10 @@ function createPremiumHandlers(deps) {
                 refundPolicy: pricing.REFUND_POLICY.id,
                 noRefundAckAtMs: nowMs,
             });
-        });
+        }); } catch (e) {
+            if (capHit) await foundersCapAlert(nowMs, cfg);
+            throw e;
+        }
 
         let url = null;
         try {
@@ -751,6 +798,7 @@ function createPremiumHandlers(deps) {
                     },
                 });
                 if (!inv || typeof inv.id !== 'string' || typeof inv.checkoutLink !== 'string') throw new Error('btcpay_bad_response');
+                if (!btcpayLinkOk(inv.checkoutLink, cfg)) throw new Error('btcpay_bad_link');
                 url = inv.checkoutLink;
                 await orderRef.update({ providerInvoiceId: inv.id });
             }
@@ -926,8 +974,30 @@ function createPremiumHandlers(deps) {
         }
     }
 
+    // Live Founders' holds hit maxLiveFoundersHolds: one admin alert and one
+    // review row per 30-minute window (deterministic ids, create-once). A
+    // failure here never changes the checkout answer.
+    const CAP_ALERT_WINDOW_MS = 30 * 60 * 1000;
+    async function foundersCapAlert(nowMs, cfg) {
+        const bucket = Math.floor(nowMs / CAP_ALERT_WINDOW_MS);
+        try {
+            const nRef = ref('admin_notifications', 'premium_founders_cap_' + bucket);
+            const rRef = ref(COL.review, 'founders_hold_cap_' + bucket);
+            const text = "Founders' checkout is full: " + cfg.maxLiveFoundersHolds + ' seats are held in open checkouts, so new Founders buyers are being turned away. Check for hold farming.';
+            await db.runTransaction(async function (tx) {
+                const ex = await tx.get(nRef);
+                if (ex.exists) return;
+                tx.set(nRef, { type: 'premium_founders_cap', text: text, read: false, createdAt: new Date(nowMs) });
+                tx.set(rRef, { reason: 'founders_hold_cap_hit', createdAtMs: nowMs, resolved: false, liveHolds: cfg.maxLiveFoundersHolds });
+            });
+        } catch (e) {
+            log('premium founders cap alert failed', { err: String(e && e.message || e) });
+        }
+    }
+
     // Marks a pending order expired/error and frees its Founders seat hold.
     async function releaseOrder(orderId, status, nowMs) {
+        const cfgForCooldown = status === 'expired' ? await loadConfig() : {};
         const orderRef = ref(COL.orders, orderId);
         const counterRef = ref(COL.counters, 'founders');
         await db.runTransaction(async function (tx) {
@@ -939,9 +1009,16 @@ function createPremiumHandlers(deps) {
             tx.update(orderRef, { status: status, closedAtMs: nowMs });
             if (c && c.exists) {
                 const holds = Object.assign({}, c.data().holds || {});
-                if (holds[orderId]) {
+                const h = holds[orderId];
+                if (h) {
                     delete holds[orderId];
                     tx.update(counterRef, { holds: holds, updatedAtMs: nowMs });
+                    // Abandoned (expired) Founders' checkout: start the cooldown.
+                    const cd = (Number(cfgForCooldown.foundersHoldCooldownMinutes) || 0) * 60000;
+                    if (status === 'expired' && h.uid && cd > 0) {
+                        const until = Math.min(Number(h.expMs) || nowMs, nowMs) + cd;
+                        if (until > nowMs) tx.set(ref(COL.rate, foundersCooldownId(h.uid)), { untilMs: until, orderId: orderId, expireAt: new Date(until + 3600000) });
+                    }
                 }
             }
         });
@@ -949,6 +1026,11 @@ function createPremiumHandlers(deps) {
 
     // ---- shared grant (inside a transaction, after all reads)
     function writeEntitlement(tx, r) {
+        if (r.freezeReason) {
+            r.ent.frozen = true;
+            r.ent.frozenAtMs = r.nowMs;
+            r.ent.frozenReason = r.freezeReason;
+        }
         const s = summarize(r.ent, r.nowMs);
         r.ent.active = s.active;
         r.ent.expiresAtMs = s.expiresAtMs;
@@ -1036,7 +1118,10 @@ function createPremiumHandlers(deps) {
     function grantFounders(tx, r, orderId, providerRef, extraPatch) {
         const c = r.counter;
         const holds = Object.assign({}, c.holds || {});
-        const hadHold = !!holds[orderId];
+        // Only a live hold reserves a seat: a payment after the hold lapsed
+        // gets a seat only if one is still free (Founders' card holds are
+        // shorter than the Stripe session).
+        const hadHold = !!(holds[orderId] && Number(holds[orderId].expMs) > r.nowMs);
         delete holds[orderId];
         const live = liveHolds(holds, r.nowMs);
         const sold = Number(c.sold) || 0;
@@ -1046,7 +1131,11 @@ function createPremiumHandlers(deps) {
             review(tx, 'founders_sold_out_late_payment', { orderId: orderId, uid: r.uid, providerRef: providerRef, amountCents: r.order.amountCents }, r.nowMs);
             return 'review';
         }
-        tx.set(ref(COL.counters, 'founders'), Object.assign({}, c, { sold: sold + 1, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: r.nowMs }));
+        // A seat refunded or disputed before completion is sold and retired at
+        // once: it never returns to sale (sold is never decremented).
+        const retire = r.retireSeat === true ? { retired: (Number(c.retired) || 0) + 1 } : {};
+        tx.set(ref(COL.counters, 'founders'), Object.assign({}, c, { sold: sold + 1, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: r.nowMs }, retire));
+        if (r.retireSeat === true) extraPatch = Object.assign({}, extraPatch || {}, { seatRetired: true });
         if (r.ent.autoRenew === true && r.ent.stripeSubscriptionId) {
             review(tx, 'founders_with_active_subscription', { orderId: orderId, uid: r.uid, stripeSubscriptionId: r.ent.stripeSubscriptionId }, r.nowMs);
         }
@@ -1337,6 +1426,21 @@ function createPremiumHandlers(deps) {
                     if (Object.keys(patch).length) tx.update(r.orderRef, patch);
                     return 'already_paid';
                 }
+                // Refunded in full or disputed before this completion landed:
+                // grant frozen, retire a Founders' seat, and open a review row.
+                const preFreeze = o.refundKind === 'full' ? 'charge.refunded' : (o.disputedAtMs ? 'charge.dispute.created' : null);
+                if (preFreeze) {
+                    r.freezeReason = preFreeze;
+                    r.retireSeat = !!o.lifetime && o.seatRetired !== true;
+                    review(tx, 'stripe_completed_after_' + preFreeze.replace(/\./g, '_'), { eventId: event.id, orderId: orderId, uid: o.uid || null, sessionId: obj.id, frozen: 1 }, r.nowMs);
+                    tx.set(ref('admin_notifications', newId()), {
+                        type: 'premium_review',
+                        text: 'Premium checkout completed after a ' + (preFreeze === 'charge.refunded' ? 'full refund' : 'dispute') + ': perks frozen until review (order ' + orderId + ').',
+                        uid: o.uid ? String(o.uid).slice(0, 4) + '\u2026' : null,
+                        read: false,
+                        createdAt: new Date(r.nowMs),
+                    });
+                }
                 if (o.lifetime) {
                     // Keep the Stripe customer so a later refund or dispute finds it.
                     if (customerId && !r.ent.stripeCustomerId) r.ent.stripeCustomerId = customerId;
@@ -1575,8 +1679,30 @@ function createPremiumHandlers(deps) {
 
         if (t === 'charge.refunded' || t === 'charge.dispute.created') {
             // Find who this is about: order id from metadata, else the Stripe customer.
-            const customerId = typeof obj.customer === 'string' ? obj.customer : null;
+            let customerId = typeof obj.customer === 'string' ? obj.customer : null;
             let orderIds = orderIdsForCharge(obj);
+            // A dispute object carries no order metadata or customer. Read its
+            // charge back so a dispute that lands before checkout completes
+            // still stamps the order. A failed read answers 500 (Stripe retries).
+            let pi = typeof obj.payment_intent === 'string' ? obj.payment_intent : null;
+            if (t === 'charge.dispute.created' && !orderIds.length && typeof obj.charge === 'string' && /^(ch|py)_[A-Za-z0-9]{6,200}$/.test(obj.charge)) {
+                const ch = await stripeRequest('GET', '/v1/charges/' + encodeURIComponent(obj.charge));
+                orderIds = orderIdsForCharge(ch);
+                if (!customerId && ch && typeof ch.customer === 'string') customerId = ch.customer;
+                if (!pi && ch && typeof ch.payment_intent === 'string') pi = ch.payment_intent;
+            }
+            // Still no order (e.g. before checkout completed, when the order has
+            // no Stripe customer yet): find the Checkout Session that owns the
+            // payment and accept it only if it is the order's own session.
+            if (!orderIds.length && pi && /^pi_[A-Za-z0-9]{6,200}$/.test(pi)) {
+                const list = await stripeRequest('GET', '/v1/checkout/sessions?limit=1&payment_intent=' + encodeURIComponent(pi));
+                const sess = list && Array.isArray(list.data) ? list.data[0] : null;
+                const oid = sess && typeof sess.client_reference_id === 'string' && /^[A-Za-z0-9_-]{6,64}$/.test(sess.client_reference_id) ? sess.client_reference_id : null;
+                if (oid) {
+                    const od = await ref(COL.orders, oid).get();
+                    if (od.exists && od.data().providerSessionId === sess.id) orderIds = [oid];
+                }
+            }
             const subMeta = obj.parent && obj.parent.subscription_details && obj.parent.subscription_details.metadata;
             if (!orderIds.length && subMeta && typeof subMeta.orderId === 'string') orderIds = [subMeta.orderId];
             if (!orderIds.length && customerId) {
@@ -1634,9 +1760,12 @@ function createPremiumHandlers(deps) {
                     tx.set(ref(COL.counters, 'founders'), { retired: (Number(c.retired) || 0) + 1, updatedAtMs: r.nowMs }, { merge: true });
                     orderPatch.seatRetired = true;
                 }
+                // Always stamp the order, paid or not, so a completion that
+                // arrives after the refund or dispute is granted frozen.
                 if (r.order && t === 'charge.refunded') {
-                    Object.assign(orderPatch, isFullRefund ? { refundedAtMs: r.nowMs, refundKind: 'full' } : { partialRefundAtMs: r.nowMs, refundKind: 'partial', refundedCents: Number(obj.amount_refunded) || null });
+                    Object.assign(orderPatch, isFullRefund ? { refundedAtMs: r.nowMs, refundKind: 'full' } : { partialRefundAtMs: r.nowMs, refundKind: r.order.refundKind === 'full' ? 'full' : 'partial', refundedCents: Number(obj.amount_refunded) || null });
                 }
+                if (r.order && t === 'charge.dispute.created' && !r.order.disputedAtMs) orderPatch.disputedAtMs = r.nowMs;
                 if (r.orderRef && Object.keys(orderPatch).length) tx.update(r.orderRef, orderPatch);
                 if (isFullRefund) {
                     walletSnaps.forEach(function (ws, i) {
@@ -1840,7 +1969,7 @@ function createPremiumHandlers(deps) {
         const elig = await eligibilityFor(auth, cfg, nowMs, userSnap.exists ? userSnap.data() : null);
         const offers = [];
         const combos = [['monthly', 'card'], ['yearly', 'card'], ['founders', 'card']];
-        if (cfg.lightningEnabled) combos.push(['yearly', 'lightning'], ['founders', 'lightning'], ['months', 'lightning']);
+        if (cfg.lightningEnabled && cfg.btcpayHost) combos.push(['yearly', 'lightning'], ['founders', 'lightning'], ['months', 'lightning']);
         combos.forEach(function (p) {
             const q = pricing.quote({ plan: p[0], rail: p[1], months: p[0] === 'months' ? 1 : undefined, nowMs: nowMs, existingUserEligible: elig.ok }, cfg);
             offers.push({ plan: q.plan, rail: q.rail, amountCents: q.amountCents, baseCents: q.baseCents, discounts: q.discounts });
@@ -1863,7 +1992,9 @@ function createPremiumHandlers(deps) {
             trialDays: cfg.trialsEnabled === true ? cfg.trialDays : 0,
             refundPolicy: { id: pricing.REFUND_POLICY.id, text: pricing.REFUND_POLICY.text },
             checkoutOpen: cfg.checkoutEnabled,
-            lightningOpen: cfg.lightningEnabled,
+            lightningOpen: cfg.lightningEnabled && !!cfg.btcpayHost,
+            // The app follows a bitcoin checkout link only on this exact host.
+            btcpayHost: cfg.lightningEnabled ? cfg.btcpayHost : null,
             existingUserOffer: elig.ok ? { pct: cfg.existingUserDiscountPct, endsAtMs: cfg.existingUserDiscountEndsAtMs } : null,
             foundersLeft: foundersLeft(counterSnap.exists ? counterSnap.data() : null, nowMs),
             offers: offers,
@@ -1954,7 +2085,7 @@ function createPremiumHandlers(deps) {
     }
 
     // Unclaimed public orders: clear the plain email after
-    // publicOrderEmailRetentionMonths (default 24) from purchase.
+    // publicOrderEmailRetentionMonths (default 3) from purchase.
     async function clearExpiredOrderEmails(nowMs, limit) {
         const cfg = await loadConfig();
         const cutoff = pricing.addMonths(nowMs, -cfg.publicOrderEmailRetentionMonths);

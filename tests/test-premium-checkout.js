@@ -154,6 +154,16 @@ function setup(opts) {
             const inv = btcInvoices[m[1]];
             return inv ? { ok: true, status: 200, json: async function () { return clone(inv); } } : { ok: false, status: 404, json: async function () { return {}; } };
         }
+        const chm = url.match(/^https:\/\/api\.stripe\.com\/v1\/charges\/([A-Za-z0-9_]+)$/);
+        if (chm && init.method === 'GET') {
+            const ch = o.charges && o.charges[chm[1]];
+            return ch ? { ok: true, status: 200, json: async function () { return clone(ch); } } : { ok: false, status: 404, json: async function () { return {}; } };
+        }
+        const slm = url.match(/^https:\/\/api\.stripe\.com\/v1\/checkout\/sessions\?limit=1&payment_intent=([A-Za-z0-9_]+)$/);
+        if (slm && init.method === 'GET') {
+            const ss = o.piSessions && o.piSessions[slm[1]];
+            return { ok: true, status: 200, json: async function () { return { data: ss ? [clone(ss)] : [] }; } };
+        }
         throw new Error('unexpected fetch ' + url);
     };
     const created = Object.assign({ old: OLD, new: NEW }, o.created || {});
@@ -187,7 +197,7 @@ function setup(opts) {
         },
     });
     if (o.config !== false) {
-        db.store.set('premium_config/settings', Object.assign({ checkoutEnabled: true, lightningEnabled: true, checkoutLaunchedAtMs: LAUNCH, trialDays: 0 }, o.config || {}));
+        db.store.set('premium_config/settings', Object.assign({ checkoutEnabled: true, lightningEnabled: true, btcpayHost: 'btcpay.example.test', checkoutLaunchedAtMs: LAUNCH, trialDays: 0 }, o.config || {}));
     }
     db.store.set('users/old', { displayName: 'Old' });
     db.store.set('users/new', { displayName: 'New' });
@@ -521,7 +531,7 @@ test('Phil Nov 18: no trial by default; subscriptions are charged at purchase an
     assert.ok(body.indexOf('trial_period_days') === -1);
     assert.ok(body.indexOf('trial_end') === -1);
     assert.ok(body.indexOf("custom_text[submit][message]=You're charged today.") !== -1);
-    assert.ok(body.indexOf('Embers and Citadel perks start Jan 3, 2027 at 12:00 AM ET. Your other Premium perks start right away.') !== -1);
+    assert.ok(body.indexOf('Embers and Citadel cosmetics start Jan 3, 2027 at 12:00 AM ET. Your other Premium perks start right away.') !== -1);
     assert.ok(body.indexOf('All sales are final. No refunds.') !== -1);
     const order = a.db.store.get('premium_orders/' + out.orderId);
     assert.strictEqual(order.expectedTotalCents, 5000);
@@ -1409,14 +1419,14 @@ test('User Data: full refund clears the plain email at once; partial refund does
     assert.strictEqual(held.email, undefined);
     assert.strictEqual(held.frozen, true);
 });
-test('User Data: unclaimed public order email cleared after 24 months (configurable); claim clears it at once', async function () {
-    assert.strictEqual(pricing.DEFAULT_CONFIG.publicOrderEmailRetentionMonths, 24);
+test('User Data: unclaimed public order email cleared after 3 months (configurable); claim clears it at once', async function () {
+    assert.strictEqual(pricing.DEFAULT_CONFIG.publicOrderEmailRetentionMonths, 3);
     const a = setup();
     const r = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'keep@example.com', turnstileToken: 'ok-token' });
     const id = lastOrderId(a);
-    a.clock.now = pricing.addMonths(T0, 24) - 1000;
+    a.clock.now = pricing.addMonths(T0, 3) - 1000;
     assert.strictEqual((await a.h.sweepExpired(10)).emailsCleared, 0);
-    a.clock.now = pricing.addMonths(T0, 24) + 1000;
+    a.clock.now = pricing.addMonths(T0, 3) + 1000;
     assert.strictEqual((await a.h.sweepExpired(10)).emailsCleared, 1);
     assert.strictEqual(a.db.store.get('premium_orders/' + id).email, null);
     assert.strictEqual(a.db.store.get('premium_orders/' + id).emailClearedReason, 'retention');
@@ -1775,6 +1785,254 @@ test('Spam MED 1: trial_reused cancel sends cancellation_details[comment]=trial_
     assert.strictEqual(bodyOf(del[0]), 'cancellation_details[comment]=trial_reused');
     // The first (legit) trial is untouched.
     assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/old'), a.clock.now), true);
+});
+
+// ---------- Red Team F1: refund or dispute processed before checkout completes
+function fullRefund(id, orderId, extra) {
+    return { id: id, type: 'charge.refunded', livemode: false, data: { object: Object.assign({ id: 'ch_' + id, refunded: true, amount_refunded: 4750, metadata: orderId ? { orderId: orderId } : {} }, extra || {}) } };
+}
+function adminRows(a, type) { return rows(a, 'admin_notifications').filter(function (r) { return r.type === type; }); }
+function founderDone(orderId, session) { return completed(orderId, session, { amount_total: 14250, mode: 'payment', subscription: null }); }
+
+test('F1: full refund before completion stamps the order; completion then grants frozen (yearly)', async function () {
+    const a = setup();
+    const out = await a.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('old'));
+    assert.strictEqual((await stripePost(a, fullRefund('evt_f1r', out.orderId))).body.outcome, 'review');
+    const o1 = a.db.store.get('premium_orders/' + out.orderId);
+    assert.strictEqual(o1.refundKind, 'full');
+    assert.strictEqual(o1.status, 'pending');
+    assert.ok(!a.db.store.has('premium_entitlements/old'));
+    await stripePost(a, completed(out.orderId, 'cs_test_1'));
+    const e = a.db.store.get('premium_entitlements/old');
+    assert.strictEqual(e.frozen, true);
+    assert.strictEqual(e.frozenReason, 'charge.refunded');
+    assert.strictEqual(premium.isPremiumActive(e, a.clock.now), false);
+    assert.strictEqual(a.db.store.get('users/old').premium.active, false);
+    assert.ok(rows(a, 'premium_review').some(function (r) { return r.reason === 'stripe_completed_after_charge_refunded' && r.orderId === out.orderId; }));
+    const n = adminRows(a, 'premium_review').filter(function (r) { return /completed after a full refund/.test(r.text); });
+    assert.strictEqual(n.length, 1);
+    assert.strictEqual(n[0].uid, 'old\u2026');
+});
+
+test('F1: async_payment_succeeded after a full refund also grants frozen', async function () {
+    const a = setup();
+    const out = await a.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('old'));
+    await stripePost(a, fullRefund('evt_f1ra', out.orderId));
+    const ev = completed(out.orderId, 'cs_test_1'); ev.type = 'checkout.session.async_payment_succeeded';
+    await stripePost(a, ev);
+    assert.strictEqual(a.db.store.get('premium_entitlements/old').frozen, true);
+});
+
+test('F1: dispute before completion (no order metadata) is traced through Stripe; completion grants frozen', async function () {
+    const piSessions = {};
+    const a = setup({ charges: { ch_disp0001: { id: 'ch_disp0001', metadata: {}, payment_intent: 'pi_disp0001' } }, piSessions: piSessions });
+    const out = await a.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('old'));
+    piSessions.pi_disp0001 = { id: 'cs_test_1', client_reference_id: out.orderId };
+    const disp = { id: 'evt_f1d', type: 'charge.dispute.created', livemode: false, data: { object: { id: 'dp_f1', amount: 4750, charge: 'ch_disp0001' } } };
+    assert.strictEqual((await stripePost(a, disp)).body.outcome, 'review');
+    const o1 = a.db.store.get('premium_orders/' + out.orderId);
+    assert.strictEqual(o1.disputedAtMs, a.clock.now);
+    await stripePost(a, completed(out.orderId, 'cs_test_1'));
+    const e = a.db.store.get('premium_entitlements/old');
+    assert.strictEqual(e.frozen, true);
+    assert.strictEqual(e.frozenReason, 'charge.dispute.created');
+    assert.ok(rows(a, 'premium_review').some(function (r) { return r.reason === 'stripe_completed_after_charge_dispute_created'; }));
+});
+
+test('F1: a payment-intent lookup naming another order\'s session is ignored', async function () {
+    const piSessions = {};
+    const a = setup({ piSessions: piSessions });
+    const out = await a.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('old'));
+    piSessions.pi_other0001 = { id: 'cs_someone_else', client_reference_id: out.orderId };
+    const disp = { id: 'evt_f1x', type: 'charge.dispute.created', livemode: false, data: { object: { id: 'dp_x', amount: 4750, payment_intent: 'pi_other0001' } } };
+    await stripePost(a, disp);
+    assert.ok(!a.db.store.get('premium_orders/' + out.orderId).disputedAtMs);
+});
+
+test('F1: Founders refunded before completion: seat sold and retired at once, never back on sale', async function () {
+    const a = setup();
+    a.db.store.set('premium_counters/founders', { sold: 10, holds: {} });
+    const out = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    await stripePost(a, fullRefund('evt_f1fr', out.orderId, { amount_refunded: 14250 }));
+    let c = a.db.store.get('premium_counters/founders');
+    assert.strictEqual(c.sold, 10);
+    assert.ok(!c.retired);
+    await stripePost(a, founderDone(out.orderId, 'cs_test_1'));
+    c = a.db.store.get('premium_counters/founders');
+    assert.strictEqual(c.sold, 11);
+    assert.strictEqual(c.retired, 1);
+    assert.ok(!c.holds[out.orderId]);
+    const o = a.db.store.get('premium_orders/' + out.orderId);
+    assert.strictEqual(o.status, 'paid');
+    assert.strictEqual(o.seatRetired, true);
+    const e = a.db.store.get('premium_entitlements/old');
+    assert.strictEqual(e.founders, true);
+    assert.strictEqual(e.frozen, true);
+    assert.strictEqual(premium.isPremiumActive(e, a.clock.now), false);
+    // A second full refund for the same order never counts the seat twice.
+    await stripePost(a, fullRefund('evt_f1fr2', out.orderId, { amount_refunded: 14250 }));
+    assert.strictEqual(a.db.store.get('premium_counters/founders').retired, 1);
+});
+
+test('F1: Founders disputed before completion: seat sold and retired, entitlement frozen', async function () {
+    const piSessions = {};
+    const a = setup({ piSessions: piSessions });
+    a.db.store.set('premium_counters/founders', { sold: 3, holds: {} });
+    const out = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    piSessions.pi_fdisp0001 = { id: 'cs_test_1', client_reference_id: out.orderId };
+    await stripePost(a, { id: 'evt_f1fd', type: 'charge.dispute.created', livemode: false, data: { object: { id: 'dp_fd', amount: 14250, payment_intent: 'pi_fdisp0001' } } });
+    await stripePost(a, founderDone(out.orderId, 'cs_test_1'));
+    const c = a.db.store.get('premium_counters/founders');
+    assert.strictEqual(c.sold, 4);
+    assert.strictEqual(c.retired, 1);
+    assert.strictEqual(a.db.store.get('premium_entitlements/old').frozen, true);
+    assert.strictEqual(a.db.store.get('premium_entitlements/old').frozenReason, 'charge.dispute.created');
+});
+
+test('F1: a partial refund before completion leaves the later grant active', async function () {
+    const a = setup();
+    const out = await a.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('old'));
+    await stripePost(a, fullRefund('evt_f1p', out.orderId, { refunded: false, amount_refunded: 100 }));
+    assert.strictEqual(a.db.store.get('premium_orders/' + out.orderId).refundKind, 'partial');
+    await stripePost(a, completed(out.orderId, 'cs_test_1'));
+    const e = a.db.store.get('premium_entitlements/old');
+    assert.notStrictEqual(e.frozen, true);
+    assert.strictEqual(premium.isPremiumActive(e, a.clock.now), true);
+});
+
+// ---------- Red Team F2: Founders hold farming
+const MIN = 60000;
+test('F2: Founders card hold is 10 minutes (config 5..30); bitcoin hold stays matched to the 15-minute invoice', async function () {
+    assert.strictEqual(pricing.DEFAULT_CONFIG.foundersCardHoldMinutes, 10);
+    assert.strictEqual(pricing.normalizeConfig({ foundersCardHoldMinutes: 2 }).foundersCardHoldMinutes, 10);
+    assert.strictEqual(pricing.normalizeConfig({ foundersCardHoldMinutes: 45 }).foundersCardHoldMinutes, 10);
+    assert.strictEqual(pricing.normalizeConfig({ foundersCardHoldMinutes: 20 }).foundersCardHoldMinutes, 20);
+    const a = setup();
+    const c1 = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    assert.strictEqual(a.db.store.get('premium_counters/founders').holds[c1.orderId].expMs, T0 + 10 * MIN);
+    assert.strictEqual(a.db.store.get('premium_orders/' + c1.orderId).holdExpMs, T0 + 10 * MIN);
+    const c2 = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'lightning' }, ipCtx('new', '198.51.100.77'));
+    assert.strictEqual(a.db.store.get('premium_counters/founders').holds[c2.orderId].expMs, T0 + 20 * MIN);
+    // Non-Founders card orders hold nothing and keep the 31-minute session.
+    const b = setup({ config: { foundersCardHoldMinutes: 20 } });
+    const c3 = await b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    assert.strictEqual(b.db.store.get('premium_counters/founders').holds[c3.orderId].expMs, T0 + 20 * MIN);
+});
+
+test('F2: a payment after the short hold lapsed gets a seat only if one is free (never oversold)', async function () {
+    const a = setup({ config: { foundersHoldCooldownMinutes: 0 } });
+    a.db.store.set('premium_counters/founders', { sold: 498, holds: {} });
+    const o1 = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    a.clock.now = T0 + 11 * MIN;
+    // Seats are free: the late payment still gets one.
+    await stripePost(a, founderDone(o1.orderId, 'cs_test_1'));
+    assert.strictEqual(a.db.store.get('premium_counters/founders').sold, 499);
+    assert.strictEqual(a.db.store.get('premium_orders/' + o1.orderId).status, 'paid');
+    // Last seat: hold lapses, someone else holds the last seat, late payment goes to review.
+    const b = setup({ config: { foundersHoldCooldownMinutes: 0 } });
+    b.db.store.set('premium_counters/founders', { sold: 499, holds: {} });
+    const p1 = await b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    b.clock.now = T0 + 11 * MIN;
+    await b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', '198.51.100.88'));
+    assert.strictEqual((await stripePost(b, founderDone(p1.orderId, 'cs_test_1'))).body.outcome, 'review');
+    assert.strictEqual(b.db.store.get('premium_counters/founders').sold, 499);
+    assert.strictEqual(b.db.store.get('premium_orders/' + p1.orderId).reviewReason, 'founders_sold_out_late_payment');
+});
+
+test('F2: live-hold cap hit writes one admin alert + review row per 30 minutes, no uid or email in it', async function () {
+    const a = setup({ config: { maxLiveFoundersHolds: 2 } });
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u1aaaa'));
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u2aaaa'));
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u3aaaa')), 'founders_busy');
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u4aaaa')), 'founders_busy');
+    const n = adminRows(a, 'premium_founders_cap');
+    assert.strictEqual(n.length, 1);
+    assert.ok(/2 seats are held/.test(n[0].text));
+    assert.ok(!/u3aaaa|u4aaaa|@/.test(JSON.stringify(n)));
+    assert.strictEqual(rows(a, 'premium_review').filter(function (r) { return r.reason === 'founders_hold_cap_hit'; }).length, 1);
+    // The busy refusal wrote no hold and no order.
+    assert.strictEqual(Object.keys(a.db.store.get('premium_counters/founders').holds).length, 2);
+    // Next 30-minute window: a new alert.
+    a.clock.now = T0 + 31 * MIN;
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u5aaaa'));
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u6aaaa'));
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u7aaaa')), 'founders_busy');
+    assert.strictEqual(adminRows(a, 'premium_founders_cap').length, 2);
+});
+
+test('F2: an alert write failure never changes the founders_busy answer', async function () {
+    const a = setup({ config: { maxLiveFoundersHolds: 1 } });
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u1aaaa'));
+    const orig = a.db.runTransaction;
+    let n = 0;
+    a.db.runTransaction = function (fn) { n++; if (n === 2) return Promise.reject(new Error('boom')); return orig.call(a.db, fn); };
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u2aaaa')), 'founders_busy');
+    a.db.runTransaction = orig;
+});
+
+test('F2: unpaid Founders hold that lapses starts a 30-minute per-account cooldown', async function () {
+    assert.strictEqual(pricing.DEFAULT_CONFIG.foundersHoldCooldownMinutes, 30);
+    const a = setup();
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    a.clock.now = T0 + 11 * MIN;
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old')), 'founders_cooldown');
+    // Another account is not affected; its checkout prunes the lapsed hold and
+    // records the cooldown so it survives the pruning.
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', '198.51.100.99'));
+    const cd = a.db.store.get('premium_rate/fcool_old');
+    assert.strictEqual(cd.untilMs, T0 + 40 * MIN);
+    assert.strictEqual(new Date(cd.expireAt).getTime(), T0 + 40 * MIN + 3600000);
+    a.clock.now = T0 + 39 * MIN;
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old')), 'founders_cooldown');
+    a.clock.now = T0 + 40 * MIN + 1;
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    // Non-Founders plans never see the cooldown.
+    const b = setup();
+    await b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    b.clock.now = T0 + 11 * MIN;
+    await b.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('old'));
+});
+
+test('F2: checkout.session.expired also starts the cooldown; a paid hold or cooldown 0 does not', async function () {
+    const a = setup();
+    const o = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    a.clock.now = T0 + 5 * MIN;
+    await stripePost(a, { id: 'evt_exp_cd', type: 'checkout.session.expired', livemode: false, data: { object: { id: 'cs_test_1', client_reference_id: o.orderId } } });
+    assert.strictEqual(a.db.store.get('premium_rate/fcool_old').untilMs, T0 + 35 * MIN);
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old')), 'founders_cooldown');
+    // Paid in time: no cooldown.
+    const b = setup();
+    const p = await b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    await stripePost(b, founderDone(p.orderId, 'cs_test_1'));
+    b.clock.now = T0 + 11 * MIN;
+    await rejects(b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old')), 'already_lifetime');
+    assert.ok(!b.db.store.has('premium_rate/fcool_old'));
+    // Cooldown off.
+    const c = setup({ config: { foundersHoldCooldownMinutes: 0 } });
+    await c.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    c.clock.now = T0 + 11 * MIN;
+    await c.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+});
+
+// ---------- Red Team F3 (server side): bitcoin links pinned to btcpayHost
+test('F3: btcpayHost validated; status exposes it; bitcoin closed without it; off-host invoice link refused', async function () {
+    assert.strictEqual(pricing.normalizeConfig({ btcpayHost: 'Pay.Example.com' }).btcpayHost, 'pay.example.com');
+    ['https://pay.example.com', 'pay.example.com/x', 'pay.example.com:443', '1.2.3.4', 'localhost', '', 7, null].forEach(function (v) {
+        assert.strictEqual(pricing.normalizeConfig({ btcpayHost: v }).btcpayHost, null, String(v));
+    });
+    const a = setup();
+    const st = await a.h.getPremiumStatus({}, ctx('old'));
+    assert.strictEqual(st.btcpayHost, 'btcpay.example.test');
+    assert.strictEqual(st.lightningOpen, true);
+    const b = setup({ config: { btcpayHost: null } });
+    const st2 = await b.h.getPremiumStatus({}, ctx('old'));
+    assert.strictEqual(st2.lightningOpen, false);
+    assert.strictEqual(st2.btcpayHost, null);
+    await rejects(b.h.createPremiumCheckout({ plan: 'yearly', rail: 'lightning' }, ctx('old')), 'lightning_closed');
+    // BTCPay answers with a link on another host: refused, Founders hold released.
+    const c = setup({ config: { btcpayHost: 'pay.other.example' } });
+    await rejects(c.h.createPremiumCheckout({ plan: 'founders', rail: 'lightning' }, ctx('old')), 'provider_error');
+    assert.strictEqual(Object.keys(c.db.store.get('premium_counters/founders').holds).length, 0);
 });
 
 (async function () {

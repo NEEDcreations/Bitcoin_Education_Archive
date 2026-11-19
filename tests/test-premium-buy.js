@@ -27,7 +27,7 @@ test('final-sale box required and acceptNoRefunds sent', function () {
     assert.ok(/acceptNoRefunds: true/.test(js));
     assert.ok(/All sales are final\. No refunds\./.test(js));
     assert.ok(js.indexOf("You're charged today.") !== -1);
-    assert.ok(/Embers and Citadel perks start ' \+ etDate\(st\.perksStartAtMs\) \+ ' at 12:00 AM ET\. Your other Premium perks start right away\./.test(js));
+    assert.ok(/Embers and Citadel cosmetics start ' \+ etDate\(st\.perksStartAtMs\) \+ ' at 12:00 AM ET\. Your other Premium perks start right away\./.test(js));
     assert.ok(!/free trial|7-day/i.test(js));
 });
 test('kill switch and other server reasons have friendly messages', function () {
@@ -36,7 +36,7 @@ test('kill switch and other server reasons have friendly messages', function () 
     });
 });
 test('loaded on index.html and 404.html with the same buster', function () {
-    const tag = '<script src="/premium-buy.js?v=20261118_v2606" defer></script>';
+    const tag = '<script src="/premium-buy.js?v=20261118_v2607" defer></script>';
     assert.ok(index.includes(tag));
     assert.ok(notFound.includes(tag));
     assert.strictEqual(index, notFound);
@@ -67,11 +67,30 @@ test('card: only checkout.stripe.com over https', function () {
     assert.strictEqual(T.safeCheckoutUrl('javascript:alert(1)', 'card'), null);
     assert.strictEqual(T.safeCheckoutUrl(null, 'card'), null);
 });
-test('bitcoin: https BTCPay only, never javascript:/http:', function () {
-    assert.ok(T.safeCheckoutUrl('https://pay.example.com/i/abc', 'lightning'));
-    assert.strictEqual(T.safeCheckoutUrl('javascript:alert(1)', 'lightning'), null);
-    assert.strictEqual(T.safeCheckoutUrl('http://pay.example.com/i/abc', 'lightning'), null);
-    assert.strictEqual(T.safeCheckoutUrl('https://dev.bitcoineducation.quest/x', 'lightning'), null);
+test('bitcoin: pinned to the configured BTCPay host exactly (Red Team F3)', function () {
+    const H = 'pay.example.com';
+    assert.strictEqual(T.safeCheckoutUrl('https://pay.example.com/i/abc', 'lightning', H), 'https://pay.example.com/i/abc');
+    assert.strictEqual(T.safeCheckoutUrl('https://PAY.example.com/i/abc', 'lightning', 'PAY.EXAMPLE.COM'), 'https://pay.example.com/i/abc');
+    // No configured host: every bitcoin link refused.
+    assert.strictEqual(T.safeCheckoutUrl('https://pay.example.com/i/abc', 'lightning'), null);
+    assert.strictEqual(T.safeCheckoutUrl('https://pay.example.com/i/abc', 'lightning', ''), null);
+    // Any other https host, look-alikes and sub/parent domains refused.
+    ['https://evil.example/i/abc', 'https://pay.example.com.evil.example/i/abc', 'https://x.pay.example.com/i/abc',
+        'https://example.com/i/abc', 'https://pay.example.co/i/abc', 'https://user@pay.example.com/i/abc',
+        'https://pay.example.com:8443/i/abc', 'http://pay.example.com/i/abc', 'javascript:alert(1)',
+        'https://dev.bitcoineducation.quest/x', 'https://checkout.stripe.com/c/pay/cs_test_1'].forEach(function (u) {
+        assert.strictEqual(T.safeCheckoutUrl(u, 'lightning', H), null, u);
+    });
+    // A bad configured host (scheme, path, our own host) is refused too.
+    assert.strictEqual(T.safeCheckoutUrl('https://pay.example.com/i/abc', 'lightning', 'https://pay.example.com'), null);
+    assert.strictEqual(T.safeCheckoutUrl('https://dev.bitcoineducation.quest/x', 'lightning', 'dev.bitcoineducation.quest'), null);
+    // Card links ignore btcpayHost and stay pinned to Stripe.
+    assert.strictEqual(T.safeCheckoutUrl('https://pay.example.com/i/abc', 'card', H), null);
+    assert.strictEqual(T.safeCheckoutUrl('https://x', 'other', H), null);
+});
+test('buy screen passes status btcpayHost to the link check and hides bitcoin without it', function () {
+    assert.ok(/safeCheckoutUrl\(r && r\.url, state\.rail, st && st\.btcpayHost\)/.test(js));
+    assert.ok(/if \(st\.lightningOpen && st\.btcpayHost\)/.test(js));
 });
 test('portal: only billing.stripe.com', function () {
     assert.ok(T.safePortalUrl('https://billing.stripe.com/p/session/test_1'));

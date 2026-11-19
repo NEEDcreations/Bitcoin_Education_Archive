@@ -37,13 +37,19 @@ test('no existing-player discount and no BTC price line until enabled', function
     assert.ok(!/\$45|\$135|\$4\.50|\$42\.50|\$127\.50/.test(text));
 });
 test('approved perks present, dropped perks absent, banned claims absent', function () {
-    assert.ok(text.indexOf('Embers and Citadel perks unlock with Citadel Spark on Jan 3. Every other perk starts the moment you buy.') !== -1);
+    assert.ok(text.indexOf('Embers and Citadel cosmetics unlock with Citadel Spark on Jan 3. Every other perk starts the moment you buy.') !== -1);
     assert.ok(/Compute Games Pass\. Watching is free, and paying never buys influence\./.test(text));
     assert.ok(/Paying never changes who wins a battle\./.test(text));
     assert.ok(/No pool fee when you mine/.test(text));
     assert.ok(/Higher chat limit/.test(text));
     assert.ok(/One username change and one faction change per year/.test(text));
-    assert.ok(/60 days old/.test(text));
+    // Only approved limit: 20 OrangeTix a day bought with the player's own XP (Phil, Nov 18).
+    assert.ok(/Buy up to 20 OrangeTix a day with your own XP/.test(text));
+    assert.ok(!/Higher rewards limit/i.test(text));
+    // Citadel perks are cosmetic only (Citadel spec, Nov 18, Red Team C1).
+    assert.ok(!/build slot/i.test(text));
+    assert.ok(/never speed up collecting Citadel parts/.test(text));
+    assert.ok(!/parts? tickets?/i.test(text));
     assert.ok(/can't become sats/.test(text));
     assert.ok(/100 Embers a month to spend on cosmetics in the Nook/.test(text));
     ['supporter badge', 'badge', 'frame', 'streak freeze', 'unlimited', 'no ceiling', 'better odds', 'more raffle entries'].forEach(function (w) {

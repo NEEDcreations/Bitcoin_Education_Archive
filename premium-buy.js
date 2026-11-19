@@ -15,9 +15,10 @@
         kill_switch: 'Bitcoin Quest is offline for maintenance, so checkout is paused. Please try again later.',
         terms_required: 'Please tick the box to confirm that all sales are final.',
         founders_sold_out: "Founders' Lifetime is sold out.",
-        founders_busy: 'All remaining Founders seats are being checked out right now. Try again in 20 minutes.',
-        hold_exists: 'You already have a Founders checkout open. Finish it or wait 20 minutes.',
-        hold_exists_ip: 'A Founders checkout is already open from this network. Try again in 20 minutes.',
+        founders_busy: 'All remaining Founders seats are being checked out right now. Try again in a few minutes.',
+        hold_exists: 'You already have a Founders checkout open. Finish it or try again in a few minutes.',
+        founders_cooldown: 'Your last Founders checkout timed out. Please wait about 30 minutes before trying again.',
+        hold_exists_ip: 'A Founders checkout is already open from this network. Try again in a few minutes.',
         email_not_verified: 'Verify your email in Settings first, then come back.',
         already_premium: 'You already have Premium.',
         already_founders: "You're already a Founder.",
@@ -60,15 +61,22 @@
     }
     function toast(m) { if (typeof showToast === 'function') showToast(m); }
 
-    // Only Stripe Checkout (card) or an https BTCPay page (bitcoin) is followed.
-    function safeCheckoutUrl(url, rail) {
+    // Only Stripe Checkout (card) or the configured BTCPay host (bitcoin) is
+    // followed, each pinned to its exact host. btcpayHost comes from
+    // getPremiumStatus (premium_config); no host means no bitcoin link.
+    var HOST_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+    function safeCheckoutUrl(url, rail, btcpayHost) {
         if (typeof url !== 'string') return null;
         var u;
         try { u = new URL(url); } catch (e) { return null; }
-        if (u.protocol !== 'https:') return null;
-        if (rail === 'card' && u.hostname !== 'checkout.stripe.com') return null;
-        if (rail === 'lightning' && u.hostname === location.hostname) return null;
-        return u.href;
+        if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443')) return null;
+        if (rail === 'card') return u.hostname === 'checkout.stripe.com' ? u.href : null;
+        if (rail === 'lightning') {
+            var h = typeof btcpayHost === 'string' ? btcpayHost.toLowerCase() : '';
+            if (!h || !HOST_RE.test(h) || h === location.hostname) return null;
+            return u.hostname === h ? u.href : null;
+        }
+        return null;
     }
     function safePortalUrl(url) {
         if (typeof url !== 'string') return null;
@@ -163,7 +171,7 @@
             b._rail = rail;
             return b;
         }
-        if (st.lightningOpen) {
+        if (st.lightningOpen && st.btcpayHost) {
             railRow.appendChild(railBtn('card', 'Card'));
             railRow.appendChild(railBtn('lightning', 'Bitcoin (10% off)'));
             body.appendChild(railRow);
@@ -186,7 +194,7 @@
         body.appendChild(charge);
         if (st.perksStartAtMs && !st.deferredPerksOpen) {
             body.appendChild(el('p', 'margin:4px 0;color:#d1d5db;font-size:.92rem',
-                'Embers and Citadel perks start ' + etDate(st.perksStartAtMs) + ' at 12:00 AM ET. Your other Premium perks start right away.'));
+                'Embers and Citadel cosmetics start ' + etDate(st.perksStartAtMs) + ' at 12:00 AM ET. Your other Premium perks start right away.'));
         }
         var terms = el('p', 'margin:10px 0;padding:10px 12px;border-radius:10px;background:#1a1410;border:1px solid #5a3a12;color:#f3d9b5;font-size:.88rem',
             (st.refundPolicy && st.refundPolicy.text) || "All sales are final. No refunds. Monthly and Yearly plans can be canceled any time and keep Premium until the end of the period you paid for. Founders' Lifetime and bitcoin payments are final.");
@@ -264,7 +272,7 @@
             buy.disabled = true;
             buy.textContent = 'Opening checkout…';
             call('createPremiumCheckout', payload).then(function (r) {
-                var u = safeCheckoutUrl(r && r.url, state.rail);
+                var u = safeCheckoutUrl(r && r.url, state.rail, st && st.btcpayHost);
                 if (!u) throw { details: { reason: 'provider_error' } };
                 location.assign(u);
             }).catch(function (e) {

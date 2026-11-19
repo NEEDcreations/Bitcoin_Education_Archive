@@ -12,6 +12,8 @@ Tests: `tests/test-premium-checkout.js`, `tests/test-premium-page.js`,
 
 - **Charged at purchase on every plan.** No deferred billing. `billingStartsAt` is gone (ignored if present).
 - **Perks:** Embers (100/mo, roll over to 300) and Citadel perks start `perksStartAt` = Jan 3, 2027 12:00 AM ET for anyone who bought earlier. Every other perk starts at purchase.
+- **Citadel perks are cosmetic only** (Citadel spec, Nov 18). `citadelPerks` is a yes/no flag and must never speed up collecting parts, timers or cooldowns. Citadel parts, timer and cooldown code must never read Premium or Embers. No parts-ticket bonus for Premium.
+- **OrangeTix perk:** Premium can buy up to 20 OrangeTix a day with the player's own XP (Phil, Nov 18). Nothing broader.
 - **No free trial.** `trialsEnabled` must be exactly `true` to offer one (missing = off); `trialDays` is then 1..14. Planned for about early Feb 2027.
 - **No refunds on any plan.** Monthly/Yearly cancel at period end and keep paid time (portal `subscription_cancel.mode=at_period_end`, `proration_behavior=none`). Founders and bitcoin payments are final. Shown before payment: the server refuses a checkout without `acceptNoRefunds: true` (`terms_required`), and Stripe's pay button carries the same text (`REFUND_POLICY`). Orders record `refundPolicy` and `noRefundAckAtMs`.
 - **Kill switch:** `createPremiumCheckout` (card and BTCPay invoice create) and `premiumPublicCheckout` refuse new orders while `config/killSwitch` is on, and fail closed if it can't be read (`kill_switch`, HTTP 503 on the public route). `premiumStripeWebhook`, `premiumBtcpayWebhook`, `getPremiumStatus` and the sweep keep running.
@@ -65,7 +67,10 @@ trialDays: 0                    // 1..14, only read when trialsEnabled === true
 publicOrdersPerHour: 60         // global cap on public-page orders per hour (all IPs)
 maxLiveFoundersHolds: 25        // cap on Founders' seats in checkout at once
 foundersHoldsAlertThreshold: 15 // holds at/above this for > 1 hour -> review row + admin alert
-publicOrderEmailRetentionMonths: 24 // unclaimed public orders: plain email cleared after this (Phil to confirm)
+publicOrderEmailRetentionMonths: 3 // unclaimed public orders: plain email cleared after this (User Data, Nov 18)
+foundersCardHoldMinutes: 10    // Founders card seat hold (5..30); bitcoin hold = 15-min invoice + 5-min grace
+foundersHoldCooldownMinutes: 30 // wait after an unpaid Founders hold lapses (0..240, 0 = off)
+btcpayHost: null                // exact BTCPay hostname; the app only follows bitcoin links on it. Unset = bitcoin closed
 stripePortalConfigId: null      // bpc_... from functions/scripts/premium-portal-config.js; portal closed until set
 existingUserDiscountEndsAtMs    // may end the 5% earlier; clamped to 2027-01-01 00:00 ET at most
 foundersRequireVerifiedEmail: true // Founders in-app requires a verified email; false turns this off. Absent = on
@@ -85,7 +90,7 @@ Entitlements record `deferredPerksStartAtMs`; `getPremiumStatus` returns
 `perks_start` before Jan 3.
 
 Stripe pay-button text (`custom_text.submit`): "You're charged today." + (Founders line)
-+ "Embers and Citadel perks start Jan 3, 2027 at 12:00 AM ET. Your other Premium
++ "Embers and Citadel cosmetics start Jan 3, 2027 at 12:00 AM ET. Your other Premium
 perks start right away." (only before Jan 3) + the no-refunds text.
 
 Discounts are baked into the subscription's `price_data`, so a subscriber who
@@ -117,9 +122,10 @@ Phil's OK); rotating it resets trial markers and rate buckets.
 | Data | Kept |
 |---|---|
 | premium_orders, premium_events, premium_review, premium_allowance_ledger, premium_trial_markers, premium_admin_audit | Permanent (`PERMANENT_COLLECTIONS`). Excluded from every cleanup, retained by account deletion (uid masked). |
-| Plain email on a public order | Cleared when a verified account claims it, on a full refund, or by the hourly sweep `publicOrderEmailRetentionMonths` (default 24) after purchase. The keyed `emailKey` stays. |
+| Plain email on a public order | Cleared when a verified account claims it, on a full refund, or by the hourly sweep `publicOrderEmailRetentionMonths` (default 3) after purchase. The keyed `emailKey` stays. |
 | premium_rate docs (per-IP / per-account / global) | `expireAt` = window start + 2 h |
 | Founders holds | `expMs` in `premium_counters/founders.holds` (released on expiry) |
+| Founders hold cooldowns | `premium_rate/fcool_<holdKey>` with `untilMs`; `expireAt` = cooldown end + 1 h |
 | premium_entitlements, premium_allowance, premium_email_entitlements | Deleted on account deletion |
 
 TTL: `premium_rate.expireAt` is in place, but no Firestore TTL policy was
@@ -201,3 +207,27 @@ Live (Phil only, after Red Team / QA / Security GO):
 6. BTCPay: a Lightning-only store paying into that wallet; Greenfield API key with `btcpay.store.canviewinvoices`, `btcpay.store.cancreateinvoice` only; webhook to `premiumBtcpayWebhook` (InvoiceSettled, InvoiceExpired, InvoiceInvalid) with a secret. Secrets: `BTCPAY_URL`, `BTCPAY_STORE_ID`, `BTCPAY_API_KEY`, `BTCPAY_WEBHOOK_SECRET`.
 7. Config: `existingUserCutoffMs` (or `checkoutLaunchedAtMs`) so the 5% works, then `lightningEnabled: true` and finally `checkoutEnabled: true`.
 8. Public page: flip `PREMIUM_PAGE_PUBLIC` (seo-router) and `PAGE_OPEN_ON_LIVE` (premium.js) together, and deploy the Worker.
+
+## Founders holds and late or reversed payments (Nov 18, Red Team F1/F2)
+
+- Founders card holds last `foundersCardHoldMinutes` (10). The Stripe session
+  itself stays open 31 minutes (Stripe's minimum is 30), so a buyer can still
+  pay after the hold lapses. Only a live hold reserves a seat: a late payment
+  gets a seat if one is free, otherwise it goes to `founders_sold_out_late_payment`
+  review. The cap can never be oversold.
+- Bitcoin holds stay at the 15-minute invoice + 5-minute grace, so a paid
+  invoice is always covered by its hold.
+- When live holds reach `maxLiveFoundersHolds`, new Founders checkouts get
+  `founders_busy`, and one `admin_notifications` row (`premium_founders_cap`)
+  plus one `premium_review` row (`founders_hold_cap_hit`) is written per
+  30-minute window.
+- An unpaid Founders hold that lapses starts a per-account cooldown
+  (`foundersHoldCooldownMinutes`, 30). A new Founders checkout in that time gets
+  `founders_cooldown`.
+- A full refund or dispute always stamps the order (`refundKind: 'full'`,
+  `disputedAtMs`), paid or not. A `checkout.session.completed` or
+  `async_payment_succeeded` that arrives later grants the entitlement frozen
+  (`frozenReason` = the refund or dispute event), writes a review row and an
+  admin alert, and for Founders sells and retires the seat at once.
+- A dispute event carries no order metadata, so the webhook reads its charge
+  back from Stripe to find the order.

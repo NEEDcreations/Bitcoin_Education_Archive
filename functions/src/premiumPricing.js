@@ -78,8 +78,21 @@ const DEFAULT_CONFIG = Object.freeze({
     foundersHoldsAlertThreshold: 15,
     // Data/Backups (Nov 14): plain email on an unclaimed public order is
     // cleared this many months after purchase (or at once on a full refund).
-    // Pending Phil's OK on the 24-month default.
-    publicOrderEmailRetentionMonths: 24,
+    // 3 months (User Data, Nov 18): the hashed emailKey still lets the buyer
+    // claim later, and Stripe keeps its own copy of the customer email.
+    publicOrderEmailRetentionMonths: 3,
+    // Founders' card checkout: minutes a seat stays held (Red Team F2, Nov 18).
+    // Shorter than the 31-minute Stripe session (Stripe's minimum is 30), so
+    // abandoned holds free up fast. A payment after the hold lapses still
+    // gets the seat if one is free; if the cap is full it goes to review.
+    // Bitcoin holds stay matched to the 15-minute BTCPay invoice.
+    foundersCardHoldMinutes: 10,
+    // After a Founders' hold lapses unpaid, that account waits this long
+    // before it can hold a Founders' seat again. 0 turns it off.
+    foundersHoldCooldownMinutes: 30,
+    // Exact BTCPay host (e.g. "pay.example.com"). The app only follows a
+    // bitcoin checkout link on this host; unset means bitcoin links are refused.
+    btcpayHost: null,
     // Stripe billing portal configuration id (bpc_...). Required: the portal
     // refuses to open without it, so promotion codes and plan switches stay
     // off (see functions/scripts/premium-portal-config.js).
@@ -105,6 +118,14 @@ function ms(v) {
     return Math.floor(n);
 }
 
+// Lowercase DNS hostname only: no scheme, port, path, user info or IP literal.
+function normalizeHost(v) {
+    if (typeof v !== 'string') return null;
+    const h = v.trim().toLowerCase();
+    if (h.length > 253 || !/^(?=.*[a-z])([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(h)) return null;
+    return h;
+}
+
 // Validates the config doc. Anything malformed falls back to the default, so a
 // typo can never produce a bigger discount than Phil decided.
 function normalizeConfig(raw) {
@@ -128,6 +149,9 @@ function normalizeConfig(raw) {
         maxLiveFoundersHolds: intIn(r.maxLiveFoundersHolds, 1, FOUNDERS_CAP, DEFAULT_CONFIG.maxLiveFoundersHolds),
         foundersHoldsAlertThreshold: intIn(r.foundersHoldsAlertThreshold, 1, FOUNDERS_CAP, DEFAULT_CONFIG.foundersHoldsAlertThreshold),
         publicOrderEmailRetentionMonths: intIn(r.publicOrderEmailRetentionMonths, 1, 120, DEFAULT_CONFIG.publicOrderEmailRetentionMonths),
+        foundersCardHoldMinutes: intIn(r.foundersCardHoldMinutes, 5, 30, DEFAULT_CONFIG.foundersCardHoldMinutes),
+        foundersHoldCooldownMinutes: intIn(r.foundersHoldCooldownMinutes, 0, 240, DEFAULT_CONFIG.foundersHoldCooldownMinutes),
+        btcpayHost: normalizeHost(r.btcpayHost),
         stripePortalConfigId: typeof r.stripePortalConfigId === 'string' && /^bpc_[A-Za-z0-9]{6,80}$/.test(r.stripePortalConfigId) ? r.stripePortalConfigId : null,
         // Absent or any value other than false stays on (Red Team, Nov 14).
         foundersRequireVerifiedEmail: r.foundersRequireVerifiedEmail !== false,
@@ -242,6 +266,7 @@ module.exports = {
     DEFAULT_CONFIG,
     PricingError,
     normalizeConfig,
+    normalizeHost,
     isExistingUser,
     existingUserCutoff,
     applyDiscounts,
