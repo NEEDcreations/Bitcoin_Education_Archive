@@ -65,7 +65,8 @@ function tracks() {
 }
 function fire(t, attrs) {
     let stopped = false;
-    const ev = { target: H.elFrom(attrs), stopPropagation: function() { stopped = true; } };
+    const scoped = Object.prototype.hasOwnProperty.call(attrs, '__inside') ? attrs : Object.assign({ __inside: 'beatsApp' }, attrs);
+    const ev = { target: H.elFrom(scoped), stopPropagation: function() { stopped = true; } };
     t.win._beatsOnAction(ev);
     return stopped;
 }
@@ -128,6 +129,21 @@ test('valid ids reach each action with the right arguments', function() {
         ['like', 'trackA_1'],
         ['reload'],
     ]);
+});
+
+test('only buttons inside the Beats screens and overlays are routed', function() {
+    const t = load();
+    ['beatsApp', 'beatsDetailOverlay', 'beatsMenuOverlay', 'beatsArtistOverlay', 'beatsPlaylistPicker', 'beatsCommentsPanel', 'v4vTipOverlay'].forEach(function(id) {
+        assert.strictEqual(fire(t, { 'data-beats-action': 'like', 'data-id': 'trackA_1', __inside: id }), true, id);
+    });
+    assert.strictEqual(t.calls.length, 7);
+    t.calls.length = 0;
+    ['forumContainer', 'msgs', 'globalChat', 'articleBody', 'beatsAppX', ''].forEach(function(id) {
+        assert.strictEqual(fire(t, { 'data-beats-action': 'delete-track', 'data-id': 'trackA_1', __inside: id }), false, id);
+        assert.strictEqual(fire(t, { 'data-beats-action': 'like', 'data-id': 'trackA_1', __inside: id }), false, 'no stop outside: ' + id);
+    });
+    assert.strictEqual(fire(t, { 'data-beats-action': 'like', 'data-id': 'trackA_1', __inside: null }), false);
+    assert.deepStrictEqual(t.calls, []);
 });
 
 test('track and comment ids no longer ride in handler text', function() {

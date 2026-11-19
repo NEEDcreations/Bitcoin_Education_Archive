@@ -1248,13 +1248,17 @@ window.showDMImagePreview = function(file, convoId, recipientUid, recipientName)
             '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;font-weight:600;">Send this image?</div>' +
             '<img src="' + objectUrl + '" style="max-width:100%;max-height:260px;border-radius:10px;display:block;margin:0 auto 14px;">' +
             '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
-                '<button onclick="document.getElementById("dmImagePreview").remove();URL.revokeObjectURL("' + objectUrl + '")" style="padding:8px 18px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:0.85rem;cursor:pointer;">Cancel</button>' +
+                '<button type="button" id="dmImageCancelBtn" style="padding:8px 18px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:0.85rem;cursor:pointer;">Cancel</button>' +
                 '<button id="dmImageConfirmBtn" style="padding:8px 18px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-family:inherit;font-size:0.85rem;font-weight:700;cursor:pointer;">Send</button>' +
             '</div>' +
         '</div>';
 
     document.body.appendChild(overlay);
 
+    document.getElementById('dmImageCancelBtn').addEventListener('click', function() {
+        overlay.remove();
+        URL.revokeObjectURL(objectUrl);
+    });
     document.getElementById('dmImageConfirmBtn').addEventListener('click', function() {
         overlay.remove();
         URL.revokeObjectURL(objectUrl);

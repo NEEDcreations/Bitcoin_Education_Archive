@@ -407,6 +407,43 @@ test('the tip and double-tap helpers find forum buttons by data attributes', fun
     assert.ok(bundle.includes(forum));
 });
 
+test('the post edit dialog binds Save by listener and refuses odd ids', function() {
+    const HM = require('./helpers-markup.js');
+    const src = read('ux-patches.js');
+    const docIds = [];
+    const saved = [];
+    const byId = {};
+    let appendedHtml = '';
+    const post = { authorId: 'viewer1', title: 'Title "quoted"', body: 'b', createdAt: { toDate: function() { return new Date(); } } };
+    const sandbox = {
+        EDIT_WINDOW_MS: 15 * 60 * 1000,
+        auth: { currentUser: { uid: 'viewer1' } },
+        isForumAdmin: function() { return false; },
+        escapeHtml: function(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); },
+        db: { collection: function() { return { doc: function(id) { docIds.push(id); return { get: function() { return { then: function(cb) { cb({ exists: true, data: function() { return post; } }); } }; } }; } }; } },
+        document: {
+            createElement: function() { const d = { set innerHTML(h) { appendedHtml = h; }, firstChild: {} }; return d; },
+            body: { appendChild: function() { byId.forumEditSaveBtn = { listeners: [], addEventListener: function(t, fn) { this.listeners.push([t, fn]); } }; } },
+            getElementById: function(id) { return byId[id] || null; },
+        },
+        showToast: function() {},
+    };
+    sandbox.window = sandbox;
+    sandbox.forumSaveEdit = function(id) { saved.push(id); };
+    vm.createContext(sandbox);
+    vm.runInContext(HM.sliceFunction(src, 'window.forumEditPost = function('), sandbox, { filename: 'ux-patches.js' });
+    ODD_IDS.forEach(function(id) { sandbox.forumEditPost(id); });
+    sandbox.forumEditPost(undefined);
+    assert.deepStrictEqual(docIds, []);
+    sandbox.forumEditPost(LONG_POST_IDS[0]);
+    assert.deepStrictEqual(docIds, [LONG_POST_IDS[0]]);
+    assert.ok(appendedHtml.indexOf('id="forumEditSaveBtn"') !== -1);
+    HM.handlerTexts(appendedHtml).forEach(function(h) { assert.ok(h.indexOf(LONG_POST_IDS[0]) === -1 && h.indexOf('forumSaveEdit') === -1, h); });
+    assert.strictEqual(byId.forumEditSaveBtn.listeners.length, 1);
+    byId.forumEditSaveBtn.listeners[0][1]();
+    assert.deepStrictEqual(saved, [LONG_POST_IDS[0]]);
+});
+
 (async function() {
     for (const fn of queue) await fn();
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

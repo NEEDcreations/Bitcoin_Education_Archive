@@ -29,10 +29,13 @@ var BEATS_ACTIONS = {
     'quick-playlist': { stop: false, fn: function(el, d) { beatsQuickCreateAndAdd(d.id); } },
     'v4v-tip': { stop: false, fn: function(el, d) { beatsExecuteV4VTip(d.id); } }
 };
+// Only buttons inside the Beats screens and overlays are routed.
+var BEATS_SCOPE = '#beatsApp,#beatsDetailOverlay,#beatsMenuOverlay,#beatsArtistOverlay,#beatsPlaylistPicker,#beatsCommentsPanel,#beatsEditOverlay,#beatsAlbumGroupOverlay,#beatsGlobalPlayer,#beatsMiniPlayer,#v4vTipOverlay';
 function beatsOnAction(ev) {
     var t = ev.target;
     var el = t && t.closest ? t.closest('[data-beats-action]') : null;
     if (!el) return;
+    if (!el.closest || !el.closest(BEATS_SCOPE)) return;
     var act = el.getAttribute('data-beats-action') || '';
     if (!Object.prototype.hasOwnProperty.call(BEATS_ACTIONS, act)) return;
     var spec = BEATS_ACTIONS[act];

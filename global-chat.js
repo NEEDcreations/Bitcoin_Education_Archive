@@ -323,6 +323,7 @@ function gcIdOk(v) { return typeof v === 'string' && GC_ID_RE.test(v); }
 window._gcIdOk = gcIdOk;
 var _gcMsgById = {};
 var _gcDmNames = {};
+function gcMsgFor(id) { return Object.prototype.hasOwnProperty.call(_gcMsgById, id) ? _gcMsgById[id] : null; }
 var GC_ACTIONS = {
     profile: function(el, id) { if (typeof showUserProfile === 'function') showUserProfile(id); },
     react: function(el, id) {
@@ -331,11 +332,11 @@ var GC_ACTIONS = {
         if (typeof toggleReaction === 'function') toggleReaction(id, e);
     },
     'react-pick': function(el, id) { if (typeof showReactPicker === 'function') showReactPicker(id, el); },
-    edit: function(el, id) { var m = _gcMsgById[id]; if (m && typeof editChatMsg === 'function') editChatMsg(id, m.text || ''); },
+    edit: function(el, id) { var m = gcMsgFor(id); if (m && typeof editChatMsg === 'function') editChatMsg(id, m.text || ''); },
     pin: function(el, id) { if (typeof pinChatMessage === 'function') pinChatMessage(id); },
     del: function(el, id) { if (typeof deleteChatMsg === 'function') deleteChatMsg(id); },
     tip: function(el, id) {
-        var m = _gcMsgById[id];
+        var m = gcMsgFor(id);
         if (!m || !gcIdOk(String(m.uid || '')) || typeof showTipOverlay !== 'function') return;
         showTipOverlay({ recipientName: String(m.name || 'Anon'), recipientUid: String(m.uid), context: 'Global Chat tip', label: 'Tip Message' });
     },

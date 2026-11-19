@@ -131,6 +131,19 @@ test('forged action attributes do not reach a handler', function() {
     assert.strictEqual(t.win._gcIdOk('a'.repeat(129)), false);
 });
 
+test('edit and tip only act on messages that were rendered', function() {
+    const t = load();
+    t.win.renderChatMessages(msgs());
+    const c = t.els.globalChatMessages;
+    ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__', '__defineGetter__', 'notRendered1'].forEach(function(id) {
+        H.click(c, { 'data-gc-action': 'edit', 'data-id': id });
+        H.click(c, { 'data-gc-action': 'tip', 'data-id': id });
+    });
+    assert.deepStrictEqual(t.calls, []);
+    H.click(c, { 'data-gc-action': 'edit', 'data-id': 'mine1' });
+    assert.deepStrictEqual(t.calls, [['edit', 'mine1', "it's mine"]]);
+});
+
 test('DM list opens by uid and looks the name up', function() {
     const t = load();
     const body = t.win.document.getElementById('overlayDMsBody');

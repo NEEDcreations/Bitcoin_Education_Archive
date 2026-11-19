@@ -119,6 +119,8 @@ function elFrom(attrs) {
         closest: function(sel) {
             const m = /^\[([a-z-]+)\]$/.exec(sel);
             if (m && Object.prototype.hasOwnProperty.call(attrs, m[1])) return this;
+            // attrs.__inside names the id of a container this element sits in.
+            if (sel.indexOf('#') !== -1 && typeof attrs.__inside === 'string' && sel.split(',').indexOf('#' + attrs.__inside) !== -1) return { id: attrs.__inside };
             return null;
         },
         dataset: {},

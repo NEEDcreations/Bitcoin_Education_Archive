@@ -127,4 +127,34 @@ test('unblock prompt routes with the in-memory uid and name', function() {
     assert.deepStrictEqual(t.calls, [['unblock', 'userC3', name]]);
 });
 
+test('image preview Cancel closes the preview and frees the image', function() {
+    const byId = {};
+    const revoked = [];
+    let removed = 0;
+    function mk(id) {
+        const e = { id: id, listeners: {}, style: {}, addEventListener: function(t, fn) { (this.listeners[t] = this.listeners[t] || []).push(fn); }, remove: function() { removed++; } };
+        return e;
+    }
+    const sandbox = {
+        console: console,
+        URL: { createObjectURL: function() { return 'blob:https://example.test/abc-123'; }, revokeObjectURL: function(u) { revoked.push(u); } },
+        document: {
+            getElementById: function(id) { return byId[id] || null; },
+            createElement: function() { return mk(''); },
+            body: { appendChild: function(el) { byId.dmImageCancelBtn = mk('dmImageCancelBtn'); byId.dmImageConfirmBtn = mk('dmImageConfirmBtn'); sandbox._overlay = el; return el; } },
+        },
+        handleDMImage: function() { throw new Error('should not send'); },
+    };
+    sandbox.window = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(H.sliceFunction(SRC, 'window.showDMImagePreview = function('), sandbox, { filename: 'messaging.js' });
+    sandbox.showDMImagePreview({}, 'a_b', 'b', 'Bee');
+    const html = sandbox._overlay.innerHTML;
+    assert.ok(html.indexOf('id="dmImageCancelBtn"') !== -1);
+    assert.deepStrictEqual(H.handlerTexts(html), []);
+    byId.dmImageCancelBtn.listeners.click.forEach(function(fn) { fn({}); });
+    assert.strictEqual(removed, 1);
+    assert.deepStrictEqual(revoked, ['blob:https://example.test/abc-123']);
+});
+
 run();
