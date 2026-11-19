@@ -981,7 +981,19 @@
         if (/signal|newsletter/.test(s)) return 'signal';
         if (/nacho'?s story|where is nacho/.test(s) && /story|chapter/.test(s)) return 'story';
         if (/dress|closet|outfit/.test(s)) return 'closet';
-        if (/eli5|explain like i/.test(s)) return 'eli5';
+        if (/\beli5\b|explain like i\s*m\s*(5|five)/.test(s)) {
+            // "ELI5 Bitcoin" is a topic question. The help card is only for the
+            // feature itself ("eli5", "what is eli5", "can you explain like i'm 5").
+            var eli5Rest = s
+                .replace(/explain like i\s*m\s*(5|five)/g, ' ')
+                .replace(/\beli5\b/g, ' ')
+                .replace(/\b(mode|feature|setting|button|toggle|prompt|tool|option|works?|mean(s|ing)?|used|using|on|off|turn|enable|disable|open|close)\b/g, ' ')
+                .replace(/\b(what|whats|how|do|does|can|you|i|me|my|to|is|are|the|a|an|about|please|just|tell|for|in|of|and)\b/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (!eli5Rest) return 'eli5';
+            return null;
+        }
         if (/nacho mode/.test(s)) return 'nacho-mode';
         if (/how do i ask you|ask nacho|mini nacho|ask you a question/.test(s)) return 'mini-nacho';
         if (/learning quest/.test(s)) return 'learning-quests';

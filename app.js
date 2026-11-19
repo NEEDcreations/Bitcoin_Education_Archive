@@ -2922,8 +2922,7 @@ window.nachoQuizMe = function(topic) {
     
     var opts = q.options || [];
     for (var i = 0; i < opts.length; i++) {
-        var isCorrect = opts[i] === q.answer;
-        html += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[i]) + '" ' + (isCorrect ? 'data-correct="1" ' : '') + 'onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+        html += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[i]) + '" onclick="nachoQuizAnswer(this)" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
     }
     html += '</div>';
     
@@ -2937,7 +2936,7 @@ window.nachoQuizMe = function(topic) {
     nachoChatAppend('nacho', '', html);
 };
 
-window.nachoQuizAnswer = function(btn, correct) {
+window.nachoQuizAnswer = function(btn) {
     try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_quiz_done_' + _t, 'true'); } catch(e) {}
     var parent = btn.parentElement;
     var buttons = parent.querySelectorAll('button');
@@ -2946,42 +2945,58 @@ window.nachoQuizAnswer = function(btn, correct) {
         b.style.cursor = 'default';
         b.style.opacity = '0.7';
     });
-    if (correct) {
-        btn.style.background = '#22c55e';
-        btn.style.color = '#fff';
-        btn.style.borderColor = '#22c55e';
-        btn.style.opacity = '1';
-        // awardPoints() fires its own toast on CF success — don't double-toast here.
-        // If CF fails (network/cap), awardPoints() surfaces that too.
-        var _nqQ = '';
-        var _nqA = '';
-        try {
-            _nqQ = decodeURIComponent(btn.getAttribute('data-q') || '');
-            _nqA = decodeURIComponent(btn.getAttribute('data-a') || '');
-        } catch (e) {}
-        if (typeof awardPoints === 'function') awardPoints(10, '🎮 Quiz correct!', null, null, null, null, { quizQuestion: _nqQ, quizChoice: _nqA || btn.textContent });
+    var _nqQ = '';
+    var _nqA = '';
+    try {
+        _nqQ = decodeURIComponent(btn.getAttribute('data-q') || '');
+        _nqA = decodeURIComponent(btn.getAttribute('data-a') || '');
+    } catch (e) {}
+    function _nqPaint(ok, msg) {
+        if (ok) {
+            btn.style.background = '#22c55e';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#22c55e';
+            btn.style.opacity = '1';
+            if (typeof haptic === 'function') haptic('success');
+        } else {
+            btn.style.background = '#ef4444';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#ef4444';
+            btn.style.opacity = '1';
+        }
         var resultDiv = document.createElement('div');
-        resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-size:0.85rem;font-weight:700;text-align:center;';
-        resultDiv.textContent = '✅ Correct! +10 XP';
-        btn.parentElement.appendChild(resultDiv);
-    } else {
-        btn.style.background = '#ef4444';
-        btn.style.color = '#fff';
-        btn.style.borderColor = '#ef4444';
-        btn.style.opacity = '1';
-        buttons.forEach(function(b) {
-            if (b !== btn && b.getAttribute('data-correct') === '1') {
-                b.style.borderColor = '#22c55e';
-                b.style.color = '#22c55e';
-                b.style.opacity = '1';
-            }
-        });
-        var resultDiv = document.createElement('div');
-        resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;font-weight:700;text-align:center;';
-        resultDiv.textContent = '❌ Incorrect. Try another!';
-        btn.parentElement.appendChild(resultDiv);
+        resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:' + (ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)') + ';border:1px solid ' + (ok ? '#22c55e' : '#ef4444') + ';border-radius:8px;color:' + (ok ? '#22c55e' : '#ef4444') + ';font-size:0.85rem;font-weight:700;text-align:center;';
+        resultDiv.textContent = msg;
+        parent.appendChild(resultDiv);
     }
-};
+    // The server grades the choice. Do not infer correctness from a client key.
+    if (typeof awardPoints === 'function') {
+        var grant = awardPoints(10, '🎮 Quiz correct!', null, null, null, null, { quizQuestion: _nqQ, quizChoice: _nqA || btn.textContent });
+        if (grant && typeof grant.then === 'function') {
+            return grant.then(function(result) {
+                var data = result && result.data ? result.data : result;
+                var err = (data && data.error) ? String(data.error) : '';
+                if (/quiz answer did not match/i.test(err)) {
+                    _nqPaint(false, '❌ Not quite.');
+                    return result;
+                }
+                if (data && data.success) {
+                    _nqPaint(true, '✅ Correct! +10 XP');
+                    return result;
+                }
+                if (data && data.dailyActionCapped) {
+                    _nqPaint(true, '✅ Correct! Daily quiz XP cap reached.');
+                    return result;
+                }
+                _nqPaint(false, 'Could not grade this answer. Try again in a moment.');
+                return result;
+            }).catch(function() {
+                _nqPaint(false, 'Could not grade this answer. Try again when you are online.');
+            });
+        }
+    }
+    _nqPaint(false, 'Sign in to score this quiz.');
+}
 
     // Render full chat from history
     function nachoChatRender() {

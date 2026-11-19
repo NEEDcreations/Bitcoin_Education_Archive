@@ -950,7 +950,7 @@ const NACHO_KB = [
 
     // === CULTURE ===
     { keys: ['book','books','reading','what to read','recommended reading','bitcoin standard'],
-      answer: "The Bitcoin Standard by Saifedean Ammous is the essential starting book. Also check out The Blocksize War, 21 Lessons by Gigi, and Inventing Bitcoin!",
+      answer: "The Bitcoin Standard by Saifedean Ammous is the essential starting book. Also check out The Blocksize War, 21 Lessons by Gigi, and Inventing Bitcoin! Buy or read: <a href='https://www.amazon.com/dp/1119473861' target='_blank' rel='noopener noreferrer'>The Bitcoin Standard</a>, <a href='https://farside.co.uk/the-blocksize-war-chapter-1-first-strike/' target='_blank' rel='noopener noreferrer'>The Blocksize War</a>, <a href='https://www.21-lessons.com/' target='_blank' rel='noopener noreferrer'>21 Lessons</a>, and <a href='https://www.swanbitcoin.com/inventing-bitcoin/' target='_blank' rel='noopener noreferrer'>Inventing Bitcoin</a>.",
       channel: 'books', channelName: 'Books' },
 
     { keys: ['podcast','podcasts','listen','audio','what to listen'],
@@ -1190,8 +1190,8 @@ const NACHO_KB = [
       answer: "Parker Lewis wrote: 'Bitcoin is very much a fight for freedom.' 🗽🦌 The opening of his essay quotes the Travis Letter from the Alamo: a declaration of liberty against impossible odds. Bitcoin is similar — it's a monetary revolution. 'Prior to Bitcoin, everyone had no practical choice but to opt into a flawed currency system.' Now you do. Bitcoin is completely voluntary, controlled by no one, and gives everyone the ability to store and transfer value in money that CANNOT be manipulated. The very idea of freedom is the single most important principle behind Bitcoin. You don't have to fight — you just have to opt in. 🧡🔥",
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
-    { keys: ['bitcoin standard','saifedean ammous','saifedean','bitcoin standard book','best bitcoin book','ammous'],
-      answer: "The Bitcoin Standard by Saifedean Ammous is THE book that orange-pilled more people than anything else, {name}! 📚🦌 Michael Saylor said: 'It was the most impactful on our way of thinking at MicroStrategy and it made us want to invert our balance sheet to base it on a Bitcoin standard.' The book traces the history of money from seashells to gold to fiat to Bitcoin. Key lessons: sound money creates civilization, easy money destroys it. The gold standard worked until governments couldn't resist printing. Bitcoin is the digital gold standard — but better, because NO ONE can cheat. Published in 39 languages. If you read one Bitcoin book, make it this one. 🧡",
+    { keys: ['bitcoin standard','saifedean ammous','saifedean','bitcoin standard book','best bitcoin book','ammous','the bitcoin standard'],
+      answer: "The Bitcoin Standard by Saifedean Ammous is THE book that orange-pilled more people than anything else, {name}! 📚🦌 Michael Saylor said: 'It was the most impactful on our way of thinking at MicroStrategy and it made us want to invert our balance sheet to base it on a Bitcoin standard.' The book traces the history of money from seashells to gold to fiat to Bitcoin. Key lessons: sound money creates civilization, easy money destroys it. The gold standard worked until governments couldn't resist printing. Bitcoin is the digital gold standard — but better, because NO ONE can cheat. Published in 39 languages. If you read one Bitcoin book, make it this one. 🧡 <a href='https://www.amazon.com/dp/1119473861' target='_blank' rel='noopener noreferrer'>Buy The Bitcoin Standard</a>",
       channel: 'books', channelName: 'Books' },
 
     { keys: ['sound money civilization','sound money vs easy money','hard money history','history of money','money through history','gold standard history','monetary history'],
@@ -1450,7 +1450,7 @@ const NACHO_KB = [
       channel: 'videos', channelName: 'Videos' },
 
     { keys: ['bitcoin book','bitcoin books','best book','what to read','book recommendation','reading list','bitcoin standard book'],
-      answer: "Oh {name}, the Bitcoin rabbit hole has INCREDIBLE books! 📚🦌 The must-reads: 'The Bitcoin Standard' by Saifedean Ammous — the history of money and why Bitcoin is the next evolution (this is THE book that orange-pills economists). '21 Lessons' by Gigi — philosophical journey down the rabbit hole (free at 21lessons.com!). 'The Internet of Money' by Andreas Antonopoulos — the WHY of Bitcoin. 'Layered Money' by Nik Bhatia — why Bitcoin is the evolution of the monetary system. 'The Blocksize War' by Jonathan Bier — the governance battle that proved Bitcoin's decentralization. And 'Broken Money' by Lyn Alden — the macro case for Bitcoin. Check our Books channel for the complete list! 📖🧡",
+      answer: "Oh {name}, the Bitcoin rabbit hole has INCREDIBLE books! 📚🦌 The must-reads: <a href='https://www.amazon.com/dp/1119473861' target='_blank' rel='noopener noreferrer'>The Bitcoin Standard</a> by Saifedean Ammous — the history of money and why Bitcoin is the next evolution (this is THE book that orange-pills economists). <a href='https://www.21-lessons.com/' target='_blank' rel='noopener noreferrer'>21 Lessons</a> by Gigi — philosophical journey down the rabbit hole. 'The Internet of Money' by Andreas Antonopoulos — the WHY of Bitcoin. 'Layered Money' by Nik Bhatia — why Bitcoin is the evolution of the monetary system. <a href='https://farside.co.uk/the-blocksize-war-chapter-1-first-strike/' target='_blank' rel='noopener noreferrer'>The Blocksize War</a> by Jonathan Bier — the governance battle that proved Bitcoin's decentralization. And <a href='https://www.lynalden.com/broken-money/' target='_blank' rel='noopener noreferrer'>Broken Money</a> by Lyn Alden — the macro case for Bitcoin. Check our Books channel for the complete list! 📖🧡",
       channel: 'books', channelName: 'Books' },
 
     { keys: ['milton friedman','friedman bitcoin prediction','milton friedman bitcoin prediction','what is milton friedman','friedman predicted','predicted bitcoin','who predicted bitcoin','bitcoin prediction old'],
@@ -3814,6 +3814,14 @@ function _levenshtein(a, b) {
     return matrix[b.length][a.length];
 }
 
+function stripEli5Prefix(input) {
+    var raw = String(input || '').trim();
+    var re = /^(?:please\s+)?(?:eli5\s+|explain like i['’]?m\s+(?:5|five)\s*[:,-]?\s+)/i;
+    if (!re.test(raw)) return '';
+    var topic = raw.replace(re, '').trim();
+    return topic;
+}
+
 function findAnswer(input) {
     var _rawQ = String(input || '');
     // Safety before the feature registry, so "where is the chat" cannot hide a crisis.
@@ -3828,6 +3836,10 @@ function findAnswer(input) {
         var _feat = window.resolveNachoFeature(_rawQ) || window.resolveNachoFeature(input);
         if (_feat && _feat.answer) return _feat;
     }
+    var _eli5Topic = stripEli5Prefix(_rawQ) || stripEli5Prefix(input);
+    // Keep the original wording so keys like "eli5 bitcoin" still match.
+    // A miss falls through to a topic retry in nachoUnifiedAnswer.
+    if (_eli5Topic) window._nachoEli5Once = true;
     input = (typeof expandSynonyms === 'function') ? expandSynonyms(input) : input;
 
     // ---- EMERGENCY PRIORITY: Live Data Awareness ----
@@ -4451,6 +4463,29 @@ function fillLiveTemplates(text) {
     if (height) text = text.replace(/\{height\}/g, Number(height).toLocaleString());
     if (halving) text = text.replace(/\{halving\}/g, Number(halving).toLocaleString());
     return text;
+}
+
+function linkifySafeBookUrls(html) {
+    var text = String(html == null ? '' : html);
+    return text.replace(/(^|[^"'>=\/])((?:https:\/\/(?:www\.)?)?amazon\.com\/dp\/[A-Z0-9]{8,12})/gi, function (full, pre, url) {
+        var href = url;
+        if (href.slice(0, 4).toLowerCase() !== 'http') href = 'https://www.' + href.replace(/^www\./i, '');
+        href = href.replace(/^https:\/\/amazon\.com/i, 'https://www.amazon.com');
+        if (!/^https:\/\/www\.amazon\.com\/dp\/[A-Z0-9]{8,12}$/i.test(href)) return full;
+        return pre + '<a href="' + href + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+    });
+}
+function attachBookGround(result) {
+    if (!result) return result;
+    var kbId = String(result.kbId || window._bqLastKbId || '');
+    if (kbId.indexOf('books-') === 0) {
+        if (!result.channel) {
+            result.channel = 'books';
+            result.channelName = 'Books';
+        }
+    }
+    if (result.answer) result.answer = linkifySafeBookUrls(result.answer);
+    return result;
 }
 
 function workerGround() {
@@ -5262,7 +5297,7 @@ function nachoMathAnswer(q) {
 // type: 'safety'|'crisis'|'harm'|'financial'|'profanity'|'offtopic'|'kb'|'ai'|'deepsearch'|'websearch'|'fallback'
 // ELI5 post-processor: simplify complex answers for 5-year-olds
 function _eli5Simplify(text) {
-    if (!text || !window._nachoEli5) return text;
+    if (!text || !(window._nachoEli5 || window._nachoEli5Once)) return text;
     // Strip HTML to work with plain text, then re-wrap
     var plain = text.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
 
@@ -5389,9 +5424,11 @@ window.nachoUnifiedAnswer = function(question, callback) {
     // Wrap callback to apply ELI5 simplification
     var _origCallback = callback;
     callback = function(result) {
-        if (result && result.answer && window._nachoEli5 && result.type !== 'crisis' && result.type !== 'harm' && result.type !== 'profanity') {
+        if (result && result.answer && (window._nachoEli5 || window._nachoEli5Once) && result.type !== 'crisis' && result.type !== 'harm' && result.type !== 'profanity') {
             result.answer = _eli5Simplify(result.answer);
         }
+        window._nachoEli5Once = false;
+        if (result) result = attachBookGround(result);
         _origCallback(result);
     };
 
@@ -5453,6 +5490,13 @@ window.nachoUnifiedAnswer = function(question, callback) {
     var kbMatch = null;
     var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
     kbMatch = liveMatch || findAnswer(q);
+    if (!kbMatch) {
+        var _eli5Retry = stripEli5Prefix(originalQ) || stripEli5Prefix(q);
+        if (_eli5Retry) {
+            window._nachoEli5Once = true;
+            kbMatch = findAnswer(_eli5Retry);
+        }
+    }
 
     // Resolve function-based answers (for dynamic content like Bitcoin's age)
     if (kbMatch && typeof kbMatch.answer === 'function') {

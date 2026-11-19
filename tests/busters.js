@@ -46,8 +46,8 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     const reg = read('features.registry.js');
     assert.ok(reg.includes('function bqSyncMobileBarPad'));
     assert.ok(reg.includes("--bq-mobile-bar-h"));
-    assert.ok(html.includes('features.registry.js?v=20261114_v2565'));
-    assert.ok(html404.includes('features.registry.js?v=20261114_v2565'));
+    assert.ok(html.includes('features.registry.js?v=20261117_v2599'));
+    assert.ok(html404.includes('features.registry.js?v=20261117_v2599'));
     assert.ok(!html.includes('features.registry.js?v=20261109_v2538'));
 });
 
@@ -531,7 +531,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('beats.js?v=20261022_v2322'));
     assert.ok(!html.includes('beats.js?v=20261013_2307'));
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
-    assert.ok(html.includes('features.registry.js?v=20261114_v2565'));
+    assert.ok(html.includes('features.registry.js?v=20261117_v2599'));
     assert.ok(!html.includes('features.registry.js?v=20261105_v2494'));
     assert.ok(html.includes('favorites.js?v=20261105_v2501'));
     assert.ok(!html.includes('favorites.js?v=20261105_v2494'));
@@ -891,7 +891,7 @@ test('PR #252 asset busters are v2512 (popup-stack bumped to v2519)', () => {
     assert.ok(!html.includes('bundle.min.js?v=20261119_v2635'));
     assert.ok(!html.includes('bundle.min.js?v=20261118_v2602'));
     assert.ok(!html.includes('bundle.min.js?v=20261106_v2512'));
-    assert.ok(html.includes('features.registry.js?v=20261114_v2565'));
+    assert.ok(html.includes('features.registry.js?v=20261117_v2599'));
     assert.ok(html.includes('onboarding.js?v=20261114_v2565'));
     assert.ok(html.includes('quests.js?v=20261118_v2590'));
     assert.ok(!html.includes('quests.js?v=20261114_v2560'));
