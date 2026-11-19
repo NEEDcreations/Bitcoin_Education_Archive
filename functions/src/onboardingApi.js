@@ -42,10 +42,9 @@ function isAnon(context) {
 // after it move XP as unclaimable and off the leaderboards, because earning
 // on a guest session is closed from the deploy on.
 //
-// TODO(ship): replace this 11:00 PM ET placeholder with the exact deploy
-// minute in a final commit before going live. Tests inject an override and
-// must not depend on the wall clock against this constant.
-const GUEST_XP_CUTOFF_MS = Date.parse('2026-11-18T23:00:00-05:00');
+// Live deploy minute: Nov 19 2026, 7:30 AM ET (12:30 UTC). Tests inject an
+// override and must not depend on the wall clock against this constant.
+const GUEST_XP_CUTOFF_MS = Date.parse('2026-11-19T07:30:00-05:00');
 
 let guestXpCutoffOverrideMs = null;
 
