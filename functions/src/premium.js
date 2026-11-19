@@ -11,7 +11,7 @@
 //   - In-app callable createPremiumCheckout (signed-in). Only this path can
 //     apply the existing-user 5% (see existingUserEligible()).
 //   - Public HTTPS premiumPublicCheckout, used by the static /premium page
-//     (works while the app is offline). Full price, never the 5%. The buyer's
+//     (no app bundle). Full price, never the 5%. The buyer's
 //     email is locked into Stripe Checkout; the entitlement is held under that
 //     email until a signed-in account with the same verified email claims it
 //     (claimPremiumByEmail), or is granted straight to that account.
@@ -28,6 +28,14 @@
 //   - Fail closed: unknown project ids refuse; staging refuses live Stripe
 //     keys and live-mode events; live refuses test keys and test events;
 //     checkout is off until premium_config/settings.checkoutEnabled is true.
+//   - Kill switch (Phil, Nov 18): both checkout entry points refuse while
+//     config/killSwitch is effectively on (or unreadable). Webhooks keep
+//     running so payments already made are still recorded.
+//   - Charged at purchase (Phil, Nov 18). Embers and Citadel perks start at
+//     perksStartAt (Jan 3, 2027 12:00 AM ET); every other perk starts now.
+//   - No refunds (pricing.REFUND_POLICY). The buyer must acknowledge it
+//     (acceptNoRefunds) before a checkout is created. Refunds Phil issues by
+//     hand in Stripe still freeze perks; a Founders' seat never returns.
 //
 // Secrets (Secret Manager, exposed as env at runtime; never logged):
 //   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
@@ -42,20 +50,20 @@ const STAGING_PROJECT = 'bitcoin-quest-staging';
 
 const SITE_URLS = Object.freeze({
     [LIVE_PROJECT]: 'https://bitcoineducation.quest',
-    [STAGING_PROJECT]: 'https://bitcoin-quest-staging.web.app',
+    [STAGING_PROJECT]: 'https://dev.bitcoineducation.quest',
 });
 
 // Browser origins allowed to call premiumPublicCheckout.
 const PUBLIC_ORIGINS = Object.freeze({
     live: [/^https:\/\/(www\.)?bitcoineducation\.quest$/],
-    test: [/^https:\/\/bitcoin-quest-staging\.web\.app$/, /^https:\/\/[a-z0-9-]+\.bitcoin-quest\.pages\.dev$/, /^http:\/\/(localhost|127\.0\.0\.1):\d{2,5}$/],
+    test: [/^https:\/\/bitcoin-quest-staging\.web\.app$/, /^https:\/\/dev\.bitcoineducation\.quest$/, /^https:\/\/([a-z0-9-]+\.)?bq-staging\.pages\.dev$/, /^https:\/\/[a-z0-9-]+\.bitcoin-quest\.pages\.dev$/, /^http:\/\/(localhost|127\.0\.0\.1):\d{2,5}$/],
 });
 
 const TURNSTILE_ACTION = 'premium_checkout';
 // Hostnames Turnstile may report for the premium page, per environment.
 const TURNSTILE_HOSTS = Object.freeze({
     live: ['bitcoineducation.quest', 'www.bitcoineducation.quest'],
-    test: ['bitcoin-quest-staging.web.app', /^[a-z0-9-]+\.bitcoin-quest\.pages\.dev$/, 'localhost', '127.0.0.1'],
+    test: ['bitcoin-quest-staging.web.app', 'dev.bitcoineducation.quest', /^([a-z0-9-]+\.)?bq-staging\.pages\.dev$/, /^[a-z0-9-]+\.bitcoin-quest\.pages\.dev$/, 'localhost', '127.0.0.1'],
 });
 
 const SECRET_NAMES = Object.freeze([
@@ -340,9 +348,20 @@ function inReferralWeek(ent, nowMs) {
     const until = Number(e.referralWeekUntilMs) || 0;
     return until > 0 && nowMs < until;
 }
-function embersGrantAllowed(ent, nowMs) {
+// Embers and Citadel perks start at perksStartAtMs (Jan 3, 2027 12:00 AM ET by
+// default; missing or bad value = that default, never earlier).
+function deferredPerksOpen(nowMs, perksStartAtMs) {
+    const start = Number(perksStartAtMs) > 0 ? Number(perksStartAtMs) : pricing.PERKS_START_MS;
+    return Number(nowMs) >= start;
+}
+// Citadel build slots and cosmetics: active paid Premium after perksStartAt.
+function citadelPerksAllowed(ent, nowMs, perksStartAtMs) {
+    return isPremiumActive(ent, nowMs) && deferredPerksOpen(nowMs, perksStartAtMs);
+}
+function embersGrantAllowed(ent, nowMs, perksStartAtMs) {
     const s = summarize(ent, nowMs);
     if (!s.active) return false;
+    if (!deferredPerksOpen(nowMs, perksStartAtMs)) return false;
     if (s.inTrial) return false;
     if (inReferralWeek(ent, nowMs)) return false;
     if (s.founders) return true;
@@ -402,14 +421,19 @@ function fmtEt(msVal) {
 }
 
 // Text shown above the pay button on Stripe Checkout (custom_text.submit).
-function checkoutNote(q, startMs, trialEndMs) {
+// perksStartMs: when Embers and Citadel perks start, if still in the future.
+// trialEndMs: only when a real trial was granted (trials are off by default).
+function checkoutNote(q, perksStartMs, trialEndMs) {
     const parts = [];
-    if (startMs) parts.push('Premium perks unlock with Citadel Spark on ' + fmtEt(startMs) + '.');
     if (q.cardMode === 'subscription' && trialEndMs) {
-        parts.push('You will not be charged today. Your first charge is on ' + fmtEt(trialEndMs) + '. Cancel any time before then and you pay nothing.');
+        parts.push('You will not be charged today. Your first charge is on ' + fmtEt(trialEndMs) + '.');
+    } else {
+        parts.push("You're charged today.");
     }
-    if (q.lifetime && startMs) parts.push("You're charged today and your Founders' seat is reserved now.");
-    return parts.join(' ').slice(0, 1200) || null;
+    if (q.lifetime) parts.push("Founders' Lifetime is a one-time payment and never renews.");
+    if (perksStartMs) parts.push('Embers and Citadel perks start ' + fmtEt(perksStartMs) + ' at 12:00 AM ET. Your other Premium perks start right away.');
+    parts.push(pricing.REFUND_POLICY.text);
+    return parts.join(' ').slice(0, 1200);
 }
 
 // ---------------------------------------------------------------- handlers
@@ -428,6 +452,21 @@ function createPremiumHandlers(deps) {
 
     function fail(code, msg, reason) {
         return new HttpsError(code, msg, reason ? { reason: reason } : undefined);
+    }
+    // Kill switch (config/killSwitch). Fails closed: unreadable = offline.
+    const isOfflineFn = deps.isOffline || function () { return require('./killSwitch').isOffline(db, now); };
+    async function refuseIfOffline() {
+        let off = true;
+        try { off = await isOfflineFn(); } catch (e) { off = true; }
+        if (off !== false) throw fail('unavailable', 'Bitcoin Quest is temporarily offline for maintenance. Checkout is paused.', 'kill_switch');
+    }
+    // Phil, Nov 18: no refunds. The buyer must tick the final-sale box.
+    function requireNoRefundAck(d) {
+        if (!d || d.acceptNoRefunds !== true) throw fail('failed-precondition', 'Please confirm that all sales are final before checkout.', 'terms_required');
+    }
+    function allowedOrigin(origin) {
+        const m = providerMode(projectId);
+        return !!(m && typeof origin === 'string' && PUBLIC_ORIGINS[m].some(function (re) { return re.test(origin); }));
     }
     function ref(col, id) { return db.collection(col).doc(id); }
     // Keyed hash; refuses (fails closed) when PREMIUM_HASH_KEY is not set.
@@ -556,16 +595,15 @@ function createPremiumHandlers(deps) {
         if (q.rail === 'lightning' && !cfg.lightningEnabled) throw fail('failed-precondition', 'Bitcoin checkout opens soon.', 'lightning_closed');
         const orderId = newId();
         const provider = q.rail === 'card' ? 'stripe' : 'btcpay';
-        // billingStartsAt (pending Phil): everything starts then; Founders'
-        // is still charged now. Trials run from the start time.
-        const startMs = cfg.billingStartsAtMs && cfg.billingStartsAtMs > nowMs ? cfg.billingStartsAtMs : null;
-        let trialEndMs = null;
-        if (q.cardMode === 'subscription') {
-            if (who.trialEligible && cfg.trialDays > 0) trialEndMs = (startMs || nowMs) + cfg.trialDays * 86400000;
-            else if (startMs) trialEndMs = startMs;
-            // Stripe needs trial_end at least 48h out; closer than that bills now.
-            if (trialEndMs && trialEndMs - nowMs < 49 * 3600000) trialEndMs = null;
-        }
+        // Phil, Nov 18: every plan is charged at purchase and Premium starts
+        // now. Only Embers and Citadel perks wait for perksStartAt (Jan 3,
+        // 2027 12:00 AM ET); that is enforced where they are granted, never
+        // by delaying the charge or the entitlement.
+        const perksStartMs = cfg.perksStartAtMs > nowMs ? cfg.perksStartAtMs : null;
+        // Free trial only when Phil has switched trials on (fail-closed flag),
+        // for a card subscription, for a first-time subscriber.
+        const trialDays = q.cardMode === 'subscription' && cfg.trialsEnabled === true && cfg.trialDays > 0 && who.trialEligible ? cfg.trialDays : 0;
+        const trialEndMs = trialDays > 0 ? nowMs + trialDays * 86400000 : null;
         const expectedTotalCents = trialEndMs ? 0 : q.amountCents;
         const holdMs = (q.rail === 'card' ? STRIPE_CHECKOUT_MINUTES : BTCPAY_INVOICE_MINUTES) * 60000 + HOLD_GRACE_MS;
         if (provider === 'stripe') stripeKey(); else btcpayCfg(); // before any seat is held
@@ -646,10 +684,15 @@ function createPremiumHandlers(deps) {
                 mode: mode(),
                 createdAtMs: nowMs,
                 holdExpMs: q.lifetime ? nowMs + holdMs : null,
-                startsAtMs: startMs,
+                // Premium starts at purchase. Embers + Citadel wait for this.
+                startsAtMs: null,
+                deferredPerksStartAtMs: perksStartMs,
                 trialEndMs: trialEndMs,
-                trialDays: trialEndMs && who.trialEligible && cfg.trialDays > 0 ? cfg.trialDays : 0,
+                trialDays: trialDays,
                 expectedTotalCents: expectedTotalCents,
+                // Buyer saw and accepted the final-sale terms before checkout.
+                refundPolicy: pricing.REFUND_POLICY.id,
+                noRefundAckAtMs: nowMs,
             });
         });
 
@@ -683,21 +726,12 @@ function createPremiumHandlers(deps) {
                 };
                 if (q.cardMode === 'subscription') {
                     params.subscription_data = { metadata: metadata };
-                    // No charge today, no proration. A plain N-day trial uses
-                    // trial_period_days so the hosted page shows the full N
-                    // days even if checkout finishes a few minutes later.
-                    // billingStartsAt in the future must stay trial_end:
-                    // trial_period_days would start the clock at checkout and
-                    // charge before Jan 3 / Jan 10.
-                    if (trialEndMs) {
-                        if (!startMs && who.trialEligible && cfg.trialDays > 0) {
-                            params.subscription_data.trial_period_days = cfg.trialDays;
-                        } else {
-                            params.subscription_data.trial_end = Math.floor(trialEndMs / 1000);
-                        }
-                    }
+                    // Charged today (no trial_end, no deferred billing). Only
+                    // a real trial, when Phil has switched trials on, uses
+                    // trial_period_days.
+                    if (trialDays > 0) params.subscription_data.trial_period_days = trialDays;
                 } else { params.payment_intent_data = { metadata: metadata }; params.customer_creation = 'always'; }
-                const note = checkoutNote(q, startMs, trialEndMs);
+                const note = checkoutNote(q, perksStartMs, trialEndMs);
                 if (note) params.custom_text = { submit: { message: note } };
                 if (who.customerId) params.customer = who.customerId;
                 else if (who.email) params.customer_email = who.email;
@@ -709,7 +743,7 @@ function createPremiumHandlers(deps) {
                 const inv = await btcpayRequest('POST', '/invoices', {
                     amount: pricing.centsToUsdString(q.amountCents),
                     currency: 'USD',
-                    metadata: Object.assign({ itemDesc: q.label }, metadata),
+                    metadata: Object.assign({ itemDesc: q.label + ' (final sale, no refunds)' }, metadata),
                     checkout: {
                         expirationMinutes: BTCPAY_INVOICE_MINUTES,
                         redirectURL: back + '?premium=success&order=' + orderId,
@@ -729,6 +763,10 @@ function createPremiumHandlers(deps) {
         return {
             orderId: orderId,
             url: url,
+            provider: provider,
+            chargedNow: !trialEndMs,
+            deferredPerksStartAtMs: perksStartMs,
+            refundPolicy: pricing.REFUND_POLICY.id,
             amountCents: q.amountCents,
             baseCents: q.baseCents,
             discounts: q.discounts,
@@ -760,7 +798,9 @@ function createPremiumHandlers(deps) {
         const d = data && typeof data === 'object' ? data : {};
         const cfg = await loadConfig();
         if (!cfg.checkoutEnabled) throw fail('failed-precondition', 'Checkout is not open yet.', 'checkout_closed');
+        await refuseIfOffline();
         requirePlanRail(d);
+        requireNoRefundAck(d);
 
         const userSnap = await ref('users', uid).get();
         const userDoc = userSnap.exists ? userSnap.data() : null;
@@ -796,7 +836,11 @@ function createPremiumHandlers(deps) {
         const ipHash = ipHashFor(ipRaw);
         // A canonical email that already had a free trial starts paid, no trial.
         const emailTrialUsed = await trialMarkerExists('e', tek);
-        return startOrder(q, { uid: uid, email: email, emailKey: ek, trialEmailKey: tek, ipHash: ipHash, holdKey: uid, rateKey: uid, customerId: ent.stripeCustomerId || null, trialEligible: !ent.trialUsed && !ent.stripeSubscriptionId && !ent.founders && !emailTrialUsed }, cfg, nowMs, cleanSrc(d.src), 'app');
+        // Send the buyer back to the allowlisted app host they came from
+        // (live, staging or a staging preview); otherwise the default site.
+        const rq = context && context.rawRequest;
+        const origin = rq ? ((rq.get ? rq.get('origin') : (rq.headers && rq.headers.origin)) || '') : '';
+        return startOrder(q, { uid: uid, email: email, emailKey: ek, trialEmailKey: tek, ipHash: ipHash, holdKey: uid, rateKey: uid, returnBase: allowedOrigin(origin) ? origin : null, customerId: ent.stripeCustomerId || null, trialEligible: !ent.trialUsed && !ent.stripeSubscriptionId && !ent.founders && !emailTrialUsed }, cfg, nowMs, cleanSrc(d.src), 'app');
     }
 
     // Turnstile siteverify result must be a success, for the premium_checkout
@@ -829,12 +873,14 @@ function createPremiumHandlers(deps) {
         const b = body && typeof body === 'object' ? body : {};
         const cfg = await loadConfig();
         if (!cfg.checkoutEnabled) throw fail('failed-precondition', 'Checkout is not open yet.', 'checkout_closed');
+        await refuseIfOffline();
         requirePlanRail(b);
         // Founders' seats are scarce: sold only to signed-in accounts (in the
         // app), never to an email on the public page (Red Team, Nov 14).
         // In-app Founders also requires a verified email when
         // foundersRequireVerifiedEmail is on (the default).
         if (b.plan === 'founders') throw fail('failed-precondition', "Sign in to Bitcoin Quest to buy Founders' Lifetime.", 'founders_sign_in');
+        requireNoRefundAck(b);
         const email = normalizeEmail(b.email);
         if (!email || !canonicalEmail(email)) throw fail('invalid-argument', 'Enter a valid email.', 'bad_email');
         if (!verifyTurnstile) throw fail('failed-precondition', 'Checkout is not set up yet.', 'no_turnstile');
@@ -911,7 +957,7 @@ function createPremiumHandlers(deps) {
         r.ent.updatedAtMs = r.nowMs;
         tx.set(r.entRef, r.ent);
         if (r.userExists && r.uid) {
-            tx.set(ref('users', r.uid), { premium: { active: s.active, plan: s.plan, founders: s.founders, expiresAtMs: s.expiresAtMs, startsAtMs: s.startsAtMs, inTrial: s.inTrial, updatedAtMs: r.nowMs } }, { merge: true });
+            tx.set(ref('users', r.uid), { premium: { active: s.active, plan: s.plan, founders: s.founders, expiresAtMs: s.expiresAtMs, startsAtMs: s.startsAtMs, perksStartAtMs: Number(r.ent.deferredPerksStartAtMs) || null, inTrial: s.inTrial, updatedAtMs: r.nowMs } }, { merge: true });
         }
     }
 
@@ -928,9 +974,13 @@ function createPremiumHandlers(deps) {
         return null;
     }
 
-    // An entitlement that is not already running starts at the order's start
-    // time (billingStartsAt) or now. A running one keeps its start.
+    // An entitlement that is not already running starts now (orders made
+    // since Nov 18 never carry a future startsAtMs). A running one keeps its
+    // start. Embers + Citadel wait for deferredPerksStartAtMs (display only;
+    // the grant checks config perksStartAt itself).
     function setStart(r, o) {
+        const dp = Number(o && o.deferredPerksStartAtMs) || 0;
+        if (dp > r.nowMs) r.ent.deferredPerksStartAtMs = Math.max(Number(r.ent.deferredPerksStartAtMs) || 0, dp);
         if (summarize(r.ent, r.nowMs).active) return;
         r.ent.startsAtMs = o && o.startsAtMs ? o.startsAtMs : null;
     }
@@ -983,7 +1033,7 @@ function createPremiumHandlers(deps) {
 
     // Lifetime grant with the 500-seat cap. Never oversells: if the hold
     // expired and the cap is full, the order goes to manual refund review.
-    function grantFounders(tx, r, orderId, providerRef) {
+    function grantFounders(tx, r, orderId, providerRef, extraPatch) {
         const c = r.counter;
         const holds = Object.assign({}, c.holds || {});
         const hadHold = !!holds[orderId];
@@ -992,7 +1042,7 @@ function createPremiumHandlers(deps) {
         const sold = Number(c.sold) || 0;
         if (!hadHold && sold + Object.keys(live).length >= pricing.FOUNDERS_CAP) {
             tx.set(ref(COL.counters, 'founders'), Object.assign({}, c, { sold: sold, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: r.nowMs }));
-            tx.update(r.orderRef, { status: 'review', reviewReason: 'founders_sold_out_late_payment', paidAtMs: r.nowMs, providerRef: providerRef });
+            tx.update(r.orderRef, Object.assign({ status: 'review', reviewReason: 'founders_sold_out_late_payment', paidAtMs: r.nowMs, providerRef: providerRef }, extraPatch || {}));
             review(tx, 'founders_sold_out_late_payment', { orderId: orderId, uid: r.uid, providerRef: providerRef, amountCents: r.order.amountCents }, r.nowMs);
             return 'review';
         }
@@ -1005,7 +1055,7 @@ function createPremiumHandlers(deps) {
         r.ent.foundersOrderId = orderId;
         r.ent.foundersSeat = sold + 1;
         writeEntitlement(tx, r);
-        tx.update(r.orderRef, { status: 'paid', paidAtMs: r.nowMs, providerRef: providerRef });
+        tx.update(r.orderRef, Object.assign({ status: 'paid', paidAtMs: r.nowMs, providerRef: providerRef }, extraPatch || {}));
         return 'granted';
     }
 
@@ -1287,7 +1337,11 @@ function createPremiumHandlers(deps) {
                     if (Object.keys(patch).length) tx.update(r.orderRef, patch);
                     return 'already_paid';
                 }
-                if (o.lifetime) return grantFounders(tx, r, orderId, obj.id);
+                if (o.lifetime) {
+                    // Keep the Stripe customer so a later refund or dispute finds it.
+                    if (customerId && !r.ent.stripeCustomerId) r.ent.stripeCustomerId = customerId;
+                    return grantFounders(tx, r, orderId, obj.id, customerId && !o.stripeCustomerId ? { stripeCustomerId: customerId } : null);
+                }
                 return grantSubscriptionFromOrder(tx, r, {
                     orderId: orderId,
                     fpHash: gate.fpHash || fpHash,
@@ -1495,7 +1549,31 @@ function createPremiumHandlers(deps) {
             return { status: 200, outcome: 'released' };
         }
 
-        if (t === 'charge.refunded' || t === 'charge.dispute.created' || t === 'invoice.payment_failed') {
+        if (t === 'invoice.payment_failed') {
+            // A failed renewal does not freeze anything: Stripe retries, and
+            // paid time (period end + 3-day grace) simply runs out if no
+            // payment comes. invoice.paid extends it again. Review row only.
+            const customerId = typeof obj.customer === 'string' ? obj.customer : null;
+            const subMeta = obj.parent && obj.parent.subscription_details && obj.parent.subscription_details.metadata;
+            const legacyMeta = obj.subscription_details && obj.subscription_details.metadata;
+            const oid = (subMeta && typeof subMeta.orderId === 'string' && subMeta.orderId) || (legacyMeta && typeof legacyMeta.orderId === 'string' && legacyMeta.orderId) || null;
+            const outcome = await once(key, oid, async function (tx, r) {
+                review(tx, 'stripe_invoice_payment_failed', {
+                    eventId: event.id,
+                    objectId: obj.id || null,
+                    uid: (r.order && r.order.uid) || r.uid || null,
+                    orderId: oid,
+                    customerId: customerId,
+                    amount: obj.amount_due || null,
+                    attempt: Number(obj.attempt_count) || null,
+                    frozen: 0,
+                }, r.nowMs);
+                return 'payment_failed_noted';
+            });
+            return { status: 200, outcome: outcome };
+        }
+
+        if (t === 'charge.refunded' || t === 'charge.dispute.created') {
             // Find who this is about: order id from metadata, else the Stripe customer.
             const customerId = typeof obj.customer === 'string' ? obj.customer : null;
             let orderIds = orderIdsForCharge(obj);
@@ -1518,25 +1596,48 @@ function createPremiumHandlers(deps) {
             }
             const firstOrderId = orderIds[0] || null;
             const isFullRefund = t === 'charge.refunded' && obj.refunded === true;
+            // No-refund policy: any refund is one Phil made by hand. A partial
+            // refund (goodwill credit) leaves Premium running and only writes
+            // a review row; a full refund or a dispute freezes perks.
+            const freeze = t === 'charge.dispute.created' || isFullRefund;
             const outcome = await once(key, firstOrderId, async function (tx, r) {
                 const snaps = [];
                 for (const er of entRefs) snaps.push(await tx.get(er));
-                const uids = [];
+                // Targets: entitlements by Stripe customer, plus the order
+                // owner's entitlement (Founders' card orders may carry no
+                // customer on the entitlement).
+                const targets = [];
                 snaps.forEach(function (sn) {
                     if (!sn.exists) return;
                     const isAccount = sn.ref.path.indexOf(COL.entitlements + '/') === 0;
-                    if (isAccount) uids.push(sn.id);
+                    targets.push({ ref: sn.ref, data: sn.data(), isAccount: isAccount, id: sn.id });
                 });
+                if (r.entRef && r.ent && Object.keys(r.ent).length && !targets.some(function (x) { return x.ref.path === r.entRef.path; })) {
+                    targets.push({ ref: r.entRef, data: Object.assign({}, r.ent), isAccount: !!r.uid, id: r.uid || r.entRef.id });
+                }
+                const uids = targets.filter(function (x) { return x.isAccount; }).map(function (x) { return x.id; });
                 const walletSnaps = [];
                 if (isFullRefund) {
                     for (let i = 0; i < uids.length; i++) walletSnaps.push(await tx.get(ref(COL.allowance, uids[i])));
                 }
-                snaps.forEach(function (sn) {
-                    if (!sn.exists) return;
-                    const e = Object.assign({}, sn.data(), { frozen: true, frozenAtMs: r.nowMs, frozenReason: t });
-                    const isAccount = sn.ref.path.indexOf(COL.entitlements + '/') === 0;
-                    writeEntitlement(tx, { nowMs: r.nowMs, uid: isAccount ? sn.id : null, entRef: sn.ref, ent: e, userExists: isAccount });
-                });
+                if (freeze) {
+                    targets.forEach(function (x) {
+                        const e = Object.assign({}, x.data, { frozen: true, frozenAtMs: r.nowMs, frozenReason: t });
+                        writeEntitlement(tx, { nowMs: r.nowMs, uid: x.isAccount ? x.id : null, entRef: x.ref, ent: e, userExists: x.isAccount && (x.ref.path !== (r.entRef && r.entRef.path) || r.userExists) });
+                    });
+                }
+                // Founders' seat never returns to sale (Phil, Nov 18): sold is
+                // never decremented. A fully refunded seat is counted as retired.
+                const orderPatch = {};
+                if (isFullRefund && r.order && r.order.lifetime && r.order.status === 'paid' && r.order.seatRetired !== true) {
+                    const c = r.counter || {};
+                    tx.set(ref(COL.counters, 'founders'), { retired: (Number(c.retired) || 0) + 1, updatedAtMs: r.nowMs }, { merge: true });
+                    orderPatch.seatRetired = true;
+                }
+                if (r.order && t === 'charge.refunded') {
+                    Object.assign(orderPatch, isFullRefund ? { refundedAtMs: r.nowMs, refundKind: 'full' } : { partialRefundAtMs: r.nowMs, refundKind: 'partial', refundedCents: Number(obj.amount_refunded) || null });
+                }
+                if (r.orderRef && Object.keys(orderPatch).length) tx.update(r.orderRef, orderPatch);
                 if (isFullRefund) {
                     walletSnaps.forEach(function (ws, i) {
                         if (!ws.exists) return;
@@ -1555,12 +1656,13 @@ function createPremiumHandlers(deps) {
                     orderId: firstOrderId,
                     customerId: customerId,
                     amount: obj.amount_refunded || obj.amount || obj.amount_due || null,
-                    frozen: snaps.filter(function (x) { return x.exists; }).length,
+                    partial: t === 'charge.refunded' && !isFullRefund,
+                    frozen: freeze ? targets.length : 0,
                 }, r.nowMs);
                 // Human alert: the admin panel's admin_notifications feed.
                 tx.set(ref('admin_notifications', newId()), {
                     type: 'premium_review',
-                    text: 'Premium ' + t + ': perks frozen until review (order ' + (firstOrderId || 'unknown') + ').',
+                    text: 'Premium ' + t + (freeze ? ': perks frozen until review' : ': partial refund, perks unchanged') + ' (order ' + (firstOrderId || 'unknown') + ').',
                     uid: uid ? String(uid).slice(0, 4) + '\u2026' : null,
                     read: false,
                     createdAt: new Date(r.nowMs),
@@ -1752,7 +1854,14 @@ function createPremiumHandlers(deps) {
             startsAtMs: s.startsAtMs,
             pendingStart: s.pendingStart,
             inTrial: s.inTrial,
-            billingStartsAtMs: cfg.billingStartsAtMs && cfg.billingStartsAtMs > nowMs ? cfg.billingStartsAtMs : null,
+            // Embers + Citadel perks start here (Jan 3, 2027 12:00 AM ET).
+            perksStartAtMs: cfg.perksStartAtMs,
+            deferredPerksOpen: deferredPerksOpen(nowMs, cfg.perksStartAtMs),
+            citadelPerks: citadelPerksAllowed(entSnap.exists ? entSnap.data() : null, nowMs, cfg.perksStartAtMs),
+            chargedAtPurchase: true,
+            trialsOpen: cfg.trialsEnabled === true && cfg.trialDays > 0,
+            trialDays: cfg.trialsEnabled === true ? cfg.trialDays : 0,
+            refundPolicy: { id: pricing.REFUND_POLICY.id, text: pricing.REFUND_POLICY.text },
             checkoutOpen: cfg.checkoutEnabled,
             lightningOpen: cfg.lightningEnabled,
             existingUserOffer: elig.ok ? { pct: cfg.existingUserDiscountPct, endsAtMs: cfg.existingUserDiscountEndsAtMs } : null,
@@ -1760,7 +1869,7 @@ function createPremiumHandlers(deps) {
             offers: offers,
             embers: walletEmbers(walletSnap.exists ? walletSnap.data() : null),
             embersCap: EMBERS_CAP,
-            embersPerMonth: embersGrantAllowed(entSnap.exists ? entSnap.data() : null, nowMs) ? EMBERS_PER_MONTH : 0,
+            embersPerMonth: embersGrantAllowed(entSnap.exists ? entSnap.data() : null, nowMs, cfg.perksStartAtMs) ? EMBERS_PER_MONTH : 0,
             embersName: 'Embers',
         };
     }
@@ -1778,6 +1887,7 @@ function createPremiumHandlers(deps) {
         const entRef = ref(COL.entitlements, uid);
         const walletRef = ref(COL.allowance, uid);
         const ledgerRef = ref(COL.allowanceLedger, uid + '_' + month);
+        const cfg = await loadConfig();
         return db.runTransaction(async function (tx) {
             const e = await tx.get(entRef);
             const w = await tx.get(walletRef);
@@ -1786,9 +1896,10 @@ function createPremiumHandlers(deps) {
             const bal = walletEmbers(w.exists ? w.data() : null);
             if (!isPremiumActive(ent, nowMs)) throw fail('permission-denied', 'Premium is not active.', 'not_premium');
             const out = { granted: 0, embers: bal, cosmeticCredits: bal, month: month, cap: EMBERS_CAP, name: 'Embers' };
-            if (!embersGrantAllowed(ent, nowMs)) {
+            if (!embersGrantAllowed(ent, nowMs, cfg.perksStartAtMs)) {
                 const s = summarize(ent, nowMs);
-                if (s.inTrial) out.reason = 'trial';
+                if (!deferredPerksOpen(nowMs, cfg.perksStartAtMs)) { out.reason = 'perks_start'; out.perksStartAtMs = cfg.perksStartAtMs; }
+                else if (s.inTrial) out.reason = 'trial';
                 else if (inReferralWeek(ent, nowMs)) out.reason = 'referral_week';
                 else out.reason = 'canceled';
                 return out;
@@ -1815,7 +1926,8 @@ function createPremiumHandlers(deps) {
     }
 
     // ---- Expiry sweep: flips active=false once paid time runs out.
-    // Also turns on entitlements whose start time (billingStartsAt) has come.
+    // Also turns on any older entitlement that still carries a future
+    // startsAtMs (orders made since Nov 18 always start at purchase).
     async function sweepExpired(limit) {
         const nowMs = now();
         const expired = await db.collection(COL.entitlements).where('expiresAtMs', '<=', nowMs).limit(limit || 300).get();
@@ -2095,6 +2207,8 @@ module.exports = {
     EMBERS_PER_MONTH,
     EMBERS_CAP,
     embersGrantAllowed,
+    deferredPerksOpen,
+    citadelPerksAllowed,
     inReferralWeek,
     walletEmbers,
     periodUnspentEmbers,

@@ -9607,10 +9607,13 @@ exports.syncUserFactionPoints = factionFns.syncUserFactionPoints;
 // Premium checkout (Stripe cards + BTCPay Lightning), webhooks, entitlements.
 // Server-only prices and grants; see src/premium.js and docs/payments/premium-checkout.md.
 // Checkout stays closed until premium_config/settings.checkoutEnabled is set by an admin.
+// Both checkout entry points refuse while the kill switch is on (fails closed);
+// the Stripe webhook keeps running.
 const { bindPremium } = require('./src/premium');
 const premiumFns = bindPremium(functionsV1, {
     admin: admin,
     db: db,
+    isOffline: function () { return killSwitchIsOn(); },
     verifyTurnstile: verifyTurnstileDetailed,
     turnstileSecret: turnstileSecret,
     log: function (msg, meta) { console.warn(msg, meta || {}); },

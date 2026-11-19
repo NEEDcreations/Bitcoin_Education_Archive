@@ -15,12 +15,31 @@
 // Configurable in premium_config/settings (server-only): the percentages, the
 // stacking mode (default 'additive'), the existing-user cutoff and end time,
 // and lightningEnabled (default false until Phil's receive-only wallet exists).
+//
+// Decided by Phil (Nov 18, 2026):
+//   Every plan is charged at purchase. No deferred billing.
+//   Embers and Citadel perks start Jan 3, 2027 12:00 AM ET (perksStartAt);
+//   every other perk starts at purchase.
+//   No free trial for anyone until Phil turns trials on (about early Feb 2027).
+//   trialsEnabled is fail-closed: absent or anything but true = no trial.
+//   No refunds on any plan (REFUND_POLICY). Founders' seats never return.
 
 const FOUNDERS_CAP = 500; // exactly 500 seats; never read from config.
 const MAX_PREPAID_MONTHS = 12;
 
 // Jan 1, 2027 00:00 America/New_York (EST, UTC-5) = 05:00 UTC.
 const EXISTING_DISCOUNT_ENDS_MS = Date.parse('2027-01-01T05:00:00.000Z');
+// Jan 3, 2027 00:00 America/New_York (EST, UTC-5) = 05:00 UTC. Embers and
+// Citadel perks for anyone who buys before then start at this instant.
+const PERKS_START_MS = Date.parse('2027-01-03T05:00:00.000Z');
+const MAX_TRIAL_DAYS = 14;
+
+// Phil, Nov 18: no refunds. Shown before payment (in-app buy screen, /premium,
+// Stripe custom_text) and stamped on every order as refundPolicy.
+const REFUND_POLICY = Object.freeze({
+    id: 'final_sale_2026_11_18',
+    text: 'All sales are final. No refunds. Monthly and Yearly plans can be canceled any time and keep Premium until the end of the period you paid for. Founders\' Lifetime and bitcoin payments are final.',
+});
 
 const PLANS = Object.freeze({
     monthly: { id: 'monthly', label: 'Premium Monthly', baseCents: 500, card: 'subscription', interval: 'month', lightning: false },
@@ -42,11 +61,14 @@ const DEFAULT_CONFIG = Object.freeze({
     // checkoutLaunchedAtMs; existingUserCutoffMs overrides it.
     existingUserCutoffMs: null,
     checkoutLaunchedAtMs: null,
-    // Pending Phil: when set (e.g. '2027-01-03T00:00:00-05:00'), subscriptions
-    // bill from this time, every entitlement starts then, and Founders' is
-    // charged at purchase with the seat reserved. Unset = start immediately.
-    billingStartsAtMs: null,
-    trialDays: 7, // first subscription only; 0 turns trials off
+    // Embers + Citadel perks start here. Billing is never deferred.
+    // Config may move it (perksStartAt ISO string or perksStartAtMs).
+    perksStartAtMs: PERKS_START_MS,
+    // Fail-closed trial switch: only trialsEnabled === true turns trials on,
+    // and then only with a valid trialDays of 1..14. Off for everyone until
+    // Phil picks the date (about early Feb 2027).
+    trialsEnabled: false,
+    trialDays: 0, // first subscription only; ignored unless trialsEnabled
     // Security (Red Team, Nov 14): global cap on public-page orders per hour,
     // across every IP. Per-IP limit still applies on top.
     publicOrdersPerHour: 60,
@@ -97,8 +119,11 @@ function normalizeConfig(raw) {
         existingUserDiscountEndsAtMs: Math.min(ms(r.existingUserDiscountEndsAtMs) || EXISTING_DISCOUNT_ENDS_MS, EXISTING_DISCOUNT_ENDS_MS),
         existingUserCutoffMs: ms(r.existingUserCutoffMs),
         checkoutLaunchedAtMs: ms(r.checkoutLaunchedAtMs),
-        billingStartsAtMs: typeof r.billingStartsAt === 'string' ? (ms(Date.parse(r.billingStartsAt)) || null) : ms(r.billingStartsAtMs != null ? r.billingStartsAtMs : r.billingStartsAt),
-        trialDays: (function (v) { const n = Number(v); return (v != null && Number.isInteger(n) && n >= 0 && n <= 14) ? n : DEFAULT_CONFIG.trialDays; })(r.trialDays),
+        // billingStartsAt (old deferred-billing flag) is ignored on purpose.
+        perksStartAtMs: (typeof r.perksStartAt === 'string' ? ms(Date.parse(r.perksStartAt)) : ms(r.perksStartAtMs != null ? r.perksStartAtMs : r.perksStartAt)) || PERKS_START_MS,
+        trialsEnabled: r.trialsEnabled === true,
+        // 0 unless trialsEnabled === true AND trialDays is an integer 1..14.
+        trialDays: r.trialsEnabled === true ? intIn(r.trialDays, 1, MAX_TRIAL_DAYS, 0) : 0,
         publicOrdersPerHour: intIn(r.publicOrdersPerHour, 1, 10000, DEFAULT_CONFIG.publicOrdersPerHour),
         maxLiveFoundersHolds: intIn(r.maxLiveFoundersHolds, 1, FOUNDERS_CAP, DEFAULT_CONFIG.maxLiveFoundersHolds),
         foundersHoldsAlertThreshold: intIn(r.foundersHoldsAlertThreshold, 1, FOUNDERS_CAP, DEFAULT_CONFIG.foundersHoldsAlertThreshold),
@@ -210,6 +235,9 @@ module.exports = {
     FOUNDERS_CAP,
     MAX_PREPAID_MONTHS,
     EXISTING_DISCOUNT_ENDS_MS,
+    PERKS_START_MS,
+    MAX_TRIAL_DAYS,
+    REFUND_POLICY,
     PLANS,
     DEFAULT_CONFIG,
     PricingError,

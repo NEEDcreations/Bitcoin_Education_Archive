@@ -2,7 +2,7 @@
 'use strict';
 // Premium checkout: prices, discounts, existing-user eligibility, Founders cap,
 // webhook signatures, idempotency, BTCPay re-read, entitlements, trials,
-// billingStartsAt, public /premium checkout, allowance and fail-closed checks.
+// charge-at-purchase + Jan 3 perks, no-refund terms, kill switch, public /premium checkout, allowance and fail-closed checks.
 // Offline: in-memory Firestore fake, mocked Stripe and BTCPay. No network and
 // no real keys (the fake values below are not secrets).
 const assert = require('assert');
@@ -157,7 +157,7 @@ function setup(opts) {
         throw new Error('unexpected fetch ' + url);
     };
     const created = Object.assign({ old: OLD, new: NEW }, o.created || {});
-    const h = premium.createPremiumHandlers({
+    const h0 = premium.createPremiumHandlers({
         db: db,
         HttpsError: HttpsError,
         now: function () { return clock.now; },
@@ -171,6 +171,20 @@ function setup(opts) {
             return { success: false, hostname: null, action: null };
         },
         stepUp: o.stepUp || async function () { return true; },
+        isOffline: o.isOffline || async function () { return false; },
+    });
+    // Every buyer in these tests has ticked the final-sale box unless the
+    // test says otherwise (acceptNoRefunds present in the payload).
+    function ack(d) { return d && typeof d === 'object' && !Object.prototype.hasOwnProperty.call(d, 'acceptNoRefunds') ? Object.assign({ acceptNoRefunds: true }, d) : d; }
+    const h = Object.assign({}, h0, {
+        raw: h0,
+        createPremiumCheckout: function (d, c) { return h0.createPremiumCheckout(ack(d), c); },
+        publicCheckout: function (b, ip, base) { return h0.publicCheckout(ack(b), ip, base); },
+        premiumPublicCheckout: function (rq, rs) {
+            if (rq && rq.body && typeof rq.body === 'object') rq.body = ack(rq.body);
+            else if (rq && typeof rq.body === 'string') { try { rq.body = JSON.stringify(ack(JSON.parse(rq.body))); } catch (e) { /* bad json test */ } }
+            return h0.premiumPublicCheckout(rq, rs);
+        },
     });
     if (o.config !== false) {
         db.store.set('premium_config/settings', Object.assign({ checkoutEnabled: true, lightningEnabled: true, checkoutLaunchedAtMs: LAUNCH, trialDays: 0 }, o.config || {}));
@@ -240,16 +254,29 @@ test('existing-user discount ends 2027-01-01T00:00:00-05:00', async function () 
     assert.strictEqual(pricing.quote({ plan: 'yearly', rail: 'card', nowMs: end, existingUserEligible: true }, {}).amountCents, 5000);
     assert.strictEqual(pricing.quote({ plan: 'yearly', rail: 'lightning', nowMs: end, existingUserEligible: true }, {}).amountCents, 4500);
 });
-test('bad config never raises a discount; billingStartsAt parses ET string', async function () {
+test('bad config never raises a discount or grants a trial; perksStartAt defaults to Jan 3 00:00 ET', async function () {
     const wild = pricing.normalizeConfig({ btcDiscountPct: 90, existingUserDiscountPct: -5, stackMode: 'x', checkoutEnabled: 'yes', lightningEnabled: 1, trialDays: 30 });
     assert.strictEqual(wild.btcDiscountPct, 10);
     assert.strictEqual(wild.existingUserDiscountPct, 5);
     assert.strictEqual(wild.stackMode, 'additive');
     assert.strictEqual(wild.checkoutEnabled, false);
     assert.strictEqual(wild.lightningEnabled, false);
-    assert.strictEqual(wild.trialDays, 7);
-    assert.strictEqual(pricing.normalizeConfig({}).billingStartsAtMs, null);
-    assert.strictEqual(pricing.normalizeConfig({ billingStartsAt: '2027-01-03T00:00:00-05:00' }).billingStartsAtMs, JAN3);
+    assert.strictEqual(wild.trialDays, 0);
+    // Fail-closed trial flag: only trialsEnabled === true with trialDays 1..14.
+    assert.strictEqual(pricing.DEFAULT_CONFIG.trialsEnabled, false);
+    assert.strictEqual(pricing.normalizeConfig({}).trialDays, 0);
+    assert.strictEqual(pricing.normalizeConfig({ trialDays: 7 }).trialDays, 0);
+    assert.strictEqual(pricing.normalizeConfig({ trialsEnabled: 'true', trialDays: 7 }).trialDays, 0);
+    assert.strictEqual(pricing.normalizeConfig({ trialsEnabled: 1, trialDays: 7 }).trialsEnabled, false);
+    assert.strictEqual(pricing.normalizeConfig({ trialsEnabled: true }).trialDays, 0);
+    assert.strictEqual(pricing.normalizeConfig({ trialsEnabled: true, trialDays: 30 }).trialDays, 0);
+    assert.strictEqual(pricing.normalizeConfig({ trialsEnabled: true, trialDays: 7 }).trialDays, 7);
+    // Old deferred-billing flag is ignored; perks start defaults to Jan 3 00:00 ET.
+    assert.strictEqual(pricing.normalizeConfig({ billingStartsAt: '2027-01-03T00:00:00-05:00' }).billingStartsAtMs, undefined);
+    assert.strictEqual(pricing.PERKS_START_MS, JAN3);
+    assert.strictEqual(pricing.normalizeConfig({}).perksStartAtMs, JAN3);
+    assert.strictEqual(pricing.normalizeConfig({ perksStartAt: 'garbage' }).perksStartAtMs, JAN3);
+    assert.strictEqual(pricing.normalizeConfig({ perksStartAt: '2027-01-10T00:00:00-05:00' }).perksStartAtMs, Date.parse('2027-01-10T05:00:00Z'));
     assert.strictEqual(pricing.DEFAULT_CONFIG.foundersRequireVerifiedEmail, true);
     assert.strictEqual(pricing.normalizeConfig({}).foundersRequireVerifiedEmail, true);
     assert.strictEqual(pricing.normalizeConfig({ foundersRequireVerifiedEmail: false }).foundersRequireVerifiedEmail, false);
@@ -345,7 +372,7 @@ test('card checkout: server amount, client amount ignored, src tag in metadata',
     assert.ok(body.indexOf('metadata[src]=yt-1217') !== -1);
     assert.ok(body.indexOf('subscription_data[metadata][src]=yt-1217') !== -1);
     assert.ok(body.indexOf('trial_end') === -1);
-    assert.ok(body.indexOf('success_url=https://bitcoin-quest-staging.web.app/') !== -1);
+    assert.ok(body.indexOf('success_url=https://dev.bitcoineducation.quest/') !== -1);
     assert.strictEqual(a.calls[0].init.headers['Idempotency-Key'], 'bq-checkout-' + out.orderId);
     assert.ok(/^Bearer sk_test_/.test(a.calls[0].init.headers.Authorization));
     const order = a.db.store.get('premium_orders/' + out.orderId);
@@ -460,8 +487,8 @@ test('rate limit: 6 in-app checkouts per hour per account', async function () {
 });
 
 // ---------- trials + billingStartsAt
-test('7-day trial (flag off): no charge today, trial_period_days = 7, access now, trial used once', async function () {
-    const a = setup({ config: { trialDays: 7 } });
+test('7-day trial (only when trialsEnabled is switched on): no charge today, trial_period_days = 7, access now, trial used once', async function () {
+    const a = setup({ config: { trialsEnabled: true, trialDays: 7 } });
     const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new'));
     const body = bodyOf(a.calls[0]);
     const trialEnd = T0 + 7 * 86400000;
@@ -484,60 +511,188 @@ test('7-day trial (flag off): no charge today, trial_period_days = 7, access now
     assert.strictEqual((await stripePost(b, completed(o2.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }))).body.outcome, 'review');
 });
 
-test('billingStartsAt set: subscriptions bill from Jan 3 (+7 day trial), entitlements start Jan 3', async function () {
+test('Phil Nov 18: no trial by default; subscriptions are charged at purchase and Premium starts now', async function () {
+    // Staging still carries trialDays: 7 and an old billingStartsAt: both must be ignored.
     const a = setup({ config: { trialDays: 7, billingStartsAt: '2027-01-03T00:00:00-05:00' } });
     const out = await a.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('new'));
+    assert.strictEqual(out.chargedNow, true);
+    assert.strictEqual(out.deferredPerksStartAtMs, JAN3);
     const body = bodyOf(a.calls[0]);
-    const trialEnd = JAN3 + 7 * 86400000;
-    assert.ok(body.indexOf('subscription_data[trial_end]=' + Math.floor(trialEnd / 1000)) !== -1);
-    assert.ok(body.indexOf('Premium perks unlock with Citadel Spark on Jan 3, 2027. You will not be charged today. Your first charge is on Jan 10, 2027.') !== -1);
-    await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }));
-    let ent = a.db.store.get('premium_entitlements/new');
-    assert.strictEqual(ent.startsAtMs, JAN3);
-    assert.strictEqual(ent.active, false);
-    assert.strictEqual(ent.pendingStart, true);
-    assert.strictEqual(a.db.store.get('users/new').premium.active, false);
-    a.clock.now = JAN3 + 60000;
-    const sw = await a.h.sweepExpired(100);
-    assert.strictEqual(sw.flipped, 1);
-    ent = a.db.store.get('premium_entitlements/new');
+    assert.ok(body.indexOf('trial_period_days') === -1);
+    assert.ok(body.indexOf('trial_end') === -1);
+    assert.ok(body.indexOf("custom_text[submit][message]=You're charged today.") !== -1);
+    assert.ok(body.indexOf('Embers and Citadel perks start Jan 3, 2027 at 12:00 AM ET. Your other Premium perks start right away.') !== -1);
+    assert.ok(body.indexOf('All sales are final. No refunds.') !== -1);
+    const order = a.db.store.get('premium_orders/' + out.orderId);
+    assert.strictEqual(order.expectedTotalCents, 5000);
+    assert.strictEqual(order.trialDays, 0);
+    assert.strictEqual(order.trialEndMs, null);
+    assert.strictEqual(order.startsAtMs, null);
+    assert.strictEqual(order.deferredPerksStartAtMs, JAN3);
+    assert.strictEqual(order.refundPolicy, pricing.REFUND_POLICY.id);
+    assert.strictEqual(order.noRefundAckAtMs, T0);
+    // A $0 "trial" session is refused for a paid order.
+    assert.strictEqual((await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }))).body.outcome, 'review');
+    const b = setup({ config: { trialDays: 7 } });
+    const o2 = await b.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new'));
+    assert.strictEqual((await stripePost(b, completed(o2.orderId, 'cs_test_1', { amount_total: 500 }))).body.outcome, 'granted');
+    const ent = b.db.store.get('premium_entitlements/new');
     assert.strictEqual(ent.active, true);
     assert.strictEqual(ent.pendingStart, false);
-    assert.strictEqual(a.db.store.get('users/new').premium.active, true);
-    // Trial already used: second account-holder subscription bills on Jan 3 exactly.
-    const b = setup({ config: { trialDays: 7, billingStartsAt: '2027-01-03T00:00:00-05:00' } });
-    b.db.store.set('premium_entitlements/new', { trialUsed: true });
-    await b.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new'));
-    assert.ok(bodyOf(b.calls[0]).indexOf('subscription_data[trial_end]=' + Math.floor(JAN3 / 1000)) !== -1);
-    assert.ok(bodyOf(b.calls[0]).indexOf('Your first charge is on Jan 3, 2027.') !== -1);
+    assert.strictEqual(ent.startsAtMs, null);
+    assert.ok(!ent.trialUsed);
+    assert.strictEqual(ent.deferredPerksStartAtMs, JAN3);
+    const mirror = b.db.store.get('users/new').premium;
+    assert.strictEqual(mirror.active, true);
+    assert.strictEqual(mirror.perksStartAtMs, JAN3);
+    const st = await b.h.getPremiumStatus({}, ctx('new'));
+    assert.strictEqual(st.active, true);
+    assert.strictEqual(st.inTrial, false);
+    assert.strictEqual(st.trialsOpen, false);
+    assert.strictEqual(st.chargedAtPurchase, true);
+    assert.strictEqual(st.perksStartAtMs, JAN3);
+    assert.strictEqual(st.deferredPerksOpen, false);
+    assert.strictEqual(st.citadelPerks, false);
+    assert.strictEqual(st.embersPerMonth, 0);
+    assert.strictEqual(st.billingStartsAtMs, undefined);
+    assert.strictEqual(st.refundPolicy.id, pricing.REFUND_POLICY.id);
 });
 
-test('billingStartsAt set: Founders charged now, seat reserved now, perks start Jan 3', async function () {
+test('Embers and Citadel perks wait for Jan 3, 2027 12:00 AM ET; other perks start at purchase', async function () {
+    const a = setup();
+    a.db.store.set('premium_entitlements/old', { prepaidUntilMs: Date.parse('2027-03-01T00:00:00Z') });
+    const before = await a.h.claimPremiumAllowance({}, ctx('old'));
+    assert.strictEqual(before.granted, 0);
+    assert.strictEqual(before.reason, 'perks_start');
+    assert.strictEqual(before.perksStartAtMs, JAN3);
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/old'), T0), true);
+    assert.strictEqual(premium.citadelPerksAllowed(a.db.store.get('premium_entitlements/old'), T0), false);
+    a.clock.now = JAN3 - 1;
+    assert.strictEqual((await a.h.claimPremiumAllowance({}, ctx('old'))).reason, 'perks_start');
+    a.clock.now = JAN3;
+    const at = await a.h.claimPremiumAllowance({}, ctx('old'));
+    assert.strictEqual(at.granted, 100);
+    assert.strictEqual(premium.citadelPerksAllowed(a.db.store.get('premium_entitlements/old'), JAN3), true);
+    const st = await a.h.getPremiumStatus({}, ctx('old'));
+    assert.strictEqual(st.deferredPerksOpen, true);
+    assert.strictEqual(st.citadelPerks, true);
+    assert.strictEqual(st.embersPerMonth, 100);
+    // Missing or bad perks start is never earlier than Jan 3.
+    assert.strictEqual(premium.deferredPerksOpen(JAN3 - 1, undefined), false);
+    assert.strictEqual(premium.deferredPerksOpen(JAN3 - 1, 'x'), false);
+    assert.strictEqual(premium.embersGrantAllowed({ founders: true }, JAN3 - 1), false);
+    assert.strictEqual(premium.embersGrantAllowed({ founders: true }, JAN3), true);
+});
+
+test('Founders charged at purchase: seat sold now, lifetime active now, Embers from Jan 3', async function () {
     const a = setup({ config: { trialDays: 7, billingStartsAt: '2027-01-03T00:00:00-05:00' } });
     const out = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('new'));
     const body = bodyOf(a.calls[0]);
     assert.ok(body.indexOf('mode=payment') !== -1);
     assert.ok(body.indexOf('trial_end') === -1);
-    assert.ok(body.indexOf("You're charged today and your Founders' seat is reserved now.") !== -1);
+    assert.ok(body.indexOf("Founders' Lifetime is a one-time payment and never renews.") !== -1);
+    assert.ok(body.indexOf("Founders' Lifetime and bitcoin payments are final.") !== -1);
     const r = await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 15000, mode: 'payment', subscription: null }));
     assert.strictEqual(r.body.outcome, 'granted');
     assert.strictEqual(a.db.store.get('premium_counters/founders').sold, 1);
     const ent = a.db.store.get('premium_entitlements/new');
     assert.strictEqual(ent.founders, true);
-    assert.strictEqual(ent.active, false);
-    assert.strictEqual(ent.startsAtMs, JAN3);
+    assert.strictEqual(ent.active, true);
+    assert.strictEqual(ent.startsAtMs, null);
+    assert.strictEqual((await a.h.claimPremiumAllowance({}, ctx('new'))).reason, 'perks_start');
 });
 
-test('billingStartsAt set: prepaid Lightning months count from Jan 3', async function () {
+test('prepaid Lightning months count from purchase, not from Jan 3', async function () {
     const a = setup({ config: { billingStartsAt: '2027-01-03T00:00:00-05:00' } });
     const o = await a.h.createPremiumCheckout({ plan: 'months', rail: 'lightning', months: 1 }, ctx('new'));
     const inv = a.db.store.get('premium_orders/' + o.orderId).providerInvoiceId;
     a.btcInvoices[inv].status = 'Settled';
     await btcPost(a, { type: 'InvoiceSettled', invoiceId: inv, storeId: 'StoreABC12345' });
     const ent = a.db.store.get('premium_entitlements/new');
-    assert.strictEqual(ent.prepaidUntilMs, Date.parse('2027-02-03T05:00:00.000Z'));
-    assert.strictEqual(ent.active, false);
-    assert.strictEqual(ent.startsAtMs, JAN3);
+    assert.strictEqual(ent.prepaidUntilMs, pricing.addMonths(T0, 1));
+    assert.strictEqual(ent.active, true);
+    assert.strictEqual(ent.startsAtMs, null);
+    assert.strictEqual(ent.deferredPerksStartAtMs, JAN3);
+});
+
+test('final-sale box: checkout refuses without acceptNoRefunds (in-app and public), nothing written', async function () {
+    const a = setup();
+    for (const v of [undefined, false, 'true', 1]) {
+        const d = { plan: 'monthly', rail: 'card' };
+        if (v !== undefined) d.acceptNoRefunds = v; else d.acceptNoRefunds = undefined;
+        await rejects(a.h.raw.createPremiumCheckout(d, ctx('old')), 'terms_required');
+    }
+    await rejects(a.h.raw.publicCheckout({ plan: 'monthly', rail: 'card', email: 'buyer@example.com', turnstileToken: 'ok-token' }, '203.0.113.9', null), 'terms_required');
+    assert.strictEqual(a.calls.length, 0);
+    assert.strictEqual(rows(a, 'premium_orders').length, 0);
+    assert.strictEqual(a.ts.length, 0); // refused before Turnstile is spent
+    assert.ok(/no refunds/i.test(pricing.REFUND_POLICY.text));
+});
+
+test('kill switch: both checkout entry points refuse (fail closed); the Stripe webhook keeps running', async function () {
+    const on = setup({ isOffline: async function () { return true; } });
+    await rejects(on.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old')), 'kill_switch');
+    await rejects(on.h.publicCheckout({ plan: 'monthly', rail: 'card', email: 'buyer@example.com', turnstileToken: 'ok-token' }, '203.0.113.9', null), 'kill_switch');
+    const res = fakeRes();
+    await on.h.premiumPublicCheckout(req(null, { origin: 'https://dev.bitcoineducation.quest' }, { body: { plan: 'monthly', rail: 'card', email: 'buyer@example.com', turnstileToken: 'ok-token' } }), res);
+    assert.strictEqual(res.code, 503);
+    assert.strictEqual(res.body.reason, 'kill_switch');
+    const broken = setup({ isOffline: async function () { throw new Error('unreadable'); } });
+    await rejects(broken.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old')), 'kill_switch');
+    const weird = setup({ isOffline: async function () { return undefined; } });
+    await rejects(weird.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old')), 'kill_switch');
+    // Bitcoin (BTCPay invoice create) refuses too, before any BTCPay call.
+    await rejects(on.h.createPremiumCheckout({ plan: 'founders', rail: 'lightning' }, ctx('old')), 'kill_switch');
+    await rejects(on.h.createPremiumCheckout({ plan: 'months', rail: 'lightning', months: 3 }, ctx('new')), 'kill_switch');
+    assert.ok(!on.db.store.has('premium_counters/founders') || Object.keys(on.db.store.get('premium_counters/founders').holds || {}).length === 0, 'no Founders hold taken');
+    assert.strictEqual(on.calls.length + broken.calls.length + weird.calls.length, 0);
+    // Status keeps working so players can see what they own.
+    const st = await on.h.getPremiumStatus({}, ctx('old'));
+    assert.strictEqual(typeof st.active, 'boolean');
+    // A checkout opened before the switch went on still completes by webhook.
+    const flag = { off: false };
+    const a = setup({ isOffline: async function () { return flag.off; } });
+    const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old'));
+    flag.off = true;
+    assert.strictEqual((await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 475 }))).body.outcome, 'granted');
+    // Default wiring reads config/killSwitch (no deps.isOffline).
+    const h = premium.createPremiumHandlers({ db: a.db, HttpsError: HttpsError, now: function () { return T0; }, env: FAKE_ENV, fetch: async function () { throw new Error('no'); }, projectId: 'bitcoin-quest-staging', getAuthUser: async function () { return { metadata: { creationTime: new Date(OLD).toUTCString() } }; } });
+    a.db.store.set('config/killSwitch', { enabled: true });
+    await rejects(h.createPremiumCheckout({ plan: 'monthly', rail: 'card', acceptNoRefunds: true }, ctx('new')), 'kill_switch');
+    const idx = require('fs').readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+    assert.ok(/bindPremium\(functionsV1, \{[\s\S]{0,200}isOffline: function \(\) \{ return killSwitchIsOn\(\); \}/.test(idx));
+});
+
+test('no refunds: portal cancels at period end only, no proration credit, no plan switching or promo codes', function () {
+    const src = require('fs').readFileSync(path.join(__dirname, '..', 'functions', 'scripts', 'premium-portal-config.js'), 'utf8');
+    assert.ok(/subscription_cancel: \{ enabled: true, mode: 'at_period_end', proration_behavior: 'none' \}/.test(src));
+    assert.ok(/subscription_update: \{ enabled: false/.test(src));
+    assert.ok(!/mode: 'immediately'/.test(src));
+});
+
+test('staging app hosts: dev.bitcoineducation.quest and bq-staging previews are allowed origins and return hosts', async function () {
+    const a = setup();
+    const c = ctx('old');
+    c.rawRequest = { headers: { origin: 'https://premium-322.bq-staging.pages.dev' }, get: function (k) { return this.headers[k.toLowerCase()]; } };
+    await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, c);
+    assert.ok(bodyOf(a.calls[0]).indexOf('success_url=https://premium-322.bq-staging.pages.dev/?premium=success') !== -1);
+    const evil = ctx('old');
+    evil.rawRequest = { headers: { origin: 'https://evil.example' }, get: function (k) { return this.headers[k.toLowerCase()]; } };
+    a.clock.now += 1;
+    await a.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, evil);
+    assert.ok(bodyOf(a.calls[1]).indexOf('success_url=https://dev.bitcoineducation.quest/?premium=success') !== -1);
+    ['https://dev.bitcoineducation.quest', 'https://bq-staging.pages.dev', 'https://abc123.bq-staging.pages.dev'].forEach(function (o) {
+        const res = fakeRes();
+        a.h.premiumPublicCheckout(req(null, { origin: o }, { method: 'OPTIONS' }), res);
+        assert.strictEqual(res.headers['access-control-allow-origin'], o, o);
+    });
+    const bad = fakeRes();
+    a.h.premiumPublicCheckout(req(null, { origin: 'https://bq-staging.pages.dev.evil.example' }, { method: 'OPTIONS' }), bad);
+    assert.strictEqual(bad.code, 403);
+    const live = setup({ projectId: 'bitcoin-education-archive', env: { STRIPE_SECRET_KEY: 'sk_live_' + 'x'.repeat(24) } });
+    const lr = fakeRes();
+    live.h.premiumPublicCheckout(req(null, { origin: 'https://dev.bitcoineducation.quest' }, { method: 'OPTIONS' }), lr);
+    assert.strictEqual(lr.code, 403);
 });
 
 // ---------- Founders cap
@@ -720,6 +875,56 @@ test('BTCPay prepaid months stack; expired invoice frees Founders hold', async f
     assert.strictEqual(Object.keys(a.db.store.get('premium_counters/founders').holds).length, 0);
 });
 
+test('BTCPay Founders (mock store): $135 / $127.50, 15-min invoice + hold, final-sale label, seat sold once; fails closed', async function () {
+    const a = setup();
+    const f = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'lightning' }, ctx('new'));
+    assert.strictEqual(f.amountCents, 13500);
+    assert.strictEqual(f.provider, 'btcpay');
+    const post = JSON.parse(a.calls[0].init.body);
+    assert.strictEqual(post.amount, '135.00');
+    assert.strictEqual(post.checkout.expirationMinutes, 15);
+    assert.strictEqual(post.checkout.redirectAutomatically, false);
+    assert.ok(/^https:\/\/dev\.bitcoineducation\.quest\/\?premium=success&order=/.test(post.checkout.redirectURL));
+    assert.ok(/final sale, no refunds/.test(post.metadata.itemDesc));
+    assert.strictEqual(post.metadata.orderId, f.orderId);
+    assert.strictEqual(a.calls[0].init.redirect, 'error');
+    const hold = a.db.store.get('premium_counters/founders').holds[f.orderId];
+    assert.strictEqual(hold.expMs, T0 + 20 * 60000);
+    const old = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'lightning' }, ctx('old'));
+    assert.strictEqual(old.amountCents, 12750);
+    const fi = a.db.store.get('premium_orders/' + f.orderId).providerInvoiceId;
+    a.btcInvoices[fi].status = 'Settled';
+    const ev = { type: 'InvoiceSettled', invoiceId: fi, storeId: 'StoreABC12345' };
+    // Unsigned / missing signature refused.
+    const res = fakeRes();
+    await a.h.btcpayWebhook(req(Buffer.from(JSON.stringify(ev)), {}), res);
+    assert.strictEqual(res.code, 400);
+    assert.strictEqual((await btcPost(a, ev)).body.outcome, 'granted');
+    assert.strictEqual((await btcPost(a, ev)).body.outcome, 'duplicate');
+    assert.strictEqual(a.db.store.get('premium_counters/founders').sold, 1);
+    assert.strictEqual(a.db.store.get('premium_entitlements/new').founders, true);
+    // Lightning closed: refused before any invoice.
+    const b = setup({ config: { lightningEnabled: false } });
+    await rejects(b.h.createPremiumCheckout({ plan: 'founders', rail: 'lightning' }, ctx('new')), 'lightning_closed');
+    assert.strictEqual(b.calls.length, 0);
+    // No BTCPay config: webhook answers 503 (BTCPay retries), nothing granted.
+    const c = setup({ env: { BTCPAY_STORE_ID: '' } });
+    const r503 = fakeRes();
+    const raw = Buffer.from(JSON.stringify(ev));
+    await c.h.btcpayWebhook(req(raw, { 'BTCPay-Sig': 'sha256=' + crypto.createHmac('sha256', FAKE_ENV.BTCPAY_WEBHOOK_SECRET).update(raw).digest('hex') }), r503);
+    assert.strictEqual(r503.code, 503);
+    // Late settle after the hold expired with the cap full goes to review.
+    const d = setup();
+    d.db.store.set('premium_counters/founders', { sold: 499, holds: {} });
+    const late = await d.h.createPremiumCheckout({ plan: 'founders', rail: 'lightning' }, ctx('old'));
+    const li = d.db.store.get('premium_orders/' + late.orderId).providerInvoiceId;
+    d.clock.now += 21 * 60000;
+    d.db.store.set('premium_counters/founders', { sold: 500, holds: {} });
+    d.btcInvoices[li].status = 'Settled';
+    assert.strictEqual((await btcPost(d, { type: 'InvoiceSettled', invoiceId: li, storeId: 'StoreABC12345' })).body.outcome, 'review');
+    assert.strictEqual(d.db.store.get('premium_counters/founders').sold, 500);
+});
+
 // ---------- entitlement + sweep + allowance
 test('expiry sweep flips active off when paid time runs out; lifetime never expires', async function () {
     const a = setup();
@@ -739,7 +944,7 @@ test('expiry sweep flips active off when paid time runs out; lifetime never expi
 test('Embers: 100 a month for paid Premium, once per ET month, rollover cap 300', async function () {
     assert.strictEqual(premium.EMBERS_PER_MONTH, 100);
     assert.strictEqual(premium.EMBERS_CAP, 300);
-    const a = setup();
+    const a = setup({ config: { perksStartAtMs: LAUNCH } });
     await rejects(a.h.claimPremiumAllowance({}, ctx('old')), 'not_premium');
     a.db.store.set('premium_entitlements/old', { prepaidUntilMs: T0 + 86400000 * 400 });
     const r1 = await a.h.claimPremiumAllowance({}, ctx('old'));
@@ -768,7 +973,7 @@ test('Embers: 100 a month for paid Premium, once per ET month, rollover cap 300'
     assert.strictEqual(r5.reason, 'at_cap');
 });
 test('Embers: trial and referral weeks get none; Founders and Family buyer get 100; cancel keeps leftovers', async function () {
-    const a = setup();
+    const a = setup({ config: { perksStartAtMs: LAUNCH } });
     // Trial: Premium is active but no Embers.
     a.db.store.set('premium_entitlements/old', { subscriptionUntilMs: T0 + 86400000 * 20, trialUntilMs: T0 + 86400000 * 7, autoRenew: true, stripeSubscriptionId: 'sub_t', subscriptionPlan: 'monthly' });
     const trial = await a.h.claimPremiumAllowance({}, ctx('old'));
@@ -776,22 +981,22 @@ test('Embers: trial and referral weeks get none; Founders and Family buyer get 1
     assert.strictEqual(trial.reason, 'trial');
     assert.strictEqual(trial.embers, 0);
     // Referral week.
-    const b = setup();
+    const b = setup({ config: { perksStartAtMs: LAUNCH } });
     b.db.store.set('premium_entitlements/old', { prepaidUntilMs: T0 + 86400000 * 40, referralWeekUntilMs: T0 + 86400000 * 7 });
     const refw = await b.h.claimPremiumAllowance({}, ctx('old'));
     assert.strictEqual(refw.granted, 0);
     assert.strictEqual(refw.reason, 'referral_week');
     // Founders: 100 even with autoRenew false and no subscription.
-    const c = setup();
+    const c = setup({ config: { perksStartAtMs: LAUNCH } });
     c.db.store.set('premium_entitlements/old', { founders: true });
     assert.strictEqual((await c.h.claimPremiumAllowance({}, ctx('old'))).granted, 100);
     // Family: 100 for the buyer only.
-    const d = setup();
+    const d = setup({ config: { perksStartAtMs: LAUNCH } });
     d.db.store.set('premium_entitlements/old', { prepaidUntilMs: T0 + 86400000 * 40, subscriptionPlan: 'family' });
     assert.strictEqual((await d.h.claimPremiumAllowance({}, ctx('old'))).granted, 100);
     await rejects(d.h.claimPremiumAllowance({}, ctx('new')), 'not_premium');
     // After cancel: leftovers kept, no new grant.
-    const e = setup();
+    const e = setup({ config: { perksStartAtMs: LAUNCH } });
     e.db.store.set('premium_entitlements/old', { subscriptionUntilMs: T0 + 86400000 * 20, autoRenew: false, stripeSubscriptionId: 'sub_c', subscriptionPlan: 'monthly' });
     e.db.store.set('premium_allowance/old', { embers: 175, cosmeticCredits: 175, lastMonth: '2026-10', periodGranted: 0, periodSpent: 0 });
     const canceled = await e.h.claimPremiumAllowance({}, ctx('old'));
@@ -959,7 +1164,7 @@ test('Red Team 2: holds above threshold for over an hour raise one review row + 
     assert.strictEqual(n[0].read, false);
 });
 test('Red Team 3: $0 invoice only for the trial opening invoice; renewals must equal the price', async function () {
-    const a = setup({ config: { trialDays: 7 } });
+    const a = setup({ config: { trialsEnabled: true, trialDays: 7 } });
     const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new'));
     await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }));
     assert.strictEqual((await stripePost(a, invoicePaid(out.orderId, 0, { billing_reason: 'subscription_cycle' }))).body.outcome, 'review');
@@ -977,7 +1182,7 @@ test('Red Team 3: $0 invoice only for the trial opening invoice; renewals must e
     assert.strictEqual((await stripePost(b, invoicePaid(o2.orderId, 0, { billing_reason: 'subscription_create' }))).body.outcome, 'review');
 });
 test('Red Team 4 / Spam: a card that already had a trial sends the order to review (no time)', async function () {
-    const a = setup({ config: { trialDays: 7 }, defaultCardFp: 'fp_same_card' });
+    const a = setup({ config: { trialsEnabled: true, trialDays: 7 }, defaultCardFp: 'fp_same_card' });
     const o1 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old', { email: 'one@example.com' }));
     assert.strictEqual((await stripePost(a, completed(o1.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }))).body.outcome, 'granted');
     const o2 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'two@example.com' }));
@@ -997,7 +1202,7 @@ test('Red Team 4 / Spam: a card that already had a trial sends the order to revi
     assert.strictEqual(storeJson(a).indexOf('one@example.com'), -1);
 });
 test('Red Team 5: trial_reused cancels the Stripe subscription immediately and records subscription_canceled', async function () {
-    const a = setup({ config: { trialDays: 7 }, defaultCardFp: 'fp_same_card' });
+    const a = setup({ config: { trialsEnabled: true, trialDays: 7 }, defaultCardFp: 'fp_same_card' });
     const o1 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old', { email: 'one@example.com' }));
     assert.strictEqual((await stripePost(a, completed(o1.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }))).body.outcome, 'granted');
     const o2 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'two@example.com' }));
@@ -1018,7 +1223,7 @@ test('Red Team 5: trial_reused cancels the Stripe subscription immediately and r
     assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/new') || null, a.clock.now), false);
 });
 test('Red Team 6: a trial order with a null card fingerprint is sent to review with no Premium, and the subscription is canceled', async function () {
-    const a = setup({ config: { trialDays: 7 }, cardFp: { cs_test_1: null } });
+    const a = setup({ config: { trialsEnabled: true, trialDays: 7 }, cardFp: { cs_test_1: null } });
     const o1 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'nofp@example.com' }));
     const ev = completed(o1.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required', customer: 'cus_nf', subscription: 'sub_nf' });
     assert.strictEqual((await stripePost(a, ev)).body.outcome, 'review');
@@ -1035,7 +1240,7 @@ test('Red Team 6: a trial order with a null card fingerprint is sent to review w
     assert.strictEqual(del.length, 1);
 });
 test('Spam: invoice.paid first then session.completed still runs the trial gate; reused card goes to review', async function () {
-    const a = setup({ config: { trialDays: 7 }, defaultCardFp: 'fp_same_card' });
+    const a = setup({ config: { trialsEnabled: true, trialDays: 7 }, defaultCardFp: 'fp_same_card' });
     const o1 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old', { email: 'one@example.com' }));
     const s1 = a.db.store.get('premium_orders/' + o1.orderId).providerSessionId;
     // Normal order: invoice.paid arrives first, then session.completed.
@@ -1082,7 +1287,7 @@ test('Spam: invoice.paid first then session.completed still runs the trial gate;
 test('Spam: canonical email (plus-alias, gmail dots) that had a trial gets a paid checkout with no trial', async function () {
     assert.strictEqual(premium.canonicalEmail('J.Doe+promo@GoogleMail.com'), 'jdoe@gmail.com');
     assert.strictEqual(premium.canonicalEmail('j.doe+x@example.com'), 'j.doe@example.com');
-    const a = setup({ config: { trialDays: 7 }, cardFp: { cs_test_1: 'fp_a', cs_test_2: 'fp_b' } });
+    const a = setup({ config: { trialsEnabled: true, trialDays: 7 }, cardFp: { cs_test_1: 'fp_a', cs_test_2: 'fp_b' } });
     const o1 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old', { email: 'jdoe@gmail.com' }));
     await stripePost(a, completed(o1.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }));
     await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'J.Doe+again@googlemail.com' }));
@@ -1091,8 +1296,8 @@ test('Spam: canonical email (plus-alias, gmail dots) that had a trial gets a pai
     assert.strictEqual(pub.code, 200);
     assert.strictEqual(bodyOf(a.calls[a.calls.length - 1]).indexOf('trial_end'), -1);
 });
-test('Spam: refund/dispute/payment failure freezes perks by Stripe customer, review row + admin alert', async function () {
-    const a = setup();
+test('Spam: a dispute freezes perks by Stripe customer, review row + admin alert', async function () {
+    const a = setup({ config: { perksStartAtMs: LAUNCH } });
     const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old'));
     await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 475 }));
     await stripePost(a, invoicePaid(out.orderId, 475, { billing_reason: 'subscription_create' }));
@@ -1121,6 +1326,72 @@ test('Spam: refund/dispute/payment failure freezes perks by Stripe customer, rev
     await a.h.adminRevokePremium({ action: 'restore', uid: 'old', reason: 'dispute won' }, ctx('adminx', { admin: true }));
     assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/old'), a.clock.now), true);
 });
+test('No refunds: a hand refund is still handled; partial = review only, full = freeze; failed renewal never freezes', async function () {
+    const a = setup();
+    const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old'));
+    await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 475 }));
+    await stripePost(a, invoicePaid(out.orderId, 475, { billing_reason: 'subscription_create' }));
+    // Failed renewal: review row only; paid time keeps running (Stripe retries).
+    const pf = { id: 'evt_pf1', type: 'invoice.payment_failed', livemode: false, data: { object: { id: 'in_pf', customer: 'cus_1', amount_due: 475, attempt_count: 1, parent: { subscription_details: { subscription: 'sub_1', metadata: { orderId: out.orderId } } } } } };
+    assert.strictEqual((await stripePost(a, pf)).body.outcome, 'payment_failed_noted');
+    assert.strictEqual((await stripePost(a, pf)).body.outcome, 'duplicate');
+    assert.ok(!a.db.store.get('premium_entitlements/old').frozen);
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/old'), a.clock.now), true);
+    assert.strictEqual(rows(a, 'premium_review').filter(function (r) { return r.reason === 'stripe_invoice_payment_failed'; }).length, 1);
+    // Partial goodwill refund by hand: no freeze, review row, order marked.
+    const part = { id: 'evt_pr1', type: 'charge.refunded', livemode: false, data: { object: { id: 'ch_p', refunded: false, amount_refunded: 100, customer: 'cus_1', metadata: { orderId: out.orderId } } } };
+    assert.strictEqual((await stripePost(a, part)).body.outcome, 'review');
+    assert.ok(!a.db.store.get('premium_entitlements/old').frozen);
+    assert.strictEqual(a.db.store.get('premium_orders/' + out.orderId).refundKind, 'partial');
+    const pRow = rows(a, 'premium_review').find(function (r) { return r.reason === 'stripe_charge_refunded'; });
+    assert.strictEqual(pRow.partial, true);
+    assert.strictEqual(pRow.frozen, 0);
+    // Full refund by hand: perks freeze until an admin restores.
+    const full = { id: 'evt_fr1', type: 'charge.refunded', livemode: false, data: { object: { id: 'ch_f', refunded: true, amount_refunded: 475, customer: 'cus_1', metadata: { orderId: out.orderId } } } };
+    assert.strictEqual((await stripePost(a, full)).body.outcome, 'review');
+    assert.strictEqual(a.db.store.get('premium_entitlements/old').frozen, true);
+    assert.strictEqual(a.db.store.get('premium_orders/' + out.orderId).refundKind, 'full');
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/old'), a.clock.now), false);
+    // Cancel = no renewal, paid time stays (no refund, no early cut-off).
+    const b = setup();
+    const o2 = await b.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('old'));
+    await stripePost(b, completed(o2.orderId, 'cs_test_1', { amount_total: 4750 }));
+    await stripePost(b, invoicePaid(o2.orderId, 4750, { billing_reason: 'subscription_create' }));
+    const until = b.db.store.get('premium_entitlements/old').subscriptionUntilMs;
+    const upd = { id: 'evt_cx', type: 'customer.subscription.updated', livemode: false, data: { object: { id: 'sub_1', status: 'active', cancel_at_period_end: true, metadata: { orderId: o2.orderId } } } };
+    assert.strictEqual((await stripePost(b, upd)).body.outcome, 'not_renewing');
+    const e2 = b.db.store.get('premium_entitlements/old');
+    assert.strictEqual(e2.autoRenew, false);
+    assert.strictEqual(e2.subscriptionUntilMs, until);
+    assert.strictEqual(premium.isPremiumActive(e2, b.clock.now), true);
+});
+
+test('No refunds: a refunded Founders seat never returns to sale (sold stays, retired counted once)', async function () {
+    const a = setup();
+    a.db.store.set('premium_counters/founders', { sold: 499, holds: {} });
+    const out = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 14250, mode: 'payment', subscription: null }));
+    assert.strictEqual(a.db.store.get('premium_counters/founders').sold, 500);
+    const full = { id: 'evt_ffr', type: 'charge.refunded', livemode: false, data: { object: { id: 'ch_ff', refunded: true, amount_refunded: 14250, customer: 'cus_1', metadata: { orderId: out.orderId } } } };
+    assert.strictEqual((await stripePost(a, full)).body.outcome, 'review');
+    const c = a.db.store.get('premium_counters/founders');
+    assert.strictEqual(c.sold, 500);
+    assert.strictEqual(c.retired, 1);
+    assert.strictEqual(a.db.store.get('premium_orders/' + out.orderId).seatRetired, true);
+    assert.strictEqual(a.db.store.get('premium_entitlements/old').frozen, true);
+    // Replay with a new event id (e.g. a second refund object) does not double count.
+    const again = JSON.parse(JSON.stringify(full)); again.id = 'evt_ffr2';
+    await stripePost(a, again);
+    assert.strictEqual(a.db.store.get('premium_counters/founders').retired, 1);
+    // Still sold out: the refunded seat is not for sale again.
+    assert.strictEqual(premium.foundersLeft(a.db.store.get('premium_counters/founders'), a.clock.now), 0);
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('new')), 'founders_sold_out');
+    // Admin restore does not touch the counter either.
+    a.db.store.set('users/adminx', {});
+    await a.h.adminRevokePremium({ action: 'restore', uid: 'old', reason: 'refund reversed' }, ctx('adminx', { admin: true }));
+    assert.strictEqual(a.db.store.get('premium_counters/founders').sold, 500);
+});
+
 test('User Data: full refund clears the plain email at once; partial refund does not', async function () {
     const a = setup();
     const r = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'refund@example.com', turnstileToken: 'ok-token' });
@@ -1293,7 +1564,7 @@ test('Red Team 5: adminRevokePremium needs admin + fresh step-up and writes an a
     assert.ok(/adminRevokePremium: true/.test(sf));
 });
 test('User Data: account deletion masks uid on orders/ledger/review, clears emails, drops entitlement', async function () {
-    const a = setup();
+    const a = setup({ config: { perksStartAtMs: LAUNCH } });
     const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old'));
     await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 475 }));
     await stripePost(a, invoicePaid(out.orderId, 475, { billing_reason: 'subscription_create' }));
@@ -1413,7 +1684,7 @@ async function trialGranted(a, uid) {
 }
 
 test('Spam MED 2: a trial canceled right away ends at trial_end with no grace period', async function () {
-    const a = setup({ config: { trialDays: 7 } });
+    const a = setup({ config: { trialsEnabled: true, trialDays: 7 } });
     const out = await trialGranted(a, 'new');
     const trialEnd = T0 + 7 * 86400000;
     assert.strictEqual(a.db.store.get('premium_entitlements/new').subscriptionUntilMs, trialEnd + 3 * 86400000);
@@ -1430,7 +1701,7 @@ test('Spam MED 2: a trial canceled right away ends at trial_end with no grace pe
 });
 
 test('Spam MED 2: cancel at period end during a trial ends at trial_end; undoing it restores trial_end + grace', async function () {
-    const a = setup({ config: { trialDays: 7 } });
+    const a = setup({ config: { trialsEnabled: true, trialDays: 7 } });
     const out = await trialGranted(a, 'new');
     const trialEnd = T0 + 7 * 86400000;
     const upd = subEvent('customer.subscription.updated', out.orderId, { status: 'trialing', trial_end: trialEnd / 1000, cancel_at_period_end: true, cancel_at: trialEnd / 1000 });
@@ -1445,7 +1716,7 @@ test('Spam MED 2: cancel at period end during a trial ends at trial_end; undoing
 });
 
 test('Spam MED 2: grace stays for paid periods (cancel after the trial converted)', async function () {
-    const a = setup({ config: { trialDays: 7 } });
+    const a = setup({ config: { trialsEnabled: true, trialDays: 7 } });
     const out = await trialGranted(a, 'new');
     const trialEnd = T0 + 7 * 86400000;
     const periodEnd = Math.floor((trialEnd + 30 * 86400000) / 1000);
@@ -1495,7 +1766,7 @@ test('Spam MED 1: a subscription canceled for fraud or trial_reused ends Premium
 });
 
 test('Spam MED 1: trial_reused cancel sends cancellation_details[comment]=trial_reused to Stripe', async function () {
-    const a = setup({ config: { trialDays: 7 }, defaultCardFp: 'fp_same_card' });
+    const a = setup({ config: { trialsEnabled: true, trialDays: 7 }, defaultCardFp: 'fp_same_card' });
     await trialGranted(a, 'old');
     const o2 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'two@example.com' }));
     await stripePost(a, completed(o2.orderId, 'cs_test_2', { amount_total: 0, payment_status: 'no_payment_required', customer: 'cus_2', subscription: 'sub_2' }));
