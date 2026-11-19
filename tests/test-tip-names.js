@@ -290,13 +290,15 @@ function loadPvpRow(username) {
 
 // Profile usernames for the artist name helper; tracks' own text is ignored.
 function profileDb(profiles) {
-    return { collection: function() { return { doc: function(id) { return { get: function() {
-        return Promise.resolve({ exists: Object.prototype.hasOwnProperty.call(profiles, id), data: function() { return profiles[id]; } });
+    const tracks = { t1: { authorId: 'artist1', title: 'Song' } };
+    return { collection: function(col) { return { doc: function(id) { return { get: function() {
+        const m = col === 'beats_tracks' ? tracks : profiles;
+        return Promise.resolve({ exists: Object.prototype.hasOwnProperty.call(m, id), data: function() { return m[id]; } });
     } }; } }; } };
 }
 function beatsNameHelper(BEATS) {
     const a = BEATS.indexOf('var BEATS_ID_RE');
-    const b = BEATS.indexOf('window._beatsArtistName = beatsArtistName;');
+    const b = BEATS.indexOf('window._beatsArtistName = beatsArtistName;') === -1 ? -1 : BEATS.indexOf('function _beatsAttr(');
     return b === -1 ? '' : BEATS.slice(a, b);
 }
 function settle() { return new Promise(function(r) { setImmediate(r); }).then(function() { return new Promise(function(r) { setImmediate(r); }); }); }

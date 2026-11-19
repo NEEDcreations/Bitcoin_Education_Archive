@@ -437,7 +437,7 @@ function gcCode() {
 }
 // The id check, plus the shared artist name helper when the file has one.
 function beatsHead() {
-    const end = BE.indexOf('window._beatsArtistName = beatsArtistName;');
+    const end = BE.indexOf('function _beatsAttr(');
     return BE.slice(BE.indexOf('var BEATS_ID_RE'), end !== -1 ? end : BE.indexOf('window._beatsIdOk')) + '\nwindow._beatsArtistName = typeof beatsArtistName === "function" ? beatsArtistName : undefined;';
 }
 function beatsCode() {
@@ -758,6 +758,10 @@ function beatCardEnv(tiCode, opts) {
         MutationObserver: function() { this.observe = function() {}; },
         db: { collection: function(col) { return { doc: function(id) { return { get: function() {
             reads.push(col + '/' + id);
+            if (col === 'beats_tracks') {
+                if (opts.trackUnreadable) return Promise.reject(new Error('denied'));
+                return Promise.resolve({ exists: Object.prototype.hasOwnProperty.call(TRACKS, id), data: function() { return Object.assign({}, TRACKS[id]); } });
+            }
             if (opts.profileUnreadable) return Promise.reject(new Error('denied'));
             return Promise.resolve({ exists: Object.prototype.hasOwnProperty.call(profiles, id), data: function() { return Object.assign({}, profiles[id]); } });
         } }; } }; } },
@@ -873,6 +877,49 @@ test('beat names share one profile read per artist', async () => {
     env.sandbox.beatsTipCurrentArtist();
     await settle();
     assert.strictEqual(env.reads.filter(function(r) { return r === 'public_profiles/realArtist01'; }).length, 1);
+});
+
+// ---------- inline track tip (by id) ----------
+test('track tip by id: a spoofed uid cannot redirect the payee or the name', async () => {
+    const env = beatCardEnv(TI_SRC);
+    env.sandbox.beatsTipCurrentArtistById('spoofUid99', 'track01');
+    env.sandbox.beatsTipCurrentArtistById('viewer01', 'track01');
+    await settle();
+    assert.strictEqual(env.tipCalls.length, 2);
+    env.tipCalls.forEach(function(c) {
+        assert.strictEqual(c.recipientUid, 'realArtist01', 'payee from the track doc');
+        assert.strictEqual(c.recipientName, 'real_artist', 'name for the same author');
+        assert.ok(JSON.stringify(c).indexOf('spoof') === -1);
+        noFreeText(c);
+    });
+    assert.ok(env.reads.indexOf('public_profiles/spoofUid99') === -1, 'passed uid never read');
+});
+
+test('track tip by id: missing, unreadable or authorless track gives no overlay', async () => {
+    for (const o of [[{}, 'missingTrack'], [{}, 'trackNoAuthor'], [{ trackUnreadable: true }, 'track01']]) {
+        const env = beatCardEnv(TI_SRC, o[0]);
+        env.sandbox.beatsTipCurrentArtistById('realArtist01', o[1]);
+        await settle();
+        assert.strictEqual(env.tipCalls.length, 0, o[1]);
+        assert.ok(env.reads.every(function(r) { return r.indexOf('public_profiles/') !== 0; }), 'no profile read for ' + o[1]);
+    }
+});
+
+test('track tip by id: a bad track id is refused before any read', async () => {
+    const env = beatCardEnv(TI_SRC);
+    for (const bad of ['../users/x', 'a b', 'x'.repeat(129), '', 42, null, undefined]) {
+        env.sandbox.beatsTipCurrentArtistById('realArtist01', bad);
+    }
+    await settle();
+    assert.deepStrictEqual(env.reads, []);
+    assert.strictEqual(env.tipCalls.length, 0);
+});
+
+test('track tip by id: the viewer\'s own track offers no tip', async () => {
+    const env = beatCardEnv(TI_SRC);
+    env.sandbox.beatsTipCurrentArtistById('someoneElse', 'trackMine');
+    await settle();
+    assert.strictEqual(env.tipCalls.length, 0);
 });
 
 run();
