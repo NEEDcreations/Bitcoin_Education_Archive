@@ -330,6 +330,17 @@ function pairDailyId(day, uidA, uidB) {
     return day + '_' + ids[0] + '_' + ids[1];
 }
 
+// A disconnect is still void (no win, loss, or played credit), but it counts
+// toward the same-pair daily cap so dropping mid-match cannot dodge it.
+// A tied forfeit (forfeit_void) stays uncounted. Guest matches never count.
+function shouldIncrementPairDaily(plan, stamp) {
+    if (!plan) return false;
+    const guest = !stamp || stamp.guestMatch !== false || plan.guestMatch === true;
+    if (guest) return false;
+    if (plan.reason === 'disconnect') return true;
+    return plan.grant === true && plan.voided !== true;
+}
+
 function sideReward(key, player, winner, draw) {
     const p = player || {};
     const blocked = p.banned === true || p.anonymous === true;
@@ -904,6 +915,7 @@ module.exports = {
     farmDayKey: farmDayKey,
     pairDailyExpireAtMs: pairDailyExpireAtMs,
     pairDailyId: pairDailyId,
+    shouldIncrementPairDaily: shouldIncrementPairDaily,
     playerKeyForUid: playerKeyForUid,
     pushShardOrder: pushShardOrder,
     pvpPicAllowed: pvpPicAllowed,

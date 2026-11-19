@@ -593,9 +593,74 @@ test('a disconnect does not count as played', function () {
         player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
     });
     assert.strictEqual(disc.reason, 'disconnect');
+    assert.strictEqual(disc.grant, false);
+    assert.strictEqual(disc.voided, true);
+    assert.strictEqual(disc.players.length, 0, 'a disconnect stays void: no win or loss');
     const badges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, disc);
     assert.deepStrictEqual(badges.skipUids, ['p1', 'p2']);
     assert.deepStrictEqual(badges.winGrantUids, []);
+    assert.strictEqual(flow.shouldIncrementPairDaily(disc, stamp), true, 'a disconnect still counts toward the pair cap');
+});
+
+test('repeated disconnects between the same pair reach the pair cap', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+    const discInput = {
+        matchId: 'm-disc-cap',
+        status: 'forfeit',
+        forfeitReason: 'disconnect',
+        forfeitedBy: 'p1',
+        durationMs: 60000,
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 2 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    };
+    let pairMatchesToday = 0;
+    for (let i = 0; i < flow.PAIR_XP_CAP; i++) {
+        const disc = flow.planPvpReward(Object.assign({}, discInput, {
+            matchId: 'm-disc-cap-' + i,
+            pairMatchesToday: pairMatchesToday,
+        }));
+        assert.strictEqual(disc.reason, 'disconnect');
+        assert.strictEqual(disc.grant, false);
+        assert.strictEqual(disc.voided, true);
+        assert.strictEqual(flow.shouldIncrementPairDaily(disc, stamp), true);
+        const badges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, disc);
+        assert.deepStrictEqual(badges.skipUids, ['p1', 'p2']);
+        assert.deepStrictEqual(badges.winGrantUids, []);
+        pairMatchesToday += 1;
+    }
+    assert.strictEqual(pairMatchesToday, flow.PAIR_XP_CAP);
+
+    const nextWin = flow.planPvpReward({
+        matchId: 'm-after-disconnects',
+        status: 'finished',
+        durationMs: 60000,
+        pairMatchesToday: pairMatchesToday,
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(nextWin.reason, 'pair_cap');
+    assert.strictEqual(nextWin.players[0].points, 0);
+    assert.strictEqual(nextWin.players[0].pvpWins, 0);
+    assert.strictEqual(nextWin.players[1].points, 0);
+    const nextBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, nextWin);
+    assert.deepStrictEqual(nextBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(nextBadges.winGrantUids, []);
+    assert.strictEqual(flow.shouldIncrementPairDaily(nextWin, stamp), true);
+
+    // A tied forfeit still does not increment the cap.
+    const tied = flow.planPvpReward({
+        matchId: 'm-tied-after',
+        status: 'forfeit',
+        forfeitReason: 'manual_leave',
+        forfeitedBy: 'p1',
+        durationMs: 1000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 10, roundWins: 1 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(tied.reason, 'forfeit_void');
+    assert.strictEqual(flow.shouldIncrementPairDaily(tied, stamp), false);
+    assert.strictEqual(flow.shouldIncrementPairDaily(tied, { guestMatch: true }), false);
 });
 
 test('a normal 30s+ finished match still counts as played', function () {
@@ -713,6 +778,12 @@ test('settle reads the pair count inside the transaction and uses finish time', 
     assert.ok(/match \/pvp_pair_locks\/\{docId\} \{\s*allow read, write: if false;\s*\}/.test(rules));
     assert.ok(/match \/pvp_pair_daily\/\{docId\} \{\s*allow read, write: if false;\s*\}/.test(rules));
     assert.ok(settle.indexOf('pairDailyExpireAtMs') !== -1, 'pair daily docs get an expireAt');
+    assert.ok(settle.indexOf('shouldIncrementPairDaily') !== -1, 'settle uses shouldIncrementPairDaily for the pair cap');
+    assert.ok(settle.indexOf('!plan.voided') === -1, 'a voided disconnect no longer skips the pair-cap write');
+    const earlyAt = settle.indexOf("if (!plan.grant)");
+    const earlyEnd = settle.indexOf('return false;', earlyAt);
+    const early = earlyAt !== -1 && earlyEnd !== -1 ? settle.slice(earlyAt, earlyEnd) : '';
+    assert.ok(early.indexOf('shouldIncrementPairDaily') !== -1 && early.indexOf('writePairDaily') !== -1, 'a no-grant disconnect still writes pvp_pair_daily');
     assert.ok(settle.indexOf('ttls update') === -1 && src.indexOf('enable-ttl') === -1, 'this PR does not create a TTL policy');
 });
 

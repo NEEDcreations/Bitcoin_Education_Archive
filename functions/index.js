@@ -9010,6 +9010,20 @@ async function settlePvpMatch(matchId, after, finishMs) {
     const rewardRef = db.collection('pvp_rewards').doc(pvpFlow.rewardClaimId(matchId) || matchId);
     let stamp = null;
     let plan = null;
+    function writePairDaily(tx) {
+        if (!pairRef) return;
+        // expireAt is end of the ET day plus 2 days. Do not create the
+        // Firestore TTL policy here; that needs Phil.
+        const expireAtMs = pvpFlow.pairDailyExpireAtMs(day);
+        const pairWrite = {
+            count: admin.firestore.FieldValue.increment(1),
+            day: day,
+            uids: [ids.player1, ids.player2],
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (expireAtMs) pairWrite.expireAt = admin.firestore.Timestamp.fromMillis(expireAtMs);
+        tx.set(pairRef, pairWrite, { merge: true });
+    }
     const wrote = await db.runTransaction(async (tx) => {
         const existing = await tx.get(rewardRef);
         if (existing.exists) return false;
@@ -9032,6 +9046,9 @@ async function settlePvpMatch(matchId, after, finishMs) {
             if (plan.reason === 'disconnect' || plan.reason === 'guest_match' || plan.guestMatch === true) {
                 tx.set(db.collection('pvp_matches').doc(matchId), { rewardsGranted: true, rewards: {} }, { merge: true });
             }
+            // Disconnects are void (no win or played credit) but still count
+            // toward the pair cap, with the same expireAt as a paid match.
+            if (pvpFlow.shouldIncrementPairDaily(plan, stamp)) writePairDaily(tx);
             return false;
         }
         const userRefs = plan.players.map(function (p) { return db.collection('users').doc(p.uid); });
@@ -9133,19 +9150,7 @@ async function settlePvpMatch(matchId, after, finishMs) {
             rewardsGranted: true,
             rewards: rewardsMap,
         }, { merge: true });
-        if (pairRef && !plan.voided) {
-            // expireAt is end of the ET day plus 2 days. Do not create the
-            // Firestore TTL policy here; that needs Phil.
-            const expireAtMs = pvpFlow.pairDailyExpireAtMs(day);
-            const pairWrite = {
-                count: admin.firestore.FieldValue.increment(1),
-                day: day,
-                uids: [ids.player1, ids.player2],
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            };
-            if (expireAtMs) pairWrite.expireAt = admin.firestore.Timestamp.fromMillis(expireAtMs);
-            tx.set(pairRef, pairWrite, { merge: true });
-        }
+        if (pvpFlow.shouldIncrementPairDaily(plan, stamp)) writePairDaily(tx);
         return true;
     });
     if (wrote && plan && plan.shout && plan.shout.post) {
