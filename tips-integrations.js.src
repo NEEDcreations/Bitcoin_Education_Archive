@@ -79,7 +79,7 @@ function injectForumTips() {
         }
 
         var tipOpts = {
-            recipientName: authorName,
+            recipientName: typeof authorName === 'string' ? authorName : '',
             recipientUid: authorUid,
             context: isReply ? 'forum_reply' : 'forum_post',
             contextId: itemId,
@@ -121,7 +121,7 @@ function injectBeatsTips() {
         if (!trackData) return;
 
         var tipOpts = {
-            recipientName: trackData.artist || trackData.authorName || 'Artist',
+            recipientName: (typeof trackData.artist === 'string' ? trackData.artist : '') || (typeof trackData.authorName === 'string' ? trackData.authorName : '') || 'Artist',
             recipientUid: trackData.authorId || '',
             context: 'beats_track',
             contextId: trackData.id || '',
@@ -160,7 +160,7 @@ function injectBeatsTips() {
             var track = window._beatsQueue[window._beatsQueueIdx];
             if (track) {
                 var opts = {
-                    recipientName: track.artist || track.authorName || 'Artist',
+                    recipientName: (typeof track.artist === 'string' ? track.artist : '') || (typeof track.authorName === 'string' ? track.authorName : '') || 'Artist',
                     recipientUid: track.authorId || '',
                     context: 'beats_track',
                     contextId: track.id || '',
@@ -222,7 +222,7 @@ function injectMarketplaceTips() {
         }
 
         var tipOpts = {
-            recipientName: sellerName || 'Seller',
+            recipientName: (typeof sellerName === 'string' ? sellerName : '') || 'Seller',
             recipientUid: sellerUid,
             context: 'marketplace',
             contextId: listingId,
@@ -284,7 +284,7 @@ function injectIRLTips() {
         var hostUid = '';
 
         var tipOpts = {
-            recipientName: 'Event: ' + title,
+            recipientName: 'Event: ' + (typeof title === 'string' ? title : ''),
             recipientUid: hostUid,
             context: 'irl_ticket',
             contextId: eventId,
@@ -331,7 +331,7 @@ function injectLeaderboardTips() {
         if (row.classList.contains('lb-me')) return;
 
         var tipOpts = {
-            recipientName: userName || 'this user',
+            recipientName: (typeof userName === 'string' ? userName : '') || 'this user',
             recipientUid: uid,
             context: 'leaderboard',
             label: 'Tip User',

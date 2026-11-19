@@ -366,7 +366,7 @@ window.beatsSetShowUncensored = function(on) {
     _beatsRerenderCensor();
 };
 window.beatsTipArtistFromPage = function(uid) {
-    var raw = window._beatsArtistTipName || 'Artist';
+    var raw = (typeof window._beatsArtistTipName === 'string' ? window._beatsArtistTipName : '') || 'Artist';
     var name = (typeof beatsCensor === 'function') ? beatsCensor(raw) : raw;
     if (typeof showTipOverlay === 'function') {
         showTipOverlay({ recipientName: name, recipientUid: uid, label: 'Tip ' + name, context: 'Artist page' });
@@ -2667,7 +2667,7 @@ window.beatsTipCurrentArtist = function() {
     }
     if (typeof showTipOverlay === 'function') {
         showTipOverlay({
-            recipientName: track.artist || track.authorName || 'Artist',
+            recipientName: (typeof track.artist === 'string' ? track.artist : '') || (typeof track.authorName === 'string' ? track.authorName : '') || 'Artist',
             recipientUid: track.authorId,
             context: 'Now playing: ' + (track.title || 'Unknown'),
             label: 'Tip Artist'
@@ -2964,8 +2964,8 @@ window.beatsSetGenre = function(genre) {
 // Helper for inline tip buttons
 window.beatsTipCurrentArtistById = function(uid, trackId) {
     var track = _beatsFindQueued(trackId);
-    var name = track ? (track.artist || track.authorName || 'Artist') : 'Artist';
-    var trackTitle = track ? (track.title || '') : '';
+    var name = track ? ((typeof track.artist === 'string' ? track.artist : '') || (typeof track.authorName === 'string' ? track.authorName : '') || 'Artist') : 'Artist';
+    var trackTitle = track ? (typeof track.title === 'string' ? track.title : '') : '';
     if (typeof beatsCensor === 'function') {
         name = beatsCensor(name);
         trackTitle = beatsCensor(trackTitle);
@@ -3872,8 +3872,12 @@ window.beatsQuickCreateAndAdd = function(trackId) {
                 donateBtn.onclick = function(e) {
                     e.stopPropagation();
                     if (typeof showTipOverlay === 'function') {
-                        var tipArtist = (typeof beatsCensor === 'function') ? beatsCensor(d.trackArtist || d.djName || 'Artist') : (d.trackArtist || d.djName || 'Artist');
-                        var tipTitle = (typeof beatsCensor === 'function') ? beatsCensor(d.trackTitle || 'Unknown') : (d.trackTitle || 'Unknown');
+                        var tipArtist = (typeof d.trackArtist === 'string' ? d.trackArtist : '') || (typeof d.djName === 'string' ? d.djName : '') || 'Artist';
+                        var tipTitle = (typeof d.trackTitle === 'string' ? d.trackTitle : '') || 'Unknown';
+                        if (typeof beatsCensor === 'function') {
+                            tipArtist = beatsCensor(tipArtist);
+                            tipTitle = beatsCensor(tipTitle);
+                        }
                         showTipOverlay({
                             recipientName: tipArtist,
                             recipientUid: d.trackAuthorId,
@@ -4280,7 +4284,8 @@ window.beatsShowV4VTip = async function(track) {
     }
     var splits = track.v4vSplits || [];
     if (!splits.length) {
-        var tipName = (typeof beatsCensor === 'function') ? beatsCensor(track.artist || 'Artist') : (track.artist || 'Artist');
+        var tipName = (typeof track.artist === 'string' ? track.artist : '') || 'Artist';
+        if (typeof beatsCensor === 'function') tipName = beatsCensor(tipName);
         if (typeof showTipOverlay === 'function') showTipOverlay({ recipientName: tipName, recipientUid: track.authorId || '', context: 'Bitcoin Beats tip', label: 'Tip Artist' });
         return;
     }
