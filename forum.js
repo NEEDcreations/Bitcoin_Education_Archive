@@ -1032,6 +1032,27 @@ window.forumDeleteReply = async function(replyId, postId) {
     }
 };
 
+// ---- Delete Article Comment (author or admin) ----
+// Article comments live in article_replies. Firestore rules allow the delete
+// only for the comment's author or an admin.
+var ARTICLE_REPLY_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+function articleReplyIdOk(id) { return typeof id === 'string' && ARTICLE_REPLY_ID_RE.test(id); }
+window.articleDeleteReply = async function(replyId, articleId) {
+    if (!auth || !auth.currentUser) return;
+    if (!articleReplyIdOk(replyId) || !articleReplyIdOk(articleId)) return;
+    var isAdmin = isForumAdmin();
+
+    if (!confirm(isAdmin ? 'Admin: Delete this comment?' : 'Delete your comment? This cannot be undone.')) return;
+
+    try {
+        await db.collection('article_replies').doc(replyId).delete();
+        if (typeof showToast === 'function') showToast('🗑️ Comment deleted');
+        articleLoadReplies(articleId);
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('Error deleting comment');
+    }
+};
+
 // =============================================
 // 📝 PlebTalk Articles System
 // =============================================
@@ -1778,7 +1799,7 @@ async function articleLoadReplies(articleId) {
                 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
                     '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">· ' + rDate + '</span>' +
-                    (canDel ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
+                    (canDel && articleReplyIdOk(r.id) && articleReplyIdOk(articleId) ? '<button onclick="articleDeleteReply(\'' + r.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
                 '</div>' +
                 '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;margin-bottom:6px;">' + bodyHtml + '</div>' +
                 (canReply ? '<button data-rid="' + r.id + '" data-rname="' + fEsc(r.authorName || 'Anon') + '" onclick="window.articleReplyToComment(this.dataset.rid,this.dataset.rname)" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +
