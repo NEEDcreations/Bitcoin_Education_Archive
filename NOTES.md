@@ -22,13 +22,14 @@ Files: `citadel-shop.js` (new, lazy-loaded by the Citadel tab in `quests.js`),
   what is left.
 - Footer keeps the exact line: "Paying never changes who wins a battle."
 - Referral-week Premium buying is behind `config/citadelShop.referralWeekPremiumBuy`,
-  default `false`. Live stays off. Staging can set it to `true`.
+  default `false`. Live stays off. Staging can set it to `true`. The client does
+  not read the doc; the server sends it back as `flags` in `getCitadelShopStatus`.
 
 ## Callables (stubbed client names, httpsCallable)
 
 | Name | Input | Output |
 |---|---|---|
-| `getCitadelShopStatus` | `{}` | `{ success, stages: {walls,turret,vault,tower,keep}, lessonParts: {lesson_walls: true, ...}, lessonBuilt: {...}, weekSpent, weekCap, weekResetsAt, newTickets }` |
+| `getCitadelShopStatus` | `{}` | `{ success, premiumActive, flags: { referralWeekPremiumBuy }, stages: {walls,turret,vault,tower,keep}, lessonParts: {lesson_walls: true, ...}, lessonBuilt: {...}, lessonGrantPending, weekSpent, weekCap, weekResetsAt, newTickets }` |
 | `buyCitadelStage` | `{ partId, stage, requestId }` | `{ success, stages, weekSpent, weekCap, newTickets }` or `{ success: false, code, message }` |
 | `buildCitadelPart` | `{ lessonPartId, requestId }` | `{ success, lessonBuilt }` or `{ success: false, code, message }` |
 | `claimLessonParts` | `{}` | `{ success, granted: [lessonPartId], lessonParts }` |
@@ -65,8 +66,9 @@ can map: `not_premium`, `weekly_cap`, `balance`, `account_age`, `not_owned`,
 
 - Idempotent and once per uid: each `lessonParts.<id>` is set at most once
   (transaction; already-true entries are skipped and not re-announced). Safe to
-  call on every shop open, which is what the client does for signed-in
-  non-guest accounts.
+  retry. The client only calls it when `getCitadelShopStatus` returns
+  `lessonGrantPending: true`, for signed-in non-guest accounts. Alternatively the
+  server can run the grant inside `getCitadelShopStatus` and never set the flag.
 - Grants to free and Premium players alike. Parts are kept forever.
 - Must verify lesson completion from server-trusted data. `users/{uid}.lqProgress`
   is written by the client (`learning-quests.js`), so it cannot be the proof on
@@ -89,7 +91,7 @@ can map: `not_premium`, `weekly_cap`, `balance`, `account_age`, `not_owned`,
 - `users/{uid}.citadel.lessonParts.{lesson_*}` (true when earned)
 - `users/{uid}.citadel.lessonBuilt.{lesson_*}` (true when built)
 - `users/{uid}.citadel.weekSpent`, `users/{uid}.citadel.weekCap`
-- `config/citadelShop.referralWeekPremiumBuy`
+- `config/citadelShop.referralWeekPremiumBuy` (server-side only, returned in `flags`)
 
 `citadel.*` must be server-write-only in rules.
 
@@ -115,3 +117,42 @@ spendable balance.
 - The Quest Hub tab bar, nav and sidebar are the app's existing ones, not the mock's.
 - The mock footer is split into two lines; the battle line is its own line.
 - The "Citadel is coming soon" entry in `features.registry.js` is unchanged.
+
+## Speed budget (Speed/Responsiveness)
+
+Measured on this branch (gzip -9):
+
+| Item | Raw | Gzip |
+|---|---|---|
+| `citadel-shop.js` (new, lazy) | 26,204 B | about 8.0 KB (budget 30 KB) |
+| `quests.js` change (Citadel loader + skeleton) | +535 B | +192 B |
+| `index.html` / `404.html` | 0 B (pin text only, same length) | 0 B |
+
+1. **Own lazy file:** met. `citadel-shop.js` is not in `index.html`, `404.html`,
+   the bundle, `build.sh` or the SW precache. The Citadel tab loads it on its
+   first open. `quests.js` (itself lazy) grows by 192 B gzip for the loader, so
+   the first app load is 0 KB heavier.
+2. **30 KB compressed:** met, about 8.0 KB gzip. Tested.
+3. **Placeholder within 100 ms:** the tab draws a skeleton synchronously in
+   `_renderCitadelTab` before the script is requested, and the shop's first paint
+   is synchronous from the saved user doc before any server call. Not timed in
+   a real browser on a slow phone; needs a check on staging.
+4. **Art:** no raster art exists yet. The shop uses inline Lucide SVG icons
+   (inside the 8 KB), so nothing loads before the tab opens. When part art
+   arrives it must be WebP with width and height set, 15 KB or less each,
+   150 KB or less above the fold, `loading="lazy"` below the fold. Not built.
+5. **No layout jumps:** skeleton blocks match the shop sections; the progress
+   bar is a fixed 12 px track; progress panel, part cards and inventory have
+   min-heights. There is no live seat count on this screen (the Founders seat
+   count lives in the #322 buy screen), so none is reserved here. Not measured
+   with CLS in a browser.
+6. **Premium status:** first paint reads `currentUser.premium.active` (saved
+   copy); `getCitadelShopStatus.premiumActive` confirms and wins. Payment code is
+   not loaded by the shop. Get Premium calls `window.bqOpenPremium()` if present,
+   else navigates to `/?premium=buy`. Note: on #322 `premium-buy.js` may already
+   be loaded app-wide; making that lazy is #322 work, not this branch.
+7. **One read, no listeners left:** one `getCitadelShopStatus` call per open
+   (plus `claimLessonParts` only when a grant is pending). No `onSnapshot`, no
+   direct Firestore read, no intervals. The click listener sits on a wrapper the
+   hub replaces when the tab changes, and late replies are dropped. Tested with
+   a fake DOM.
