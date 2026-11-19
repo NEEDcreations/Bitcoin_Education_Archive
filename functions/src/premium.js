@@ -2215,6 +2215,9 @@ function createPremiumHandlers(deps) {
             ref(COL.allowance, auth.uid).get(),
         ]);
         const s = summarize(entSnap.exists ? entSnap.data() : {}, nowMs);
+        // Kill switch: same fail-closed read as the checkouts (unreadable = paused).
+        let paused = true;
+        try { paused = (await isOfflineFn()) !== false; } catch (e) { paused = true; }
         const elig = await eligibilityFor(auth, cfg, nowMs, userSnap.exists ? userSnap.data() : null);
         const offers = [];
         const combos = [['monthly', 'card'], ['yearly', 'card'], ['founders', 'card']];
@@ -2240,8 +2243,10 @@ function createPremiumHandlers(deps) {
             trialsOpen: cfg.trialsEnabled === true && cfg.trialDays > 0,
             trialDays: cfg.trialsEnabled === true ? cfg.trialDays : 0,
             refundPolicy: { id: pricing.REFUND_POLICY.id, text: pricing.REFUND_POLICY.text },
-            checkoutOpen: cfg.checkoutEnabled,
-            lightningOpen: cfg.lightningEnabled && !!cfg.btcpayHost,
+            checkoutOpen: cfg.checkoutEnabled === true && !paused,
+            lightningOpen: cfg.lightningEnabled === true && !!cfg.btcpayHost && !paused,
+            checkoutPaused: paused,
+            pausedReason: paused ? 'kill_switch' : null,
             // The app follows a bitcoin checkout link only on this exact host.
             btcpayHost: cfg.lightningEnabled ? cfg.btcpayHost : null,
             existingUserOffer: elig.ok ? { pct: cfg.existingUserDiscountPct, endsAtMs: cfg.existingUserDiscountEndsAtMs } : null,

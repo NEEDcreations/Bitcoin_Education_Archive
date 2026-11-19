@@ -2081,6 +2081,31 @@ test('F2: checkout.session.expired also starts the cooldown; a paid hold or cool
     await c.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
 });
 
+test('kill switch: getPremiumStatus reports checkout paused (fail closed); open again when off', async function () {
+    const off = await setup().h.getPremiumStatus({}, ctx('old'));
+    assert.strictEqual(off.checkoutOpen, true);
+    assert.strictEqual(off.lightningOpen, true);
+    assert.strictEqual(off.checkoutPaused, false);
+    assert.strictEqual(off.pausedReason, null);
+    const cases = [async function () { return true; }, async function () { throw new Error('unreadable'); }, async function () { return undefined; }];
+    for (const fn of cases) {
+        const a = setup({ isOffline: fn });
+        const st = await a.h.getPremiumStatus({}, ctx('old'));
+        assert.strictEqual(st.checkoutOpen, false);
+        assert.strictEqual(st.lightningOpen, false);
+        assert.strictEqual(st.checkoutPaused, true);
+        assert.strictEqual(st.pausedReason, 'kill_switch');
+        // Ownership info still answers while paused.
+        assert.strictEqual(typeof st.active, 'boolean');
+        assert.strictEqual(typeof st.autoRenew, 'boolean');
+        assert.strictEqual(a.calls.length, 0);
+    }
+    // Closed config stays closed with the switch off; paused only from the switch.
+    const closed = await setup({ config: { checkoutEnabled: false } }).h.getPremiumStatus({}, ctx('old'));
+    assert.strictEqual(closed.checkoutOpen, false);
+    assert.strictEqual(closed.checkoutPaused, false);
+});
+
 // ---------- Red Team F3 (server side): bitcoin links pinned to btcpayHost
 test('F3: btcpayHost validated; status exposes it; bitcoin closed without it; off-host invoice link refused', async function () {
     assert.strictEqual(pricing.normalizeConfig({ btcpayHost: 'Pay.Example.com' }).btcpayHost, 'pay.example.com');

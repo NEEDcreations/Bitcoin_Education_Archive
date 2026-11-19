@@ -36,7 +36,7 @@ test('kill switch and other server reasons have friendly messages', function () 
     });
 });
 test('loaded on index.html and 404.html with the same buster', function () {
-    const tag = '<script src="/premium-buy.js?v=20261118_v2610" defer></script>';
+    const tag = '<script src="/premium-buy.js?v=20261118_v2611" defer></script>';
     assert.ok(index.includes(tag));
     assert.ok(notFound.includes(tag));
     assert.strictEqual(index, notFound);
@@ -182,6 +182,36 @@ async function mountWith(status, fail) {
         ctx.firebase = { functions: function () { called++; return {}; } };
         T.mountSettingsBilling(fakeNode('div'));
         assert.strictEqual(called, 0);
+    });
+    function texts(n, out) { out = out || []; if (n && n.textContent) out.push(n.textContent); (n && n.children || []).forEach(function (c) { texts(c, out); }); return out; }
+    await atest('kill switch paused: buy dialog shows the pause note and no buy flow', async function () {
+        ctx.document.createElement = fakeNode;
+        const box = fakeNode('div');
+        T.render(box, { active: false, checkoutOpen: false, checkoutPaused: true, offers: [{ plan: 'yearly', rail: 'card', amountCents: 5000 }] }, 'buy');
+        const t = texts(box);
+        assert.ok(t.indexOf('Checkout is paused right now.') !== -1);
+        assert.strictEqual(t.indexOf('Continue to payment'), -1);
+        assert.strictEqual(t.indexOf(T.REASONS.checkout_closed), -1);
+    });
+    await atest('kill switch paused: card subscriber still gets Manage billing plus the pause note', async function () {
+        ctx.document.createElement = fakeNode;
+        const box = fakeNode('div');
+        T.render(box, { active: true, founders: false, autoRenew: true, checkoutPaused: true }, 'buy');
+        const t = texts(box);
+        assert.ok(t.indexOf('Checkout is paused right now.') !== -1);
+        assert.ok(t.indexOf('Manage billing') !== -1);
+        const r = await mountWith({ active: true, founders: false, autoRenew: true, checkoutPaused: true });
+        const st = texts(r.holder);
+        assert.ok(st.indexOf('Checkout is paused right now.') !== -1);
+        assert.ok(st.indexOf('Manage billing') !== -1);
+        const r2 = await mountWith({ active: true, founders: false, autoRenew: true, checkoutPaused: false });
+        assert.strictEqual(texts(r2.holder).indexOf('Checkout is paused right now.'), -1);
+    });
+    await atest('not paused: buy dialog still offers Continue to payment', async function () {
+        ctx.document.createElement = fakeNode;
+        const box = fakeNode('div');
+        T.render(box, { active: false, checkoutOpen: true, checkoutPaused: false, offers: [{ plan: 'yearly', rail: 'card', amountCents: 5000 }] }, 'buy');
+        assert.ok(texts(box).indexOf('Continue to payment') !== -1);
     });
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);

@@ -12,6 +12,7 @@
     var MAX_MONTHS = 12;
     var REASONS = {
         checkout_closed: 'Premium checkout opens soon. Please check back.',
+        checkout_paused: 'Checkout is paused right now.',
         kill_switch: 'Bitcoin Quest is offline for maintenance, so checkout is paused. Please try again later.',
         terms_required: 'Please tick the box to confirm that all sales are final.',
         founders_sold_out: "Founders' Lifetime is sold out.",
@@ -136,6 +137,12 @@
     // Card subscribers manage renewal in Stripe's portal (our own portal
     // configuration). Founders and bitcoin prepay have nothing to manage.
     function isCardSubscriber(st) { return !!(st && st.active && !st.founders && st.autoRenew === true); }
+    // Kill switch on (getPremiumStatus checkoutPaused): no buy flow at all.
+    function pausedNote() {
+        var n = el('p', 'margin:8px 0;color:#fcd34d;font-size:.92rem', REASONS.checkout_paused);
+        n.setAttribute('role', 'status');
+        return n;
+    }
     function billingButton() {
         var mb = el('button', 'width:100%;padding:12px;border-radius:10px;border:1px solid #374151;background:#1f2937;color:#fff;font-weight:600;cursor:pointer', 'Manage billing');
         mb.type = 'button';
@@ -157,6 +164,7 @@
             while (holder.firstChild) holder.removeChild(holder.firstChild);
             holder.appendChild(el('div', 'font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;color:#f7931a', 'Premium'));
             holder.appendChild(el('div', 'font-size:0.85rem;margin-bottom:12px;line-height:1.5;opacity:.85', 'Update your card or turn off renewal. Premium stays on until the end of the period you paid for.'));
+            if (st.checkoutPaused) holder.appendChild(pausedNote());
             holder.appendChild(billingButton());
             holder.hidden = false;
         }).catch(function () {});
@@ -199,7 +207,12 @@
         if (st.active) {
             body.appendChild(el('p', 'margin:6px 0 12px', st.founders ? "You're a Founder. Premium is yours for life." :
                 'Premium is active' + (st.expiresAtMs ? ' until ' + etDate(st.expiresAtMs) : '') + '.'));
+            if (st.checkoutPaused) body.appendChild(pausedNote());
             if (isCardSubscriber(st)) body.appendChild(billingButton());
+            return;
+        }
+        if (st.checkoutPaused) {
+            body.appendChild(pausedNote());
             return;
         }
         if (!st.checkoutOpen) {
@@ -423,7 +436,7 @@
             setTimeout(wait, 500);
         })();
     }
-    window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS, holdText: holdText, holdMinutesLeft: holdMinutesLeft, isCardSubscriber: isCardSubscriber, mountSettingsBilling: mountSettingsBilling };
+    window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS, holdText: holdText, holdMinutesLeft: holdMinutesLeft, isCardSubscriber: isCardSubscriber, mountSettingsBilling: mountSettingsBilling, render: render };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
 })();

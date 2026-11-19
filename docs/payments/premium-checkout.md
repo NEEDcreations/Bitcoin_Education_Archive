@@ -331,3 +331,15 @@ entitlement, allowance and per-account rate docs are deleted, as before.
   `?premium=buy`; the buy dialog reopens only in the same tab (session storage).
 - Staging: `premiumStripeWebhook` redeployed; preview `premium-322` rebuilt with
   `btc-archive-v2610` (ranking.js and premium-buy.js `20261118_v2610`).
+
+## Round 8 (Nov 18, kill switch in getPremiumStatus)
+
+- `getPremiumStatus` reads `config/killSwitch` with the same fail-closed read as
+  the checkouts (unreadable = paused). While paused it returns
+  `checkoutOpen: false`, `lightningOpen: false`, `checkoutPaused: true`,
+  `pausedReason: 'kill_switch'`; ownership fields keep answering.
+- The buy dialog shows "Checkout is paused right now." instead of the buy flow.
+  Card subscribers still see Manage billing (`createPremiumPortal` is not a
+  gated function), with the same note, in the dialog and in Settings.
+- Staging: `getPremiumStatus` redeployed; preview rebuilt with `btc-archive-v2611`
+  (premium-buy.js `20261118_v2611`; ranking.js stays `20261118_v2610`).
