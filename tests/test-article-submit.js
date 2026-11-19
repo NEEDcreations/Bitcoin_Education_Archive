@@ -238,6 +238,29 @@ test('articleUpdate does not write author fields and only keeps an https cover',
     assert.ok(!('coverUrl' in data.updates[0]));
 });
 
+test('authorPic and coverUrl are blank when an https value has a line break or is too long', async function () {
+    const nl = 'https://example.com/pic.jpg\nmore';
+    const cr = 'https://example.com/pic.jpg\rmore';
+    const picNl = await submit({ user: { profilePic: nl } });
+    assert.strictEqual(picNl.added[0].authorPic, '');
+    const picCr = await submit({ user: { profilePic: cr } });
+    assert.strictEqual(picCr.added[0].authorPic, '');
+    const picLong = await submit({ user: { profilePic: HTTPS_LONG } });
+    assert.strictEqual(picLong.added[0].authorPic, '');
+    const coverNl = await submit({ coverReturn: 'https://example.com/cover.jpg\nmore' });
+    assert.ok(!('coverUrl' in coverNl.added[0]));
+    const coverCr = await submit({ coverReturn: 'https://example.com/cover.jpg\rmore' });
+    assert.ok(!('coverUrl' in coverCr.added[0]));
+    const coverLong = await submit({ coverReturn: HTTPS_LONG });
+    assert.ok(!('coverUrl' in coverLong.added[0]));
+    const coverMax = await submit({ coverReturn: HTTPS_MAX });
+    assert.strictEqual(coverMax.added[0].coverUrl, HTTPS_MAX);
+    const updNl = await update({ coverReturn: 'https://example.com/cover.jpg\nmore' });
+    assert.ok(!('coverUrl' in updNl.updates[0]));
+    const updLong = await update({ coverReturn: HTTPS_LONG });
+    assert.ok(!('coverUrl' in updLong.updates[0]));
+});
+
 (async function () {
     for (const [name, fn] of queue) {
         try { await fn(); console.log('✅ ' + name); passed++; }

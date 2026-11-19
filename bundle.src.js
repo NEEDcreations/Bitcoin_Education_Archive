@@ -9076,7 +9076,7 @@ function articleImgUrl(u) { return typeof u === 'string' && u ? mdSafeUrl(fEsc(u
 function articleAuthorPic(u) {
     if (u === '') return '';
     if (typeof u !== 'string') return '';
-    if (u.indexOf('https://') === 0 && u.length <= 2048) return u;
+    if (u.length <= 2048 && /^https:\/\/[^\n\r]*$/.test(u)) return u;
     if (u.length <= 20000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(u)) return u;
     return '';
 }
@@ -9091,7 +9091,7 @@ function articleAuthorName(name) {
     return (typeof name === 'string' && name) ? name.slice(0, 40) : 'Anon';
 }
 function articleCoverUrl(u) {
-    return (typeof u === 'string' && u.indexOf('https://') === 0) ? u : '';
+    return (typeof u === 'string' && u.length <= 2048 && /^https:\/\/[^\n\r]*$/.test(u)) ? u : '';
 }
 
 // Time ago helper
