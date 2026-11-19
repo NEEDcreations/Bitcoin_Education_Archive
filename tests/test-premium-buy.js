@@ -36,7 +36,7 @@ test('kill switch and other server reasons have friendly messages', function () 
     });
 });
 test('loaded on index.html and 404.html with the same buster', function () {
-    const tag = '<script src="/premium-buy.js?v=20261118_v2608" defer></script>';
+    const tag = '<script src="/premium-buy.js?v=20261118_v2609" defer></script>';
     assert.ok(index.includes(tag));
     assert.ok(notFound.includes(tag));
     assert.strictEqual(index, notFound);
@@ -104,6 +104,9 @@ test('Founders seat hold countdown: "Your Founders seat is held for N minutes" (
     assert.ok(js.indexOf("'Your Founders seat hold ran out. Start again to hold a new seat.'") !== -1);
     assert.ok(/if \(Date\.now\(\) < expMs\) location\.assign\(url\)/.test(js));
     assert.ok(/founders_cooldown_ip:/.test(js));
+    // Red Team N1: no promise that the checkout itself closes.
+    assert.ok(js.indexOf('After that your seat is released and may go to someone else.') !== -1);
+    assert.ok(js.indexOf('checkout closes') === -1);
 });
 test('portal: only billing.stripe.com', function () {
     assert.ok(T.safePortalUrl('https://billing.stripe.com/p/session/test_1'));

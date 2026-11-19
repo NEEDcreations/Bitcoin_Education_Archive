@@ -261,3 +261,21 @@ Live (Phil only, after Red Team / QA / Security GO):
   minutes once checkout opens.
 - Network cooldown: a lapsed or expired Founders hold also cools down its
   network for `foundersIpHoldCooldownMinutes` (`founders_cooldown_ip`).
+
+## Round 4 (Nov 18, Red Team N1)
+
+- Lapsed Founders' holds still leave `holds` in the same transaction that finds
+  them, so their seats are free at once (no lock-up, no oversell). Each one
+  moves to `premium_counters/founders.expireQueue` (`{ orderId: deadlineMs }`,
+  server-only: the counter doc is read/write false for clients). The deadline is
+  hold end + 31 minutes, after which Stripe has expired the session itself.
+- Every Founders' checkout (and the sweep, when it has the Stripe key) works
+  the queue: soonest deadline first, at most 10 Stripe expire calls (30 order
+  reads) per call. Entries leave the queue only when done: expired, not a
+  pending Stripe Founders' order any more, or past Stripe's own expiry. A
+  failed expire stays queued and is retried. The queue keeps at most 300
+  entries (latest deadlines kept).
+- A refused checkout (sold out, busy, cooldown) prunes nothing, but still
+  works the queue plus the lapsed holds it saw.
+- Buy-screen copy: "After that your seat is released and may go to someone
+  else." (no promise that the checkout itself closes).

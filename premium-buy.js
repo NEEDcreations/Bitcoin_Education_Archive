@@ -75,7 +75,7 @@
         var line = el('p', 'margin:0 0 8px;font-weight:700;color:#f7931a', holdText(expMs, Date.now()));
         line.setAttribute('role', 'timer');
         line.setAttribute('aria-live', 'polite');
-        var note = el('p', 'margin:0 0 10px;color:#d1d5db;font-size:.88rem', 'Pay before the timer runs out to keep your seat. After that the checkout closes and the seat goes back to other players.');
+        var note = el('p', 'margin:0 0 10px;color:#d1d5db;font-size:.88rem', 'Pay before the timer runs out to keep your seat. After that your seat is released and may go to someone else.');
         var pay = el('button', 'width:100%;padding:12px;border-radius:10px;border:0;background:#f7931a;color:#111;font-weight:700;cursor:pointer', 'Pay now');
         pay.type = 'button';
         pay.addEventListener('click', function () { if (Date.now() < expMs) location.assign(url); });

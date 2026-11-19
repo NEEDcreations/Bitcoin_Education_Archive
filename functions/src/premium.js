@@ -424,6 +424,31 @@ function btcpayLinkOk(url, cfg) {
     } catch (e) { return false; }
 }
 
+// Lapsed Founders' holds whose Stripe session still needs expiring:
+// { orderId: deadlineMs }. The deadline is when the session would have expired
+// on its own (it was created before the hold started), so there is nothing to
+// do after it. Bounded so the counter doc stays small.
+const EXPIRE_BATCH = 10;
+const EXPIRE_QUEUE_MAX = 300;
+function queueLapsed(queue, lapsedHolds, nowMs) {
+    const out = {};
+    Object.keys(queue && typeof queue === 'object' ? queue : {}).forEach(function (id) {
+        if (Number(queue[id]) > nowMs) out[id] = Number(queue[id]);
+    });
+    (lapsedHolds || []).forEach(function (e) {
+        const h = e[1];
+        const deadline = Number(h && h.expMs) + STRIPE_CHECKOUT_MINUTES * 60000;
+        if (deadline > nowMs && out[e[0]] === undefined) out[e[0]] = deadline;
+    });
+    const ids = Object.keys(out);
+    if (ids.length <= EXPIRE_QUEUE_MAX) return out;
+    // Keep the entries with the latest deadlines (still payable the longest).
+    ids.sort(function (x, y) { return out[y] - out[x] || (x < y ? -1 : 1); });
+    const kept = {};
+    ids.slice(0, EXPIRE_QUEUE_MAX).forEach(function (id) { kept[id] = out[id]; });
+    return kept;
+}
+
 function liveHolds(holds, nowMs) {
     const out = {};
     Object.keys(holds || {}).forEach(function (id) {
@@ -716,7 +741,11 @@ function createPremiumHandlers(deps) {
                     }
                 });
                 holds[orderId] = { uid: who.holdKey, ipHash: who.ipHash || null, expMs: nowMs + holdMs };
-                tx.set(counterRef, Object.assign({}, c, { sold: Number(c.sold) || 0, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: nowMs }));
+                // Lapsed holds leave the seat count now (seat freed at once) and
+                // move to a server-only queue whose Stripe sessions are expired
+                // in small batches until each is done (Red Team N1).
+                const expireQueue = queueLapsed(c.expireQueue, lapsed.map(function (id) { return [id, c.holds[id]]; }), nowMs);
+                tx.set(counterRef, Object.assign({}, c, { sold: Number(c.sold) || 0, holds: holds, expireQueue: expireQueue, cap: pricing.FOUNDERS_CAP, updatedAtMs: nowMs }));
             }
             // expireAt: Firestore TTL field (policy on premium_rate.expireAt; see docs).
             const ws = inWindow ? windowStart : nowMs;
@@ -763,11 +792,13 @@ function createPremiumHandlers(deps) {
             });
         }); } catch (e) {
             if (capHit) await foundersCapAlert(nowMs, cfg);
-            if (lapsedIds.length) await expireLapsedSessions(lapsedIds, nowMs);
+            // Nothing was pruned: those lapsed holds stay on the counter and are
+            // queued by the next successful hold; expire what we can now.
+            if (q.lifetime) await drainExpireQueue(nowMs, lapsedIds);
             throw e;
         }
-        // Lapsed Founders' card holds can no longer be paid (Red Team F2-R).
-        if (lapsedIds.length) await expireLapsedSessions(lapsedIds, nowMs);
+        // Lapsed Founders' card holds can no longer be paid (Red Team F2-R, N1).
+        if (q.lifetime) await drainExpireQueue(nowMs, []);
 
         let url = null;
         try {
@@ -1027,24 +1058,73 @@ function createPremiumHandlers(deps) {
     // hold so it can no longer be paid (Red Team F2-R). Best effort: a failed
     // expire is logged and never throws; a payment that still slips through
     // goes to the founders_sold_out_late_payment review path.
+    // One order: 'expired', 'skip' (nothing to expire: not a pending Stripe
+    // Founders' order, already expired, or no session) or 'failed' (retry later).
+    async function expireOne(id, nowMs) {
+        try {
+            const snap = await ref(COL.orders, id).get();
+            if (!snap.exists) return 'skip';
+            const o = snap.data();
+            if (!o.lifetime || o.provider !== 'stripe' || o.status !== 'pending' || o.sessionExpiredAtMs) return 'skip';
+            if (!(Number(o.holdExpMs) <= nowMs)) return 'skip';
+            // Stripe has already expired the session on its own by now.
+            if (Number(o.createdAtMs) > 0 && nowMs > Number(o.createdAtMs) + (STRIPE_CHECKOUT_MINUTES + 1) * 60000) return 'skip';
+            if (typeof o.providerSessionId !== 'string' || !/^cs_[A-Za-z0-9_]{6,200}$/.test(o.providerSessionId)) return 'skip';
+            await stripeRequest('POST', '/v1/checkout/sessions/' + encodeURIComponent(o.providerSessionId) + '/expire', {}, 'bq-expire-' + id);
+            await ref(COL.orders, id).update({ sessionExpiredAtMs: nowMs });
+            return 'expired';
+        } catch (e) {
+            log('premium founders session expire failed', { orderId: id, err: String(e && e.message || e) });
+            return 'failed';
+        }
+    }
     async function expireLapsedSessions(orderIds, nowMs) {
         let n = 0;
-        for (const id of (orderIds || []).slice(0, 10)) {
-            try {
-                const snap = await ref(COL.orders, id).get();
-                if (!snap.exists) continue;
-                const o = snap.data();
-                if (!o.lifetime || o.provider !== 'stripe' || o.status !== 'pending' || o.sessionExpiredAtMs) continue;
-                if (!(Number(o.holdExpMs) <= nowMs)) continue;
-                if (typeof o.providerSessionId !== 'string' || !/^cs_[A-Za-z0-9_]{6,200}$/.test(o.providerSessionId)) continue;
-                await stripeRequest('POST', '/v1/checkout/sessions/' + encodeURIComponent(o.providerSessionId) + '/expire', {}, 'bq-expire-' + id);
-                await ref(COL.orders, id).update({ sessionExpiredAtMs: nowMs });
-                n++;
-            } catch (e) {
-                log('premium founders session expire failed', { orderId: id, err: String(e && e.message || e) });
-            }
+        for (const id of (orderIds || []).slice(0, EXPIRE_BATCH)) {
+            if (await expireOne(id, nowMs) === 'expired') n++;
         }
         return n;
+    }
+    // Works through the server-only expire queue on the Founders' counter, at
+    // most EXPIRE_BATCH Stripe calls per call (soonest deadline first), then
+    // removes only the entries that are done. Failed ones stay for the next
+    // call until their Stripe session would have expired on its own anyway.
+    // Never throws.
+    async function drainExpireQueue(nowMs, extraIds) {
+        try {
+            const counterRef = ref(COL.counters, 'founders');
+            const snap = await counterRef.get();
+            const queue = snap.exists && snap.data().expireQueue && typeof snap.data().expireQueue === 'object' ? snap.data().expireQueue : {};
+            const ids = Object.keys(queue).filter(function (id) { return Number(queue[id]) > nowMs; })
+                .sort(function (x, y) { return Number(queue[x]) - Number(queue[y]) || (x < y ? -1 : 1); });
+            (extraIds || []).forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
+            const done = [];
+            let n = 0;
+            let calls = 0;
+            // At most EXPIRE_BATCH Stripe calls and 3x that many order reads.
+            for (const id of ids.slice(0, EXPIRE_BATCH * 3)) {
+                if (calls >= EXPIRE_BATCH) break;
+                const r = await expireOne(id, nowMs);
+                if (r !== 'skip') calls++;
+                if (r === 'expired') n++;
+                if (r !== 'failed') done.push(id);
+            }
+            const stale = Object.keys(queue).filter(function (id) { return !(Number(queue[id]) > nowMs); });
+            const drop = done.filter(function (id) { return queue[id] !== undefined; }).concat(stale);
+            if (drop.length) {
+                await db.runTransaction(async function (tx) {
+                    const cs = await tx.get(counterRef);
+                    if (!cs.exists) return;
+                    const q2 = Object.assign({}, cs.data().expireQueue || {});
+                    drop.forEach(function (id) { delete q2[id]; });
+                    tx.update(counterRef, { expireQueue: q2 });
+                });
+            }
+            return n;
+        } catch (e) {
+            log('premium founders expire queue failed', { err: String(e && e.message || e) });
+            return 0;
+        }
     }
 
     // Sweep: Founders' card orders whose hold lapsed in the last 70 minutes
@@ -1052,12 +1132,13 @@ function createPremiumHandlers(deps) {
     async function expireLapsedFoundersSessions(nowMs) {
         // The sweep runs without the Stripe key bound today; skip quietly then.
         if (!stripeKeyOk(env.STRIPE_SECRET_KEY, mode())) return -1;
+        const queued = await drainExpireQueue(nowMs, []);
         const q = await db.collection(COL.orders).where('holdExpMs', '>=', nowMs - 70 * 60000).limit(200).get();
         const ids = q.docs.filter(function (d) {
             const o = d.data();
             return o.lifetime && o.provider === 'stripe' && o.status === 'pending' && !o.sessionExpiredAtMs && Number(o.holdExpMs) <= nowMs;
         }).map(function (d) { return d.id; });
-        return ids.length ? expireLapsedSessions(ids, nowMs) : 0;
+        return queued + (ids.length ? await expireLapsedSessions(ids, nowMs) : 0);
     }
 
     // Marks a pending order expired/error and frees its Founders seat hold.
