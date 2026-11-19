@@ -26,7 +26,16 @@
         MIN_ACCOUNT_AGE_DAYS: 7,
         // TODO(phil): cosmetics tab here or Nook only. false keeps cosmetics in
         // the Nook and only mentions them in copy (spec default).
-        COSMETICS_TAB: false
+        COSMETICS_TAB: false,
+        // Decided by team for now (Phil, Nov 19); change freely.
+        // Lesson part -> Learning Quest that grants it (learning-quests.js LQ_TOPICS).
+        LESSON_PART_MAP: [
+            { id: 'lesson_walls',  part: 'walls',  name: 'Genesis Stone',    lesson: 'lq_what_is_bitcoin', slug: 'what-is-bitcoin', title: 'What is Bitcoin?' },
+            { id: 'lesson_keep',   part: 'keep',   name: 'Proof-of-Work Keystone', lesson: 'lq_mining', slug: 'mining', title: 'Mining & Proof of Work' },
+            { id: 'lesson_tower',  part: 'tower',  name: 'Node Beacon',      lesson: 'lq_nodes',  slug: 'nodes', title: 'Nodes & Decentralization' },
+            { id: 'lesson_vault',  part: 'vault',  name: 'Vault Key',        lesson: 'lq_self_custody', slug: 'self-custody', title: 'Self-Custody & Your Keys' },
+            { id: 'lesson_turret', part: 'turret', name: 'Lightning Coil',   lesson: 'lq_lightning', slug: 'lightning', title: 'The Lightning Network' }
+        ]
     };
 
     // Feature flags. Defaults are the live values. The server sends the real
@@ -46,15 +55,9 @@
     var TOTAL_STAGES = 15;
 
     // The 5 lesson parts. Free and Premium players both earn and keep them.
-    // Building with them is Premium-only. TODO(rufus): the lesson that grants
-    // each part is not in the spec or repo yet (lesson: null).
-    var LESSON_PARTS = [
-        { id: 'lesson_walls',  part: 'walls',  name: 'Walls cornerstone',     lesson: null },
-        { id: 'lesson_turret', part: 'turret', name: 'Turret coil',           lesson: null },
-        { id: 'lesson_vault',  part: 'vault',  name: 'Vault lock',            lesson: null },
-        { id: 'lesson_tower',  part: 'tower',  name: 'Node Tower antenna',    lesson: null },
-        { id: 'lesson_keep',   part: 'keep',   name: 'Keep banner',           lesson: null }
-    ];
+    // Building with them is Premium-only. Each is earned by passing one Learning
+    // Quest; `lesson` is the server-only lqPassed id, `slug` the lqProgress key.
+    var LESSON_PARTS = CONFIG.LESSON_PART_MAP;
 
     var CALLABLES = {
         status: 'getCitadelShopStatus',
@@ -134,7 +137,7 @@
             var has = lessonOwned[lp.id] === true;
             var isBuilt = lessonBuilt[lp.id] === true;
             var action = !has ? 'not_earned' : (isBuilt ? 'built' : (premium ? 'build' : 'locked'));
-            return { id: lp.id, name: lp.name, part: lp.part, owned: has, built: isBuilt, action: action };
+            return { id: lp.id, name: lp.name, part: lp.part, lesson: lp.lesson, title: lp.title, owned: has, built: isBuilt, action: action };
         });
         return {
             premium: premium, lapsed: lapsed, signedIn: signedIn,
@@ -171,7 +174,7 @@
 
     function lessonRow(l) {
         var right;
-        if (!l.owned) right = '<span class="cs-dim">Finish its lesson to earn it</span>';
+        if (!l.owned) right = '<span class="cs-dim">Pass \u201c' + l.title + '\u201d to earn it</span>';
         else if (l.action === 'built') right = '<div class="cs-btn cs-owned cs-small">' + icon('check', 16) + ' Built</div>';
         else if (l.action === 'build') right = '<button class="cs-btn cs-buy cs-small" type="button" data-cs-build="' + l.id + '">Build</button>';
         else right = '<button class="cs-btn cs-locked cs-small" type="button" disabled aria-disabled="true">' + icon('lock', 16) + ' Premium only</button>';

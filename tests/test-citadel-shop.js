@@ -105,7 +105,8 @@ test('unearned lesson parts are not shown as owned', () => {
     const none = { orangeTickets: 0, created: OLD };
     const h = html(none);
     assert.ok(!h.includes('earned from lessons</span>'));
-    assert.strictEqual((h.match(/Finish its lesson to earn it/g) || []).length, 5);
+    assert.strictEqual((h.match(/to earn it</g) || []).length, 5);
+    assert.ok(h.includes('Pass \u201cWhat is Bitcoin?\u201d to earn it'));
 });
 
 test('click handler re-checks Premium before any buy or build call', () => {
@@ -143,6 +144,23 @@ test('SW is v2616 and quests.js loads citadel-shop.js at v2616', () => {
     assert.ok(q.includes("var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2616';"));
     assert.ok(!q.includes('USE XP TO CONSTRUCT YOUR OWN CITADEL'));
     assert.strictEqual(read('index.html'), read('404.html'));
+});
+
+test('lesson part map: five distinct early Learning Quests, one per part', () => {
+    assert.strictEqual(CS.CONFIG.LESSON_PART_MAP, CS.LESSON_PARTS);
+    const m = JSON.parse(JSON.stringify(CS.CONFIG.LESSON_PART_MAP));
+    assert.strictEqual(m.length, 5);
+    assert.deepStrictEqual(m.map(x => x.part).sort(), ['keep', 'tower', 'turret', 'vault', 'walls']);
+    assert.deepStrictEqual(m.map(x => x.lesson).sort(),
+        ['lq_lightning', 'lq_mining', 'lq_nodes', 'lq_self_custody', 'lq_what_is_bitcoin']);
+    const lq = read('learning-quests.js');
+    const grant = read('functions/src/grantBadge.js');
+    m.forEach(x => {
+        assert.ok(lq.includes("slug: '" + x.slug + "'"), x.slug + ' is a real Learning Quest');
+        assert.ok(grant.includes("'" + x.lesson + "'"), x.lesson + ' is a server lqPassed id');
+        assert.strictEqual(x.lesson, 'lq_' + x.slug.replace(/-/g, '_'));
+    });
+    assert.ok(src.includes('// Decided by team for now (Phil, Nov 19); change freely.'));
 });
 
 // ---- Speed budget ----

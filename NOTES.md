@@ -70,17 +70,32 @@ can map: `not_premium`, `weekly_cap`, `balance`, `account_age`, `not_owned`,
   `lessonGrantPending: true`, for signed-in non-guest accounts. Alternatively the
   server can run the grant inside `getCitadelShopStatus` and never set the flag.
 - Grants to free and Premium players alike. Parts are kept forever.
-- Must verify lesson completion from server-trusted data. `users/{uid}.lqProgress`
-  is written by the client (`learning-quests.js`), so it cannot be the proof on
-  its own.
-- **Which lesson grants which part: TODO.** Not found in the spec or repo. Client
-  placeholders (`LESSON_PARTS[].lesson = null`):
-  - `lesson_walls` (Walls cornerstone): TODO lesson
-  - `lesson_turret` (Turret coil): TODO lesson
-  - `lesson_vault` (Vault lock): TODO lesson
-  - `lesson_tower` (Node Tower antenna): TODO lesson
-  - `lesson_keep` (Keep banner): TODO lesson
-  The lesson part names are placeholders too.
+- Proof of completion: `users/{uid}.lqPassed` (array of `lq_*` ids). It is
+  server-only in `firestore.rules` and filled by the one-time `lq_lesson` claim
+  (`functions/src/progressBadges.js`, `grantBadge.js`). Do not use
+  `users/{uid}.lqProgress`; the client writes it (`learning-quests.js`).
+- Grant rule: for each row below, if `lqPassed` contains `lesson` and
+  `citadel.lessonParts.<id>` is not already true, set it true. Players who passed
+  before launch get their parts on first grant (back-fill by the same rule).
+- `getCitadelShopStatus` sets `lessonGrantPending: true` when any mapped lesson is
+  in `lqPassed` but its part is not yet granted.
+
+### Lesson to part mapping
+
+Decided by team for now (Phil, Nov 19, 8:25 AM ET: "you guys decide this for
+now"); change freely. Source of truth on the client is
+`CONFIG.LESSON_PART_MAP` in `citadel-shop.js`; the server must use the same ids.
+
+| Lesson part id | Part | Part name | Lesson id (`lqPassed`) | lqProgress slug | Lesson title |
+|---|---|---|---|---|---|
+| `lesson_walls` | Walls | Genesis Stone | `lq_what_is_bitcoin` | `what-is-bitcoin` | What is Bitcoin? |
+| `lesson_keep` | Keep | Proof-of-Work Keystone | `lq_mining` | `mining` | Mining & Proof of Work |
+| `lesson_tower` | Node Tower | Node Beacon | `lq_nodes` | `nodes` | Nodes & Decentralization |
+| `lesson_vault` | Vault | Vault Key | `lq_self_custody` | `self-custody` | Self-Custody & Your Keys |
+| `lesson_turret` | Lightning Turret | Lightning Coil | `lq_lightning` | `lightning` | The Lightning Network |
+
+These are the first five of the eight Learning Quests in `LQ_TOPICS` order (the
+order players see them). Scarcity, Why Bitcoin and Privacy grant nothing here.
 
 ## Firestore fields the UI reads
 
