@@ -7,6 +7,25 @@
 var BEATS_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 function beatsIdOk(v) { return typeof v === 'string' && BEATS_ID_RE.test(v); }
 window._beatsIdOk = beatsIdOk;
+// Tip display name for an artist: public profile username, else 'Artist'.
+var _beatsArtistNames = new Map();
+function beatsArtistName(uid) {
+    if (!beatsIdOk(uid) || typeof db === 'undefined' || !db) return Promise.resolve('Artist');
+    if (_beatsArtistNames.has(uid)) return _beatsArtistNames.get(uid);
+    if (_beatsArtistNames.size >= 200) _beatsArtistNames.clear();
+    var p = Promise.resolve().then(function() {
+        return db.collection('public_profiles').doc(uid).get();
+    }).then(function(snap) {
+        var d = snap && snap.exists && typeof snap.data === 'function' ? snap.data() : null;
+        return d && typeof d.username === 'string' && d.username ? d.username.slice(0, 64) : 'Artist';
+    }, function() {
+        _beatsArtistNames.delete(uid);
+        return 'Artist';
+    });
+    _beatsArtistNames.set(uid, p);
+    return p;
+}
+window._beatsArtistName = beatsArtistName;
 function _beatsAttr(v) { return typeof escapeHtml === 'function' ? escapeHtml(String(v == null ? '' : v)) : String(v == null ? '' : v).replace(/[&<>"']/g, ''); }
 function _beatsRm(id) { var o = document.getElementById(id); if (o) o.remove(); }
 function _beatsTip(d) { if (beatsIdOk(d.author) && typeof beatsTipCurrentArtistById === 'function') beatsTipCurrentArtistById(d.author, d.id); }
@@ -2666,11 +2685,13 @@ window.beatsTipCurrentArtist = function() {
         return;
     }
     if (typeof showTipOverlay === 'function') {
-        showTipOverlay({
-            recipientName: (typeof track.artist === 'string' ? track.artist : '') || (typeof track.authorName === 'string' ? track.authorName : '') || 'Artist',
-            recipientUid: track.authorId,
-            context: 'Now playing: ' + (track.title || 'Unknown'),
-            label: 'Tip Artist'
+        beatsArtistName(track.authorId).then(function(name) {
+            showTipOverlay({
+                recipientName: name,
+                recipientUid: track.authorId,
+                context: 'Now playing: ' + (track.title || 'Unknown'),
+                label: 'Tip Artist'
+            });
         });
     } else if (typeof beatsShowArtistPage === 'function') {
         beatsShowArtistPage(track.authorId);
@@ -2964,14 +2985,13 @@ window.beatsSetGenre = function(genre) {
 // Helper for inline tip buttons
 window.beatsTipCurrentArtistById = function(uid, trackId) {
     var track = _beatsFindQueued(trackId);
-    var name = track ? ((typeof track.artist === 'string' ? track.artist : '') || (typeof track.authorName === 'string' ? track.authorName : '') || 'Artist') : 'Artist';
     var trackTitle = track ? (typeof track.title === 'string' ? track.title : '') : '';
-    if (typeof beatsCensor === 'function') {
-        name = beatsCensor(name);
-        trackTitle = beatsCensor(trackTitle);
-    }
+    if (typeof beatsCensor === 'function') trackTitle = beatsCensor(trackTitle);
     if (typeof showTipOverlay === 'function') {
-        showTipOverlay({ recipientName: name, recipientUid: uid, context: trackTitle ? ('Tip for: ' + trackTitle) : 'Bitcoin Beats tip', label: 'Tip Artist' });
+        beatsArtistName(uid).then(function(name) {
+            if (typeof beatsCensor === 'function') name = beatsCensor(name);
+            showTipOverlay({ recipientName: name, recipientUid: uid, context: trackTitle ? ('Tip for: ' + trackTitle) : 'Bitcoin Beats tip', label: 'Tip Artist' });
+        });
     } else if (typeof beatsShowArtistPage === 'function') {
         beatsShowArtistPage(uid);
     }
@@ -3880,13 +3900,9 @@ window.beatsQuickCreateAndAdd = function(trackId) {
             var t = snap && snap.exists && typeof snap.data === 'function' ? snap.data() : null;
             if (!t || !beatsIdOk(t.authorId)) return null;
             var title = (typeof t.title === 'string' && t.title) ? t.title.slice(0, 128) : 'Unknown';
-            return Promise.resolve().then(function() {
-                return db.collection('public_profiles').doc(t.authorId).get();
-            }).then(function(profile) {
-                var p = profile && profile.exists ? profile.data() : null;
-                var name = p && typeof p.username === 'string' && p.username ? p.username.slice(0, 64) : 'Artist';
+            return beatsArtistName(t.authorId).then(function(name) {
                 return { uid: t.authorId, name: name, title: title };
-            }, function() { return { uid: t.authorId, name: 'Artist', title: title }; });
+            });
         }, function() {
             _djTrackPay.delete(trackId);
             return null;
@@ -4316,7 +4332,7 @@ window.beatsShowV4VTip = async function(track) {
     }
     var splits = track.v4vSplits || [];
     if (!splits.length) {
-        var tipName = (typeof track.artist === 'string' ? track.artist : '') || 'Artist';
+        var tipName = await beatsArtistName(track.authorId);
         if (typeof beatsCensor === 'function') tipName = beatsCensor(tipName);
         if (typeof showTipOverlay === 'function') showTipOverlay({ recipientName: tipName, recipientUid: track.authorId || '', context: 'Bitcoin Beats tip', label: 'Tip Artist' });
         return;

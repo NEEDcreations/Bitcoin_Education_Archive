@@ -108,6 +108,29 @@ function injectForumTips() {
 // 2. BITCOIN BEATS — Tip Tracks
 // =============================================
 
+// Beat tips pay the track's authorId. The name shown is that author's
+// profile username (beats.js), never the track's own artist text.
+function beatTipOpts(track) {
+    return { recipientName: 'Artist', recipientUid: track.authorId || '', context: 'beats_track', contextId: track.id || '', label: 'Tip Artist' };
+}
+function beatTipName(opts) {
+    return typeof window._beatsArtistName === 'function' ? window._beatsArtistName(opts.recipientUid) : Promise.resolve('Artist');
+}
+function beatTipBind(el, opts) {
+    el.setAttribute('data-tip-action', JSON.stringify(opts));
+    beatTipName(opts).then(function(name) {
+        opts.recipientName = name;
+        el.setAttribute('data-tip-action', JSON.stringify(opts));
+    });
+    el.onclick = function(e) {
+        e.stopPropagation();
+        beatTipName(opts).then(function(name) {
+            opts.recipientName = name;
+            if (typeof showTipOverlay === 'function') showTipOverlay(opts);
+        });
+    };
+}
+
 function injectBeatsTips() {
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
@@ -131,13 +154,7 @@ function injectBeatsTips() {
 
         if (!trackData) return;
 
-        var tipOpts = {
-            recipientName: (typeof trackData.artist === 'string' ? trackData.artist : '') || (typeof trackData.authorName === 'string' ? trackData.authorName : '') || 'Artist',
-            recipientUid: trackData.authorId || '',
-            context: 'beats_track',
-            contextId: trackData.id || '',
-            label: 'Tip Artist',
-        };
+        var tipOpts = beatTipOpts(trackData);
 
         // Insert before the like button (🤍/❤️) or the last button
         var likeBtn = row.querySelector('button[onclick*="beatsToggleLike"]');
@@ -145,16 +162,10 @@ function injectBeatsTips() {
         var insertBefore = likeBtn || menuBtn;
 
         var tipEl = document.createElement('button');
-        tipEl.setAttribute('data-tip-action', JSON.stringify(tipOpts));
         tipEl.style.cssText = 'background:none;border:none;font-size:0.82rem;cursor:pointer;padding:4px;color:#eab308;flex-shrink:0;touch-action:manipulation;';
         tipEl.textContent = '⚡';
         tipEl.title = 'Tip artist';
-        (function(opts) {
-            tipEl.onclick = function(e) {
-                e.stopPropagation();
-                if (typeof showTipOverlay === 'function') showTipOverlay(opts);
-            };
-        })(tipOpts);
+        beatTipBind(tipEl, tipOpts);
 
         if (insertBefore) {
             row.insertBefore(tipEl, insertBefore);
@@ -170,18 +181,11 @@ function injectBeatsTips() {
         if (actionArea && window._beatsQueue && typeof window._beatsQueueIdx === 'number') {
             var track = window._beatsQueue[window._beatsQueueIdx];
             if (track) {
-                var opts = {
-                    recipientName: (typeof track.artist === 'string' ? track.artist : '') || (typeof track.authorName === 'string' ? track.authorName : '') || 'Artist',
-                    recipientUid: track.authorId || '',
-                    context: 'beats_track',
-                    contextId: track.id || '',
-                    label: 'Tip Artist',
-                };
+                var opts = beatTipOpts(track);
                 var tb = document.createElement('button');
-                tb.setAttribute('data-tip-action', JSON.stringify(opts));
                 tb.style.cssText = 'padding:14px 18px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:12px;font-size:1rem;cursor:pointer;font-family:inherit;color:#eab308;';
                 tb.textContent = '⚡ Tip';
-                (function(o) { tb.onclick = function(e) { e.stopPropagation(); if (typeof showTipOverlay === 'function') showTipOverlay(o); }; })(opts);
+                beatTipBind(tb, opts);
                 actionArea.appendChild(tb);
             }
         }

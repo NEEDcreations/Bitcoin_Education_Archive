@@ -435,11 +435,16 @@ function gcCode() {
     if (a !== -1) code += GC.slice(a, GC.indexOf(HOOK_TAIL, a) + HOOK_TAIL.length);
     return '(function(){' + code + '\nwindow.__showDJBar = showDJBar; window.__hideDJBar = hideDJBar;})();';
 }
+// The id check, plus the shared artist name helper when the file has one.
+function beatsHead() {
+    const end = BE.indexOf('window._beatsArtistName = beatsArtistName;');
+    return BE.slice(BE.indexOf('var BEATS_ID_RE'), end !== -1 ? end : BE.indexOf('window._beatsIdOk')) + '\nwindow._beatsArtistName = typeof beatsArtistName === "function" ? beatsArtistName : undefined;';
+}
 function beatsCode() {
     const a = BE.indexOf('// FEATURE 6:');
     const b = BE.indexOf('// FEATURE 7:');
     assert.ok(a !== -1 && b > a);
-    return BE.slice(BE.indexOf('var BEATS_ID_RE'), BE.indexOf('window._beatsIdOk')) + '\n' + BE.slice(a, b);
+    return beatsHead() + '\n' + BE.slice(a, b);
 }
 // The live DJ doc names a different artist than the track doc does.
 const DJ = { active: true, djUid: 'djUid01', djName: 'Deejay', trackId: 'track01', trackTitle: 'Song', trackArtist: 'Spoofed Name', artistUid: 'spoofUid99', trackAudioUrl: '' };
@@ -729,6 +734,145 @@ test('dj bar: another artist\'s track shows once sign-in resolves', async () => 
     await settle();
     assert.strictEqual(env.tipBtn().style.display, '');
     await expectTip(env);
+});
+
+// ---------- beat cards ----------
+// Queue tracks carry free-text artist names that differ from the profile.
+const QUEUE = [
+    { id: 'track01', authorId: 'realArtist01', artist: 'Fake Artist', authorName: 'Fake Author', title: 'Real Song' },
+    { id: 'trackNoProfile', authorId: 'ghostArtist', artist: 'Free Text Name', authorName: 'Free Text Author', title: 'Ghost Song' },
+];
+function beatCardEnv(tiCode, opts) {
+    opts = opts || {};
+    const fc = makeNode('div'); fc.id = 'forumContainer';
+    const detail = makeNode('div'); detail.id = 'beatsDetailOverlay';
+    const tipCalls = [], reads = [];
+    const profiles = opts.profiles || PROFILES;
+    const sandbox = {
+        console: quiet, Map: Map, Promise: Promise, escapeHtml: escapeHtml, addEventListener: function() {},
+        auth: { currentUser: { uid: 'viewer01' } },
+        localStorage: { getItem: function() { return null; }, setItem: function() {} },
+        showTipOverlay: function(o) { tipCalls.push(JSON.parse(JSON.stringify(o))); },
+        showToast: function() {},
+        setTimeout: function(fn, ms) { if (ms === 2000) sandbox.__inject = fn; return 0; }, clearTimeout: function() {},
+        MutationObserver: function() { this.observe = function() {}; },
+        db: { collection: function(col) { return { doc: function(id) { return { get: function() {
+            reads.push(col + '/' + id);
+            if (opts.profileUnreadable) return Promise.reject(new Error('denied'));
+            return Promise.resolve({ exists: Object.prototype.hasOwnProperty.call(profiles, id), data: function() { return Object.assign({}, profiles[id]); } });
+        } }; } }; } },
+        document: {
+            readyState: 'complete',
+            getElementById: function(id) { return id === 'forumContainer' ? fc : (id === 'beatsDetailOverlay' ? detail : null); },
+            createElement: function(t) { return makeNode(t); },
+            addEventListener: function() {}, querySelector: function() { return null; }, querySelectorAll: function() { return []; },
+        },
+    };
+    sandbox.window = sandbox;
+    sandbox._beatsQueue = QUEUE.map(function(t) { return Object.assign({}, t); });
+    sandbox._beatsQueueIdx = opts.idx || 0;
+    vm.createContext(sandbox);
+    vm.runInContext(beatsHead(), sandbox);
+    vm.runInContext('_beatsFindQueued = function(id) { return (window._beatsQueue || []).filter(function(t) { return t.id === id; })[0] || null; };\n' +
+        H.sliceFunction(BE, 'window.beatsTipCurrentArtist = function(') + ';\n' +
+        H.sliceFunction(BE, 'window.beatsTipCurrentArtistById = function(') + ';', sandbox);
+    vm.runInContext(tiCode, sandbox);
+    fc.innerHTML = sandbox._beatsQueue.map(function(t, i) {
+        return '<div class="beats-track-row" onclick="beatsPlayTrack(' + i + ')"><span>' + t.title + '</span><button onclick="beatsToggleLike(' + i + ')">L</button></div>';
+    }).join('');
+    detail.innerHTML = '<div style="display:flex;gap:8px"><button>Play</button></div>';
+    return { fc: fc, detail: detail, tipCalls: tipCalls, reads: reads, sandbox: sandbox };
+}
+function rowTip(env, i) { return env.fc.querySelectorAll('div[onclick*="beatsPlayTrack"]')[i].querySelector('[data-tip-action]'); }
+function detailTip(env) { return env.detail.querySelector('[data-tip-action]'); }
+function noFreeText(o) {
+    const j = JSON.stringify(o);
+    assert.ok(!/Fake Artist|Fake Author|Free Text/.test(j), 'track free-text name not used: ' + j);
+}
+
+[['src', TI_SRC], ['min', TI_MIN]].forEach(function(v) {
+    const label = v[0], code = v[1];
+
+    test('beat card ' + label + ': tip name comes from the profile, payee is the authorId', async () => {
+        const env = beatCardEnv(code);
+        env.sandbox.__inject();
+        await settle();
+        const btn = rowTip(env, 0);
+        assert.ok(btn, 'row tip button');
+        noFreeText(btn.getAttribute('data-tip-action'));
+        assert.strictEqual(JSON.parse(btn.getAttribute('data-tip-action')).recipientName, 'real_artist');
+        clickEl(btn);
+        await settle();
+        assert.strictEqual(env.tipCalls.length, 1);
+        assert.strictEqual(env.tipCalls[0].recipientName, 'real_artist');
+        assert.strictEqual(env.tipCalls[0].recipientUid, 'realArtist01');
+        noFreeText(env.tipCalls[0]);
+    });
+
+    test('beat card ' + label + ': detail view tip uses the profile name', async () => {
+        const env = beatCardEnv(code);
+        env.sandbox.__inject();
+        await settle();
+        const btn = detailTip(env);
+        assert.ok(btn, 'detail tip button');
+        clickEl(btn);
+        await settle();
+        assert.strictEqual(env.tipCalls[0].recipientName, 'real_artist');
+        assert.strictEqual(env.tipCalls[0].recipientUid, 'realArtist01');
+        noFreeText(env.tipCalls[0]);
+        noFreeText(btn.getAttribute('data-tip-action'));
+    });
+
+    test('beat card ' + label + ': missing, empty or unreadable profile shows "Artist"', async () => {
+        for (const o of [{}, { profiles: { ghostArtist: { username: '' } } }, { profiles: { ghostArtist: { bio: 'x' } } }, { profileUnreadable: true }]) {
+            const env = beatCardEnv(code, Object.assign({ idx: 1 }, o));
+            env.sandbox.__inject();
+            await settle();
+            clickEl(rowTip(env, 1));
+            clickEl(detailTip(env));
+            await settle();
+            assert.strictEqual(env.tipCalls.length, 2, JSON.stringify(o));
+            env.tipCalls.forEach(function(c) {
+                assert.strictEqual(c.recipientName, 'Artist', JSON.stringify(o));
+                assert.strictEqual(c.recipientUid, 'ghostArtist');
+                noFreeText(c);
+            });
+        }
+    });
+
+    test('beat card ' + label + ': a long username is trimmed to 64 characters', async () => {
+        const env = beatCardEnv(code, { profiles: { realArtist01: { username: 'u'.repeat(200) } } });
+        env.sandbox.__inject();
+        await settle();
+        clickEl(rowTip(env, 0));
+        await settle();
+        assert.strictEqual(env.tipCalls[0].recipientName, 'u'.repeat(64));
+    });
+});
+
+test('beats player tips use the profile name, never the track text', async () => {
+    let env = beatCardEnv(TI_SRC);
+    env.sandbox.beatsTipCurrentArtist();
+    env.sandbox.beatsTipCurrentArtistById('realArtist01', 'track01');
+    await settle();
+    assert.strictEqual(env.tipCalls.length, 2);
+    env.tipCalls.forEach(function(c) { assert.strictEqual(c.recipientName, 'real_artist'); assert.strictEqual(c.recipientUid, 'realArtist01'); noFreeText(c); });
+    env = beatCardEnv(TI_SRC, { idx: 1 });
+    env.sandbox.beatsTipCurrentArtist();
+    env.sandbox.beatsTipCurrentArtistById('ghostArtist', 'trackNoProfile');
+    await settle();
+    assert.strictEqual(env.tipCalls.length, 2);
+    env.tipCalls.forEach(function(c) { assert.strictEqual(c.recipientName, 'Artist'); noFreeText(c); });
+});
+
+test('beat names share one profile read per artist', async () => {
+    const env = beatCardEnv(TI_SRC);
+    env.sandbox.__inject();
+    await settle();
+    clickEl(rowTip(env, 0)); clickEl(detailTip(env));
+    env.sandbox.beatsTipCurrentArtist();
+    await settle();
+    assert.strictEqual(env.reads.filter(function(r) { return r === 'public_profiles/realArtist01'; }).length, 1);
 });
 
 run();

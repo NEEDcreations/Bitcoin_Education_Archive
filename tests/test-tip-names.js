@@ -288,7 +288,20 @@ function loadPvpRow(username) {
     return container.innerHTML;
 }
 
-function loadBeatsTips() {
+// Profile usernames for the artist name helper; tracks' own text is ignored.
+function profileDb(profiles) {
+    return { collection: function() { return { doc: function(id) { return { get: function() {
+        return Promise.resolve({ exists: Object.prototype.hasOwnProperty.call(profiles, id), data: function() { return profiles[id]; } });
+    } }; } }; } };
+}
+function beatsNameHelper(BEATS) {
+    const a = BEATS.indexOf('var BEATS_ID_RE');
+    const b = BEATS.indexOf('window._beatsArtistName = beatsArtistName;');
+    return b === -1 ? '' : BEATS.slice(a, b);
+}
+function settle() { return new Promise(function(r) { setImmediate(r); }).then(function() { return new Promise(function(r) { setImmediate(r); }); }); }
+
+function loadBeatsTips(profiles) {
     const BEATS = read('beats.js');
     const seen = [];
     const sandbox = {
@@ -298,10 +311,12 @@ function loadBeatsTips() {
         showTipOverlay: function(opts) { seen.push(opts); },
         showToast: function() {},
         _beatsIsHidden: function() { return false; },
+        db: profileDb(profiles || {}),
     };
     sandbox.window = sandbox;
     vm.createContext(sandbox);
     const code = [
+        beatsNameHelper(BEATS),
         H.sliceFunction(BEATS, 'function _beatsFindQueued('),
         H.sliceFunction(BEATS, 'window.beatsTipCurrentArtist = function('),
         H.sliceFunction(BEATS, 'window.beatsTipCurrentArtistById = function('),
@@ -311,7 +326,7 @@ function loadBeatsTips() {
     return { sandbox: sandbox, seen: seen };
 }
 
-function loadIntegrations(track) {
+function loadIntegrations(track, profileName) {
     const SRC = read('tips-integrations.js.src');
     const tipButtons = [];
     const likeBtn = { tag: 'button' };
@@ -353,9 +368,12 @@ function loadIntegrations(track) {
         _beatsQueue: [track],
         showTipOverlay: function() {},
     };
+    if (profileName) sandbox._beatsArtistName = function() { return Promise.resolve(profileName); };
     sandbox.window = sandbox;
     vm.createContext(sandbox);
-    vm.runInContext(H.sliceFunction(SRC, 'function injectBeatsTips(') + '\ninjectBeatsTips();', sandbox, { filename: 'tips-integrations.js.src' });
+    const head = SRC.indexOf('// Beat tips pay');
+    const helpers = head === -1 ? '' : SRC.slice(head, SRC.indexOf('function injectBeatsTips('));
+    vm.runInContext(helpers + H.sliceFunction(SRC, 'function injectBeatsTips(') + '\ninjectBeatsTips();', sandbox, { filename: 'tips-integrations.js.src' });
     return tipButtons;
 }
 
@@ -494,25 +512,30 @@ test('beats tip callers pass only a string name', async function() {
         t.sandbox.beatsTipCurrentArtist();
         t.sandbox.beatsTipCurrentArtistById('artist1', 't1');
         await t.sandbox.beatsShowV4VTip(t.sandbox._beatsQueue[0]);
+        await settle();
         assert.ok(t.seen.length >= 3, 'all three callers ran');
         t.seen.forEach(function(opts, i) {
             assert.strictEqual(typeof opts.recipientName, 'string', 'caller ' + i);
             assert.strictEqual(opts.recipientName, 'Artist', 'caller ' + i);
         });
     }
-    const ok = loadBeatsTips();
-    ok.sandbox._beatsQueue = [{ id: 't1', authorId: 'artist1', title: 'Song', artist: 'Ada', authorName: { first: 'x' } }];
+    const ok = loadBeatsTips({ artist1: { username: 'Ada' } });
+    ok.sandbox._beatsQueue = [{ id: 't1', authorId: 'artist1', title: 'Song', artist: 'Track Text', authorName: 'Track Author' }];
     ok.sandbox._beatsQueueIdx = 0;
     ok.sandbox.beatsTipCurrentArtist();
-    assert.strictEqual(ok.seen[0].recipientName, 'Ada');
-    const fallback = loadBeatsTips();
-    fallback.sandbox._beatsQueue = [{ id: 't1', authorId: 'artist1', title: 'Song', artist: { first: 'x' }, authorName: 'Ada' }];
-    fallback.sandbox._beatsQueueIdx = 0;
-    fallback.sandbox.beatsTipCurrentArtist();
-    assert.strictEqual(fallback.seen[0].recipientName, 'Ada');
+    await ok.sandbox.beatsShowV4VTip(ok.sandbox._beatsQueue[0]);
+    await settle();
+    assert.strictEqual(ok.seen.length, 2);
+    ok.seen.forEach(function(opts) { assert.strictEqual(opts.recipientName, 'Ada'); });
+    const bad = loadBeatsTips({ artist1: { username: { first: 'x' } } });
+    bad.sandbox._beatsQueue = [{ id: 't1', authorId: 'artist1', title: 'Song', artist: 'Track Text', authorName: 'Track Author' }];
+    bad.sandbox._beatsQueueIdx = 0;
+    bad.sandbox.beatsTipCurrentArtist();
+    await settle();
+    assert.strictEqual(bad.seen[0].recipientName, 'Artist');
 });
 
-test('beats integration tip buttons pass only a string name', function() {
+test('beats integration tip buttons pass only a string name', async function() {
     const cases = [
         { artist: { first: 'Ada' }, authorName: ['Ada'] },
         { artist: null, authorName: ['Ada'] },
@@ -526,10 +549,11 @@ test('beats integration tip buttons pass only a string name', function() {
         assert.strictEqual(typeof tip.recipientName, 'string', 'case ' + i);
         assert.strictEqual(tip.recipientName, 'Artist', 'case ' + i);
     });
-    const ok = loadIntegrations({ id: 't1', authorId: 'artist1', artist: 'Ada', authorName: { first: 'x' } });
+    const text = loadIntegrations({ id: 't1', authorId: 'artist1', artist: 'Track Text', authorName: 'Track Author' });
+    assert.strictEqual(JSON.parse(text[0].attrs['data-tip-action']).recipientName, 'Artist');
+    const ok = loadIntegrations({ id: 't1', authorId: 'artist1', artist: 'Track Text', authorName: 'Track Author' }, 'Ada');
+    await settle();
     assert.strictEqual(JSON.parse(ok[0].attrs['data-tip-action']).recipientName, 'Ada');
-    const fallback = loadIntegrations({ id: 't1', authorId: 'artist1', artist: { first: 'x' }, authorName: 'Ada' });
-    assert.strictEqual(JSON.parse(fallback[0].attrs['data-tip-action']).recipientName, 'Ada');
 });
 
 (async function() {
