@@ -9,6 +9,27 @@
 (function() {
 'use strict';
 
+// ─── Tip result actions ──────────────────────────────────
+var TIP_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+function tipIdOk(v) { return typeof v === 'string' && TIP_ID_RE.test(v); }
+window._tipIdOk = tipIdOk;
+function tipBindDm(box, opts, amount) {
+    if (!box || !box.addEventListener || box._tipDmBound) return;
+    box._tipDmBound = true;
+    var uid = String((opts && opts.recipientUid) || '');
+    var name = String((opts && opts.recipientName) || '');
+    var sats = parseInt(amount, 10) || 0;
+    box.addEventListener('click', function(ev) {
+        var t = ev.target;
+        var el = t && t.closest ? t.closest('[data-tip-action]') : null;
+        if (!el || !box.contains(el) || el.getAttribute('data-tip-action') !== 'dm') return;
+        var ov = el.closest('[id=tipOverlay]');
+        if (ov) ov.remove();
+        if (tipIdOk(uid) && typeof openDMConversation === 'function') openDMConversation(uid, name, '\u26a1 Tip: ' + sats + ' sats');
+        else if (typeof go === 'function') go('dms');
+    });
+}
+
 // ─── Check Lightning Connection ──────────────────────────
 
 function isLnConnected() {
@@ -299,8 +320,9 @@ window.executeTip = async function() {
             res.innerHTML = '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;text-align:left;margin-top:8px;">' +
                 '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;margin-bottom:4px;">⚡ No Lightning Address found</div>' +
                 '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.5;"><strong>' + escapeHtml(opts.recipientName || 'This user') + '</strong> hasn\'t set up a Lightning Address yet. Ask them to add one in <strong>Settings → Profile → Lightning</strong>, or send them an invoice via DMs.</div>' +
-                (opts.recipientUid ? '<button onclick="this.closest(\'[id=tipOverlay]\').remove();if(typeof openDMConversation===\'function\')openDMConversation(\'' + opts.recipientUid + '\',\'' + escapeHtml(opts.recipientName || '') + '\',\'⚡ Tip: ' + amount + ' sats\');else go(\'dms\')" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;">💬 DM to request invoice</button>' : '') +
+                (opts.recipientUid ? '<button data-tip-action="dm" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;">💬 DM to request invoice</button>' : '') +
             '</div>';
+            tipBindDm(res, opts, amount);
             btn.textContent = '⚡ ' + (opts.label || 'Send Tip');
             btn.disabled = false;
             return;

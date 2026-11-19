@@ -13302,6 +13302,17 @@ window.blockUser = function(uid, username) {
     closeDM();
 };
 
+// Ids used by DM controls; names stay in memory and never ride in markup handlers.
+var DM_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+function dmIdOk(v) { return typeof v === 'string' && DM_ID_RE.test(v); }
+window._dmIdOk = dmIdOk;
+function dmActionTarget(ev, root) {
+    var t = ev && ev.target;
+    var el = t && t.closest ? t.closest('[data-dm-action]') : null;
+    if (!el || (root && root.contains && !root.contains(el))) return null;
+    return el;
+}
+
 window.unblockUser = function(uid, username) {
     if (!uid) return;
     var blocked = getBlockedUsers();
@@ -13322,20 +13333,31 @@ window.reportUser = function(uid, username, reason) {
 
     // Show report dialog if no reason provided
     if (!reason) {
+        if (!dmIdOk(String(uid))) return;
         var html = '<div id="reportModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500001;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
             '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:340px;width:100%;">' +
             '<div style="font-size:1rem;font-weight:800;color:var(--heading);margin-bottom:12px;">🚩 Report ' + escapeHtml(username || 'User') + '</div>' +
             '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:12px;">Why are you reporting this user?</div>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'spam\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">📧 Spam / Unwanted messages</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'scam\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎣 Scam / Phishing</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'harassment\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">😡 Harassment / Abuse</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'inappropriate\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🔞 Inappropriate content</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'impersonation\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎭 Impersonation</button>' +
+            '<button data-dm-action="report-reason" data-reason="spam" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">📧 Spam / Unwanted messages</button>' +
+            '<button data-dm-action="report-reason" data-reason="scam" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎣 Scam / Phishing</button>' +
+            '<button data-dm-action="report-reason" data-reason="harassment" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">😡 Harassment / Abuse</button>' +
+            '<button data-dm-action="report-reason" data-reason="inappropriate" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🔞 Inappropriate content</button>' +
+            '<button data-dm-action="report-reason" data-reason="impersonation" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎭 Impersonation</button>' +
             '<button onclick="document.getElementById(\'reportModal\').remove()" style="width:100%;padding:10px;margin-top:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
             '</div></div>';
         var div = document.createElement('div');
         div.innerHTML = html;
-        document.body.appendChild(div.firstChild);
+        var _reportEl = div.firstChild;
+        document.body.appendChild(_reportEl);
+        var _reportUid = String(uid), _reportName = String(username || '');
+        var REPORT_REASONS = { spam: 1, scam: 1, harassment: 1, inappropriate: 1, impersonation: 1 };
+        if (_reportEl && _reportEl.addEventListener) _reportEl.addEventListener('click', function(ev) {
+            var el = dmActionTarget(ev, _reportEl);
+            if (!el || el.getAttribute('data-dm-action') !== 'report-reason') return;
+            var why = el.getAttribute('data-reason') || '';
+            if (!Object.prototype.hasOwnProperty.call(REPORT_REASONS, why)) return;
+            submitReport(_reportUid, _reportName, why);
+        });
         return;
     }
 };
@@ -13971,6 +13993,8 @@ window.openDM = function(recipientUid, recipientName) {
         return;
     }
 
+    if (!dmIdOk(String(recipientUid || ''))) return;
+
     // Account eligibility check (age + points)
     var eligibility = _canAccountDM(recipientUid);
     if (!eligibility.ok) {
@@ -13993,9 +14017,17 @@ window.openDM = function(recipientUid, recipientName) {
             '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin-bottom:20px;">You\'ve blocked <strong>' + _safeRecipName + '</strong>. Unblock them to send and receive messages.</div>' +
             '<div style="display:flex;gap:10px;">' +
             '<button onclick="document.getElementById(\'dmUnblockPrompt\').remove()" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
-            '<button onclick="document.getElementById(\'dmUnblockPrompt\').remove();if(typeof unblockUser===\'function\')unblockUser(\'' + recipientUid + '\',\'' + _safeRecipName + '\');setTimeout(function(){openDM(\'' + recipientUid + '\',\'' + _safeRecipName + '\')},400)" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">✅ Unblock & Chat</button>' +
+            '<button data-dm-action="unblock" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">✅ Unblock & Chat</button>' +
             '</div></div>';
         document.body.appendChild(_promptEl);
+        var _unblockUid = String(recipientUid), _unblockName = String(recipientName || '');
+        _promptEl.addEventListener('click', function(ev) {
+            var el = dmActionTarget(ev, _promptEl);
+            if (!el || el.getAttribute('data-dm-action') !== 'unblock') return;
+            _promptEl.remove();
+            if (typeof unblockUser === 'function') unblockUser(_unblockUid, _unblockName);
+            setTimeout(function() { openDM(_unblockUid, _unblockName); }, 400);
+        });
         return;
     }
 
@@ -14012,23 +14044,50 @@ window.openDM = function(recipientUid, recipientName) {
     showDMWindow(convoId, recipientUid, recipientName, myUid, myName);
 };
 
+function dmBindWindow(win, convoId, otherUid, otherName) {
+    if (!win || !win.addEventListener) return;
+    var actions = {
+        profile: function(ev) { ev.stopPropagation(); closeDM(); if (typeof showUserProfile === 'function') showUserProfile(otherUid); },
+        report: function(ev) { ev.stopPropagation(); reportUser(otherUid, otherName); },
+        gif: function() { showDMGifPicker(convoId, otherUid, otherName); },
+        send: function() { window.sendDM(convoId, otherUid, otherName); }
+    };
+    win.addEventListener('click', function(ev) {
+        var el = dmActionTarget(ev, win);
+        if (!el) return;
+        var act = el.getAttribute('data-dm-action') || '';
+        if (Object.prototype.hasOwnProperty.call(actions, act)) actions[act](ev);
+    });
+    var fileInput = win.querySelector ? win.querySelector('#dmImageInput') : null;
+    if (fileInput) fileInput.onchange = function() {
+        if (this.files && this.files[0]) showDMImagePreview(this.files[0], convoId, otherUid, otherName);
+    };
+    win.addEventListener('keydown', function(ev) {
+        var el = dmActionTarget(ev, win);
+        if (!el || el.getAttribute('data-dm-action') !== 'send-key' || ev.key !== 'Enter') return;
+        window.sendDM(convoId, otherUid, otherName);
+    });
+}
+
 // DM chat window
 function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
     // Remove existing
     var old = document.getElementById('dmWindow');
     if (old) old.remove();
     if (window._dmUnsubscribe) { window._dmUnsubscribe(); window._dmUnsubscribe = null; }
+    if (!dmIdOk(String(otherUid || '')) || !dmIdOk(String(convoId || ''))) return;
+    otherName = String(otherName || 'User');
 
     var html = '<div id="dmWindow" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500000;display:flex;align-items:flex-end;justify-content:center;padding:0;" onclick="if(event.target===this)closeDM()">' +
         '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px 20px 0 0;max-width:500px;width:100%;height:80vh;max-height:600px;display:flex;flex-direction:column;overflow:hidden;">' +
         // Header
         '<div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">' +
-            '<div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="event.stopPropagation();closeDM();showUserProfile(\'' + otherUid + '\')">' +
+            '<div data-dm-action="profile" style="display:flex;align-items:center;gap:10px;cursor:pointer;">' +
                 '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">💬 ' + escapeHtml(otherName) + '</div>' +
                 '<div id="dmStatusDot"></div>' +
             '</div>' +
             '<div style="display:flex;gap:6px;align-items:center;">' +
-                '<button onclick="event.stopPropagation();reportUser(\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')" style="background:none;border:1px solid var(--border);color:var(--text-faint);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Report user">🚩</button>' +
+                '<button data-dm-action="report" style="background:none;border:1px solid var(--border);color:var(--text-faint);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Report user">🚩</button>' +
                 '<button onclick="closeDM()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             '</div>' +
         '</div>' +
@@ -14038,17 +14097,19 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         '<div id="dmMessages" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch;"></div>' +
         // Input area
         '<div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
-            '<input type="file" id="dmImageInput" accept="image/*" style="display:none;" onchange="if(this.files[0])showDMImagePreview(this.files[0],\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
+            '<input type="file" id="dmImageInput" accept="image/*" style="display:none;">' +
             '<button onclick="document.getElementById(\'dmImageInput\').click()" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:1rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Send image">📷</button>' +
-            '<button onclick="showDMGifPicker(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'\"]/g, "") + '\')" style="padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.65rem;font-weight:800;cursor:pointer;flex-shrink:0;touch-action:manipulation;letter-spacing:0.5px;" title="Send GIF">GIF</button>' +
-            '<input type="text" id="dmInput" maxlength="' + MSG_CONFIG.maxMsgLength + '" placeholder="Type a message..." style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" onkeydown="if(event.key===\'Enter\')sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
-            '<button onclick="sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')" style="padding:12px 16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;flex-shrink:0;">Send</button>' +
+            '<button data-dm-action="gif" style="padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.65rem;font-weight:800;cursor:pointer;flex-shrink:0;touch-action:manipulation;letter-spacing:0.5px;" title="Send GIF">GIF</button>' +
+            '<input type="text" id="dmInput" maxlength="' + MSG_CONFIG.maxMsgLength + '" placeholder="Type a message..." style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" data-dm-action="send-key">' +
+            '<button data-dm-action="send" style="padding:12px 16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;flex-shrink:0;">Send</button>' +
         '</div>' +
         '</div></div>';
 
     var div = document.createElement('div');
     div.innerHTML = html;
-    document.body.appendChild(div.firstChild);
+    var _dmWin = div.firstChild;
+    document.body.appendChild(_dmWin);
+    dmBindWindow(_dmWin, convoId, otherUid, otherName);
 
     // Focus input + wire up paste-to-send-image on the DM text input
     setTimeout(function() {
@@ -17343,7 +17404,7 @@ function walletRouteReady() {
 
 var WALLET_SCRIPT_SRCS = [
     'lightning.js?v=20261023_v2323',
-    'lightning-tips.js?v=20261022_v2279',
+    'lightning-tips.js?v=20261119_v2634',
     'wallet-router.js?v=20261104_v2482'
 ];
 var _walletTapQueued = false;
