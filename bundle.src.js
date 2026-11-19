@@ -69,11 +69,13 @@ function escapeHtml(str) {
 // ---- Safe URL ----
 // One shared URL check. Returns the trimmed URL when it is http(s) with a
 // host, a same-site path, or a base64 raster data image, and '' otherwise.
+// After trimming, control characters and Unicode whitespace (including NBSP
+// and line separators) are refused, matching the markdown URL check.
 // It does not escape: callers escape the result for the HTML context.
 function sanitizeUrl(url) {
     if (typeof url !== 'string' || !url) return '';
     var u = url.trim();
-    if (!u || /[\u0000-\u0020\u007f-\u009f]/.test(u)) return '';
+    if (!u || /[\u0000-\u0020\u007f-\u009f\s]/.test(u)) return '';
     if (/^https?:\/\/[^\/\\]/i.test(u)) return u;
     if (/^\/(?![\/\\])/.test(u)) return u;
     if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(u)) return u;

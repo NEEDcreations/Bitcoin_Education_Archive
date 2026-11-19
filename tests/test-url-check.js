@@ -53,6 +53,7 @@ const REJECT = [
     'javascript:alert(1)', ' JavaScript:alert(1)', 'vbscript:x', 'blob:https://a.example/x',
     '//evil.host/x', '\\\\evil/x', '/\\evil/x', '//', 'https:///evil.host', 'https:\\\\evil.host', 'http:/\\evil.host',
     'https://a.example/x y', 'https://a.example/\u0085x', 'https://a.example/\u007fx',
+    'https://a.example/\u00A0x', 'https://a.example/\u2028x',
     'data:text/html;base64,PHNjcmlwdD4=', 'data:image/svg+xml;base64,PHN2Zz4=', 'data:image/png,abc',
     'ftp://a.example/', 'mailto:a@b.c', 'relative/path', '', null, undefined, 42, {}, ['https://a.example/'],
 ];
@@ -173,5 +174,21 @@ test('tip text trimming keeps whole characters', function() {
     assert.strictEqual(s.tipText('abc', 2), 'ab');
     assert.strictEqual(s.tipText(5, 2), '');
 });
+
+test('https urls with nbsp or a line separator are refused, and a normal url is kept', function() {
+    function check(fn, label) {
+        assert.strictEqual(fn('https://a.example/\u00A0x'), '', label + ' nbsp');
+        assert.strictEqual(fn('https://a.example/\u2028x'), '', label + ' line sep');
+        assert.strictEqual(fn('https://a.example/ok'), 'https://a.example/ok', label + ' ok');
+    }
+    const utils = ctx();
+    runUtilsUrl(utils);
+    check(utils.sanitizeUrl, 'utils');
+    const nacho = ctx();
+    nacho.escapeHtml = esc;
+    runNacho(nacho);
+    check(nacho.sanitizeUrl, 'nacho-qa');
+});
+
 
 run();

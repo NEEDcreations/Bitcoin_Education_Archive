@@ -20,7 +20,7 @@ if (typeof sanitizeUrl !== 'function') {
     var sanitizeUrl = function(url) {
         if (typeof url !== 'string' || !url) return '';
         var u = url.trim();
-        if (!u || /[\u0000-\u0020\u007f-\u009f]/.test(u)) return '';
+        if (!u || /[\u0000-\u0020\u007f-\u009f\s]/.test(u)) return '';
         if (/^https?:\/\/[^\/\\]/i.test(u)) return u;
         if (/^\/(?![\/\\])/.test(u)) return u;
         if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(u)) return u;
