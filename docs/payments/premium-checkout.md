@@ -245,7 +245,12 @@ Live (Phil only, after Red Team / QA / Security GO):
 - Lapsed Founders card holds: the Stripe Checkout Session is expired
   (`POST /v1/checkout/sessions/{id}/expire`) when the next Founders checkout
   finds the hold lapsed and by the hourly sweep (holds lapsed in the last 70
-  minutes). The order gets `sessionExpiredAtMs`. A failed expire is logged and
+  minutes). The order gets `sessionExpiredAtMs`.
+  Note: `premiumExpirySweep` runs as the default service account with no
+  Stripe key bound, so today it skips this step (`sessionsExpireSkipped`) and
+  the checkout-time expiry plus the 31-minute Stripe expiry do the work.
+  Turning the sweep step on needs the Stripe key bound to the sweep under a
+  dedicated runtime service account (an IAM decision, not made here). A failed expire is logged and
   never throws; a payment that still lands goes to
   `founders_sold_out_late_payment` review if the cap is full.
 - Stripe session `expires_at` stays at 31 minutes (Stripe's 30-minute minimum

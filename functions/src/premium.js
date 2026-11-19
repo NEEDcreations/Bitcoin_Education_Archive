@@ -1050,6 +1050,8 @@ function createPremiumHandlers(deps) {
     // Sweep: Founders' card orders whose hold lapsed in the last 70 minutes
     // (a Stripe session lives at most ~31) still get their session expired.
     async function expireLapsedFoundersSessions(nowMs) {
+        // The sweep runs without the Stripe key bound today; skip quietly then.
+        if (!stripeKeyOk(env.STRIPE_SECRET_KEY, mode())) return -1;
         const q = await db.collection(COL.orders).where('holdExpMs', '>=', nowMs - 70 * 60000).limit(200).get();
         const ids = q.docs.filter(function (d) {
             const o = d.data();
@@ -2202,8 +2204,9 @@ function createPremiumHandlers(deps) {
         const emailsCleared = await clearExpiredOrderEmails(nowMs, limit);
         const holds = await checkHoldsAlert(nowMs);
         let sessionsExpired = 0;
-        try { sessionsExpired = await expireLapsedFoundersSessions(nowMs); } catch (e) { log('premium sweep session expire failed', { err: String(e && e.message || e) }); }
-        return { checked: snap.docs.length, flipped: flipped, emailsCleared: emailsCleared, holdsAlert: holds, sessionsExpired: sessionsExpired };
+        let sessionsExpireSkipped = false;
+        try { sessionsExpired = await expireLapsedFoundersSessions(nowMs); if (sessionsExpired < 0) { sessionsExpired = 0; sessionsExpireSkipped = true; } } catch (e) { log('premium sweep session expire failed', { err: String(e && e.message || e) }); }
+        return { checked: snap.docs.length, flipped: flipped, emailsCleared: emailsCleared, holdsAlert: holds, sessionsExpired: sessionsExpired, sessionsExpireSkipped: sessionsExpireSkipped };
     }
 
     // Unclaimed public orders: clear the plain email after

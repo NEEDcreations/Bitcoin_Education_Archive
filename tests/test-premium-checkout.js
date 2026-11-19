@@ -193,11 +193,12 @@ function setup(opts) {
         throw new Error('unexpected fetch ' + url);
     };
     const created = Object.assign({ old: OLD, new: NEW }, o.created || {});
+    const envObj = Object.assign({}, FAKE_ENV, o.env || {});
     const h0 = premium.createPremiumHandlers({
         db: db,
         HttpsError: HttpsError,
         now: function () { return clock.now; },
-        env: Object.assign({}, FAKE_ENV, o.env || {}),
+        env: envObj,
         fetch: fetchMock,
         projectId: o.projectId || 'bitcoin-quest-staging',
         getAuthUser: async function (uid) { return { metadata: { creationTime: new Date(created[uid] || OLD).toUTCString() } }; },
@@ -227,7 +228,7 @@ function setup(opts) {
     }
     db.store.set('users/old', { displayName: 'Old' });
     db.store.set('users/new', { displayName: 'New' });
-    return { db: db, h: h, clock: clock, calls: calls, btcInvoices: btcInvoices, ts: a_ts };
+    return { db: db, h: h, clock: clock, calls: calls, btcInvoices: btcInvoices, ts: a_ts, env: envObj };
 }
 function ctx(uid, extra) {
     return { auth: { uid: uid, token: Object.assign({ firebase: { sign_in_provider: 'password' }, email: uid + '@example.com', email_verified: true }, extra || {}) }, app: {} };
@@ -2198,6 +2199,16 @@ test('F2-R: the sweep expires sessions of lapsed holds; paid or bitcoin orders a
     assert.ok(ex[0].url.indexOf('/cs_test_1/expire') !== -1);
     assert.ok(a.db.store.get('premium_orders/' + o1.orderId).sessionExpiredAtMs);
     assert.ok(!a.db.store.get('premium_orders/' + o2.orderId).sessionExpiredAtMs);
+});
+test('F2-R: the sweep skips session expiry quietly when it runs without the Stripe key', async function () {
+    const a = setup();
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    a.clock.now = T0 + 12 * MIN;
+    delete a.env.STRIPE_SECRET_KEY;
+    const res = await a.h.sweepExpired(10);
+    assert.strictEqual(res.sessionsExpired, 0);
+    assert.strictEqual(res.sessionsExpireSkipped, true);
+    assert.strictEqual(expireCalls(a).length, 0);
 });
 test('F2-R: a failed expire never throws (checkout and sweep still answer); late payment still has the review fallback', async function () {
     const a = setup({ expireFail: true, config: { foundersHoldCooldownMinutes: 0, foundersIpHoldCooldownMinutes: 0 } });
