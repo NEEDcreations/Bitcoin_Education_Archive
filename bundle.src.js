@@ -21131,6 +21131,34 @@ document.addEventListener('btcProfileSaved', function() {
         };
     })();
 
+    function _spinDayKey() {
+        return (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+    }
+
+    function _injectSpinGiftCSS() {
+        if (document.getElementById('spinGiftCSS')) return;
+        var s = document.createElement('style');
+        s.id = 'spinGiftCSS';
+        s.textContent =
+            '#spinModal .spin-gift-note,#spinModal .spin-gift-ready{color:#d6dce6;}' +
+            '[data-theme="light"] #spinModal .spin-gift-note,[data-theme="light"] #spinModal .spin-gift-ready{color:#1e3a5f;}' +
+            '.oled-theme #spinModal .spin-gift-note,.oled-theme #spinModal .spin-gift-ready,' +
+            '[data-theme="oled"] #spinModal .spin-gift-note,[data-theme="oled"] #spinModal .spin-gift-ready{color:#d6dce6;}' +
+            '#spinModal .spin-open-gift-btn{background:linear-gradient(135deg,#f7931a,#ea580c);color:#1a1208;border:none;border-radius:8px;padding:10px 24px;font-weight:800;cursor:pointer;font-family:inherit;min-height:44px;}' +
+            '#spinModal .spin-open-gift-btn:disabled{opacity:0.7;cursor:progress;}';
+        document.head.appendChild(s);
+    }
+
+    function _closeSpinModal() {
+        var openModal = document.getElementById('spinModal');
+        if (openModal) openModal.remove();
+        var deferred = window._deferredSpinGifts;
+        if (deferred && deferred.length && typeof window.showPostSpinGiftModal === 'function') {
+            window._deferredSpinGifts = null;
+            window.showPostSpinGiftModal(deferred);
+        }
+    }
+
     window.showSpinWheel = function() {
         if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('spin')) {
             if (typeof showToast === 'function') showToast('Daily Spin is in Settings → Experience Mode (Balanced or Everything).');
@@ -21147,8 +21175,9 @@ document.addEventListener('btcProfileSaved', function() {
         window._bonusSpinActive = false; // consume the flag
         if (!isBonusSpin) {
             var lastSpin = localStorage.getItem('btc_last_spin_date');
-            var today = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]); // 5 AM UTC reset — matches getDailyKey
-            if (lastSpin === today) {
+            var today = _spinDayKey(); // 5 AM UTC reset — matches getDailyKey
+            var serverSpin = (typeof currentUser !== 'undefined' && currentUser && currentUser.lastSpinDate) ? String(currentUser.lastSpinDate) : '';
+            if (lastSpin === today || serverSpin === today) {
                 showToast('🎡 You already spun today! Come back tomorrow!');
                 if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
                 return;
@@ -21179,10 +21208,11 @@ document.addEventListener('btcProfileSaved', function() {
 
         modal.innerHTML =
             '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,0.5);margin:auto;">' +
-                '<button onclick="document.getElementById(\'spinModal\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
+                '<button type="button" id="spinModalClose" aria-label="Close" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
                 '<div style="font-size:2.5rem;margin-bottom:8px;">🎡</div>' +
                 '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:4px;">Daily Spin</div>' +
-                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:20px;">Spin for Orange Tickets, XP, Nacho Closet items, and rare Freeze Tickets!</p>' +
+                '<p class="spin-gift-note" style="font-size:0.85rem;margin-bottom:8px;line-height:1.4;">Spin for Orange Tickets, XP, Nacho Closet items, and rare Freeze Tickets!</p>' +
+                '<p class="spin-gift-note" id="spinGiftCopy" style="font-size:0.82rem;font-weight:700;margin:0 0 16px;line-height:1.4;">After you spin, prizes arrive as GIFTS you can open.</p>' +
                 '<div id="spinWheelContainer" style="position:relative;width:250px;height:250px;margin:0 auto 20px;">' +
                     '<canvas id="spinCanvas" width="250" height="250" style="border-radius:50%;box-shadow:0 4px 20px rgba(0,0,0,0.4);"></canvas>' +
                     '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:20px solid #ef4444;z-index:10;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></div>' +
@@ -21192,7 +21222,10 @@ document.addEventListener('btcProfileSaved', function() {
             '</div>';
         
         document.body.appendChild(modal);
-        
+        _injectSpinGiftCSS();
+        var closeBtn = document.getElementById('spinModalClose');
+        if (closeBtn) closeBtn.onclick = function() { _closeSpinModal(); };
+
         // Draw the wheel
         var canvas = document.getElementById('spinCanvas');
         var ctx = canvas.getContext('2d');
@@ -21236,6 +21269,14 @@ document.addEventListener('btcProfileSaved', function() {
             var spinFn = (typeof firebase !== 'undefined' && firebase.functions) ? firebase.functions().httpsCallable('dailySpin') : null;
             var serverSpinPromise = spinFn ? spinFn({}) : Promise.resolve({ data: null });
             var clock = window._dailySpinClock;
+            if (!clock || typeof clock.createState !== 'function' || !canvas || !ctx) {
+                isSpinning = false;
+                spinBtn.disabled = false;
+                spinBtn.style.opacity = '';
+                spinBtn.textContent = 'SPIN! 🎰';
+                if (typeof showToast === 'function') showToast('❌ Spin failed — try again.');
+                return;
+            }
             var spinState = clock.createState();
             spinState.started = Date.now();
             spinState.segments = segments.length;
@@ -21278,13 +21319,12 @@ document.addEventListener('btcProfileSaved', function() {
                 spinBtn.textContent = 'SPIN! 🎰';
                 var msg = (err && err.message) ? err.message : '';
                 if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1) {
-                    localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0]);
-                    var openModal = document.getElementById('spinModal');
-                    if (openModal) openModal.remove();
+                    localStorage.setItem('btc_last_spin_date', _spinDayKey());
+                    _closeSpinModal();
                     if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
                     if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');
                 } else if (typeof showToast === 'function') {
-                    showToast('❌ Spin failed — try again.');
+                    showToast((msg === 'timeout') ? '⏳ The wheel took too long — try again.' : '❌ Spin failed — try again.');
                 }
             }
 
@@ -21314,6 +21354,40 @@ document.addEventListener('btcProfileSaved', function() {
 
             requestAnimationFrame(animate);
 
+            var SPIN_SERVER_TIMEOUT_MS = 15000;
+            var spinTimeout = setTimeout(function() {
+                if (spinState.serverIndex < 0 && !spinState.error) {
+                    spinState.error = new Error('timeout');
+                }
+            }, SPIN_SERVER_TIMEOUT_MS);
+
+            var giftsPromise = null;
+            function startDailyGifts() {
+                if (isBonusSpin || giftsPromise) return giftsPromise;
+                giftsPromise = Promise.resolve().then(function() {
+                    if (typeof window.awardDailyGifts === 'function') {
+                        return window.awardDailyGifts({ deferModal: true });
+                    }
+                    return new Promise(function(resolve) {
+                        var retries = 0;
+                        var timer = setInterval(function() {
+                            if (typeof window.awardDailyGifts === 'function') {
+                                clearInterval(timer);
+                                resolve(window.awardDailyGifts({ deferModal: true }));
+                            } else if (++retries >= 20) {
+                                clearInterval(timer);
+                                console.warn('[spin] gifting.js never loaded — gifts not awarded');
+                                resolve(null);
+                            }
+                        }, 250);
+                    });
+                }).catch(function(err) {
+                    console.warn('[spin] awardDailyGifts failed:', err && err.message);
+                    return null;
+                });
+                return giftsPromise;
+            }
+
             serverSpinPromise.then(function(result) {
                 var data = result && result.data;
                 var reward = data && data.reward;
@@ -21328,7 +21402,10 @@ document.addEventListener('btcProfileSaved', function() {
                 idx = ((idx % n) + n) % n;
                 serverReward = reward || { rewardIndex: idx };
                 spinState.serverIndex = idx;
+                clearTimeout(spinTimeout);
+                startDailyGifts();
             }).catch(function(err) {
+                clearTimeout(spinTimeout);
                 spinState.error = err || new Error('unknown');
             });
 
@@ -21397,11 +21474,38 @@ document.addEventListener('btcProfileSaved', function() {
                     if (typeof playBadgeSound === 'function') playBadgeSound();
                 }
 
-                resultDiv.innerHTML = '<div style="animation:fadeSlideIn 0.5s ease-out;">' +
-                    '<div style="font-size:3rem;margin-bottom:8px;">' + emoji + '</div>' +
-                    '<div style="color:var(--heading);font-weight:700;font-size:1.1rem;">' + rewardText + '</div>' +
-                    '<button onclick="document.getElementById(\'spinModal\').remove()" style="margin-top:12px;padding:10px 24px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Awesome! 🎉</button>' +
-                '</div>';
+                resultDiv.innerHTML = '';
+                var wrap = document.createElement('div');
+                wrap.style.animation = 'fadeSlideIn 0.5s ease-out';
+                var big = document.createElement('div');
+                big.style.cssText = 'font-size:3rem;margin-bottom:8px;';
+                big.textContent = emoji;
+                var line = document.createElement('div');
+                line.style.cssText = 'color:var(--heading);font-weight:700;font-size:1.1rem;';
+                line.textContent = rewardText;
+                var giftReady = document.createElement('div');
+                giftReady.id = 'spinGiftReady';
+                giftReady.className = 'spin-gift-ready';
+                giftReady.style.cssText = 'margin-top:12px;font-size:0.88rem;font-weight:700;line-height:1.4;min-height:24px;';
+                if (!isBonusSpin) giftReady.textContent = 'Preparing your GIFTS…';
+                var openGiftBtn = document.createElement('button');
+                openGiftBtn.type = 'button';
+                openGiftBtn.id = 'spinOpenGiftBtn';
+                openGiftBtn.className = 'spin-open-gift-btn';
+                openGiftBtn.style.display = 'none';
+                openGiftBtn.style.marginTop = '10px';
+                openGiftBtn.textContent = 'Open gift';
+                var doneBtn = document.createElement('button');
+                doneBtn.type = 'button';
+                doneBtn.style.cssText = 'margin-top:12px;padding:10px 24px;background:var(--accent);border:none;border-radius:8px;color:#1a1208;font-weight:700;cursor:pointer;font-family:inherit;min-height:44px;';
+                doneBtn.textContent = 'Awesome! 🎉';
+                doneBtn.onclick = function() { _closeSpinModal(); };
+                wrap.appendChild(big);
+                wrap.appendChild(line);
+                wrap.appendChild(giftReady);
+                wrap.appendChild(openGiftBtn);
+                wrap.appendChild(doneBtn);
+                resultDiv.appendChild(wrap);
 
                 if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
 
@@ -21409,23 +21513,35 @@ document.addEventListener('btcProfileSaved', function() {
                     window.BipBreakthrough.handleSpinReward(reward);
                 }
 
+                function paintSpinGifts(data) {
+                    if (!giftReady.parentNode) return;
+                    var gifts = data && Array.isArray(data.gifts) ? data.gifts : [];
+                    if (data && data.giftsAdded > 0 && gifts.length) {
+                        window._deferredSpinGifts = gifts.slice();
+                        giftReady.textContent = (gifts.length === 1)
+                            ? 'Your gift is ready to open'
+                            : ('Your ' + gifts.length + ' gifts are ready to open');
+                        openGiftBtn.style.display = 'inline-flex';
+                        openGiftBtn.disabled = false;
+                        openGiftBtn.textContent = gifts.length === 1 ? 'Open gift' : 'Open gifts';
+                        openGiftBtn.onclick = function() {
+                            if (openGiftBtn.disabled) return;
+                            openGiftBtn.disabled = true;
+                            window._deferredSpinGifts = null;
+                            var openModal = document.getElementById('spinModal');
+                            if (openModal) openModal.remove();
+                            if (typeof window.showPostSpinGiftModal === 'function') window.showPostSpinGiftModal(gifts);
+                        };
+                    } else {
+                        window._deferredSpinGifts = null;
+                        giftReady.textContent = '';
+                        openGiftBtn.style.display = 'none';
+                    }
+                }
                 if (!isBonusSpin) {
-                    setTimeout(function() {
-                        if (typeof window.awardDailyGifts === 'function') {
-                            window.awardDailyGifts();
-                        } else {
-                            var _giftRetries = 0;
-                            var _giftRetryTimer = setInterval(function() {
-                                if (typeof window.awardDailyGifts === 'function') {
-                                    clearInterval(_giftRetryTimer);
-                                    window.awardDailyGifts();
-                                } else if (++_giftRetries >= 20) {
-                                    clearInterval(_giftRetryTimer);
-                                    console.warn('[spin] gifting.js never loaded — gifts not awarded');
-                                }
-                            }, 500);
-                        }
-                    }, 800);
+                    Promise.resolve(startDailyGifts()).then(function(data) {
+                        paintSpinGifts(data || {});
+                    });
                 }
 
                 var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0') + 1; localStorage.setItem('btc_spin_count', String(_sc));
@@ -21453,7 +21569,7 @@ document.addEventListener('btcProfileSaved', function() {
             }
         });
 
-        modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+        modal.addEventListener('click', function(e) { if (e.target === modal) _closeSpinModal(); });
     };
 
     function _hasSpunToday() {
