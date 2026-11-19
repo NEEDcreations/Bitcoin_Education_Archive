@@ -1376,6 +1376,8 @@ service cloud.firestore {
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees'])
                             && request.resource.data.attendees.size() == resource.data.get('attendees', []).size() + 1
                             && request.auth.uid in request.resource.data.attendees))
+                    // hostId stays as created; only an admin can reassign it
+                    && (isAdmin() || request.resource.data.get('hostId', null) == resource.data.get('hostId', null))
                     // link field must be https:// or absent on update too
                     && (!request.resource.data.keys().hasAny(['link'])
                         || request.resource.data.link == null
