@@ -610,7 +610,13 @@ function createBlockClaimService(deps) {
             }
 
             const gate = await deps.accountGate(uid, context);
-            if (!gate || !gate.ok) refuse('account_blocked', { gate: gate && gate.code });
+            if (!gate || !gate.ok) {
+                // The 48h Lightning-address hold is a player-facing pause, same
+                // as claimSats / claimCipherSats / claimCipherWin. Other account
+                // gate failures stay account_blocked so we do not leak why.
+                if (gate && gate.code === 'address_hold') refuse('address_hold');
+                refuse('account_blocked', { gate: gate && gate.code });
+            }
 
             // Fresh 2FA when the account has 2FA on (no-op otherwise).
             try { await deps.stepUp(context, data); }

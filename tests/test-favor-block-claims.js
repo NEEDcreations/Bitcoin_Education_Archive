@@ -440,6 +440,20 @@ test('banned, deleted and merged accounts are refused by the account gate', asyn
     assert.strictEqual(h.pays.length, 0);
 });
 
+test('payout-gate 48h hold returns address_hold and pays nothing', async function () {
+    const faucetGuard = require(path.join(root, 'functions/src/faucetGuard.js'));
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.gate = function () { return { ok: false, code: 'address_hold' }; };
+    const r = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.strictEqual(r.success, false);
+    assert.strictEqual(r.code, 'address_hold');
+    assert.strictEqual(r.error, faucetGuard.ADDRESS_CHANGE_HOLD_ERROR);
+    assert.strictEqual(h.pays.length, 0);
+    assert.strictEqual(keys(h, 'sf_block_claims/').length, 0);
+    assert.strictEqual(keys(h, 'sf_block_payouts/').length, 0);
+});
+
 test('L1: the 48h address-change hold is re-checked inside the reserve transaction', async function () {
     const HOLD = 48 * 60 * 60 * 1000;
     const h = makeHarness();
@@ -1077,6 +1091,9 @@ test('LOW wiring: App Check on all four callables, own freeze step-up action, st
     const sf = fs.readFileSync(path.join(root, 'functions/src/secondFactor.js'), 'utf8');
     assert.ok(/adminFreezeFavorEpoch: true/.test(sf));
     assert.ok(/if \(nwcUrl\(\)\) throw new Error\('staging must not have NWC_URL'\)/.test(fns));
+    // beginPayout's 48h hold must surface as address_hold, not a generic hold
+    // that claimFavorBlock would map to account_blocked.
+    assert.ok(/if \(gate\.error === faucetGuard\.ADDRESS_CHANGE_HOLD_ERROR\) return \{ ok: false, code: 'address_hold' \}/.test(fns));
 });
 
 test('seeder hard-refuses every project but staging before any write', function () {

@@ -124,7 +124,11 @@ function factory(functionsV1, deps) {
         if (!accountTombstone.secretReady()) return { ok: false, code: 'paused' };
         const token = (context.auth && context.auth.token) || {};
         const gate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), token, true);
-        if (!gate.ok) return { ok: false, code: 'hold' };
+        if (!gate.ok) {
+            const faucetGuard = require('./faucetGuard');
+            if (gate.error === faucetGuard.ADDRESS_CHANGE_HOLD_ERROR) return { ok: false, code: 'address_hold' };
+            return { ok: false, code: 'hold' };
+        }
         const tomb = gate.tomb || { summary: {} };
         const s = tomb.summary || {};
         if (s.banned || s.satsDisabled || s.ledgerBanned) {
