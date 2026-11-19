@@ -84,6 +84,13 @@ jobs:
             --exclude='firestore.indexes.json' \
             --exclude='*.md' \
             --exclude='firebase.*.json' \
+            --exclude='/dev/' \
+            --exclude='/githooks/' \
+            --exclude='/tools/' \
+            --exclude='/public/' \
+            --exclude='/weekly_signal_draft.html' \
+            --exclude='/assets/icons/preview.html' \
+            --exclude='/dead_links_report.json' \
             . _site/
 
       - name: Setup Pages

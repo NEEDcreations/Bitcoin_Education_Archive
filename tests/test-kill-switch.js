@@ -399,8 +399,7 @@ async function run() {
 
     await test('every export that writes value is gated, self-checks, or allow-listed', function () {
         const idx = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
-        const runbook = fs.readFileSync(path.join(root, 'docs/KILL-SWITCH-RUNBOOK.md'), 'utf8');
-        // Exact ungated-on-purpose list from the runbook. Do not put anything
+        // Exact ungated-on-purpose list (the runbook is kept privately). Do not put anything
         // that grants XP, sats, badges, or tickets here.
         const UNGATED_ON_PURPOSE = {
             onUserDocCreated: 'assigns plebNumber / join date and bumps userCount (no signup bonus)',
@@ -408,14 +407,6 @@ async function run() {
             satoshiFavorAutoReset: 'expires an already-running boost and posts a heads-up; no favor or XP grant',
             syncPublicProfile: 'public mirror, not a grant',
         };
-        const allowBlock = (runbook.split('**Ungated on purpose**')[1] || '').split('\n## ')[0];
-        assert.ok(allowBlock, 'runbook must have an Ungated on purpose section');
-        const runbookNames = [];
-        allowBlock.split('\n').forEach(function (line) {
-            const m = line.match(/^\s*-\s+`([A-Za-z0-9_]+)`:/);
-            if (m) runbookNames.push(m[1]);
-        });
-        assert.deepStrictEqual(runbookNames, Object.keys(UNGATED_ON_PURPOSE), 'runbook ungated list must match the test allow-list');
 
         const covered = {};
         ks.gatedNames().concat(ks.gatedTriggerNames(), ks.gatedRequestNames()).forEach(function (n) { covered[n] = true; });

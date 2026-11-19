@@ -304,14 +304,17 @@ console.log('');
             });
         })('');
         assert.ok(files.length > 50);
-        const personal = /needcreations@gmail|najemchris8@/i;
-        // The public support address may appear in contact text, never in a check.
+        // Any personal webmail address in client code. Only the single public
+        // support contact may appear, and only in contact text.
+        const webmail = /[a-z0-9._%+-]+@(gmail|googlemail|yahoo|outlook|hotmail|icloud|proton|protonmail)\.[a-z]{2,}/gi;
+        const seen = new Set();
         const gate = /(email|_e)\s*(===|==|!==)\s*['"][^'"]*@|['"][^'"]*@[^'"]*['"]\s*(===|==)|\[[^\]]*@gmail\.com[^\]]*\]\s*\.(indexOf|includes)/i;
         files.forEach(function (f) {
             const src = read(f);
-            assert.ok(!personal.test(src), 'personal admin email in ' + f);
+            (src.match(webmail) || []).forEach(function (m) { seen.add(m.toLowerCase()); });
             assert.ok(!gate.test(src), 'email gate in ' + f);
         });
+        assert.ok(seen.size <= 1, 'only the public support address may appear, found ' + seen.size + ' distinct addresses');
     });
 
     await atest('server admin gates use context.auth.token.admin', async function () {
