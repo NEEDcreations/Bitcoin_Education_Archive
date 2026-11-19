@@ -37,7 +37,7 @@ function _popSafeHttpsUrl(raw) {
 }
 
 function _popOpenOutside(url) {
-    var safe = _popSafeHttpsUrl(url);
+    var safe = _popAllowedExternalUrl(url);
     if (!safe) return null;
     var win = window.open(safe, '_blank', 'noopener,noreferrer');
     if (win) {
@@ -48,7 +48,7 @@ function _popOpenOutside(url) {
 
 function _popExternalAnchor(url, text) {
     var a = document.createElement('a');
-    var safe = _popSafeHttpsUrl(url);
+    var safe = _popAllowedExternalUrl(url);
     if (safe) {
         a.setAttribute('href', safe);
         a.setAttribute('target', '_blank');
@@ -58,13 +58,47 @@ function _popExternalAnchor(url, text) {
     return a;
 }
 
-var POP_SAT_ARCADE_URL = 'https://ck121212195.github.io/SAT-ARCADE/';
+// Embed allowlist: iframe src must start with this exact prefix after https normalization.
+var POP_SAT_ARCADE_PREFIX = 'https://ck121212195.github.io/SAT-ARCADE/';
+var POP_SAT_ARCADE_URL = POP_SAT_ARCADE_PREFIX;
 var POP_EMBED_SANDBOX = 'allow-scripts allow-same-origin';
 var POP_EMBED_ALLOW = 'fullscreen';
 
-// Embed iframe for Sat Arcade only. src is left unset until Play.
+// Outside links (new tab) must match one of these hosts exactly, https only.
+// The approved Sat Arcade prefix may also open in a new tab (Full Tab).
+var POP_EXTERNAL_HOSTS = {
+    'timechainarcade.com': true,
+    'galaxymind.space': true,
+    'ryracer.com': true
+};
+
+var _popLiveIframe = null;
+var _popKeydownBound = false;
+var _popHashBound = false;
+
+function _popAllowedEmbedUrl(raw) {
+    var safe = _popSafeHttpsUrl(raw);
+    if (!safe) return '';
+    if (safe.indexOf(POP_SAT_ARCADE_PREFIX) !== 0) return '';
+    return safe;
+}
+
+function _popAllowedExternalUrl(raw) {
+    var safe = _popSafeHttpsUrl(raw);
+    if (!safe) return '';
+    if (safe.indexOf(POP_SAT_ARCADE_PREFIX) === 0) return safe;
+    try {
+        var host = new URL(safe).hostname;
+        if (Object.prototype.hasOwnProperty.call(POP_EXTERNAL_HOSTS, host) && POP_EXTERNAL_HOSTS[host]) {
+            return safe;
+        }
+    } catch (e) {}
+    return '';
+}
+
+// Embed iframe for Sat Arcade only. Created on Play tap. src is left unset until start.
 function _popCreateEmbedIframe(url) {
-    var safe = _popSafeHttpsUrl(url);
+    var safe = _popAllowedEmbedUrl(url);
     if (!safe) return null;
     var iframe = document.createElement('iframe');
     iframe.setAttribute('sandbox', POP_EMBED_SANDBOX);
@@ -78,19 +112,112 @@ function _popCreateEmbedIframe(url) {
 
 function _popStartEmbed(iframe) {
     if (!iframe) return false;
-    var safe = _popSafeHttpsUrl(iframe.getAttribute('data-pop-embed-src') || '');
+    var safe = _popAllowedEmbedUrl(iframe.getAttribute('data-pop-embed-src') || '');
     if (!safe) return false;
     iframe.src = safe;
+    _popLiveIframe = iframe;
     return true;
+}
+
+// Blank the frame first, then remove it from the DOM. Never leave it hidden.
+function _popDestroyEmbed(iframe) {
+    if (!iframe) return;
+    try { iframe.src = 'about:blank'; } catch (e) {}
+    try { iframe.removeAttribute('data-pop-embed-src'); } catch (e2) {}
+    var parent = iframe.parentNode;
+    if (parent && typeof parent.removeChild === 'function') {
+        try { parent.removeChild(iframe); } catch (e3) {
+            try { if (typeof iframe.remove === 'function') iframe.remove(); } catch (e4) {}
+        }
+    } else if (typeof iframe.remove === 'function') {
+        try { iframe.remove(); } catch (e5) {}
+    }
+    if (_popLiveIframe === iframe) _popLiveIframe = null;
+}
+
+function _popCollectIframes(root, out) {
+    if (!root) return;
+    if (root.tagName && String(root.tagName).toLowerCase() === 'iframe') {
+        if (out.indexOf(root) === -1) out.push(root);
+    }
+    if (typeof root.querySelectorAll === 'function') {
+        try {
+            var list = root.querySelectorAll('iframe');
+            if (list) {
+                for (var i = 0; i < list.length; i++) {
+                    if (out.indexOf(list[i]) === -1) out.push(list[i]);
+                }
+            }
+        } catch (e) {}
+    }
+    var kids = root.childNodes || root.children;
+    if (kids && kids.length && typeof root.querySelectorAll !== 'function') {
+        for (var j = 0; j < kids.length; j++) _popCollectIframes(kids[j], out);
+    }
+}
+
+function _popDestroyAllEmbeds(root) {
+    var seen = [];
+    if (_popLiveIframe) seen.push(_popLiveIframe);
+    _popCollectIframes(root || document, seen);
+    try {
+        if (typeof document.getElementById === 'function') {
+            _popCollectIframes(document.getElementById('popOverlay'), seen);
+            _popCollectIframes(document.getElementById('popBody'), seen);
+        }
+    } catch (e) {}
+    for (var i = 0; i < seen.length; i++) _popDestroyEmbed(seen[i]);
+    _popLiveIframe = null;
+}
+
+function _popOnKeydown(e) {
+    if (!_popActive) return;
+    if (!e) return;
+    var key = e.key;
+    if (key === 'Escape' || key === 'Esc') {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        window.exitProofOfPlay();
+    }
+}
+
+function _popOnRouteChange() {
+    if (!_popActive) return;
+    var h = '';
+    try { h = String((window.location && window.location.hash) || '').replace(/^#/, ''); } catch (e) {}
+    if (h === 'proof-of-play' || h === 'proof-of-play-pvp' || h.indexOf('proof-of-play/') === 0) return;
+    window.exitProofOfPlay();
+}
+
+function _popBindCloseListeners() {
+    if (!_popKeydownBound) {
+        document.addEventListener('keydown', _popOnKeydown, true);
+        _popKeydownBound = true;
+    }
+    if (!_popHashBound) {
+        window.addEventListener('hashchange', _popOnRouteChange);
+        _popHashBound = true;
+    }
+}
+
+function _popUnbindCloseListeners() {
+    if (_popKeydownBound) {
+        try { document.removeEventListener('keydown', _popOnKeydown, true); } catch (e) {}
+        _popKeydownBound = false;
+    }
+    if (_popHashBound) {
+        try { window.removeEventListener('hashchange', _popOnRouteChange); } catch (e2) {}
+        _popHashBound = false;
+    }
+    try { window.removeEventListener('popstate', _popHandlePop); } catch (e3) {}
 }
 
 function _popBuildArcadeCard(game) {
     game = game || {};
     var card = document.createElement('div');
     card.className = 'pop-game-card' + (game.hot ? ' hot' : '');
-    var url = _popSafeHttpsUrl(game.url);
+    var url = _popAllowedExternalUrl(game.url);
 
-    var thumbUrl = _popSafeHttpsUrl(game.thumb || '');
+    var thumbUrl = _popAllowedExternalUrl(game.thumb || '');
     if (thumbUrl) {
         var img = document.createElement('img');
         img.className = 'pop-game-thumb';
@@ -155,10 +282,15 @@ function _popBuildArcadeCard(game) {
 }
 
 window._popSafeHttpsUrl = _popSafeHttpsUrl;
+window._popAllowedEmbedUrl = _popAllowedEmbedUrl;
+window._popAllowedExternalUrl = _popAllowedExternalUrl;
 window._popCreateEmbedIframe = _popCreateEmbedIframe;
 window._popStartEmbed = _popStartEmbed;
+window._popDestroyEmbed = _popDestroyEmbed;
+window._popDestroyAllEmbeds = _popDestroyAllEmbeds;
 window._popBuildArcadeCard = _popBuildArcadeCard;
 window._popOpenOutside = _popOpenOutside;
+window._popExternalAnchor = _popExternalAnchor;
 
 // ---- Game catalogue ----
 var POP_GAMES = [
@@ -434,6 +566,7 @@ function _injectPOPStyles() {
 // ---- Render Sat Arcade tab ----
 // ck121212195.github.io/SAT-ARCADE — embeddable. Load the iframe only after Play.
 function _renderSatArcadeTab(wrap) {
+    _popDestroyAllEmbeds(wrap);
     wrap.textContent = '';
     wrap.style.padding = '0';
     wrap.style.overflow = 'hidden';
@@ -487,6 +620,7 @@ function _renderSatArcadeTab(wrap) {
 
 // ---- Render RyRacer tab ----
 function _renderRyRacerTab(wrap) {
+    _popDestroyAllEmbeds(wrap);
     wrap.textContent = '';
     wrap.style.padding = '0';
     wrap.style.overflowY = 'auto';
@@ -497,7 +631,8 @@ function _renderRyRacerTab(wrap) {
     var hero = document.createElement('div');
     hero.style.cssText = 'position:relative;overflow:hidden;';
     var heroImg = document.createElement('img');
-    heroImg.setAttribute('src', 'https://ryracer.com/metaimage-hero.webp');
+    var heroSrc = _popAllowedExternalUrl('https://ryracer.com/metaimage-hero.webp');
+    if (heroSrc) heroImg.setAttribute('src', heroSrc);
     heroImg.setAttribute('alt', 'RyRacer');
     heroImg.setAttribute('loading', 'eager');
     heroImg.style.cssText = 'width:100%;height:200px;object-fit:cover;object-position:center;opacity:0.75;display:block;';
@@ -608,6 +743,7 @@ function _renderRyRacerTab(wrap) {
 // ---- Render Galaxy Mind tab ----
 // galaxymind.space blocks framing. Open each game in a new tab.
 function _renderGalaxyMindTab(wrap) {
+    _popDestroyAllEmbeds(wrap);
     wrap.textContent = '';
     wrap.style.padding = '0';
     wrap.style.overflowY = 'auto';
@@ -655,7 +791,7 @@ function _renderGalaxyMindTab(wrap) {
     grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px;';
     games.forEach(function(g, i) {
         var isWide = (i === 0);
-        var href = _popSafeHttpsUrl('https://galaxymind.space/' + g.path);
+        var href = _popAllowedExternalUrl('https://galaxymind.space/' + g.path);
         var card = document.createElement(href ? 'a' : 'div');
         if (href) {
             card.setAttribute('href', href);
@@ -665,7 +801,7 @@ function _renderGalaxyMindTab(wrap) {
         card.style.cssText = (isWide ? 'grid-column:1/-1;' : '') + 'display:block;background:rgba(255,255,255,0.04);border:1px solid rgba(247,147,26,0.25);border-radius:12px;overflow:hidden;text-decoration:none;transition:border-color 0.2s;';
         var imgWrap = document.createElement('div');
         imgWrap.style.cssText = 'position:relative;width:100%;height:' + (isWide ? '140px' : '90px') + ';overflow:hidden;background:#111;';
-        var thumb = _popSafeHttpsUrl('https://galaxymind.space/arcade-previews/' + g.slug + '.png');
+        var thumb = _popAllowedExternalUrl('https://galaxymind.space/arcade-previews/' + g.slug + '.png');
         if (thumb) {
             var img = document.createElement('img');
             img.setAttribute('src', thumb);
@@ -704,6 +840,7 @@ function _renderGalaxyMindTab(wrap) {
 }
 
 function _renderArcadeTab(wrap) {
+    _popDestroyAllEmbeds(wrap);
     wrap.textContent = '';
 
     var notice = document.createElement('div');
@@ -747,6 +884,7 @@ function _renderArcadeTab(wrap) {
 
 // ---- Render PVP tab ----
 function _renderPVPTab(wrap) {
+    _popDestroyAllEmbeds(wrap);
     wrap.innerHTML = '<div id="popPVPWrap" class="pop-anim">' +
         '<div style="text-align:center;padding:20px 0 24px;">' +
             '<div style="font-size:2.2rem;margin-bottom:6px;">⚔️</div>' +
@@ -780,6 +918,7 @@ window.enterProofOfPlay = function(startTab) {
     startTab = startTab || 'pvp';
     window._popShareTab = startTab;
     window._popActive = true;
+    _popBindCloseListeners();
 
     _injectPOPStyles();
 
@@ -829,6 +968,8 @@ window.enterProofOfPlay = function(startTab) {
 };
 
 window.exitProofOfPlay = function() {
+    _popDestroyAllEmbeds();
+    _popUnbindCloseListeners();
     _popActive = false;
     window._popActive = false;
     var overlay = document.getElementById('popOverlay');
@@ -843,6 +984,7 @@ function _popHandlePop() {
 }
 
 window._popSwitchTab = function(tab) {
+    _popDestroyAllEmbeds();
     window._popShareTab = tab;
     var body = document.getElementById('popBody');
     if (!body) return;
@@ -872,6 +1014,10 @@ window._popSwitchTab = function(tab) {
         body.style.transition = '';
     }, 150);
 };
+
+window._renderSatArcadeTab = _renderSatArcadeTab;
+window._popOnKeydown = _popOnKeydown;
+window._popOnRouteChange = _popOnRouteChange;
 
 window._popLaunchGame = function(url, title) {
     // Timechain Arcade and other outside titles open in a new tab.
