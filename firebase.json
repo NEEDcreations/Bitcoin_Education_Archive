@@ -4,6 +4,7 @@
       "public": ".",
       "ignore": [
         "firebase.json",
+        "firebase.*.json",
         "**/node_modules/**",
         "functions/**",
         "**/.*",
@@ -171,6 +172,7 @@
       "public": ".",
       "ignore": [
         "firebase.json",
+        "firebase.*.json",
         "**/node_modules/**",
         "functions/**",
         "**/.*",

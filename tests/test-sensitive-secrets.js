@@ -131,7 +131,9 @@ test('each reader binds only the secrets it uses', function () {
     assert.strictEqual(count('tgBotTokenSecret'), 16);
     assert.strictEqual(count('bridgeSecretParam'), 0);
     assert.strictEqual(count('CF_API_TOKEN'), 0);
-    assert.strictEqual(count('nwcUrlSecret'), 7);
+    // 7 always-bound wallet functions + claimFavorBlock (live only; staging binds no wallet).
+    assert.strictEqual(count('nwcUrlSecret'), 8);
+    assert.ok(read('src/favorBlockClaimsFns.js').includes('secrets: staging ? [deletionHmacSecret] : [deletionHmacSecret, nwcUrlSecret]'));
     assert.ok(index.includes('secrets: [deletionHmacSecret, nwcUrlSecret, turnstileSecret]'));
     assert.ok(index.includes('secrets: [adminTokenSecret].concat(hotTopicSecrets)'));
     assert.ok(read('src/handleTelegramReaction.js').includes("secrets: ['TG_WEBHOOK_SECRET']"));

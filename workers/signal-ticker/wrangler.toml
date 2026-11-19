@@ -1,0 +1,24 @@
+# Staging-only default. A bare `wrangler deploy` from this folder updates
+# signal-ticker-staging only. It has no route on bitcoineducation.quest.
+# Live ship steps (new worker name, live KV, and the zone route) are in PR #324
+# and must not be run until Phil says to ship.
+name = "signal-ticker-staging"
+main = "worker.js"
+compatibility_date = "2026-11-14"
+account_id = "bc12a6ce8540408b7552f1d658c45bf7"
+workers_dev = true
+
+[triggers]
+crons = ["5 */4 * * *"]
+
+[vars]
+ORIGIN_URL = "https://bitcoineducation.quest/newsletter-data.json"
+ENVIRONMENT = "staging"
+
+# Staging KV namespace, created Nov 14 2026. Not the live namespace.
+[[kv_namespaces]]
+binding = "TICKER"
+id = "075106eaba2748c0a40b5a99fd5a6b72"
+
+# Secret (set with wrangler secret put, never committed):
+# CRON_SECRET   protects POST /__refresh on the workers.dev URL

@@ -383,14 +383,18 @@ function mfaClearDevice(uid) {
 var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
+    adminFreezeFavorEpoch: 1,
     adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
+    adminResolveFavorReview: 1,
+    adminSetFavorClaims: 1,
     adminRevokePremium: 1,
     adminSetKillSwitch: 1,
     answerTrivia: 1,
     armSayHi: 1,
     chooseFaction: 1,
     claimCipherSats: 1,
+    claimFavorBlock: 1,
     claimOnboardingQuestStep: 1,
     claimPremiumAllowance: 1,
     claimPremiumByEmail: 1,
@@ -408,6 +412,7 @@ var APP_CHECK_CALLABLES = {
     leaderboardRank: 1,
     linkGuestAccount: 1,
     markIntroSeen: 1,
+    myFavorEpochClaims: 1,
     noteNachoQuestion: 1,
     prepareEmailChange: 1,
     prepareGuestLink: 1,
@@ -3615,7 +3620,7 @@ function settleAdminClaim() {
 // admin is true (window._isAdminClaim, set from getIdTokenResult). Never email.
 // It carries no admin data. Tapping re-checks the claim, then lazy-loads
 // admin-panel.js, so non-admins never download the panel.
-var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261111_v2551';
+var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261116_v2581';
 
 function ensureHomeAdminBtnCss() {
     if (document.getElementById('homeAdminBtnCss')) return;
@@ -8680,28 +8685,14 @@ window._renderTitleFlairSection = function() {
         '.tf-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;box-sizing:border-box;max-width:100%;}' +
         '.tf-h{font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;}' +
         '.tf-sub{font-size:0.7rem;color:var(--text-muted);margin:14px 0 8px;font-weight:700;}' +
-        '.tf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}' +
-        '.tf-card{position:relative;box-sizing:border-box;min-height:64px;padding:8px 6px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;min-width:0;}' +
-        '.tf-card .tf-e{font-size:1.25rem;line-height:1;}' +
-        '.tf-card .tf-n{font-size:0.66rem;font-weight:700;line-height:1.2;overflow-wrap:anywhere;}' +
-        '.tf-card.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:rgba(247,147,26,0.10);}' +
-        '.tf-card.on::after{content:"✓";position:absolute;top:3px;right:6px;font-size:0.7rem;font-weight:900;color:var(--accent);}' +
-        '.tf-card.lock{opacity:0.45;filter:grayscale(1);cursor:help;}' +
         '.tf-prev{border:1px dashed var(--border);border-radius:10px;padding:10px;font-size:0.8rem;line-height:1.5;overflow-wrap:anywhere;}' +
         '.tf-pill{display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:1px 8px;font-size:0.7rem;font-weight:700;color:#f97316;margin-left:6px;}' +
         '.tf-select{display:block;width:100%;box-sizing:border-box;margin:0 0 4px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;font-size:16px;line-height:1.3;}' +
-        '@media (max-width:420px){.tf-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}.tf-card{min-height:58px;padding:6px 4px;}.tf-card .tf-n{font-size:0.6rem;}}' +
         '</style>';
     h += '<div class="tf-wrap" id="titleFlairSection">';
     h += '<div class="tf-h">🎖️ Title &amp; Flair</div>';
     h += '<div class="tf-prev" aria-live="polite"><div><strong>' + name + '</strong>' + (tDef ? '<span class="tf-pill">' + tDef.emoji + ' ' + _tfEsc(tDef.title) + '</span>' : '') + '</div>' +
         '<div style="color:var(--text-muted);">' + (showFlair ? _tfEsc(showFlair) + ' ' : '') + '<strong style="color:var(--text);">' + name + '</strong>: gm, stacking sats 🧡</div></div>';
-    function card(kind, id, emoji, label, isOn, lockTip) {
-        var attrs = lockTip
-            ? ' class="tf-card lock" aria-disabled="true" title="' + _tfEsc(lockTip) + '" onclick="if(typeof showToast===\'function\')showToast(this.title)"'
-            : ' class="tf-card' + (isOn ? ' on' : '') + '" aria-pressed="' + (isOn ? 'true' : 'false') + '" onmouseenter="window._tfHover(\'' + kind + '\',this.dataset.v)" onmouseleave="window._tfHover(\'' + kind + '\')" onclick="window._tfPick(\'' + kind + '\',this.dataset.v)"';
-        return '<button type="button" data-v="' + _tfEsc(id) + '"' + attrs + '><span class="tf-e">' + emoji + '</span><span class="tf-n">' + _tfEsc(label) + '</span></button>';
-    }
     // Titles: one compact dropdown. Locked collection titles stay visible but cannot be picked.
     h += '<label class="tf-sub" for="tfTitleSelect">Title</label>';
     h += '<select id="tfTitleSelect" class="tf-select" aria-label="Title" onchange="window._tfTitleChange(this)">';
@@ -8740,23 +8731,51 @@ window._renderTitleFlairSection = function() {
         h += '</optgroup>';
     }
     h += '</select>';
-    // Flair: None, Nook flair, then collection flair.
-    h += '<div class="tf-sub">Chat flair</div><div class="tf-grid">';
-    h += card('flair', '', '🚫', 'No flair', !flair, '');
+    // Chat flair: one compact dropdown. Locked Nook and collection flair stay visible but cannot be picked.
+    h += '<label class="tf-sub" for="tfFlairSelect">Chat flair</label>';
+    h += '<select id="tfFlairSelect" class="tf-select" aria-label="Chat flair" onchange="window._tfFlairChange(this)">';
+    h += '<option value=""' + (!flair ? ' selected' : '') + '>No flair</option>';
     var seenF = {};
+    var unlockedF = [];
+    var lockedF = [];
     var nookOwned = Array.isArray(u.ownedCosmetics) && u.ownedCosmetics.indexOf('chat_flair') !== -1;
     (window.CHAT_FLAIR_NOOK || []).forEach(function(e) {
         seenF[e] = true;
         var have = earnedF.indexOf(e) !== -1 || nookOwned;
-        h += card('flair', e, e, 'Nook', flair === e, have ? '' : '🔒 Buy Chat Flair in the Nook');
+        var item = { id: e, emoji: e, title: 'Nook', locked: !have, hint: have ? '' : 'Buy Chat Flair in the Nook' };
+        (have ? unlockedF : lockedF).push(item);
     });
     _tfCollections().forEach(function(col) {
         if (!col.flair || seenF[col.flair]) return;
         seenF[col.flair] = true;
         var have = earnedF.indexOf(col.flair) !== -1;
-        h += card('flair', col.flair, col.flair, col.name, flair === col.flair, have ? '' : '🔒 Complete the ' + col.name + ' collection');
+        var item = { id: col.flair, emoji: col.flair, title: col.name || col.flair, locked: !have, hint: have ? '' : ('Complete the ' + col.name + ' collection') };
+        (have ? unlockedF : lockedF).push(item);
     });
-    h += '</div></div>';
+    earnedF.forEach(function(fe) {
+        if (!fe || seenF[fe]) return;
+        seenF[fe] = true;
+        unlockedF.push({ id: fe, emoji: fe, title: '', locked: false, hint: '' });
+    });
+    if (flair && unlockedF.every(function(item) { return item.id !== flair; }) && lockedF.every(function(item) { return item.id !== flair; })) {
+        unlockedF.unshift({ id: flair, emoji: flair, title: '', locked: false, hint: '' });
+    }
+    function flairOpt(item) {
+        var label = ((item.emoji ? item.emoji + ' ' : '') + (item.title || '')).trim();
+        if (item.hint) label += ' — ' + item.hint;
+        return '<option value="' + _tfEsc(item.id) + '"' + (item.locked ? ' disabled' : '') + (flair === item.id ? ' selected' : '') + '>' + _tfEsc(label) + '</option>';
+    }
+    if (unlockedF.length) {
+        h += '<optgroup label="Unlocked">';
+        unlockedF.forEach(function(item) { h += flairOpt(item); });
+        h += '</optgroup>';
+    }
+    if (lockedF.length) {
+        h += '<optgroup label="Locked">';
+        lockedF.forEach(function(item) { h += flairOpt(item); });
+        h += '</optgroup>';
+    }
+    h += '</select></div>';
     return h;
 };
 window._tfRepaint = function() {
@@ -8787,6 +8806,12 @@ window._tfTitleChange = function(el) {
     var value = el.value || '';
     window._tfHover('title', value);
     window._tfPick('title', value);
+};
+window._tfFlairChange = function(el) {
+    if (!el) return;
+    var value = el.value || '';
+    window._tfHover('flair', value);
+    window._tfPick('flair', value);
 };
 window._tfPick = function(kind, value) {
     var user = auth ? auth.currentUser : null;
@@ -9601,11 +9626,11 @@ function accountDeleteRowHtml(user) {
                 var inner = container.querySelector('div') || container;
                 var cardsHtml = '';
                 data.news.slice(0, 3).forEach(function(n, i) {
-                    var title = (n.title || '').replace(/<[^>]+>/g, '');
-                    var snippet = (n.snippet || '').replace(/<[^>]+>/g, '');
-                    var link = n.link || '';
+                    var title = escapeHtml(n.title || '');
+                    var snippet = escapeHtml(n.snippet || '');
+                    var link = (typeof n.link === 'string' && /^https:\/\/[^\s'"<>\\`]+$/.test(n.link)) ? n.link : '';
                     cardsHtml += '<div style="min-width:260px;max-width:300px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                        (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
+                        (link ? 'data-href="' + escapeHtml(link) + '" onclick="window.open(this.getAttribute(\'data-href\'),\'_blank\',\'noopener,noreferrer\')"' : '') +
                         ' onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
                             '<span style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:900;padding:2px 8px;border-radius:10px;">SIGNAL #' + (i + 1) + '</span>' +
@@ -11582,10 +11607,10 @@ window.loadSignalContent = function() {
         var inner = container.querySelector('div') || container;
         var cardsHtml = '';
         data.news.slice(0, 3).forEach(function(n, i) {
-            var title = (n.title || '').replace(/<[^>]+>/g, '');
-            var link = n.link || '';
+            var title = escapeHtml(n.title || '');
+            var link = (typeof n.link === 'string' && /^https:\/\/[^\s'"<>\\`]+$/.test(n.link)) ? n.link : '';
             cardsHtml += '<div style="min-width:240px;max-width:280px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
+                (link ? 'data-href="' + escapeHtml(link) + '" onclick="window.open(this.getAttribute(\'data-href\'),\'_blank\',\'noopener,noreferrer\')"' : '') +
                 '><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="background:var(--accent);color:#fff;font-size:0.55rem;font-weight:900;padding:2px 6px;border-radius:8px;">SIGNAL #' + (i + 1) + '</span></div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.82rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + title + '</div>' +
                 (link ? '<div style="color:var(--accent);font-size:0.7rem;font-weight:700;margin-top:6px;">Read →</div>' : '') + '</div>';
@@ -13367,6 +13392,10 @@ window._showFreshStepUp = function (action) {
         regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
         changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.',
         adminSetKillSwitch: 'Enter a fresh authenticator code to flip the kill switch. A remembered device is not enough, and the authenticator must be at least 24 hours old.',
+        claimFavorBlock: 'Enter a fresh authenticator code to claim your Favor block. A remembered device is not enough.',
+        adminSetFavorClaims: 'Enter a fresh authenticator code to change Favor claim settings.',
+        adminFreezeFavorEpoch: 'Enter a fresh authenticator code to freeze a Favor epoch.',
+        adminResolveFavorReview: 'Enter a fresh authenticator code to release a Favor review block.',
         adminRevokePremium: 'Enter a fresh authenticator code to revoke or restore Premium. A remembered device is not enough.'
     };
     return new Promise(function (resolve) {

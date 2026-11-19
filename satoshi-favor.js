@@ -56,12 +56,23 @@
         (Array.isArray(serverRows) ? serverRows : []).forEach(function(h) {
             if (!h || !/^\d{4}-\d{2}-\d{2}$/.test(String(h.date || '')) || !(Number(h.target) > 0)) return;
             var key = h.date + '|' + Number(h.target);
+            var since = h.since;
+            if (since && typeof since.toMillis === 'function') since = since.toMillis();
+            since = Number(since);
+            since = (since > 0 && isFinite(since)) ? since : null;
             if (seen[key]) {
-                out.forEach(function(r) { if (r.date + '|' + r.target === key && h.label) r.label = String(h.label); });
+                out.forEach(function(r) {
+                    if (r.date + '|' + r.target === key) {
+                        if (h.label) r.label = String(h.label);
+                        if (since && r.since == null) r.since = since;
+                    }
+                });
                 return;
             }
             seen[key] = true;
-            out.push({ date: h.date, target: Number(h.target), label: String(h.label || ''), hashes: null, luck: null });
+            var row = { date: h.date, target: Number(h.target), label: String(h.label || ''), hashes: null, luck: null };
+            if (since) row.since = since;
+            out.push(row);
         });
         out.sort(function(a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
         // Rows whose hashes were never frozen read them live from difficultyStats (quests.js).

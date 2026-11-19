@@ -180,6 +180,7 @@ module.exports = {
     rewardBlocked: rewardBlocked,
     assessCipherClaim: assessCipherClaim,
     paymentHashFromDecoded: paymentHashFromDecoded,
+    classifyLookup: classifyLookup,
     lookupRequestFromDecoded: lookupRequestFromDecoded,
     EXPLICIT_PAY_REFUSALS: EXPLICIT_PAY_REFUSALS,
     explicitPayRefusal: explicitPayRefusal,

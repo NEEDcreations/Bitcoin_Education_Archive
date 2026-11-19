@@ -1,5 +1,5 @@
 'use strict';
-const { runtimeSa } = require('./runtimeServiceAccounts');
+const { runtimeSa, runtimeSaOrDefault } = require('./runtimeServiceAccounts');
 
 // Second factor for Bitcoin Quest.
 // Phone sign-in is Firebase Phone Multi-Factor. Authenticator codes are TOTP
@@ -30,6 +30,10 @@ const FRESH_ACTIONS = {
     unlinkProvider: true,
     adminResetSecondFactor: true,
     adminSetKillSwitch: true,
+    claimFavorBlock: true,
+    adminSetFavorClaims: true,
+    adminFreezeFavorEpoch: true,
+    adminResolveFavorReview: true,
     adminRevokePremium: true,
 };
 const RECOVERY_COUNT = 10;
@@ -315,7 +319,7 @@ function initSecondFactor(deps) {
     function onCallWithKey(name, handler) {
         return functionsV1.runWith({
             secrets: ['TOTP_ENCRYPTION_KEY'],
-            serviceAccount: runtimeSa(name),
+            serviceAccount: runtimeSaOrDefault(name),
         }).https.onCall(handler);
     }
     const phoneCache = new Map();
@@ -1342,7 +1346,7 @@ function initSecondFactor(deps) {
     const onCallApp = functionsV1.runWith({ enforceAppCheck: true }).https.onCall;
     const onCallAppKey = functionsV1.runWith({
         secrets: ['TOTP_ENCRYPTION_KEY'],
-        serviceAccount: runtimeSa('totpStepUp'),
+        serviceAccount: runtimeSaOrDefault('totpStepUp'),
         enforceAppCheck: true,
     }).https.onCall;
 

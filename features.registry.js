@@ -2304,7 +2304,9 @@
         } catch (e) {}
     }
     function bqHomeModeBarShouldOpen(container, hasChoice) {
-        if (!hasChoice) return true;
+        // First-time visitors (no stored mode) start closed so the title and
+        // sign-up button show without scrolling. Returning users keep their
+        // saved open/closed pref. The toggle still opens the list.
         if (container && container.classList && container.classList.contains('is-open')) return true;
         var pref = bqReadHomeModeCollapsedPref();
         if (pref === '0') return true;

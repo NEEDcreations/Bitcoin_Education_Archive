@@ -377,10 +377,11 @@ test('client merges server history and reads the live target, odds and next date
     const end = src.indexOf('window._sfMergeDifficultyHistory');
     const merge = new Function(src.slice(start, end) + '; return _sfMergeDifficultyHistory;')();
     const base = [{ date: '2026-10-01', target: 20000, label: '-50%', hashes: null, luck: null }, { date: '2026-11-07', target: 25000, label: '-20%', hashes: null, luck: null }];
-    const out = merge(base, [{ date: '2026-11-07', target: 25000, label: '-20%' }, { date: '2026-11-21', target: 6250, label: '+300%' }, { date: 'bad', target: 1 }]);
+    const out = merge(base, [{ date: '2026-11-07', target: 25000, label: '-20%', since: 1794013380658 }, { date: '2026-11-21', target: 6250, label: '+300%' }, { date: 'bad', target: 1 }]);
     assert.deepStrictEqual(out.map(r => r.target), [20000, 25000, 6250]);
     assert.strictEqual(out[2].label, '+300%');
     assert.strictEqual(out[1].liveStats, true);
+    assert.strictEqual(out[1].since, 1794013380658);
     assert.ok(src.includes("db.collection('satoshiFavor').doc('difficultyStats').get()"));
     assert.ok(src.includes("That\\'s a 1 in ' + _sfOddsText()"));
     assert.ok(!src.includes('1:5,000</div>'));
@@ -395,6 +396,106 @@ test('client merges server history and reads the live target, odds and next date
     assert.ok(!read('resets.html').includes('RETARGET_DAYS'));
     assert.ok(!read('resets.html').includes('12:10 AM ET daily'));
     assert.ok(read('terms.html').includes('adjusted each time an epoch fills 5 of 5 blocks'));
+});
+
+
+function loadAssignHelpers() {
+    const q = read('quests.js');
+    const start = q.indexOf('function _sfPeriodStartMs');
+    const end = q.indexOf('function _loadDifficultyHistoryBlocks');
+    assert.ok(start >= 0 && end > start, 'period helpers should sit above _loadDifficultyHistoryBlocks');
+    return new Function(q.slice(start, end) + '; return { _sfPeriodStartMs, _sfBlockTsMs, _sfAssignDifficultyPeriod };')();
+}
+
+test('Difficulty History puts the two 25k blocks on the 11/7 row, not the current row', () => {
+    const { _sfPeriodStartMs, _sfAssignDifficultyPeriod } = loadAssignHelpers();
+    // Real shape: 11/7 at 25k, then the epoch-7 retarget at 6:30:19 AM ET Nov 14 to 6837.
+    // The current row's calendar date is 2026-11-14, which Date parses as 7 PM ET Nov 13.
+    const RETARGET_MS = 1794655819097; // 2026-11-14 6:30:19 AM ET
+    const history = [
+        { date: '2026-10-01', target: 20000, label: '-50%' },
+        { date: '2026-11-07', target: 25000, label: '-20%', since: 1794013380658 },
+        { date: '2026-11-14', target: 6837, label: '+265.7%', since: RETARGET_MS },
+    ];
+    assert.strictEqual(history[2].label, '+265.7%');
+    assert.ok(_sfPeriodStartMs(history[2]) === RETARGET_MS);
+    assert.ok(new Date(history[2].date).getTime() < RETARGET_MS);
+
+    // The two blocks found after UTC midnight Nov 14 and before the retarget,
+    // each stored with the 25k target they were mined under.
+    const gapBlocks = [
+        { timestamp: 1794652046288, difficultyTarget: 25000 }, // 5:27:26 AM ET Nov 14
+        { timestamp: 1794654509303, difficultyTarget: 25000 }, // 6:08:29 AM ET Nov 14
+    ];
+    const oldByDate = function(block) {
+        const starts = history.map((row) => new Date(row.date).getTime());
+        const tsMs = Number(block.timestamp);
+        let periodIdx = 0;
+        for (let i = 0; i < starts.length; i++) {
+            if (starts[i] <= tsMs) periodIdx = i;
+            else break;
+        }
+        return periodIdx;
+    };
+    assert.deepStrictEqual(gapBlocks.map(oldByDate), [2, 2], 'calendar-date grouping is the bug: both land on the current row');
+    assert.deepStrictEqual(gapBlocks.map((b) => _sfAssignDifficultyPeriod(history, b)), [1, 1]);
+
+    // Eight earlier 25k blocks plus the two in the gap. No 6837 block yet
+    // (the Nov 14 report). Expected: 11/7 row has 10, current row has 0.
+    const earlier = [
+        1794037473000, 1794050766000, 1794060967000, 1794227478000,
+        1794323706000, 1794392460000, 1794399471000, 1794520563000,
+    ];
+    const blocks = earlier.map((ts) => ({ timestamp: ts, difficultyTarget: 25000 })).concat(gapBlocks);
+    const counts = [0, 0, 0];
+    blocks.forEach((b) => { counts[_sfAssignDifficultyPeriod(history, b)]++; });
+    assert.deepStrictEqual(counts, [0, 10, 0]);
+    const luck = (counts[1] * (100000000 / 25000) / 51822 * 100).toFixed(1);
+    assert.strictEqual(luck, '77.2');
+
+    // A block without difficultyTarget in the same gap still uses `since`, not UTC midnight.
+    assert.strictEqual(_sfAssignDifficultyPeriod(history, { timestamp: 1794652046288 }), 1);
+
+    // After the retarget, a 6837-target block belongs on the current row.
+    assert.strictEqual(_sfAssignDifficultyPeriod(history, { timestamp: RETARGET_MS + 1000, difficultyTarget: 6837 }), 2);
+});
+
+test('Difficulty History keeps repeated targets on their own rows', () => {
+    const { _sfAssignDifficultyPeriod } = loadAssignHelpers();
+    const history = [
+        { date: '2026-07-02', target: 10000, label: '+50%' },
+        { date: '2026-07-10', target: 8000, label: '+25%' },
+        { date: '2026-08-20', target: 10000, label: '-30%' },
+    ];
+    // July 10 10:28 AM ET, stored under the 10k target, must stay on the July 10k row,
+    // not the later August 10k row and not the 8k row that starts that calendar day.
+    const july = { timestamp: Date.parse('2026-07-10T14:28:55Z'), difficultyTarget: 10000 };
+    const sept = { timestamp: Date.parse('2026-09-09T10:44:53Z'), difficultyTarget: 10000 };
+    assert.strictEqual(_sfAssignDifficultyPeriod(history, july), 0);
+    assert.strictEqual(_sfAssignDifficultyPeriod(history, sept), 2);
+});
+
+test('client merge keeps the +265.7% label and the retarget timestamp', () => {
+    const src = read('satoshi-favor.js');
+    const start = src.indexOf('function _sfMergeDifficultyHistory');
+    const end = src.indexOf('window._sfMergeDifficultyHistory');
+    const merge = new Function(src.slice(start, end) + '; return _sfMergeDifficultyHistory;')();
+    const base = [
+        { date: '2026-10-01', target: 20000, label: '-50%', hashes: null, luck: null },
+        { date: '2026-11-07', target: 25000, label: '-20%', hashes: null, luck: null },
+    ];
+    const out = merge(base, [
+        { date: '2026-11-07', target: 25000, label: '-20%', since: 1794013380658 },
+        { date: '2026-11-14', target: 6837, label: '+265.7%', since: 1794655819097 },
+    ]);
+    assert.deepStrictEqual(out.map((r) => r.target), [20000, 25000, 6837]);
+    assert.strictEqual(out[2].label, '+265.7%');
+    assert.strictEqual(out[2].since, 1794655819097);
+    assert.strictEqual(out[1].since, 1794013380658);
+    assert.strictEqual(out[1].liveStats, true);
+    const q = read('quests.js');
+    assert.ok(q.includes('_sfAssignDifficultyPeriod(_dh, doc.data())'));
+    assert.ok(!q.includes('var periodStarts = _dh.map(function(row) { return new Date(row.date).getTime(); });'));
 });
 
 Promise.all(queue).then(() => {

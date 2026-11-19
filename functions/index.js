@@ -7007,6 +7007,15 @@ exports.favorDifficultyRetarget = onSchedule({ schedule: '*/30 * * * *', timeZon
     console.log('[SF-RETARGET]', JSON.stringify(result));
 });
 
+// Favor per-block self-claim (Phil, Nov 14 2026): no admin approve step.
+// Winners claim each archived block themselves; see src/favorBlockClaims.js.
+const favorBlockClaimFns = require('./src/favorBlockClaimsFns').factory(functionsV1, { db: db, admin: admin });
+exports.claimFavorBlock = favorBlockClaimFns.claimFavorBlock;
+exports.myFavorEpochClaims = favorBlockClaimFns.myFavorEpochClaims;
+exports.adminSetFavorClaims = favorBlockClaimFns.adminSetFavorClaims;
+exports.adminFreezeFavorEpoch = favorBlockClaimFns.adminFreezeFavorEpoch;
+exports.adminResolveFavorReview = favorBlockClaimFns.adminResolveFavorReview;
+
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
 // The same private minute job posts the one ending heads-up. No public invoker.
 const { announceFavorEnding } = require('./src/favorEndingAnnounce');
@@ -9785,7 +9794,9 @@ exports.tctvDripTick = tctvDrip.tctvDripTick;
 const factionRace = require('./src/factionRaceJobs').factory({ functionsV1, admin, db, onDocumentWritten });
 exports.onFactionTotalsWritten = factionRace.onFactionTotalsWritten;
 exports.adminFactionRaceBreakdown = factionRace.adminFactionRaceBreakdown;
-exports.adminApproveFactionPayout = factionRace.adminApproveFactionPayout;
+// adminApproveFactionPayout (and the old Favor approve step) are NOT
+// exported, so a deploy can never ship them (Red Team #311). The handler
+// code stays in factionRaceJobs.js for reference; it is never deployed.
 
 // ================================================================
 // KILL SWITCH — admin-only app-wide offline switch (config/killSwitch).

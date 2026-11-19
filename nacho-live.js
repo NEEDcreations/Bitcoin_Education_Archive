@@ -135,8 +135,9 @@ function initTicker() {
             let html = '';
             data.news.forEach((n, i) => { 
                 var safeTitle = (typeof escapeHtml === 'function' ? escapeHtml(n.title) : n.title.replace(/<[^>]+>/g, '')).toUpperCase();
-                var safeLink = (n.link && /^https:\/\//.test(n.link)) ? n.link : '#';
-                html += '<a href="' + safeLink + '" rel="noopener" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + safeLink + '\',\'_blank\',\'noopener,noreferrer\');"><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>'; 
+                var safeLink = (typeof n.link === 'string' && /^https:\/\/[^\s'"<>\\`]+$/.test(n.link)) ? n.link : '';
+                if (!safeLink) return;
+                html += '<a href="' + safeLink + '" target="_blank" rel="noopener noreferrer" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" onclick="event.stopPropagation();"><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>'; 
             });
             itemsSets.forEach(el => el.innerHTML = html);
         }
@@ -157,8 +158,9 @@ function initTicker() {
                 var html = '';
                 data.news.slice(0, 3).forEach(function(n, i) {
                     var safeTitle = (typeof escapeHtml === 'function' ? escapeHtml(n.title) : n.title.replace(/<[^>]+>/g, '')).toUpperCase();
-                    var safeLink = (n.link && /^https:\/\//.test(n.link)) ? n.link : '#';
-                    html += '<a href="' + safeLink + '" rel="noopener" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + safeLink + '\',\'_blank\',\'noopener,noreferrer\');"><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>';
+                    var safeLink = (typeof n.link === 'string' && /^https:\/\/[^\s'"<>\\`]+$/.test(n.link)) ? n.link : '';
+                    if (!safeLink) return;
+                html += '<a href="' + safeLink + '" target="_blank" rel="noopener noreferrer" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" onclick="event.stopPropagation();"><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>';
                 });
                 // Only update DOM if content actually changed (avoids animation restart)
                 if (html !== _lastSignalHtml) {

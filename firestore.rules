@@ -1267,10 +1267,27 @@ service cloud.firestore {
     // =============================================
     // DIRECT MESSAGES
     // =============================================
+    function dmConvoShapeOk(convoId, data) {
+      return data.participants is list
+        && data.participants.size() == 2
+        && data.participants[0] is string
+        && data.participants[1] is string
+        && data.participants[0] != data.participants[1]
+        && convoId == (data.participants[0] < data.participants[1]
+                        ? data.participants[0] + '_' + data.participants[1]
+                        : data.participants[1] + '_' + data.participants[0]);
+    }
     match /dm_conversations/{convoId} {
       allow read: if request.auth != null
                   && request.auth.uid in resource.data.participants;
+      // F-004: a conversation is exactly two different people, the creator is
+      // one of them, and the doc id is the two uids sorted and joined with '_'
+      // (getConversationId() in messaging.js, _getBuddyConvoId() in
+      // bitcoin-buddy.js). Without the id check anyone could create
+      // dm_conversations/{victim_attacker} and pass the DM image read gate.
+      // participants and participantNames cannot change after create (update).
       allow create: if clientWritesOk() && (request.auth != null
+                    && dmConvoShapeOk(convoId, request.resource.data)
                     && request.auth.uid in request.resource.data.participants
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     // participantNames values must be strings ≤ 60 chars; no injecting arbitrary values
@@ -1278,22 +1295,51 @@ service cloud.firestore {
                         || (request.resource.data.participantNames is map
                             && request.resource.data.participantNames.keys().hasOnly(request.resource.data.participants)
                             && request.resource.data.participantNames.values().toSet().size() <= 2)));
+      // F-004 F1: an old doc that fails the create shape (squatted sorted-pair
+      // id, 3+ people) can no longer be updated, so a real member's metadata
+      // (lastMessage) never lands in it. List/get stay as before: a list
+      // query cannot prove the id shape, and those docs carry no new data.
       allow update: if clientWritesOk() && (request.auth != null
                     && request.auth.uid in resource.data.participants
+                    && dmConvoShapeOk(convoId, resource.data)
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt']));
+
+      // Caller is a member of this conversation AND the conversation has the
+      // valid shape (2 different uids, id == sorted pair). One get(), cached.
+      function dmMemberOfValidConvo() {
+        let convo = get(/databases/$(database)/documents/dm_conversations/$(convoId)).data;
+        return request.auth.uid in convo.participants
+          && dmConvoShapeOk(convoId, convo);
+      }
+
+      // F-004 F3: a DM image must be the sender's own upload in this project's
+      // Storage (live or staging bucket, legacy or per-conversation folder), as
+      // written by getDownloadURL(). GIFs (isGif == true) may come from the
+      // Giphy/Tenor CDNs the GIF picker uses. Anything else (tracking pixels,
+      // other hosts) is refused. getDownloadURL percent-encodes the path, so
+      // the ':' in nostr:/ln: uids appears as %3A.
+      function dmImageUrlOk(d) {
+        return !('imageUrl' in d)
+          || (d.imageUrl is string
+              && d.imageUrl.size() <= 2048
+              && (d.imageUrl.matches('^https://firebasestorage[.]googleapis[.]com/v0/b/(bitcoin-education-archive|bitcoin-quest-staging)[.]firebasestorage[.]app/o/dm-images%2F'
+                                     + request.auth.uid.replace(':', '%3A') + '%2F[A-Za-z0-9._%-]+[?]alt=media&token=[A-Za-z0-9-]+$')
+                  || (d.get('isGif', false) == true
+                      && d.imageUrl.matches('^https://(media[0-9]?[.]giphy[.]com|i[.]giphy[.]com|media[.]tenor[.]com|c[.]tenor[.]com)/[^\\s"<>]+$'))));
+      }
 
       match /messages/{messageId} {
         allow read: if request.auth != null
-                    && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
+                    && dmMemberOfValidConvo();
         allow create: if clientWritesOk() && (request.auth != null
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                      && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
+                      && dmMemberOfValidConvo()
                       && request.resource.data.senderUid == request.auth.uid
                       && request.resource.data.text is string
                       && request.resource.data.text.size() <= 1000
                       && !('isNachoAuto' in request.resource.data)
-                      && (request.resource.data.text.size() >= 1 || ('imageUrl' in request.resource.data && request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')))
-                      && (!('imageUrl' in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*'))));
+                      && (request.resource.data.text.size() >= 1 || 'imageUrl' in request.resource.data)
+                      && dmImageUrlOk(request.resource.data));
       }
     }
 
@@ -2469,6 +2515,41 @@ service cloud.firestore {
 
     // Personal bests — public read, server writes
     // Personal bests — legacy parent doc (read-only, server writes)
+    // Favor epoch / window payout results — admin reads via callables; clients cannot write.
+    match /sf_payout_results/{resultId} {
+      allow read: if isAdmin();
+      allow write: if false;
+      match /{sub}/{docId} {
+        allow read: if isAdmin();
+        allow write: if false;
+      }
+    }
+    // Favor per-block self-claims. Server (Admin SDK) only: clients can never
+    // create, edit or delete a claim, a payout record, a counter or an audit
+    // row. sf_block_payouts and sf_claim_audit are permanent, write-once records.
+    match /sf_block_claims/{claimId} {
+      allow read, write: if false;
+    }
+    match /sf_block_payouts/{claimId} {
+      allow read, write: if false;
+    }
+    match /sf_claim_counters/{id} {
+      allow read, write: if false;
+    }
+    match /sf_claim_audit/{id} {
+      allow read, write: if false;
+    }
+    match /sf_payout_site_daily/{day} {
+      allow read, write: if false;
+    }
+    match /sf_payout_locks/{id} {
+      allow read, write: if false;
+    }
+    match /config/satoshiFavorPayouts {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /satoshiFavor/personalBests {
       allow read: if true;
       allow write: if false;
@@ -2774,6 +2855,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /tctv_drip_history/{docId} {
+      allow read, write: if false;
+    }
+
+    // TCTV pot backfill audit. Server-only deny-all. Permanent record:
+    // keep out of every cleanup. Account deletion masks the uid and
+    // keeps the row (same idea as survey_audit).
+    match /tctv_drip_backfill_audit/{docId} {
       allow read, write: if false;
     }
 
