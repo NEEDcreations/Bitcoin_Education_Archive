@@ -18,7 +18,7 @@ function loadHelpers() {
     sandbox.window = sandbox;
     vm.createContext(sandbox);
     vm.runInContext([
-        H.sliceBetween(SRC, 'var TIP_ID_RE =', 'window._tipIdOk = tipIdOk;'),
+        H.sliceBetween(SRC, 'var TIP_ID_RE =', SRC.indexOf('window._tipUidOk = tipUidOk;') !== -1 ? 'window._tipUidOk = tipUidOk;' : 'window._tipIdOk = tipIdOk;'),
         H.sliceFunction(SRC, 'function tipBindDm('),
     ].join('\n'), sandbox, { filename: 'lightning-tips.js.src' });
     return { win: sandbox, calls: calls };

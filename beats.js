@@ -7,10 +7,13 @@
 var BEATS_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 function beatsIdOk(v) { return typeof v === 'string' && BEATS_ID_RE.test(v); }
 window._beatsIdOk = beatsIdOk;
+// Account ids may also be nostr:<hex> or ln:<key>; doc ids stay strict.
+var BEATS_UID_RE = /^[A-Za-z0-9_:-]{1,128}$/;
+function beatsUidOk(v) { return typeof v === 'string' && BEATS_UID_RE.test(v); }
 // Tip display name for an artist: public profile username, else 'Artist'.
 var _beatsArtistNames = new Map();
 function beatsArtistName(uid) {
-    if (!beatsIdOk(uid) || typeof db === 'undefined' || !db) return Promise.resolve('Artist');
+    if (!beatsUidOk(uid) || typeof db === 'undefined' || !db) return Promise.resolve('Artist');
     if (_beatsArtistNames.has(uid)) return _beatsArtistNames.get(uid);
     if (_beatsArtistNames.size >= 200) _beatsArtistNames.clear();
     var p = Promise.resolve().then(function() {
@@ -37,7 +40,7 @@ function beatsTrackPayee(trackId) {
         return db.collection('beats_tracks').doc(trackId).get();
     }).then(function(snap) {
         var t = snap && snap.exists && typeof snap.data === 'function' ? snap.data() : null;
-        if (!t || !beatsIdOk(t.authorId)) return null;
+        if (!t || !beatsUidOk(t.authorId)) return null;
         var title = (typeof t.title === 'string' && t.title) ? t.title.slice(0, 128) : 'Unknown';
         return beatsArtistName(t.authorId).then(function(name) {
             return { uid: t.authorId, name: name, title: title };
@@ -51,7 +54,7 @@ function beatsTrackPayee(trackId) {
 }
 function _beatsAttr(v) { return typeof escapeHtml === 'function' ? escapeHtml(String(v == null ? '' : v)) : String(v == null ? '' : v).replace(/[&<>"']/g, ''); }
 function _beatsRm(id) { var o = document.getElementById(id); if (o) o.remove(); }
-function _beatsTip(d) { if (beatsIdOk(d.author) && typeof beatsTipCurrentArtistById === 'function') beatsTipCurrentArtistById(d.author, d.id); }
+function _beatsTip(d) { if (beatsUidOk(d.author) && typeof beatsTipCurrentArtistById === 'function') beatsTipCurrentArtistById(d.author, d.id); }
 var BEATS_ACTIONS = {
     'comments': { stop: true, fn: function(el, d) { beatsShowComments(d.id); } },
     'comments-detail': { stop: true, fn: function(el, d) { beatsShowComments(d.id); _beatsRm('beatsDetailOverlay'); } },

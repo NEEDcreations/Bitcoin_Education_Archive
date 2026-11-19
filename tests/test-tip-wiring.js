@@ -922,4 +922,145 @@ test('track tip by id: the viewer\'s own track offers no tip', async () => {
     assert.strictEqual(env.tipCalls.length, 0);
 });
 
+// ---------- account id formats ----------
+const NOSTR_UID = 'nostr:' + 'ab12'.repeat(16);
+const LN_UID = 'ln:02' + 'c3'.repeat(32);
+const JUNK_UIDS = ['a b', 'x/y', '../users/x', 'a<b', '<img>', 'x'.repeat(129), ''];
+
+function gcActionEnv() {
+    const calls = { tip: [], profile: [], dm: [], del: [] };
+    const sandbox = {
+        console: quiet, setTimeout: function(fn) { fn(); return 0; },
+        showTipOverlay: function(o) { calls.tip.push(o); },
+        showUserProfile: function(u) { calls.profile.push(u); },
+        toggleChatOverlay: function() {}, openDM: function(u) { calls.dm.push(u); },
+        deleteChatMsg: function(id) { calls.del.push(id); },
+    };
+    sandbox.window = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(GC.slice(GC.indexOf('var GC_ID_RE'), GC.indexOf('window._gcBindActions')) +
+        '\nwindow.__gcOnAction = gcOnAction; window.__gcSetMsg = function(m) { _gcMsgById[m._id] = m; };', sandbox);
+    function act(name, id) {
+        const el = makeNode('button');
+        el.setAttribute('data-gc-action', name);
+        if (id !== null && id !== undefined) el.setAttribute('data-id', String(id));
+        el.closest = function() { return el; };
+        sandbox.__gcOnAction.call({ contains: function() { return true; } }, { target: el, stopPropagation: function() {} });
+    }
+    return { sandbox: sandbox, calls: calls, act: act };
+}
+
+test('uid formats: chat tip, profile and dm accept nostr and ln account ids', () => {
+    const env = gcActionEnv();
+    [NOSTR_UID, LN_UID].forEach(function(uid, i) {
+        env.sandbox.__gcSetMsg({ _id: 'msg' + i, uid: uid, name: 'N' + i });
+        env.act('tip', 'msg' + i);
+        env.act('profile', uid);
+        env.act('dm', uid);
+    });
+    assert.deepStrictEqual(env.calls.tip.map(function(o) { return o.recipientUid; }), [NOSTR_UID, LN_UID]);
+    assert.deepStrictEqual(env.calls.profile, [NOSTR_UID, LN_UID]);
+    assert.deepStrictEqual(env.calls.dm, [NOSTR_UID, LN_UID]);
+});
+
+test('uid formats: chat refuses junk account ids and keeps message ids strict', () => {
+    const env = gcActionEnv();
+    JUNK_UIDS.forEach(function(bad, i) {
+        env.sandbox.__gcSetMsg({ _id: 'junk' + i, uid: bad, name: 'J' });
+        env.act('tip', 'junk' + i);
+        env.act('profile', bad);
+        env.act('dm', bad);
+    });
+    env.act('del', 'ab:cd');
+    env.act('del', 'msg_ok');
+    assert.strictEqual(env.calls.tip.length, 0);
+    assert.strictEqual(env.calls.profile.length, 0);
+    assert.strictEqual(env.calls.dm.length, 0);
+    assert.deepStrictEqual(env.calls.del, ['msg_ok']);
+});
+
+test('uid formats: DJ bar links nostr and ln account ids', () => {
+    const env = djEnv();
+    env.loadGc();
+    env.show({ djUid: NOSTR_UID, artistUid: LN_UID });
+    const bar = env.sandbox.document.getElementById('djNowPlaying');
+    const ids = bar.querySelectorAll('[data-gc-action="profile"]').map(function(b) { return b.getAttribute('data-id'); });
+    assert.ok(ids.indexOf(NOSTR_UID) !== -1, 'dj profile link');
+    env.show({ djUid: 'a b', artistUid: 'x/y' });
+    const bar2 = env.sandbox.document.getElementById('djNowPlaying');
+    assert.ok(bar2.querySelectorAll('[data-gc-action="profile"]').every(function(b) { return ['a b', 'x/y'].indexOf(b.getAttribute('data-id')) === -1; }));
+});
+
+test('uid formats: track tips pay nostr and ln authors, names follow them', async () => {
+    TRACKS.trackNostr = { authorId: NOSTR_UID, title: 'N Song' };
+    TRACKS.trackLn = { authorId: LN_UID, title: 'L Song' };
+    try {
+        const env = beatCardEnv(TI_SRC, { profiles: Object.assign({}, PROFILES, { [NOSTR_UID]: { username: 'nostr_name' }, [LN_UID]: { username: 'ln_name' } }) });
+        env.sandbox.beatsTipCurrentArtistById('ignored', 'trackNostr');
+        env.sandbox.beatsTipCurrentArtistById('ignored', 'trackLn');
+        await settle();
+        assert.deepStrictEqual(env.tipCalls.map(function(c) { return [c.recipientUid, c.recipientName]; }), [[NOSTR_UID, 'nostr_name'], [LN_UID, 'ln_name']]);
+    } finally {
+        delete TRACKS.trackNostr; delete TRACKS.trackLn;
+    }
+});
+
+test('uid formats: track tips refuse junk author ids, track ids stay strict', async () => {
+    const saved = [];
+    JUNK_UIDS.concat([null, 42]).forEach(function(bad, i) { TRACKS['trackJunk' + i] = { authorId: bad, title: 'J' }; saved.push('trackJunk' + i); });
+    try {
+        const env = beatCardEnv(TI_SRC);
+        saved.forEach(function(id) { env.sandbox.beatsTipCurrentArtistById('realArtist01', id); });
+        env.sandbox.beatsTipCurrentArtistById('realArtist01', 'track:01');
+        await settle();
+        assert.strictEqual(env.tipCalls.length, 0);
+        assert.ok(env.reads.indexOf('beats_tracks/track:01') === -1, 'track id with a colon is not read');
+        assert.ok(env.reads.every(function(r) { return r.indexOf('public_profiles/') !== 0; }));
+    } finally {
+        saved.forEach(function(id) { delete TRACKS[id]; });
+    }
+});
+
+const LT_SRC = H.read('lightning-tips.js.src');
+function tipDmEnv(code) {
+    const opened = [], went = [];
+    const sandbox = { console: quiet, openDMConversation: function(u) { opened.push(u); }, go: function(r) { went.push(r); } };
+    sandbox.window = sandbox;
+    vm.createContext(sandbox);
+    const head = code.indexOf('var TIP_ID_RE');
+    vm.runInContext(code.slice(head, code.indexOf('\n', code.indexOf('window._tipIdOk', head)) + 1) +
+        (code.indexOf('var TIP_UID_RE') !== -1 ? code.slice(code.indexOf('var TIP_UID_RE'), code.indexOf('window._tipUidOk')) : '') +
+        H.sliceFunction(code, 'function tipBindDm(') + '\nwindow.__bind = tipBindDm;', sandbox);
+    return {
+        opened: opened, went: went,
+        click: function(uid) {
+            const box = makeNode('div');
+            const btn = makeNode('button'); btn.setAttribute('data-tip-action', 'dm');
+            box.appendChild(btn);
+            btn.closest = function(sel) { return sel === '[data-tip-action]' ? btn : null; };
+            sandbox.__bind(box, { recipientUid: uid, recipientName: 'R' }, 21);
+            box.listeners.click[0]({ target: btn });
+        },
+    };
+}
+
+test('uid formats: tip DM fallback opens nostr and ln threads, junk goes to the inbox', () => {
+    const env = tipDmEnv(LT_SRC);
+    env.click(NOSTR_UID);
+    env.click(LN_UID);
+    JUNK_UIDS.forEach(function(bad) { env.click(bad); });
+    assert.deepStrictEqual(env.opened, [NOSTR_UID, LN_UID]);
+    assert.strictEqual(env.went.length, JUNK_UIDS.length);
+});
+
+test('uid formats: the shipped tips file has the account id check', () => {
+    const MIN = H.read('lightning-tips.js');
+    const m = /TIP_UID_RE=(\/[^\n]*?\/);/.exec(MIN);
+    assert.ok(m, 'uid pattern in the shipped file');
+    const re = vm.runInNewContext(m[1]);
+    assert.ok(re.test(NOSTR_UID) && re.test(LN_UID));
+    JUNK_UIDS.forEach(function(bad) { assert.ok(typeof bad !== 'string' || !re.test(bad), String(bad)); });
+    assert.ok(/tipUidOk\(/.test(MIN.slice(MIN.indexOf('function tipBindDm'))), 'DM fallback uses it');
+});
+
 run();

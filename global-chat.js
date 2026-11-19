@@ -321,6 +321,11 @@ function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 var GC_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 function gcIdOk(v) { return typeof v === 'string' && GC_ID_RE.test(v); }
 window._gcIdOk = gcIdOk;
+// Account ids may also be nostr:<hex> or ln:<key>; message ids stay strict.
+var GC_UID_RE = /^[A-Za-z0-9_:-]{1,128}$/;
+function gcUidOk(v) { return typeof v === 'string' && GC_UID_RE.test(v); }
+window._gcUidOk = gcUidOk;
+var GC_UID_ACTIONS = { profile: true, dm: true };
 var _gcMsgById = {};
 var _gcDmNames = {};
 function gcMsgFor(id) { return Object.prototype.hasOwnProperty.call(_gcMsgById, id) ? _gcMsgById[id] : null; }
@@ -337,7 +342,7 @@ var GC_ACTIONS = {
     del: function(el, id) { if (typeof deleteChatMsg === 'function') deleteChatMsg(id); },
     tip: function(el, id) {
         var m = gcMsgFor(id);
-        if (!m || typeof m.uid !== 'string' || !gcIdOk(m.uid) || typeof showTipOverlay !== 'function') return;
+        if (!m || typeof m.uid !== 'string' || !gcUidOk(m.uid) || typeof showTipOverlay !== 'function') return;
         showTipOverlay({ recipientName: (typeof m.name === 'string' && m.name) ? m.name : 'Anon', recipientUid: m.uid, context: 'Global Chat tip', label: 'Tip Message' });
     },
     dm: function(el, id) {
@@ -352,7 +357,8 @@ function gcOnAction(ev) {
     if (!el || !this.contains(el)) return;
     var act = el.getAttribute('data-gc-action') || '';
     var id = el.getAttribute('data-id') || '';
-    if (!Object.prototype.hasOwnProperty.call(GC_ACTIONS, act) || !gcIdOk(id)) return;
+    if (!Object.prototype.hasOwnProperty.call(GC_ACTIONS, act)) return;
+    if (!(Object.prototype.hasOwnProperty.call(GC_UID_ACTIONS, act) ? gcUidOk(id) : gcIdOk(id))) return;
     if (act === 'tip' || act === 'dm') ev.stopPropagation();
     GC_ACTIONS[act](el, id, ev);
 }
@@ -692,7 +698,7 @@ function renderChatMessages(msgs) {
         var nameClick = '';
         if (!isDeleted) {
             nameStyle += 'cursor:pointer;';
-            nameClick = gcIdOk(String(m.uid || '')) ? ' data-gc-action="profile" data-id="' + esc(String(m.uid)) + '"' : '';
+            nameClick = gcUidOk(String(m.uid || '')) ? ' data-gc-action="profile" data-id="' + esc(String(m.uid)) + '"' : '';
         }
         var _coreTitle = (!isNacho && m.hasCoreContributor) ? ' <span title="Core Contributor — BIP Breakthrough" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.35);color:#f97316;vertical-align:middle;">🔧 Core Contributor</span>' : '';
         _coreTitle += (!isNacho && m.hasFactionChampion) ? (function(){ var _fl = ({'🐝👑':'Hive Mind Champion','🦡👑':"Honey Badger Don't Care Champion",'🐝🛡️':'Still Buzzing','🦡🛡️':"Badger Don't Quit"})[m.factionRaceFlair]; return _fl ? ' <span title="Faction race" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">' + esc(m.factionRaceFlair + ' ' + _fl) + '</span>' : null; })() || ' <span title="Faction race champion" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">👑 Race Champion</span>' : '';
@@ -2129,7 +2135,7 @@ function renderOverlayChat() {
                         if (lastMsg.length > 40) lastMsg = lastMsg.substring(0, 40) + '...';
                         var lastTime = c.lastMessageTime ? timeAgo(c.lastMessageTime) : '';
                         var isFromMe = c.lastSenderUid === myUid;
-                        if (!gcIdOk(String(otherUid || ''))) return;
+                        if (!gcUidOk(String(otherUid || ''))) return;
                         _gcDmNames[otherUid] = String(otherName);
                         html += '<div data-gc-action="dm" data-id="' + esc(String(otherUid)) + '" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'rgba(249,115,22,0.3)' : 'transparent') + ';background:' + (unread > 0 ? 'rgba(249,115,22,0.05)' : 'none') + ';margin-bottom:4px;">' +
                             '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
@@ -2158,7 +2164,7 @@ function renderOverlayChat() {
                                 var otherUid = c.participants.find(function(p) { return p !== myUid; });
                                 var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
                                 var unread = c['unread_' + myUid] || 0;
-                                if (!gcIdOk(String(otherUid || ''))) return;
+                                if (!gcUidOk(String(otherUid || ''))) return;
                                 _gcDmNames[otherUid] = String(otherName);
                                 html += '<div data-gc-action="dm" data-id="' + esc(String(otherUid)) + '" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;">' +
                                     '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
@@ -3655,8 +3661,8 @@ function showDJBar(d) {
         djActionBtn = '<button id="djTuneBtn" onclick="' + (_djListening ? 'djStopListening()' : 'djTuneIn()') + '" style="padding:6px 10px;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;' + (_djListening ? 'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;' : 'background:rgba(239,68,68,0.1);border:2px solid #ef4444;color:#ef4444;animation:djPulse 1.5s ease-in-out infinite;') + '">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>';
     }
 
-    var _djUidOk = gcIdOk(String(d.djUid || ''));
-    var _artistUidOk = gcIdOk(String(d.artistUid || ''));
+    var _djUidOk = gcUidOk(String(d.djUid || ''));
+    var _artistUidOk = gcUidOk(String(d.artistUid || ''));
     var _trackIdOk = gcIdOk(String(d.trackId || ''));
     var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span' + (_djUidOk ? ' data-gc-action="profile" data-id="' + esc(String(d.djUid)) + '"' : '') + ' style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
 

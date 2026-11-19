@@ -13,6 +13,10 @@
 var TIP_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 function tipIdOk(v) { return typeof v === 'string' && TIP_ID_RE.test(v); }
 window._tipIdOk = tipIdOk;
+// Account ids may also be nostr:<hex> or ln:<key>.
+var TIP_UID_RE = /^[A-Za-z0-9_:-]{1,128}$/;
+function tipUidOk(v) { return typeof v === 'string' && TIP_UID_RE.test(v); }
+window._tipUidOk = tipUidOk;
 var TIP_BOLT11_RE = /^ln(?:bc|tb|bcrt)[qpzry9x8gf2tvdw0s3jn54khce6mua7l1]+$/i;
 function tipBolt11Ok(v) { return typeof v === 'string' && v.length >= 20 && v.length <= 2048 && TIP_BOLT11_RE.test(v); }
 window._tipBolt11Ok = tipBolt11Ok;
@@ -41,7 +45,7 @@ function tipBindDm(box, opts, amount) {
         if (!el || !box.contains(el) || el.getAttribute('data-tip-action') !== 'dm') return;
         var ov = el.closest('[id=tipOverlay]');
         if (ov) ov.remove();
-        if (tipIdOk(uid) && typeof openDMConversation === 'function') openDMConversation(uid, name, '\u26a1 Tip: ' + sats + ' sats');
+        if (tipUidOk(uid) && typeof openDMConversation === 'function') openDMConversation(uid, name, '\u26a1 Tip: ' + sats + ' sats');
         else if (typeof go === 'function') go('dms');
     });
 }
