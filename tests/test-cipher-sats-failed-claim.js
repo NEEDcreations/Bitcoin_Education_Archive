@@ -163,7 +163,11 @@ test('claimCipherSats wiring: wait checked in the claim transaction, release onl
     // payCipherBalanceInvoice reports which side failed; lookups that are not failed hold.
     assert.ok(/kind: faucetGuard\.definiteFailureKind\(\{ phase: phase, error: payError \}\)/.test(src));
     // K1: a pay-phase refusal is looked up; release only on a confirmed failed lookup.
-    assert.ok(/if \(refused && phase !== 'pay'\) \{/.test(src));
+    // N5: payErrorAction no longer releases pay-phase refusals, so only a
+    // balance-phase failure skips the lookup.
+    const payFn = src.slice(src.indexOf('async function payCipherBalanceInvoice'), src.indexOf('async function finishCipherClaim'));
+    assert.ok(/if \(!shouldLookupPay\(\{ phase: phase, error: payError, payResult: payResult \}\)\) \{/.test(payFn));
+    assert.ok(/kind: explicitPayRefusal\(payError\) \? faucetGuard\.definiteFailureKind/.test(payFn));
     // Inconclusive lookups (pending, empty, error, unclassified) hold, even after a refusal.
     assert.ok(src.indexOf("refund_only") === -1);
     assert.ok(/failKind = paid\.kind \|\| 'theirs';/.test(src));

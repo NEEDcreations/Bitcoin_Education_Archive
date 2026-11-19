@@ -78,14 +78,15 @@ function explicitPayRefusal(error) {
     return EXPLICIT_PAY_REFUSALS.indexOf(code) !== -1;
 }
 
-// Release only when nothing was sent (still on the balance check) or the wallet
-// explicitly refused. Every other pay-phase error, including timeouts, relay
-// drops, and INTERNAL/OTHER, must be looked up.
+// Release only when nothing was sent (still on the balance check, before the
+// pay call). Every pay-phase error is looked up first, including an explicit
+// refusal code: a node can report PAYMENT_FAILED while an HTLC is still in
+// flight, so only a lookup that says failed may release. Callers that need to
+// know whether the error was an explicit refusal use explicitPayRefusal().
 function payErrorAction(info) {
     const src = info || {};
     if (src.payResult && src.payResult.preimage) return 'paid';
     if (src.phase !== 'pay') return 'release';
-    if (explicitPayRefusal(src.error)) return 'release';
     return 'lookup';
 }
 

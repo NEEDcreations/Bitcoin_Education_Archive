@@ -42,6 +42,7 @@ const {
     rewardBlocked,
     SATS_BANNED_ERROR,
     lookupRequestFromDecoded,
+    explicitPayRefusal,
     shouldLookupPay,
     lookupSettlement,
     classifyLookup,
@@ -1300,9 +1301,26 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         return { success: false, error: e.message || 'Could not reserve that invoice.' };
     }
 
+    // Only for failures before the pay call (nothing left the wallet).
     async function releaseUnpaid() {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         await invoiceRef.delete().catch(function() {});
+    }
+
+    // After a lookup confirmed the payment failed. The win goes back to
+    // claimable, but the invoice row is kept as 'failed' with its payment hash
+    // (never deleted) so the same invoice cannot be reused and reconcile can
+    // recheck it if it settles later.
+    async function releaseAfterFailedLookup(paymentHash) {
+        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        await invoiceRef.set({
+            uid: uid,
+            winId: winId,
+            amount: amount,
+            status: 'failed',
+            paymentHash: paymentHash || '',
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true }).catch(function() {});
     }
 
     async function holdUnknown(paymentHash) {
@@ -1389,11 +1407,11 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
 
     if (payResult && payResult.preimage) return markPaid(payResult.preimage, payResult);
 
-    // Balance-check failures never reached the wallet. Explicit refusals
-    // (PAYMENT_FAILED, INSUFFICIENT_BALANCE, QUOTA_EXCEEDED, RATE_LIMITED)
-    // prove nothing was sent. Anything else is looked up below.
+    // Balance-check failures never reached the wallet, so they release here.
+    // Every pay-phase error, including an explicit refusal code such as
+    // PAYMENT_FAILED, is looked up below first: an HTLC can still be in flight.
     if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {
-        console.error('[claimCipherWin] pay refused before send:', payError && payError.message);
+        console.error('[claimCipherWin] pay not started:', payError && payError.message);
         await releaseUnpaid();
         if (payError && payError.message === 'WALLET_LOW') {
             return { success: false, error: 'The prize wallet is being refilled. Try again later, or Phil can mark it paid.' };
@@ -1427,10 +1445,11 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
 
     if (settlement.action === 'paid') return markPaid(settlement.preimage || '');
     if (settlement.action === 'release') {
-        await releaseUnpaid();
-        return { success: false, error: 'Payment failed. Your prize is still waiting.' };
+        await releaseAfterFailedLookup(lookupReq.payment_hash);
+        return { success: false, error: 'Payment failed. Your prize is still waiting. Make a new invoice to try again.' };
     }
 
+    // pending, error, empty or unclassified: hold, keep the invoice row.
     try { await holdUnknown(lookupReq.payment_hash); }
     catch (e) { console.error('[claimCipherWin] could not hold win:', e.message); }
     return { success: false, error: holdMessage };
@@ -1647,8 +1666,7 @@ async function payCipherBalanceInvoice(invoice, stagingMock) {
         payError = e;
     }
     if (payResult && payResult.preimage) return { action: 'paid', payResult: payResult };
-    const refused = !shouldLookupPay({ phase: phase, error: payError, payResult: payResult });
-    if (refused && phase !== 'pay') {
+    if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {
         // The send never started (our node, before the pay call).
         return {
             action: 'release',
@@ -1675,7 +1693,7 @@ async function payCipherBalanceInvoice(invoice, stagingMock) {
         return {
             action: 'release',
             low: false,
-            kind: refused ? faucetGuard.definiteFailureKind({ phase: phase, error: payError }) : 'theirs',
+            kind: explicitPayRefusal(payError) ? faucetGuard.definiteFailureKind({ phase: phase, error: payError }) : 'theirs',
         };
     }
     // Anything the lookup could not confirm as failed (pending, empty, error,
