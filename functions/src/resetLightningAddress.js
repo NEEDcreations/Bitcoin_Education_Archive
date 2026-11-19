@@ -213,8 +213,13 @@ function createResetHandlers(deps) {
                 }
 
                 const stamp = admin.firestore.FieldValue.serverTimestamp();
-                if (freshUser.exists) t.set(userRef, { lightning: next, lightningAddress: next }, { merge: true });
-                else t.set(userRef, { lightning: next, lightningAddress: next });
+                const userPatch = {
+                    lightning: next,
+                    lightningAddress: next,
+                    lightningAddressChangedAt: stamp,
+                };
+                if (freshUser.exists) t.set(userRef, userPatch, { merge: true });
+                else t.set(userRef, userPatch);
                 if (!lockDoc.exists) {
                     t.set(lockRef, { uid: uid, address: next, lockedAt: stamp });
                 }

@@ -2041,6 +2041,8 @@ exports.claimSats = functionsV1.runWith({
                     deny('Cooldown active. Try again in ~' + hoursLeft + ' hour(s).');
                 }
             }
+            const addrHold = faucetGuard.assessAddressChangeHold(user, Date.now());
+            if (!addrHold.ok) deny(addrHold.error);
 
             const dailyUsed = dailyDoc.exists ? (dailyDoc.data().amount || 0) : 0;
             if (dailyUsed + amount > FAUCET.MAX_DAILY_PER_USER_SATS) {

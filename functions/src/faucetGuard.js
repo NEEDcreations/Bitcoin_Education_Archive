@@ -532,6 +532,37 @@ function buildAbuseReport(input) {
     };
 }
 
+
+// Wavelength Decision 4: payouts wait 48 hours after a Lightning Address reset.
+const ADDRESS_CHANGE_HOLD_MS = 48 * 60 * 60 * 1000;
+const ADDRESS_CHANGE_HOLD_ERROR = 'For safety, payouts are paused for 48 hours after you change your Lightning Address.';
+function _holdMillis(value) {
+    if (value == null) return 0;
+    if (typeof value === 'number' && isFinite(value) && value > 0) return value;
+    if (typeof value.toMillis === 'function') {
+        const ms = value.toMillis();
+        return typeof ms === 'number' && isFinite(ms) && ms > 0 ? ms : 0;
+    }
+    if (value instanceof Date) {
+        const ms = value.getTime();
+        return isFinite(ms) && ms > 0 ? ms : 0;
+    }
+    const seconds = typeof value.seconds === 'number' ? value.seconds
+        : (typeof value._seconds === 'number' ? value._seconds : null);
+    if (seconds == null) return 0;
+    return seconds * 1000;
+}
+function assessAddressChangeHold(user, nowMs) {
+    const now = typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : Date.now();
+    const at = _holdMillis(user && user.lightningAddressChangedAt);
+    if (!at) return { ok: true, untilMs: 0 };
+    const untilMs = at + ADDRESS_CHANGE_HOLD_MS;
+    if (now < untilMs) {
+        return { ok: false, error: ADDRESS_CHANGE_HOLD_ERROR, untilMs: untilMs };
+    }
+    return { ok: true, untilMs: untilMs };
+}
+
 module.exports = {
     MAX_PER_CLAIM_SATS: MAX_PER_CLAIM_SATS,
     MAX_DAILY_PER_USER_SATS: MAX_DAILY_PER_USER_SATS,
@@ -551,6 +582,9 @@ module.exports = {
     publicDisplayName: publicDisplayName,
     assessBan: assessBan,
     assessAddressLock: assessAddressLock,
+    ADDRESS_CHANGE_HOLD_MS: ADDRESS_CHANGE_HOLD_MS,
+    ADDRESS_CHANGE_HOLD_ERROR: ADDRESS_CHANGE_HOLD_ERROR,
+    assessAddressChangeHold: assessAddressChangeHold,
     assessFingerprint: assessFingerprint,
     fingerprintDocId: fingerprintDocId,
     addressRateDocId: addressRateDocId,

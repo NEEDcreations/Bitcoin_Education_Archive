@@ -535,6 +535,20 @@ test('K17: PvP anon prefixes group IPv6 by /64; other callers hash the raw pre-K
     assert.strictEqual(salt.networkRateDocIdFromSecret('recover_', 'a@example.com', day, secret), legacyEmail);
 });
 
+test('a Lightning Address change holds payouts for 48 hours', function () {
+    const now = 1_700_000_000_000;
+    const holdMs = guard.ADDRESS_CHANGE_HOLD_MS;
+    assert.strictEqual(holdMs, 48 * 60 * 60 * 1000);
+    assert.strictEqual(guard.assessAddressChangeHold({}, now).ok, true);
+    assert.strictEqual(guard.assessAddressChangeHold({ lightningAddressChangedAt: now }, now).ok, false);
+    assert.strictEqual(guard.assessAddressChangeHold({ lightningAddressChangedAt: now }, now).error, guard.ADDRESS_CHANGE_HOLD_ERROR);
+    assert.strictEqual(guard.assessAddressChangeHold({ lightningAddressChangedAt: now }, now + holdMs - 1).ok, false);
+    assert.strictEqual(guard.assessAddressChangeHold({ lightningAddressChangedAt: now }, now + holdMs).ok, true);
+    assert.strictEqual(guard.assessAddressChangeHold({
+        lightningAddressChangedAt: { toMillis: function () { return now; } },
+    }, now + 1000).ok, false);
+});
+
 Promise.all(queue).then(function() {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

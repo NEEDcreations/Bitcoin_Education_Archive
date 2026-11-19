@@ -247,6 +247,7 @@ queue.push(test('a broken address can be replaced once and the marker stores the
     assert.strictEqual(out.address, 'fresh@blink.sv');
     assert.strictEqual(mem.store['users/user1'].lightningAddress, 'fresh@blink.sv');
     assert.strictEqual(mem.store['users/user1'].lightning, 'fresh@blink.sv');
+    assert.ok(mem.store['users/user1'].lightningAddressChangedAt, 'reset stamps the 48h payout hold');
     assert.strictEqual(mem.store['ln_resets/user1'].domain, 'blink.sv');
     assert.strictEqual(mem.store['ln_resets/user1'].ln_reset_used.ts, 1);
     assert.ok(JSON.stringify(mem.store['ln_resets/user1']).indexOf('fresh@') === -1);
@@ -357,6 +358,30 @@ queue.push(test('a signed-out call is refused before the authenticator step', as
     assert.strictEqual(err.code, 'unauthenticated');
     assert.strictEqual(h.stepUpCalls.length, 0);
     assert.strictEqual(h.calls.length, 0);
+}));
+
+queue.push(test('a successful reset stamps lightningAddressChangedAt for the 48h payout hold', async function () {
+    const mem = memDb({
+        'users/user1': { lightningAddress: 'old@dead.example', emailVerified: true, providers: ['google.com'] },
+    });
+    const h = handlers(mem, async function (opts) {
+        if (opts.address === 'old@dead.example') {
+            const err = new Error('Could not resolve Lightning Address. Check the address and try again.');
+            err.code = 'resolve_failed';
+            throw err;
+        }
+        return { pr: 'lnbc', domain: 'blink.sv' };
+    });
+    const out = await h.api.resetLightningAddressOnce({
+        lightningAddress: 'fresh@blink.sv',
+        turnstileToken: 'ok',
+    }, signedIn('user1'));
+    assert.strictEqual(out.ok, true);
+    assert.ok(mem.store['users/user1'].lightningAddressChangedAt);
+    const resetSrc = fs.readFileSync(path.join(root, 'functions/src/resetLightningAddress.js'), 'utf8');
+    assert.ok(resetSrc.indexOf('lightningAddressChangedAt') !== -1);
+    const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
+    assert.ok(index.indexOf('assessAddressChangeHold') !== -1, 'claimSats must refuse payouts during the 48h hold');
 }));
 
 queue.push(test('rules deny client address edits once one is saved, and the reset doc is server-only', function () {
