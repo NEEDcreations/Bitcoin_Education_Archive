@@ -9033,6 +9033,12 @@ function isCleanText(text) {
 // Sanitize HTML
 function fEsc(str) { return typeof escapeHtml === 'function' ? escapeHtml(str) : String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// Topic-origin posts are plain user text. Escape first, then turn newlines into
+// breaks. Do not interpret markdown or raw hrefs from stored data.
+function forumPlainBodyHtml(text) {
+    return fEsc(String(text || '')).replace(/\n/g, '<br>');
+}
+
 // Time ago helper
 // [AUDIT FIX] timeAgo moved to utils.js
 
@@ -9360,11 +9366,16 @@ window.forumViewPost = async function(postId, fromPopState) {
             '</div>';
 
         if (p.body) {
-            // Simple markdown-ish: newlines to <br>, **bold**, links
-            var bodyHtml = fEsc(p.body).replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-            // Auto-link URLs — word-break:break-all prevents long URLs forcing horizontal scroll on mobile
-            bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;">$1</a>');
-            bodyHtml = forumRenderMentions(bodyHtml);
+            var bodyHtml;
+            if (p.origin === 'topic') {
+                bodyHtml = forumPlainBodyHtml(p.body);
+            } else {
+                // Simple markdown-ish: newlines to <br>, **bold**, links
+                bodyHtml = fEsc(p.body).replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                // Auto-link URLs — word-break:break-all prevents long URLs forcing horizontal scroll on mobile
+                bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;">$1</a>');
+                bodyHtml = forumRenderMentions(bodyHtml);
+            }
             html += '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:12px;word-wrap:break-word;overflow-wrap:break-word;overflow-x:hidden;">' + bodyHtml + '</div>';
         }
 

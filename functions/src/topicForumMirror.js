@@ -1,9 +1,9 @@
 'use strict';
 
 // Cross-posts a new topic thread into Pleb Talk and mirrors replies both ways.
-// The forum post is created with a plain placeholder. The model summary runs
-// only after that post is accepted, then patches the same doc. A rejected
-// post never calls the model. Later messages do not regenerate the summary.
+// The forum post body is the user's exact first message, sanitized as plain
+// text. Nacho's answer is mirrored only as a reply. A model summary is never
+// written into the body. Later messages do not rewrite the opener.
 //
 // Clients write one side. This module, running in a callable or a Firestore
 // trigger, writes the other. Copies carry origin and noAward. A copy is never
@@ -126,6 +126,21 @@ function escapeForumPlain(text, max) {
     return s;
 }
 
+// Keep the user's wording, including line breaks. Strip markup and controls.
+function escapeForumBody(text) {
+    let s = String(text || '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+        .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/[<>]/g, '');
+    s = s.split('\n').map(function(line) {
+        return line.replace(/[ \t]+/g, ' ').trim();
+    }).join('\n').replace(/\n{4,}/g, '\n\n\n').trim();
+    return s;
+}
+
 function excerptSummary(text) {
     let s = escapeForumPlain(String(text || '').replace(/\[link removed\]/gi, ' '));
     if (s.length > 180) s = s.slice(0, 177).trim() + '…';
@@ -219,44 +234,9 @@ async function patchForumSummary(opts) {
     if (!before.exists) return { patched: false, reason: 'missing' };
     const current = before.data() || {};
     if (current.deleted === true || current.hidden === true) return { patched: false, reason: 'removed' };
-    let summary = '';
-    try {
-        summary = await withTimeout(
-            summarizeOpener(o.askNacho, o.text, o.title),
-            typeof o.timeoutMs === 'number' ? o.timeoutMs : SUMMARY_PATCH_MS
-        );
-    } catch (err) {
-        return { patched: false, reason: 'timeout' };
-    }
-    summary = acceptSummary(summary, placeholderSummary(o.title, o.text));
-    const body = forumBodyFor(summary, channelId, postId);
-    const patch = {
-        summary: summary,
-        body: body,
-        mirrorSync: mirrorSyncOf(body, false, false),
-    };
-    let wrote = { patched: false, reason: 'missing' };
-    try {
-        await o.db.runTransaction(async function(tx) {
-            const snap = await tx.get(ref);
-            if (!snap.exists) {
-                wrote = { patched: false, reason: 'missing' };
-                return;
-            }
-            const latest = snap.data() || {};
-            if (latest.deleted === true || latest.hidden === true) {
-                wrote = { patched: false, reason: 'removed' };
-                return;
-            }
-            tx.update(ref, patch);
-            wrote = { patched: true, summary: summary };
-        });
-    } catch (err) {
-        const code = err && (err.code || err.status);
-        if (code === 5 || code === 'not-found' || code === 'NOT_FOUND') return { patched: false, reason: 'missing' };
-        throw err;
-    }
-    return wrote;
+    // The opener body is the user's message. A delayed model summary must not
+    // replace it, even if an older caller still invokes this helper.
+    return { patched: false, reason: 'opener_body_fixed' };
 }
 
 function forumTitleFor(topicTitle) {
@@ -266,10 +246,10 @@ function forumTitleFor(topicTitle) {
     return title;
 }
 
-function forumBodyFor(summary) {
+function forumBodyFor(text) {
     // The topic link is a short labeled anchor in the forum renderer.
-    // The body stays plain text so a raw URL is not wrapped mid-word.
-    const body = String(summary || excerptSummary(''));
+    // The body is the user's exact message, kept as plain text.
+    const body = escapeForumBody(text);
     return body.slice(0, FORUM_BODY_MAX);
 }
 
@@ -307,8 +287,8 @@ function buildForumPostDoc(input) {
     const postId = cleanToken(src.postId, 128);
     const forumPostId = src.forumPostId || forumPostIdFor(channelId, postId);
     if (!channelId || !postId || !forumPostId) return null;
-    const summary = acceptSummary(src.summary, excerptSummary(src.text));
-    const body = forumBodyFor(summary, channelId, postId);
+    const body = forumBodyFor(src.text);
+    const summary = excerptSummary(src.text);
     const anchor = acceptedAnchor(src.anchor);
     const link = topicPublicLink(channelId, postId, anchor).slice(0, 240);
     return {
@@ -813,6 +793,7 @@ module.exports = {
     summarizeOpener: summarizeOpener,
     patchForumSummary: patchForumSummary,
     forumTitleFor: forumTitleFor,
+    escapeForumBody: escapeForumBody,
     forumBodyFor: forumBodyFor,
     reserveForumSlot: reserveForumSlot,
     announcementLinks: announcementLinks,
