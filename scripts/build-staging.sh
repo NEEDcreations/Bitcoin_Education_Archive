@@ -64,6 +64,21 @@ for root,_,fs in os.walk(sys.argv[1]):
 print('appcheck debug token injected into',n,'pages')
 PY
 fi
+# Staging-only: the Premium checkout widget uses Cloudflare's published always-pass
+# TEST sitekey, matching the staging-only TEST secret on premiumPublicCheckout.
+# The repo (and so the live build) keeps the real sitekey. Other widgets are untouched.
+grep -q 'projectId: "bitcoin-quest-staging"' $OUT/firebase-config.js
+if [ -f "$OUT/premium.html" ]; then
+  python3 - "$OUT/premium.html" <<'PY'
+import sys
+p=sys.argv[1]; s=open(p,encoding='utf-8').read()
+live='data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-action="premium_checkout"'
+test='data-sitekey="1x00000000000000000000AA" data-action="premium_checkout"'
+assert s.count(live)==1, 'premium checkout widget not found'
+open(p,'w',encoding='utf-8').write(s.replace(live,test))
+print('premium checkout widget set to Turnstile TEST sitekey (staging only)')
+PY
+fi
 printf 'User-agent: *\nDisallow: /\n' > $OUT/robots.txt
 printf '/*\n  X-Robots-Tag: noindex, nofollow\n' > $OUT/_headers
 echo "built $(git -C $SRC rev-parse --short HEAD)" > $OUT/staging-build.txt

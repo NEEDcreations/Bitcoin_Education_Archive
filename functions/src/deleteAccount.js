@@ -141,6 +141,9 @@ const RETAINED_COLLECTIONS = [
     // Deleting the prize marker would let a later retry pay that period again.
     'lb_prize_markers',
     'deleted_accounts',
+    // Premium financial and audit records are permanent. purgePremiumForAccount
+    // masks their uid and clears email fields with direct writes.
+    ...require('./premium').PERMANENT_COLLECTIONS,
 ];
 
 const RETAINED = new Set(RETAINED_COLLECTIONS);
@@ -1334,6 +1337,9 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         deletedDocs += found.length;
     }
     await deleteOwnedGifts(db, batcher, uid, documentIdField);
+    // Premium: keep orders, events, ledger and review rows under a masked uid,
+    // clear every email field, drop the entitlement, allowance and rate docs.
+    const premiumPurge = await require('./premium').purgePremiumForAccount(db, uid);
     const mirrorRateRef = db.collection('telegram_mirror_state').doc('rate_' + String(uid).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120));
     const mirrorRateSnap = await mirrorRateRef.get();
     if (mirrorRateSnap && mirrorRateSnap.exists) await batcher.remove(mirrorRateRef);
@@ -1420,6 +1426,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         storagePrefixes: storagePrefixes,
         authDeleted: true,
         light: guest,
+        premium: { orders: premiumPurge.orders, activeSubscription: premiumPurge.activeSubscription },
     };
 }
 

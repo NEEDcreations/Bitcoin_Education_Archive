@@ -387,6 +387,7 @@ var APP_CHECK_CALLABLES = {
     adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
     adminResolveFavorReview: 1,
+    adminRevokePremium: 1,
     adminSetFavorClaims: 1,
     adminSetKillSwitch: 1,
     answerTrivia: 1,
@@ -395,11 +396,16 @@ var APP_CHECK_CALLABLES = {
     claimCipherSats: 1,
     claimFavorBlock: 1,
     claimOnboardingQuestStep: 1,
+    claimPremiumAllowance: 1,
+    claimPremiumByEmail: 1,
     claimReplyBonus: 1,
     claimSats: 1,
     claimSayHi: 1,
     confirmAccountLink: 1,
+    createPremiumCheckout: 1,
+    createPremiumPortal: 1,
     deleteAccount: 1,
+    getPremiumStatus: 1,
     gradeQuest: 1,
     gradeScholarExam: 1,
     issueCertificate: 1,
@@ -9397,6 +9403,7 @@ function accountDeleteRowHtml(user) {
 
         html += renderSignInMethodsCard(user, (typeof currentUser !== 'undefined') ? currentUser : null);
 
+        if (user && !user.isAnonymous) html += '<div id="settingsPremiumBilling" hidden style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;"></div>';
         html += accountDeleteRowHtml(user);
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
@@ -10778,6 +10785,7 @@ function accountDeleteRowHtml(user) {
     }
     if (typeof window._applyWhatsNew === 'function') window._applyWhatsNew();
     if (settingsTab === 'account') mountAccountGoogleLinkButton();
+    if (settingsTab === 'account' && typeof window.bqPremiumBilling === 'function') window.bqPremiumBilling(document.getElementById('settingsPremiumBilling'));
     var shownLn = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightningAddress || currentUser.lightning || currentUser.lnAddress || '') : '';
     var profileLn = document.getElementById('profileLnReadonly');
     var satsLn = document.getElementById('satsLnReadonly');
@@ -13389,7 +13397,8 @@ window._showFreshStepUp = function (action) {
         claimFavorBlock: 'Enter a fresh authenticator code to claim your Favor block. A remembered device is not enough.',
         adminSetFavorClaims: 'Enter a fresh authenticator code to change Favor claim settings.',
         adminFreezeFavorEpoch: 'Enter a fresh authenticator code to freeze a Favor epoch.',
-        adminResolveFavorReview: 'Enter a fresh authenticator code to release a Favor review block.'
+        adminResolveFavorReview: 'Enter a fresh authenticator code to release a Favor review block.',
+        adminRevokePremium: 'Enter a fresh authenticator code to revoke or restore Premium. A remembered device is not enough.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');

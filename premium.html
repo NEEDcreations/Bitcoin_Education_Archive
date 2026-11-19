@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bitcoin Quest Premium</title>
+<meta name="description" content="Bitcoin Quest Premium: $5 a month, $50 a year, or Founders' Lifetime for $150 (500 seats). Embers and Citadel cosmetics unlock with Citadel Spark on Jan 3.">
+<!-- Not indexed and not linked from the app until Phil OKs the public launch. -->
+<meta name="robots" content="noindex,nofollow">
+<link rel="canonical" href="https://bitcoineducation.quest/premium">
+<!-- Standalone page: no Firebase, no app JS, no service worker registration.
+     Checkout stops while the kill switch is on (server-side).
+     Card prices only. No existing-player discount here: that offer lives in
+     the app for signed-in, verified accounts only. On the live host the
+     checkout form stays closed until premium.js PAGE_OPEN_ON_LIVE is true. -->
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0b0d12;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.6;display:flex;flex-direction:column;align-items:center;padding:32px 20px}
+  .wrap{width:100%;max-width:880px}
+  .eyebrow{font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:#f7931a;font-weight:700;margin-bottom:10px;text-align:center}
+  h1{font-size:2rem;line-height:1.2;color:#fff;margin-bottom:8px;text-align:center}
+  .lede{color:#c7cbd6;text-align:center;margin-bottom:26px}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px}
+  .plan{background:#12151d;border:1px solid #232838;border-radius:14px;padding:22px 18px;display:flex;flex-direction:column;gap:8px;cursor:pointer}
+  .plan input{position:absolute;opacity:0;pointer-events:none}
+  .plan:has(input:checked){border-color:#f7931a;box-shadow:0 0 0 1px #f7931a}
+  .plan:focus-within{outline:2px solid #f7931a;outline-offset:2px}
+  .plan .name{font-weight:700;color:#fff}
+  .plan .price{font-size:1.7rem;font-weight:800;color:#fff}
+  .plan .price small{font-size:.85rem;font-weight:500;color:#9aa1b2}
+  .plan .note{font-size:.85rem;color:#9aa1b2}
+  .card{background:#12151d;border:1px solid #232838;border-radius:16px;padding:24px 22px;margin-bottom:20px}
+  h2{font-size:1.1rem;color:#fff;margin-bottom:10px}
+  ul.perks{list-style:none;display:grid;gap:8px}
+  ul.perks li{padding-left:22px;position:relative;color:#d6d9e2}
+  ul.perks li:before{content:"\2713";position:absolute;left:0;color:#f7931a;font-weight:700}
+  .fine{color:#8a91a3;font-size:.8rem;margin-top:12px}
+  form{display:flex;flex-direction:column;gap:10px}
+  label.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  input[type=email]{width:100%;padding:13px 14px;border-radius:10px;border:1px solid #2c3246;background:#0b0d12;color:#fff;font-size:1rem}
+  button{padding:13px 16px;border:0;border-radius:10px;background:#f7931a;color:#111;font-weight:700;font-size:1rem;cursor:pointer}
+  button:disabled,input:disabled{opacity:.55;cursor:not-allowed}
+  .msg{font-size:.92rem;min-height:1.2em}
+  .msg.ok{color:#4ade80}.msg.err{color:#f87171}
+  .terms{background:#1a1410;border:1px solid #5a3a12;border-radius:10px;padding:12px 14px;color:#f3d9b5;font-size:.88rem}
+  .agree{display:flex;gap:10px;align-items:flex-start;font-size:.92rem;color:#e5e7eb;cursor:pointer}
+  .agree input{margin-top:4px;width:18px;height:18px;flex:0 0 auto}
+  .foot{margin-top:18px;font-size:.8rem;color:#6b7280;text-align:center}
+  .foot a,.fine a{color:#f7931a;text-decoration:none}
+  @media (max-width:720px){.plans{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="eyebrow">Bitcoin Quest</div>
+  <h1>Bitcoin Quest Premium</h1>
+  <p class="lede">Embers and Citadel cosmetics unlock with Citadel Spark on Jan 3. Every other perk starts the moment you buy.</p>
+
+  <form id="premiumForm" novalidate>
+    <fieldset class="plans" style="border:0">
+      <legend class="sr">Choose a plan</legend>
+      <label class="plan"><input type="radio" name="plan" value="monthly" checked>
+        <span class="name">Monthly</span><span class="price">$5 <small>/ month</small></span>
+        <span class="note">Charged today, then monthly. Cancel any time and keep Premium to the end of the month you paid for.</span></label>
+      <label class="plan"><input type="radio" name="plan" value="yearly">
+        <span class="name">Yearly</span><span class="price">$50 <small>/ year</small></span>
+        <span class="note">Charged today, then yearly. Cancel any time and keep Premium to the end of the year you paid for.</span></label>
+      <label class="plan"><input type="radio" name="plan" value="founders">
+        <span class="name">Founders' Lifetime</span><span class="price">$150 <small>one time</small></span>
+        <span class="note">Only 500 seats, ever. One payment, never renews, final sale. Sign in to Bitcoin Quest to buy. Your Founders seat is held for 10 minutes once checkout opens.</span></label>
+    </fieldset>
+
+    <section class="card">
+      <h2>What Premium includes</h2>
+      <ul class="perks">
+        <li>Buy up to 20 OrangeTix a day with your own XP</li>
+        <li>100 Embers a month to spend on cosmetics in the Nook, starting Jan 3. Unspent Embers roll over up to 300. It's for looks only: it can't become sats and can't buy chances, raffles, packs or battle items.</li>
+        <li>No pool fee when you mine</li>
+        <li>Higher chat limit</li>
+        <li>One username change and one faction change per year</li>
+        <li>Citadel cosmetics from Jan 3. They're for looks only and never speed up collecting Citadel parts. Paying never changes who wins a battle.</li>
+        <li>Compute Games Pass. Watching is free, and paying never buys influence.</li>
+      </ul>
+      <p class="fine" id="btcNote" hidden>Paying in bitcoin over Lightning? Take 10% off Yearly and Founders' Lifetime.</p>
+    </section>
+
+    <section class="card" id="pmCheckout">
+      <p class="terms" id="pmTerms"><strong>All sales are final. No refunds.</strong> Monthly and Yearly plans can be canceled any time and keep Premium until the end of the period you paid for. Founders' Lifetime and bitcoin payments are final.</p>
+      <label class="agree"><input type="checkbox" id="pmAgree" name="acceptNoRefunds" required> I understand that all sales are final and there are no refunds.</label>
+      <label class="sr" for="pmEmail">Email</label>
+      <input type="email" id="pmEmail" name="email" placeholder="Email you use for Bitcoin Quest" autocomplete="email" required>
+      <div id="pmTurnstile" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-action="premium_checkout" data-theme="dark" data-size="flexible"></div>
+      <button type="submit" id="pmSubmit">Continue to secure checkout</button>
+      <div id="pmMsg" class="msg" role="status" aria-live="polite"></div>
+      <p class="fine">Use the email on your Bitcoin Quest account. Premium attaches to your account when you sign in with that verified email. Payments are processed by Stripe. You must be 18 or older to buy.</p>
+    </section>
+  </form>
+  <p class="card" id="pmClosed" hidden>Premium checkout opens soon. Please check back.</p>
+
+  <p class="foot"><a href="/">Bitcoin Quest</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
+</main>
+<script src="/premium.js" defer></script>
+</body>
+</html>

@@ -147,12 +147,15 @@ async function logAdminAction(req, action, params) {
 const { NWCClient } = require('@getalby/sdk');
 
 // ── Cloudflare Turnstile verification ───────────────────────────────────────
-async function verifyTurnstile(token, remoteip) {
-    if (!token) return false;
+// Detailed form ({ success, hostname, action }) for callers that also check
+// the hostname and action (Premium checkout). Fails closed.
+async function verifyTurnstileDetailed(token, remoteip) {
+    const no = { success: false, hostname: null, action: null };
+    if (!token) return no;
     const secret = turnstileSecretKey();
     if (!secret) {
         console.error('[Turnstile] TURNSTILE_SECRET_KEY is not configured — failing closed');
-        return false;
+        return no;
     }
     try {
         const params = new URLSearchParams({ secret, response: token });
@@ -164,11 +167,21 @@ async function verifyTurnstile(token, remoteip) {
         });
         const result = await res.json();
         console.log('[Turnstile] verify result:', result.success, result['error-codes']);
-        return result.success === true;
+        return {
+            success: result.success === true,
+            hostname: typeof result.hostname === 'string' ? result.hostname : null,
+            action: typeof result.action === 'string' ? result.action : null,
+            // Cloudflare marks results from its published test keys. Premium
+            // accepts them on staging only; live refuses them outright.
+            testingKey: !!(result.metadata && result.metadata.result_with_testing_key === true),
+        };
     } catch (e) {
         console.error('[Turnstile] verify error:', e.message);
-        return false;
+        return no;
     }
+}
+async function verifyTurnstile(token, remoteip) {
+    return (await verifyTurnstileDetailed(token, remoteip)).success;
 }
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
@@ -9593,6 +9606,32 @@ const { bindChooseFaction } = require('./src/chooseFaction');
 const factionFns = bindChooseFaction(functionsV1, { admin: admin, db: db });
 exports.chooseFaction = factionFns.chooseFaction;
 exports.syncUserFactionPoints = factionFns.syncUserFactionPoints;
+
+// Premium checkout (Stripe cards + BTCPay Lightning), webhooks, entitlements.
+// Server-only prices and grants; see src/premium.js and docs/payments/premium-checkout.md.
+// Checkout stays closed until premium_config/settings.checkoutEnabled is set by an admin.
+// Both checkout entry points refuse while the kill switch is on (fails closed);
+// the Stripe webhook keeps running.
+const { bindPremium } = require('./src/premium');
+const premiumFns = bindPremium(functionsV1, {
+    admin: admin,
+    db: db,
+    isOffline: function () { return killSwitchIsOn(); },
+    verifyTurnstile: verifyTurnstileDetailed,
+    turnstileSecret: turnstileSecret,
+    log: function (msg, meta) { console.warn(msg, meta || {}); },
+});
+exports.createPremiumCheckout = premiumFns.createPremiumCheckout;
+exports.premiumPublicCheckout = premiumFns.premiumPublicCheckout;
+exports.createPremiumPortal = premiumFns.createPremiumPortal;
+exports.claimPremiumByEmail = premiumFns.claimPremiumByEmail;
+exports.getPremiumStatus = premiumFns.getPremiumStatus;
+exports.claimPremiumAllowance = premiumFns.claimPremiumAllowance;
+exports.premiumStripeWebhook = premiumFns.premiumStripeWebhook;
+// Not exported where BTCPay is off (staging until its store exists).
+if (premiumFns.premiumBtcpayWebhook) exports.premiumBtcpayWebhook = premiumFns.premiumBtcpayWebhook;
+exports.premiumExpirySweep = premiumFns.premiumExpirySweep;
+exports.adminRevokePremium = premiumFns.adminRevokePremium;
 
 const { bindSayHi } = require('./src/sayHi');
 const sayHiFns = bindSayHi(functionsV1, admin, db);
