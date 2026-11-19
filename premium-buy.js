@@ -133,6 +133,36 @@
         } catch (e) { return ''; }
     }
 
+    // Card subscribers manage renewal in Stripe's portal (our own portal
+    // configuration). Founders and bitcoin prepay have nothing to manage.
+    function isCardSubscriber(st) { return !!(st && st.active && !st.founders && st.autoRenew === true); }
+    function billingButton() {
+        var mb = el('button', 'width:100%;padding:12px;border-radius:10px;border:1px solid #374151;background:#1f2937;color:#fff;font-weight:600;cursor:pointer', 'Manage billing');
+        mb.type = 'button';
+        mb.addEventListener('click', function () {
+            mb.disabled = true;
+            call('createPremiumPortal', {}).then(function (r) {
+                var u = safePortalUrl(r && r.url);
+                if (u) location.assign(u); else { mb.disabled = false; toast('Billing could not open.'); }
+            }).catch(function (e) { mb.disabled = false; toast(msgFor(e)); });
+        });
+        return mb;
+    }
+    // Settings > Account: shows a Manage billing card to Premium card
+    // subscribers only. Stays hidden for everyone else or on any error.
+    function mountSettingsBilling(holder) {
+        if (!holder || !signedIn()) return;
+        call('getPremiumStatus', {}).then(function (st) {
+            if (!holder.isConnected || !isCardSubscriber(st)) return;
+            while (holder.firstChild) holder.removeChild(holder.firstChild);
+            holder.appendChild(el('div', 'font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;color:#f7931a', 'Premium'));
+            holder.appendChild(el('div', 'font-size:0.85rem;margin-bottom:12px;line-height:1.5;opacity:.85', 'Update your card or turn off renewal. Premium stays on until the end of the period you paid for.'));
+            holder.appendChild(billingButton());
+            holder.hidden = false;
+        }).catch(function () {});
+    }
+    window.bqPremiumBilling = mountSettingsBilling;
+
     var overlay = null;
     function close() {
         if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
@@ -169,17 +199,7 @@
         if (st.active) {
             body.appendChild(el('p', 'margin:6px 0 12px', st.founders ? "You're a Founder. Premium is yours for life." :
                 'Premium is active' + (st.expiresAtMs ? ' until ' + etDate(st.expiresAtMs) : '') + '.'));
-            if (!st.founders && st.autoRenew) {
-                var mb = el('button', 'width:100%;padding:12px;border-radius:10px;border:1px solid #374151;background:#1f2937;color:#fff;font-weight:600;cursor:pointer', 'Manage billing');
-                mb.addEventListener('click', function () {
-                    mb.disabled = true;
-                    call('createPremiumPortal', {}).then(function (r) {
-                        var u = safePortalUrl(r && r.url);
-                        if (u) location.assign(u); else { mb.disabled = false; toast('Billing could not open.'); }
-                    }).catch(function (e) { mb.disabled = false; toast(msgFor(e)); });
-                });
-                body.appendChild(mb);
-            }
+            if (isCardSubscriber(st)) body.appendChild(billingButton());
             return;
         }
         if (!st.checkoutOpen) {
@@ -403,7 +423,7 @@
             setTimeout(wait, 500);
         })();
     }
-    window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS, holdText: holdText, holdMinutesLeft: holdMinutesLeft };
+    window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS, holdText: holdText, holdMinutesLeft: holdMinutesLeft, isCardSubscriber: isCardSubscriber, mountSettingsBilling: mountSettingsBilling };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
 })();

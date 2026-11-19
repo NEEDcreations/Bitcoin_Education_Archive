@@ -36,7 +36,7 @@ test('kill switch and other server reasons have friendly messages', function () 
     });
 });
 test('loaded on index.html and 404.html with the same buster', function () {
-    const tag = '<script src="/premium-buy.js?v=20261118_v2609" defer></script>';
+    const tag = '<script src="/premium-buy.js?v=20261118_v2610" defer></script>';
     assert.ok(index.includes(tag));
     assert.ok(notFound.includes(tag));
     assert.strictEqual(index, notFound);
@@ -122,5 +122,67 @@ test('signed-out open asks to sign in (no checkout call)', function () {
     assert.ok(toasts.indexOf('Sign in to buy Premium.') !== -1);
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed ? 1 : 0);
+test('Manage billing only for active card subscribers (QA P2)', function () {
+    assert.strictEqual(T.isCardSubscriber({ active: true, founders: false, autoRenew: true }), true);
+    assert.strictEqual(T.isCardSubscriber({ active: true, founders: true, autoRenew: true }), false);
+    assert.strictEqual(T.isCardSubscriber({ active: true, founders: false, autoRenew: false }), false);
+    assert.strictEqual(T.isCardSubscriber({ active: false, autoRenew: true }), false);
+    assert.strictEqual(T.isCardSubscriber(null), false);
+    assert.ok(/isCardSubscriber\(st\)\) body\.appendChild\(billingButton\(\)\)/.test(js));
+});
+test('Settings > Account has a hidden billing slot mounted by premium-buy.js', function () {
+    const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    assert.ok(ranking.indexOf('<div id="settingsPremiumBilling" hidden') !== -1);
+    assert.ok(ranking.indexOf("window.bqPremiumBilling(document.getElementById('settingsPremiumBilling'))") !== -1);
+    assert.strictEqual(typeof ctx.bqPremiumBilling, 'function');
+});
+
+function fakeNode(tag) {
+    return { tag: tag, style: {}, children: [], hidden: true, isConnected: true, textContent: '',
+        appendChild: function (c) { this.children.push(c); return c; },
+        removeChild: function (c) { this.children.splice(this.children.indexOf(c), 1); },
+        get firstChild() { return this.children[0] || null; },
+        addEventListener: function (n, f) { this['on' + n] = f; }, setAttribute: function () {} };
+}
+async function mountWith(status, fail) {
+    const calls = [];
+    ctx.document.createElement = fakeNode;
+    ctx.auth = { currentUser: { isAnonymous: false } };
+    ctx.firebase = { functions: function () { return { httpsCallable: function (n) { return function (d) { calls.push(n); return fail ? Promise.reject(new Error('x')) : Promise.resolve({ data: status }); }; } }; } };
+    const holder = fakeNode('div');
+    T.mountSettingsBilling(holder);
+    await new Promise(function (r) { setTimeout(r, 0); });
+    return { holder: holder, calls: calls };
+}
+(async function () {
+    async function atest(name, fn) {
+        try { await fn(); passed++; console.log('✅ ' + name); }
+        catch (e) { failed++; console.log('❌ ' + name + ': ' + e.message); }
+    }
+    await atest('Settings billing card shows for a card subscriber and opens the portal', async function () {
+        const r = await mountWith({ active: true, founders: false, autoRenew: true });
+        assert.strictEqual(r.holder.hidden, false);
+        const btn = r.holder.children[r.holder.children.length - 1];
+        assert.strictEqual(btn.textContent, 'Manage billing');
+        btn.onclick();
+        assert.deepStrictEqual(r.calls, ['getPremiumStatus', 'createPremiumPortal']);
+    });
+    await atest('Settings billing card stays hidden for Founders, bitcoin prepay, non-Premium and errors', async function () {
+        for (const st of [{ active: true, founders: true }, { active: true, founders: false, autoRenew: false }, { active: false }]) {
+            const r = await mountWith(st);
+            assert.strictEqual(r.holder.hidden, true);
+            assert.strictEqual(r.holder.children.length, 0);
+        }
+        const e = await mountWith(null, true);
+        assert.strictEqual(e.holder.hidden, true);
+    });
+    await atest('Settings billing card makes no call when signed out or anonymous', async function () {
+        ctx.auth = { currentUser: { isAnonymous: true } };
+        let called = 0;
+        ctx.firebase = { functions: function () { called++; return {}; } };
+        T.mountSettingsBilling(fakeNode('div'));
+        assert.strictEqual(called, 0);
+    });
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(failed ? 1 : 0);
+})();

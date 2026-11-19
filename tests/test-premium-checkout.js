@@ -1380,6 +1380,7 @@ test('No refunds: a hand refund is still handled; partial = review only, full = 
     assert.strictEqual((await stripePost(a, part)).body.outcome, 'review');
     assert.ok(!a.db.store.get('premium_entitlements/old').frozen);
     assert.strictEqual(a.db.store.get('premium_orders/' + out.orderId).refundKind, 'partial');
+    assert.strictEqual(a.db.store.get('premium_orders/' + out.orderId).refundedCents, 100);
     const pRow = rows(a, 'premium_review').find(function (r) { return r.reason === 'stripe_charge_refunded'; });
     assert.strictEqual(pRow.partial, true);
     assert.strictEqual(pRow.frozen, 0);
@@ -1388,6 +1389,8 @@ test('No refunds: a hand refund is still handled; partial = review only, full = 
     assert.strictEqual((await stripePost(a, full)).body.outcome, 'review');
     assert.strictEqual(a.db.store.get('premium_entitlements/old').frozen, true);
     assert.strictEqual(a.db.store.get('premium_orders/' + out.orderId).refundKind, 'full');
+    // The full refund replaces the earlier partial amount.
+    assert.strictEqual(a.db.store.get('premium_orders/' + out.orderId).refundedCents, 475);
     assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/old'), a.clock.now), false);
     // Cancel = no renewal, paid time stays (no refund, no early cut-off).
     const b = setup();

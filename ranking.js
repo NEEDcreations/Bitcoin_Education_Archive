@@ -9403,6 +9403,7 @@ function accountDeleteRowHtml(user) {
 
         html += renderSignInMethodsCard(user, (typeof currentUser !== 'undefined') ? currentUser : null);
 
+        if (user && !user.isAnonymous) html += '<div id="settingsPremiumBilling" hidden style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;"></div>';
         html += accountDeleteRowHtml(user);
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
@@ -10784,6 +10785,7 @@ function accountDeleteRowHtml(user) {
     }
     if (typeof window._applyWhatsNew === 'function') window._applyWhatsNew();
     if (settingsTab === 'account') mountAccountGoogleLinkButton();
+    if (settingsTab === 'account' && typeof window.bqPremiumBilling === 'function') window.bqPremiumBilling(document.getElementById('settingsPremiumBilling'));
     var shownLn = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightningAddress || currentUser.lightning || currentUser.lnAddress || '') : '';
     var profileLn = document.getElementById('profileLnReadonly');
     var satsLn = document.getElementById('satsLnReadonly');

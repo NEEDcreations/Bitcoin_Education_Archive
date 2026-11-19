@@ -2012,7 +2012,7 @@ function createPremiumHandlers(deps) {
                 // Always stamp the order, paid or not, so a completion that
                 // arrives after the refund or dispute is granted frozen.
                 if (r.order && t === 'charge.refunded') {
-                    Object.assign(orderPatch, isFullRefund ? { refundedAtMs: r.nowMs, refundKind: 'full' } : { partialRefundAtMs: r.nowMs, refundKind: r.order.refundKind === 'full' ? 'full' : 'partial', refundedCents: Number(obj.amount_refunded) || null });
+                    Object.assign(orderPatch, isFullRefund ? { refundedAtMs: r.nowMs, refundKind: 'full', refundedCents: Number(obj.amount_refunded) || null } : { partialRefundAtMs: r.nowMs, refundKind: r.order.refundKind === 'full' ? 'full' : 'partial', refundedCents: Number(obj.amount_refunded) || null });
                 }
                 if (r.order && t === 'charge.dispute.created' && !r.order.disputedAtMs) orderPatch.disputedAtMs = r.nowMs;
                 if (r.orderRef && Object.keys(orderPatch).length) tx.update(r.orderRef, orderPatch);
