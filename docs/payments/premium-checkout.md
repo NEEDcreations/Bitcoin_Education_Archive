@@ -305,6 +305,14 @@ exists), claimPremiumByEmail, getPremiumStatus, claimPremiumAllowance,
 premiumExpirySweep, **deleteAccount** (carries the Premium account-deletion
 scrub; QA D1, Nov 18). Then rules, then hosting.
 
+Turnstile on live (Round 10): live `premiumPublicCheckout` must keep the REAL
+`TURNSTILE_SECRET_KEY` version. Never add Cloudflare's test secret
+(`1x0000…AA`) to the live project. After the live deploy, check the function's
+bound `TURNSTILE_SECRET_KEY` version is the real one (re-pin if the CLI moved it),
+and check the live `/premium` page serves sitekey `0x4AAAAAAD-ivgpRkbXpgz86`
+(the repo keeps it; only `scripts/build-staging.sh` swaps it). The server refuses
+test-key results on live regardless.
+
 ## Round 6 (Nov 18, QA D1)
 
 Account deletion also removes `premium_rate/fcool_<uid>` and
@@ -365,3 +373,21 @@ entitlement, allowance and per-account rate docs are deleted, as before.
 - Staging: `premiumStripeWebhook` and `getPremiumStatus` redeployed; preview
   `btc-archive-v2612` (premium-buy.js `20261118_v2612`). No QA entitlements
   backfilled (the affected ones are refunded/frozen or deleted).
+
+## Round 10 (Nov 19, Turnstile test keys on staging; Phil approved option 2)
+
+- Staging `TURNSTILE_SECRET_KEY` has a new version **3** = Cloudflare's published
+  always-pass TEST secret. Versions 1 and 2 are kept. `premiumPublicCheckout` on
+  staging binds latest (v3); the v1 pin for it is dropped. `claimSats` and
+  `resetLightningAddressOnce` stay on v1 (their widgets keep the real sitekey);
+  a future by-name staging deploy of either would bind v3, so pin them to `:1`.
+- `scripts/build-staging.sh` swaps only the Premium checkout widget in
+  `premium.html` to the TEST sitekey `1x00000000000000000000AA`, after checking the
+  build is the staging project. The repo, and so the live build, keeps
+  `0x4AAAAAAD-ivgpRkbXpgz86`; `tests/test-staging-turnstile.js` pins both.
+- Test-key siteverify results have no action, hostname `example.com` and
+  `metadata.result_with_testing_key: true`. The server passes them only on the
+  staging project; live refuses them even if a test secret were ever bound there.
+  On staging, any non-empty token passes; rate limits, CORS, the kill switch and the
+  final-sale box still apply.
+- No client files changed, so the SW stays `btc-archive-v2612`.
