@@ -440,6 +440,26 @@ test('banned, deleted and merged accounts are refused by the account gate', asyn
     assert.strictEqual(h.pays.length, 0);
 });
 
+test('L1: the 48h address-change hold is re-checked inside the reserve transaction', async function () {
+    const HOLD = 48 * 60 * 60 * 1000;
+    const h = makeHarness();
+    await freeze(h, 1);
+    // A reset stamp written after beginPayout's gate (gate stubbed ok here).
+    h.db.store.set('users/' + BOB, { lightningAddress: 'bob@wallet.example', lightningAddressChangedAt: h.clock - 60000 });
+    const held = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.strictEqual(held.success, false);
+    assert.strictEqual(held.code, 'address_hold');
+    assert.strictEqual(h.pays.length, 0);
+    h.db.store.set('users/' + BOB, { lightningAddress: 'bob@wallet.example', lightningAddressChangedAt: 'garbage' });
+    const bad = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.strictEqual(bad.code, 'address_hold');
+    assert.strictEqual(h.pays.length, 0);
+    h.db.store.set('users/' + BOB, { lightningAddress: 'bob@wallet.example', lightningAddressChangedAt: h.clock - HOLD - 1000 });
+    const ok = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.strictEqual(ok.success, true, JSON.stringify(ok));
+    assert.strictEqual(h.pays.length, 1);
+});
+
 test('a re-created account (new uid) cannot claim the old account\'s block', async function () {
     const h = makeHarness();
     await freeze(h, 1);

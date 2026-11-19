@@ -201,12 +201,104 @@ later('claimCipherWin wiring: release only after a failed lookup, invoice row ke
     const firstRelease = body.indexOf('await releaseUnpaid()');
     assert.ok(prePay !== -1 && lookup !== -1 && prePay < firstRelease && firstRelease < lookup);
     // After the lookup: release keeps a failed row with the payment hash.
-    assert.ok(/if \(settlement\.action === 'release'\) \{\s*await releaseAfterFailedLookup\(lookupReq\.payment_hash\);/.test(body));
+    assert.ok(/if \(settlement\.action === 'release'\) \{\s*try \{\s*await releaseAfterFailedLookup\(lookupReq\.payment_hash\);/.test(body));
     const relFn = body.slice(body.indexOf('async function releaseAfterFailedLookup'), body.indexOf('async function holdUnknown'));
     assert.ok(relFn.indexOf('invoiceRef.delete') === -1);
     assert.ok(/status: 'failed',\s*paymentHash: paymentHash \|\| ''/.test(relFn));
     // Anything else after the lookup holds.
     assert.ok(/await holdUnknown\(lookupReq\.payment_hash\);/.test(body.slice(lookup)));
+});
+
+// Pulls one inner helper out of claimCipherWin and runs it against fake refs.
+function cipherHelper(name, scope) {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'functions', 'src', 'gifting.js'), 'utf8');
+    const body = src.slice(src.indexOf('const claimCipherWin = '), src.indexOf('function winForUser('));
+    const start = body.indexOf('    async function ' + name + '(');
+    assert.ok(start !== -1, name + ' found');
+    const end = body.indexOf('\n    }\n', start) + 7;
+    const keys = Object.keys(scope);
+    const factory = new Function(keys.join(','), body.slice(start, end) + '\nreturn ' + name + ';');
+    return factory.apply(null, keys.map(function(k) { return scope[k]; }));
+}
+function fakeCipherDb(opts) {
+    const o = opts || {};
+    const store = { win: { status: 'paying', payingAt: 1 }, invoice: { status: 'pending' } };
+    const FV = { serverTimestamp: function() { return 'TS'; }, delete: function() { return '__DEL__'; } };
+    function apply(key, data, merge) {
+        const next = merge ? Object.assign({}, store[key], data) : Object.assign({}, data);
+        Object.keys(next).forEach(function(k) { if (next[k] === '__DEL__') delete next[k]; });
+        store[key] = next;
+    }
+    const winRef = { key: 'win', update: async function(d) { apply('win', d, true); } };
+    const invoiceRef = {
+        key: 'invoice',
+        set: async function(d, op) { if (o.invoiceWriteFails) throw new Error('invoice write failed'); apply('invoice', d, op && op.merge); },
+        delete: async function() { delete store.invoice; },
+    };
+    const db = {
+        runTransaction: async function(fn) {
+            const buf = [];
+            const t = {
+                get: async function(ref) { const d = store[ref.key]; return { exists: !!d, data: function() { return d; } }; },
+                set: function(ref, d, op) { buf.push([ref.key, d, !!(op && op.merge)]); },
+                update: function(ref, d) { buf.push([ref.key, d, true]); },
+            };
+            const out = await fn(t);
+            // Atomic commit: any failing write aborts every write.
+            if (o.invoiceWriteFails && buf.some(function(w) { return w[0] === 'invoice'; })) throw new Error('commit failed');
+            buf.forEach(function(w) { apply(w[0], w[1], w[2]); });
+            return out;
+        },
+    };
+    return { store: store, scope: { db: db, winRef: winRef, invoiceRef: invoiceRef, admin: { firestore: { FieldValue: FV } }, uid: 'u1', winId: 'w1', amount: 100, invoiceHash: 'ih' } };
+}
+
+later('F3: releaseAfterFailedLookup writes the failed invoice row and the win flip together', async function() {
+    const ok = fakeCipherDb();
+    const release = cipherHelper('releaseAfterFailedLookup', ok.scope);
+    await release('hash1');
+    assert.strictEqual(ok.store.invoice.status, 'failed');
+    assert.strictEqual(ok.store.invoice.paymentHash, 'hash1');
+    assert.strictEqual(ok.store.win.status, 'claimable');
+    assert.ok(!('payingAt' in ok.store.win));
+
+    // If the failed row cannot be written, the win must NOT become claimable,
+    // and the error reaches the caller (no swallowed .catch).
+    const bad = fakeCipherDb({ invoiceWriteFails: true });
+    const release2 = cipherHelper('releaseAfterFailedLookup', bad.scope);
+    let threw = false;
+    try { await release2('hash2'); } catch (e) { threw = true; }
+    assert.strictEqual(threw, true);
+    assert.strictEqual(bad.store.win.status, 'paying');
+    assert.strictEqual(bad.store.invoice.status, 'pending');
+
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'functions', 'src', 'gifting.js'), 'utf8');
+    const body = src.slice(src.indexOf('const claimCipherWin = '), src.indexOf('function winForUser('));
+    const relFn = body.slice(body.indexOf('async function releaseAfterFailedLookup'), body.indexOf('async function holdUnknown'));
+    assert.strictEqual(relFn.indexOf('.catch('), -1, 'no swallowed write in releaseAfterFailedLookup');
+    // The release call site holds the win if the release throws.
+    const site = body.slice(body.indexOf("if (settlement.action === 'release') {"));
+    assert.ok(/catch \(e\) \{[\s\S]*?await holdUnknown\(lookupReq\.payment_hash\);[\s\S]*?return \{ success: false, error: holdMessage \};/.test(site.slice(0, 800)));
+});
+
+later('F2: holdUnknown stamps paymentHash on the unknown faucet_invoices row', async function() {
+    const f = fakeCipherDb();
+    const hold = cipherHelper('holdUnknown', f.scope);
+    await hold('hash3');
+    assert.strictEqual(f.store.win.status, 'unknown');
+    assert.strictEqual(f.store.win.paymentHash, 'hash3');
+    assert.strictEqual(f.store.invoice.status, 'unknown');
+    assert.strictEqual(f.store.invoice.paymentHash, 'hash3');
+    const g = fakeCipherDb();
+    await cipherHelper('holdUnknown', g.scope)('');
+    assert.strictEqual(g.store.invoice.paymentHash, '');
+});
+
+later('L1: claimCipherWin re-checks the 48h address-change hold inside the claim transaction', function() {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'functions', 'src', 'gifting.js'), 'utf8');
+    const body = src.slice(src.indexOf('const claimCipherWin = '), src.indexOf('function winForUser('));
+    const tx = body.slice(body.indexOf('await db.runTransaction(async (t) => {'), body.indexOf("status: 'paying',"));
+    assert.ok(/const addrHold = faucetGuard\.assessAddressChangeHold\(userRow, Date\.now\(\)\);\s*if \(!addrHold\.ok\) throw httpsError\('failed-precondition', addrHold\.error\);/.test(tx));
 });
 
 later('settled lookup is paid, failed lookup releases, pending holds', function() {

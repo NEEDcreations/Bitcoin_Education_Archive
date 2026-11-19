@@ -496,6 +496,31 @@ async function beginPayout(db, authApi, uid, authUser, nowMs, token, providersKn
     if (!userReadable) {
         return { ok: false, hold: true, error: faucetGuard.ADDRESS_CHANGE_HOLD_ERROR, holdUntil: clock + faucetGuard.ADDRESS_CHANGE_HOLD_MS, tomb: tomb };
     }
+    // H2: a saved address with no hold stamp (for example a first set from the
+    // profile) is a first set: stamp it with the server clock and hold.
+    if (!Object.prototype.hasOwnProperty.call(user, 'lightningAddressChangedAt')) {
+        const saved = faucetGuard.normalizeLightningAddress(user.lightningAddress || user.lightning || user.lnAddress || '');
+        if (saved) {
+            let lockAt = 0;
+            let ledger = {};
+            try {
+                const lockSnap = await db.collection('lightning_addresses').doc(saved).get();
+                lockAt = lockSnap && lockSnap.exists ? ((lockSnap.data() || {}).lockedAt || 0) : 0;
+                const ledgerSnap = await db.collection('faucet_ledger').doc(uid).get();
+                ledger = ledgerSnap && ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
+            } catch (e) {
+                // Unreadable lock or ledger: hold this payout, do not stamp.
+                return { ok: false, hold: true, error: faucetGuard.ADDRESS_CHANGE_HOLD_ERROR, holdUntil: clock + faucetGuard.ADDRESS_CHANGE_HOLD_MS, tomb: tomb };
+            }
+            const first = faucetGuard.assessUnstampedAddress({ user: user, lockAt: lockAt, ledger: ledger, nowMs: clock });
+            if (first.stamp) {
+                try {
+                    await db.collection('users').doc(uid).set({ lightningAddressChangedAt: clock }, { merge: true });
+                } catch (e) { /* still held below; the next claim retries the stamp */ }
+                return { ok: false, hold: true, firstSet: true, error: faucetGuard.ADDRESS_CHANGE_HOLD_ERROR, holdUntil: clock + faucetGuard.ADDRESS_CHANGE_HOLD_MS, tomb: tomb };
+            }
+        }
+    }
     const addrHold = faucetGuard.assessAddressChangeHold(user, clock);
     if (!addrHold.ok) {
         return { ok: false, hold: true, error: addrHold.error, holdUntil: addrHold.untilMs, tomb: tomb };

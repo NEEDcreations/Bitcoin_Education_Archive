@@ -1249,6 +1249,10 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         if (Number(userRow.satsHold) > Date.now()) {
             throw httpsError('failed-precondition', 'Sats withdrawals are paused on this account. Try again later.');
         }
+        // Re-check the 48h address-change hold inside the claim transaction
+        // (same as claimSats), so a reset between beginPayout and here still holds.
+        const addrHold = faucetGuard.assessAddressChangeHold(userRow, Date.now());
+        if (!addrHold.ok) throw httpsError('failed-precondition', addrHold.error);
         const token = (context.auth && context.auth.token) || {};
         const verifiedAuthEmail = authUser && authUser.email && authUser.emailVerified === true;
         const verifiedTokenEmail = token.email && token.email_verified === true;
@@ -1307,20 +1311,27 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         await invoiceRef.delete().catch(function() {});
     }
 
-    // After a lookup confirmed the payment failed. The win goes back to
-    // claimable, but the invoice row is kept as 'failed' with its payment hash
-    // (never deleted) so the same invoice cannot be reused and reconcile can
-    // recheck it if it settles later.
+    // After a lookup confirmed the payment failed. The invoice row is kept as
+    // 'failed' with its payment hash (never deleted) so the same invoice cannot
+    // be reused and reconcile can recheck it if it settles later. The row and
+    // the win flip are written in ONE transaction: the win becomes claimable
+    // only if the failed row is written too. Any error propagates to the caller,
+    // which holds the win instead of releasing it.
     async function releaseAfterFailedLookup(paymentHash) {
-        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
-        await invoiceRef.set({
-            uid: uid,
-            winId: winId,
-            amount: amount,
-            status: 'failed',
-            paymentHash: paymentHash || '',
-            ts: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true }).catch(function() {});
+        await db.runTransaction(async (t) => {
+            const winSnap = await t.get(winRef);
+            const cur = winSnap.exists ? (winSnap.data() || {}) : {};
+            if (cur.status !== 'paying') throw new Error('win is no longer paying');
+            t.set(invoiceRef, {
+                uid: uid,
+                winId: winId,
+                amount: amount,
+                status: 'failed',
+                paymentHash: paymentHash || '',
+                ts: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+            t.update(winRef, { status: 'claimable', payingAt: admin.firestore.FieldValue.delete() });
+        });
     }
 
     async function holdUnknown(paymentHash) {
@@ -1336,6 +1347,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             winId: winId,
             amount: amount,
             status: 'unknown',
+            paymentHash: paymentHash || '',
             ts: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
     }
@@ -1445,8 +1457,16 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
 
     if (settlement.action === 'paid') return markPaid(settlement.preimage || '');
     if (settlement.action === 'release') {
-        await releaseAfterFailedLookup(lookupReq.payment_hash);
-        return { success: false, error: 'Payment failed. Your prize is still waiting. Make a new invoice to try again.' };
+        try {
+            await releaseAfterFailedLookup(lookupReq.payment_hash);
+            return { success: false, error: 'Payment failed. Your prize is still waiting. Make a new invoice to try again.' };
+        } catch (e) {
+            // The failed invoice row did not save, so the win must not unlock.
+            console.error('[claimCipherWin] failed-row write did not save, holding:', e.message);
+            try { await holdUnknown(lookupReq.payment_hash); }
+            catch (e2) { console.error('[claimCipherWin] could not hold win:', e2.message); }
+            return { success: false, error: holdMessage };
+        }
     }
 
     // pending, error, empty or unclassified: hold, keep the invoice row.

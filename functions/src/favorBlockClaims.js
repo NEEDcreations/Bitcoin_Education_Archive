@@ -35,6 +35,7 @@
 
 const crypto = require('crypto');
 const payoutMsat = require('./payoutMsat');
+const faucetGuard = require('./faucetGuard');
 
 const BLOCKS_PER_EPOCH = 5;
 const EPOCH_POT_SATS = 21000;
@@ -118,6 +119,7 @@ const MESSAGES = Object.freeze({
     not_winner: 'Only the player who found this block can claim it.',
     amount_invalid: 'This block needs a manual check before it can be paid.',
     account_blocked: 'This account cannot claim sats right now.',
+    address_hold: faucetGuard.ADDRESS_CHANGE_HOLD_ERROR,
     step_up_required: 'Confirm it is you to claim this block.',
     manual_review: 'This block is set aside for a manual check. Your sats are safe.',
     already_paid: 'This block was already paid.',
@@ -676,6 +678,11 @@ function createBlockClaimService(deps) {
                 const md = await t.get(budgetRef);
                 const hd = await t.get(haltRef);
                 if (hd.exists && (hd.data() || {}).halted === true) refuse('fee_halt');
+                // Re-check the 48h address-change hold inside the reserve
+                // transaction (same as claimSats), after beginPayout's gate.
+                const uSnap = await t.get(db.collection('users').doc(uid));
+                const addrHold = faucetGuard.assessAddressChangeHold(uSnap.exists ? (uSnap.data() || {}) : {}, nowMs);
+                if (!addrHold.ok) refuse('address_hold');
                 const rj = await t.get(rejectRef);
                 if (rj.exists) refuse('review_rejected');
                 const cur = c.exists ? (c.data() || {}) : null;

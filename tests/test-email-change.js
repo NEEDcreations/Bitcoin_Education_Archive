@@ -341,6 +341,49 @@ function auth(email) {
         assert.strictEqual(bad.error, faucetGuard.ADDRESS_CHANGE_HOLD_ERROR);
     });
 
+    await test('H2: beginPayout treats a saved address with no stamp as a first set (stamps and holds)', async function () {
+        const now = 1_700_000_000_000;
+        const faucetGuard = require('../functions/src/faucetGuard');
+        const authUser = { uid: 'u1', email: 'same@example.com', emailVerified: true, providerData: [] };
+        const authApi = { revokeRefreshTokens: async function () {} };
+        const base = { email: 'same@example.com', emailHash: tomb.emailHmac('same@example.com'), lightningAddress: 'pleb@wallet.example' };
+
+        // Profile first-set: no stamp, no lock, no payouts -> held and stamped with the server clock.
+        const db1 = createDb({ 'users/u1': Object.assign({}, base) });
+        const held = await emailChange.beginPayout(db1, authApi, 'u1', authUser, now);
+        assert.strictEqual(held.ok, false);
+        assert.strictEqual(held.hold, true);
+        assert.strictEqual(held.firstSet, true);
+        assert.strictEqual(held.error, faucetGuard.ADDRESS_CHANGE_HOLD_ERROR);
+        assert.strictEqual(db1.docs.get('users/u1').lightningAddressChangedAt, now);
+        // The next claim inside 48h is still held by the stamp; after 48h it pays.
+        const again = await emailChange.beginPayout(db1, authApi, 'u1', authUser, now + 1000);
+        assert.strictEqual(again.ok, false);
+        const later = await emailChange.beginPayout(db1, authApi, 'u1', authUser, now + faucetGuard.ADDRESS_CHANGE_HOLD_MS);
+        assert.strictEqual(later.ok, true);
+
+        // Recent lock doc (client first-set inside 48h) -> held and stamped.
+        const db2 = createDb({
+            'users/u1': Object.assign({}, base),
+            'lightning_addresses/pleb@wallet.example': { uid: 'u1', lockedAt: now - 60000 },
+        });
+        const recent = await emailChange.beginPayout(db2, authApi, 'u1', authUser, now);
+        assert.strictEqual(recent.ok, false);
+        assert.strictEqual(db2.docs.get('users/u1').lightningAddressChangedAt, now);
+
+        // Legacy: aged lock, or no lock but a prior payout -> pays, no stamp.
+        const db3 = createDb({
+            'users/u1': Object.assign({}, base),
+            'lightning_addresses/pleb@wallet.example': { uid: 'u1', lockedAt: now - faucetGuard.ADDRESS_CHANGE_HOLD_MS - 1 },
+        });
+        assert.strictEqual((await emailChange.beginPayout(db3, authApi, 'u1', authUser, now)).ok, true);
+        assert.ok(!('lightningAddressChangedAt' in db3.docs.get('users/u1')));
+        const db4 = createDb({ 'users/u1': Object.assign({ satsWithdrawn: 200 }, base) });
+        assert.strictEqual((await emailChange.beginPayout(db4, authApi, 'u1', authUser, now)).ok, true);
+        const db5 = createDb({ 'users/u1': Object.assign({}, base), 'faucet_ledger/u1': { satsWithdrawn: 100 } });
+        assert.strictEqual((await emailChange.beginPayout(db5, authApi, 'u1', authUser, now)).ok, true);
+    });
+
     await test('a provider-set change holds sats and keeps the old provider hashes', async function () {
         const oldProviders = [{ providerId: 'google.com', uid: 'google-old' }];
         const oldIds = tomb.providerHashIds(tomb.identityFrom({ providers: oldProviders }));

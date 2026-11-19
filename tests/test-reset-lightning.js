@@ -386,7 +386,7 @@ queue.push(test('a successful reset stamps lightningAddressChangedAt for the 48h
     assert.ok(index.indexOf('lightningAddressChangedAt: stamp') !== -1 || index.indexOf('lightningAddressChangedAt: stamp') !== -1);
     const emailSrc = fs.readFileSync(path.join(root, 'functions/src/emailChange.js'), 'utf8');
     const beginAt = emailSrc.indexOf('async function beginPayout');
-    const begin = emailSrc.slice(beginAt, beginAt + 2500);
+    const begin = emailSrc.slice(beginAt, emailSrc.indexOf('function createEmailChangeHandlers', beginAt));
     assert.ok(begin.indexOf('assessAddressChangeHold') !== -1, 'beginPayout must apply the 48h hold to every payout path');
     assert.ok(begin.indexOf('userReadable') !== -1, 'an unreadable hold key holds the payout');
     const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');

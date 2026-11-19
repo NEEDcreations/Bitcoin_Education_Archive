@@ -556,6 +556,25 @@ test('a Lightning Address change holds payouts for 48 hours', function () {
     assert.strictEqual(guard.parseHoldMillis(null).ms, 0);
 });
 
+test('H2: a saved address with no hold stamp is treated as a first set', function () {
+    const now = 1_700_000_000_000;
+    const holdMs = guard.ADDRESS_CHANGE_HOLD_MS;
+    const addr = 'pleb@wallet.example';
+    // No address, or already stamped: nothing to do here.
+    assert.strictEqual(guard.assessUnstampedAddress({ user: {}, nowMs: now }).stamp, false);
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr, lightningAddressChangedAt: now - 1 }, nowMs: now }).stamp, false);
+    // Unstamped profile first-set, no lock doc, no payout history: stamp and hold.
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr }, nowMs: now }).stamp, true);
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightning: addr }, nowMs: now }).stamp, true);
+    // Recent lock (inside 48h): stamp and hold. Aged lock: legacy, no stamp.
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr }, lockAt: now - 1000, nowMs: now }).stamp, true);
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr }, lockAt: { toMillis: function () { return now - 1000; } }, nowMs: now }).stamp, true);
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr }, lockAt: now - holdMs - 1, nowMs: now }).stamp, false);
+    // No lock doc but a legacy payout on the user or the ledger: no stamp.
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr, satsWithdrawn: 100 }, nowMs: now }).stamp, false);
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr }, ledger: { satsWithdrawn: 100 }, nowMs: now }).stamp, false);
+});
+
 Promise.all(queue).then(function() {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

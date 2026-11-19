@@ -585,6 +585,25 @@ function assessAddressChangeHold(user, nowMs) {
     return { ok: true, untilMs: 0 };
 }
 
+// A saved address with no lightningAddressChangedAt stamp is treated as a
+// first set (for example a profile write the client rules allow), mirroring
+// claimSats: stamp and hold unless the address lock is older than the hold, or
+// (with no lock doc) the account already has a legacy payout.
+// Returns { stamp: boolean }.
+function assessUnstampedAddress(input) {
+    const src = input || {};
+    const user = src.user || {};
+    if (Object.prototype.hasOwnProperty.call(user, 'lightningAddressChangedAt')) return { stamp: false };
+    const saved = normalizeLightningAddress(user.lightningAddress || user.lightning || user.lnAddress || '');
+    if (!saved) return { stamp: false };
+    const now = typeof src.nowMs === 'number' && isFinite(src.nowMs) ? src.nowMs : Date.now();
+    const lockAt = _holdMillis(src.lockAt);
+    if (lockAt) return { stamp: now < lockAt + ADDRESS_CHANGE_HOLD_MS };
+    const ledger = src.ledger || {};
+    const hasPriorPayout = !!(user.lastSatsClaim || user.satsWithdrawn || ledger.satsWithdrawn);
+    return { stamp: !hasPriorPayout };
+}
+
 module.exports = {
     MAX_PER_CLAIM_SATS: MAX_PER_CLAIM_SATS,
     MAX_DAILY_PER_USER_SATS: MAX_DAILY_PER_USER_SATS,
@@ -607,6 +626,7 @@ module.exports = {
     ADDRESS_CHANGE_HOLD_MS: ADDRESS_CHANGE_HOLD_MS,
     ADDRESS_CHANGE_HOLD_ERROR: ADDRESS_CHANGE_HOLD_ERROR,
     assessAddressChangeHold: assessAddressChangeHold,
+    assessUnstampedAddress: assessUnstampedAddress,
     parseHoldMillis: parseHoldMillis,
     assessFingerprint: assessFingerprint,
     fingerprintDocId: fingerprintDocId,
