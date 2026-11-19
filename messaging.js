@@ -668,8 +668,16 @@ window.showUserProfile = function(uid) {
         var joinDate = '';
         try { joinDate = profileJoinLabel(joinSources); } catch (e) { joinDate = ''; }
         
-        // 🏅 DISPLAY BADGE: Check for user-selected badge, fallback to rank emoji
-        var displayBadge = (typeof escapeHtml === 'function' ? escapeHtml(u.displayBadge || u.equippedBadge || '') : (u.displayBadge || u.equippedBadge || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
+        // 🏅 DISPLAY BADGE: only an earned, non-title badge (secrets only if held)
+        var displayBadgeRaw = u.displayBadge || u.equippedBadge || '';
+        var displayBadge = '';
+        if (displayBadgeRaw && typeof BQBadgeIndex !== 'undefined' && BQBadgeIndex.canDisplayBadge) {
+            displayBadge = BQBadgeIndex.canDisplayBadge(u, displayBadgeRaw) ? displayBadgeRaw : '';
+        } else if (displayBadgeRaw) {
+            var _held = [].concat(u.visibleBadges || [], u.hiddenBadges || [], u.bipBadges || []);
+            displayBadge = _held.indexOf(displayBadgeRaw) !== -1 ? displayBadgeRaw : '';
+        }
+        var displayBadgeEsc = (typeof escapeHtml === 'function' ? escapeHtml(displayBadge) : displayBadge.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
         // Count badges
         var badgeCount = 0;
         if (u.visibleBadges) badgeCount += u.visibleBadges.length;
@@ -678,7 +686,7 @@ window.showUserProfile = function(uid) {
         var badgesHtml = '';
         if (displayBadge) {
             // Find emoji for selected badge — check BADGE_DEFS first, then HIDDEN_BADGES
-            var badgeEmoji = displayBadge;
+            var badgeEmoji = displayBadgeEsc;
             var _allBadges = [].concat(
                 (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS : []),
                 (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES : [])
@@ -690,7 +698,8 @@ window.showUserProfile = function(uid) {
                 // Raw badge ID with no emoji found — hide it rather than show ugly ID text
                 badgeEmoji = '';
             }
-            badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;"><span tabindex="0" data-bq-badge="' + displayBadge + '" data-bq-uid="' + (uid || '') + '">' + badgeEmoji + '</span> <span style="font-size:1.8rem;opacity:0.6;vertical-align:middle;">' + lvl.emoji + '</span></div>';
+            var _uidEsc = (typeof escapeHtml === 'function' ? escapeHtml(uid || '') : String(uid || ''));
+            badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;"><span tabindex="0" data-bq-badge="' + displayBadgeEsc + '" data-bq-uid="' + _uidEsc + '">' + badgeEmoji + '</span> <span style="font-size:1.8rem;opacity:0.6;vertical-align:middle;">' + lvl.emoji + '</span></div>';
         } else {
             badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;">' + lvl.emoji + '</div>';
         }
@@ -740,7 +749,9 @@ window.showUserProfile = function(uid) {
                     var _tid = u.activeTitle || '';
                     var _coreVis = (typeof BQBadgeIndex !== 'undefined' && BQBadgeIndex.coreContributorVisible)
                         ? BQBadgeIndex.coreContributorVisible(u)
-                        : (u.showCoreContributor !== false && Number(u.coreContributorUntil) > Date.now());
+                        : (typeof u.coreContributorVisible === 'boolean'
+                            ? u.coreContributorVisible === true
+                            : (u.showCoreContributor !== false && Number(u.coreContributorUntil) > Date.now()));
                     if (_tid === 'core_contributor' && !_coreVis) return '';
                     var _tDef = (typeof TITLE_DEFS !== 'undefined' && _tid) ? TITLE_DEFS.find(function(t){return t.id===_tid;}) : null;
                     if (!_tDef) return '';

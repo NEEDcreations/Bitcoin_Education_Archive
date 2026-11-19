@@ -24,6 +24,7 @@
 // Ghost-mode players are left off the public snapshot.
 
 const { displayName, safePic } = require('./streakBoard');
+const coreContributor = require('./coreContributor');
 
 const BOARD_SIZE = 50;
 // Fetch about twice the board so ghosts dropped after the read still leave 50.
@@ -529,12 +530,25 @@ async function refreshMany(db, keys, nowMs, opts) {
 
 // Public profile copy of one user doc: the listed fields, with points set to
 // the all-time board score.
-function publicProfileOf(data, fields) {
+let _titleIds = null;
+function titleIdSet() {
+    if (_titleIds) return _titleIds;
+    _titleIds = Object.create(null);
+    _titleIds[coreContributor.TITLE_ID] = true;
+    try {
+        require('./title-defs.json').forEach(function (t) {
+            if (t && t.id) _titleIds[t.id] = true;
+        });
+    } catch (e) {}
+    return _titleIds;
+}
+
+function publicProfileOf(data, fields, nowMs) {
     const d = data || {};
     const pub = {};
     (fields || []).forEach(function (f) { if (f in d) pub[f] = d[f]; });
     if ('points' in d || 'guestUnclaimableXp' in d) pub.points = allTimeXp(d);
-    return pub;
+    return coreContributor.decoratePublicProfile(pub, d, nowMs || Date.now(), titleIdSet());
 }
 
 // Rewrites public_profiles from user docs in batches. Every batch commit is

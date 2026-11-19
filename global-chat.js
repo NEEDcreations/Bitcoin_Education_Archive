@@ -571,7 +571,56 @@ function startChatListener() {
 window._chatAllMsgs = [];
 window._chatShowCount = 0;
 
+var _bqCoreVisCache = {};
+var _bqCoreVisInflight = {};
+function _bqVisFromPublic(pub) {
+    if (!pub) return { known: false, visible: null };
+    if (typeof pub.coreContributorVisible === 'boolean') return { known: true, visible: pub.coreContributorVisible === true };
+    if (('coreContributorUntil' in pub) || ('showCoreContributor' in pub)) {
+        var on = pub.showCoreContributor !== false && Number(pub.coreContributorUntil) > Date.now();
+        return { known: true, visible: on };
+    }
+    return { known: true, visible: null };
+}
+function _bqPrefetchCoreVis(uid) {
+    if (!uid || typeof db === 'undefined' || _bqCoreVisCache[uid] || _bqCoreVisInflight[uid]) return;
+    _bqCoreVisInflight[uid] = true;
+    db.collection('public_profiles').doc(uid).get().then(function (snap) {
+        var prev = _bqCoreVisCache[uid];
+        var info = _bqVisFromPublic(snap.exists ? snap.data() : {});
+        _bqCoreVisCache[uid] = info;
+        _bqCoreVisInflight[uid] = false;
+        var changed = !prev || prev.visible !== info.visible || prev.known !== info.known;
+        if (changed && typeof renderChatMessages === 'function' && window._chatAllMsgs) {
+            renderChatMessages(window._chatAllMsgs);
+        }
+    }).catch(function () { _bqCoreVisInflight[uid] = false; });
+}
+window._bqLiveCoreVisible = function (uid, isMe, storedFlag) {
+    if (isMe && typeof currentUser !== 'undefined' && currentUser) {
+        if (typeof BQBadgeIndex !== 'undefined' && BQBadgeIndex.coreContributorVisible) {
+            return BQBadgeIndex.coreContributorVisible(currentUser);
+        }
+        return currentUser.showCoreContributor !== false && Number(currentUser.coreContributorUntil) > Date.now();
+    }
+    var cached = uid ? _bqCoreVisCache[uid] : null;
+    if (!cached || !cached.known) {
+        if (uid) _bqPrefetchCoreVis(uid);
+        return !!storedFlag;
+    }
+    if (cached.visible === null) return !!storedFlag;
+    return cached.visible === true;
+};
+window._bqNoteOwnCoreVis = function () {
+    if (typeof auth === 'undefined' || !auth.currentUser || typeof currentUser === 'undefined' || !currentUser) return;
+    var vis = (typeof BQBadgeIndex !== 'undefined' && BQBadgeIndex.coreContributorVisible)
+        ? BQBadgeIndex.coreContributorVisible(currentUser)
+        : (currentUser.showCoreContributor !== false && Number(currentUser.coreContributorUntil) > Date.now());
+    _bqCoreVisCache[auth.currentUser.uid] = { known: true, visible: vis };
+};
+
 function renderChatMessages(msgs) {
+
     var el = document.getElementById('globalChatMessages');
     if (!el) return;
 
@@ -644,12 +693,7 @@ function renderChatMessages(msgs) {
             nameStyle += 'cursor:pointer;';
             nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')"';
         }
-        var _showCorePill = !isNacho && m.hasCoreContributor;
-        if (isMe && typeof currentUser !== 'undefined' && currentUser) {
-            _showCorePill = (typeof BQBadgeIndex !== 'undefined' && BQBadgeIndex.coreContributorVisible)
-                ? BQBadgeIndex.coreContributorVisible(currentUser)
-                : (currentUser.showCoreContributor !== false && Number(currentUser.coreContributorUntil) > Date.now());
-        }
+        var _showCorePill = !isNacho && window._bqLiveCoreVisible(m.uid, isMe, !!m.hasCoreContributor);
         var _coreTitle = _showCorePill ? ' <span tabindex="0" data-bq-badge="core_contributor" data-bq-uid="' + esc(m.uid || '') + '"' + (isMe ? ' data-bq-own="1"' : '') + ' style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.35);color:#f97316;vertical-align:middle;cursor:pointer;">🔧 Core Contributor</span>' : '';
         _coreTitle += (!isNacho && m.hasFactionChampion) ? (function(){ var _fl = ({'🐝👑':'Hive Mind Champion','🦡👑':"Honey Badger Don't Care Champion",'🐝🛡️':'Still Buzzing','🦡🛡️':"Badger Don't Quit"})[m.factionRaceFlair]; return _fl ? ' <span title="Faction race" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">' + esc(m.factionRaceFlair + ' ' + _fl) + '</span>' : null; })() || ' <span title="Faction race champion" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">👑 Race Champion</span>' : '';
         html += '<span style="' + nameStyle + '"' + nameClick + '>' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + _coreTitle + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';

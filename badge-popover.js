@@ -80,6 +80,13 @@
         var id = anchor && anchor.getAttribute('data-bq-badge');
         var entry = entryOf(id);
         if (!entry) return;
+        if (entry.secret) {
+            var uid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : '';
+            var own = anchor.getAttribute('data-bq-own') === '1' || (uid && anchor.getAttribute('data-bq-uid') === uid);
+            var u = (own && typeof currentUser !== 'undefined') ? currentUser : null;
+            var earned = u && [].concat(u.hiddenBadges || [], u.earnedHidden || [], u.visibleBadges || [], u.bipBadges || []).indexOf(id) !== -1;
+            if (!earned) return;
+        }
         clearTimeout(hideTimer);
         hideTimer = null;
         currentId = id;
@@ -163,23 +170,33 @@
     });
 
     root._bqHideBadgePopover = hide;
-    root._setShowCoreContributor = function (on) {
-        if (typeof currentUser === 'undefined' || !currentUser) return;
-        if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
-        currentUser.showCoreContributor = !!on;
-        if (typeof db !== 'undefined' && db) {
-            db.collection('users').doc(auth.currentUser.uid).update({ showCoreContributor: !!on }).catch(function () {});
-        }
-        if (typeof showToast === 'function') showToast(on ? 'Core Contributor is visible' : 'Core Contributor is hidden');
+    function applyShowCoreUi(on) {
         if (typeof root._tfRepaint === 'function') root._tfRepaint();
-        var pill = document.getElementById('settingsTitlePill');
-        if (pill && typeof root._tfTitleDef === 'function') {
-            /* updated on repaint in ranking */
-        }
         if (typeof updateRankUI === 'function') try { updateRankUI(); } catch (err) {}
         var box = document.getElementById('tfShowCore');
         if (box) box.checked = !!on;
         var popBox = document.getElementById('bqShowCorePop');
         if (popBox) popBox.checked = !!on;
+    }
+    root._setShowCoreContributor = function (on) {
+        if (typeof currentUser === 'undefined' || !currentUser) return;
+        if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
+        var prev = currentUser.showCoreContributor !== false;
+        var next = !!on;
+        currentUser.showCoreContributor = next;
+        applyShowCoreUi(next);
+        function fail() {
+            currentUser.showCoreContributor = prev;
+            applyShowCoreUi(prev);
+            if (typeof showToast === 'function') showToast("Couldn't save. Core Contributor is still " + (prev ? 'visible' : 'hidden'));
+        }
+        if (typeof db === 'undefined' || !db) { fail(); return; }
+        db.collection('users').doc(auth.currentUser.uid).update({ showCoreContributor: next }).then(function () {
+            if (typeof window._bqNoteOwnCoreVis === 'function') window._bqNoteOwnCoreVis();
+            if (typeof showToast === 'function') showToast(next ? 'Core Contributor is visible' : 'Core Contributor is hidden');
+            if (typeof renderChatMessages === 'function' && window._chatAllMsgs) {
+                try { renderChatMessages(window._chatAllMsgs); } catch (err) {}
+            }
+        }).catch(fail);
     };
 })(typeof window !== 'undefined' ? window : this);

@@ -60,4 +60,41 @@ test('visibility: window plus owner toggle; expired needs a new week', () => {
     assert.strictEqual(core.titleActive({ coreContributorUntil: now - 1 }, now), false);
 });
 
+
+test('faction champion titles do not carry the BIP description', () => {
+    const hive = idx.get('hive_mind_champion');
+    const badger = idx.get('honey_badger_champion');
+    const bip = /Merged this week's BIP after 7 daily spins/i;
+    assert.ok(hive && /hive mind/i.test(hive.name), hive && hive.name);
+    assert.ok(badger && /honey badger/i.test(badger.name), badger && badger.name);
+    assert.ok(!bip.test(hive.desc), hive.desc);
+    assert.ok(!bip.test(badger.desc), badger.desc);
+    idx.allEntries().forEach((e) => {
+        if (e.id === 'core_contributor') return;
+        assert.ok(!bip.test(e.desc || ''), 'stolen BIP desc on ' + e.id);
+        assert.ok(!bip.test(e.how || ''), 'stolen BIP how on ' + e.id);
+    });
+});
+
+test('displayBadge only renders earned non-title badges', () => {
+    const user = { visibleBadges: ['explorer_10'], hiddenBadges: [], bipBadges: ['bip_360'] };
+    assert.strictEqual(idx.canDisplayBadge(user, 'explorer_10'), true);
+    assert.strictEqual(idx.canDisplayBadge(user, 'explorer_25'), false);
+    assert.strictEqual(idx.canDisplayBadge(user, 'bip_360'), true);
+    assert.strictEqual(idx.canDisplayBadge(user, 'core_contributor'), false);
+    const secrets = idx.allEntries().filter((e) => e.secret);
+    if (secrets.length) {
+        const sid = secrets[0].id;
+        assert.strictEqual(idx.canDisplayBadge({ visibleBadges: [sid] }, sid), false);
+        assert.strictEqual(idx.canDisplayBadge({ hiddenBadges: [sid] }, sid), true);
+    }
+});
+
+test('public profile flag is enough to decide visibility', () => {
+    assert.strictEqual(idx.coreContributorVisible({ coreContributorVisible: true }), true);
+    assert.strictEqual(idx.coreContributorVisible({ coreContributorVisible: false }), false);
+    const now = 1_700_000_000_000;
+    assert.strictEqual(idx.coreContributorVisible({ coreContributorUntil: now + 1000, showCoreContributor: true }, now), true);
+});
+
 console.log('test-badge-index passed');

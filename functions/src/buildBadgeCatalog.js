@@ -29,9 +29,9 @@ function grabFields(block) {
     }
     const pts = block.match(/pts\s*:\s*(-?\d+)/);
     return {
-        name: one('name'),
+        name: one('name') || one('title'),
         emoji: one('emoji'),
-        desc: one('desc') || one('hint'),
+        desc: one('desc') || one('hint') || one('flavor'),
         pts: pts ? Number(pts[1]) : null,
         hidden: /hidden\s*:\s*true/.test(block),
     };
@@ -41,12 +41,14 @@ function collectObjects(text) {
     const out = {};
     // A word boundary keeps `raid: 'Raid'` from looking like `id: 'Raid'`.
     const re = /(?:^|[^A-Za-z0-9_])id\s*:\s*['"]([a-zA-Z0-9_]+)['"]/g;
+    const hits = [];
     let m;
-    while ((m = re.exec(text))) {
-        const id = m[1];
-        const block = text.slice(m.index, m.index + 700);
-        if (!out[id]) out[id] = grabFields(block);
-    }
+    while ((m = re.exec(text))) hits.push({ id: m[1], index: m.index });
+    hits.forEach(function (hit, i) {
+        const next = i + 1 < hits.length ? hits[i + 1].index : hit.index + 700;
+        const block = text.slice(hit.index, Math.min(hit.index + 700, next));
+        if (!out[hit.id]) out[hit.id] = grabFields(block);
+    });
     return out;
 }
 
@@ -253,6 +255,20 @@ Object.keys(badges).forEach(function (id) {
     if (xpTable.badges[id]) badges[id].xp = Number(xpTable.badges[id].xp) || 0;
 });
 
+const titleDefs = require('./titleDefsFromSource').extract(fs.readFileSync(path.join(root, 'badges.js'), 'utf8'));
+titleDefs.forEach(function (t) {
+    if (!t || !t.id) return;
+    const cur = badges[t.id] || {};
+    badges[t.id] = {
+        name: t.title || t.name || cur.name || t.id,
+        emoji: t.emoji || cur.emoji || '🏅',
+        desc: t.flavor || t.desc || cur.desc || '',
+        xp: cur.xp || 0,
+        hidden: cur.hidden === true,
+        category: cur.category || '',
+    };
+});
+
 const doc = {
     version: 1,
     channelCount: channelCount,
@@ -299,7 +315,6 @@ const collectionDefs = collectionBonus.collections().map(function (col) {
     };
 });
 // Server copy of the badge titles in badges.js, so the equip callable can check them.
-const titleDefs = require('./titleDefsFromSource').extract(fs.readFileSync(path.join(root, 'badges.js'), 'utf8'));
 fs.writeFileSync(path.join(__dirname, 'title-defs.json'), JSON.stringify(titleDefs, null, 1) + '\n');
 const clientJs = 'window.BADGE_CATALOG=' + JSON.stringify(clientBadges) + ';\nwindow.BADGE_CATALOG_VERSION=1;\nwindow.BADGE_COLLECTION_PAY=' + JSON.stringify(collectionPay) + ';\n'
     + 'window.BADGE_COLLECTION_DEFS=' + JSON.stringify(collectionDefs) + ';\n'

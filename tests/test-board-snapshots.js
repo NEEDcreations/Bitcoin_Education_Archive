@@ -619,6 +619,42 @@ test('searchUsers orders and scores like the all-time board, with no new index',
     assert.ok(body.includes(".orderBy('points', 'desc')"));
 });
 
+(function testPublicProfilePrivacy() {
+    const core = require('../functions/src/coreContributor');
+    const now = 1_700_000_100_000;
+    const until = now + 3 * 24 * 60 * 60 * 1000 + 12345;
+    const visible = boards.publicProfileOf({
+        username: 'Ada',
+        displayBadge: 'unearned_secret',
+        visibleBadges: ['explorer_10'],
+        activeTitle: 'core_contributor',
+        showCoreContributor: true,
+        coreContributorUntil: until,
+        points: 10,
+    }, ['username', 'displayBadge', 'visibleBadges', 'activeTitle', 'showCoreContributor', 'coreContributorUntil', 'points'], now);
+    if (visible.displayBadge) throw new Error('unearned displayBadge leaked: ' + visible.displayBadge);
+    if (visible.showCoreContributor !== undefined) throw new Error('show pref leaked');
+    if (visible.coreContributorUntil !== undefined) throw new Error('raw until leaked');
+    if (visible.coreContributorVisible !== true) throw new Error('visible flag missing');
+    if (visible.coreContributorUntilDay !== core.dayFloorUtc(until)) throw new Error('until not day-rounded');
+    if (visible.activeTitle !== 'core_contributor') throw new Error('visible title should stay');
+
+    const hidden = boards.publicProfileOf({
+        username: 'Ada',
+        displayBadge: 'explorer_10',
+        visibleBadges: ['explorer_10'],
+        activeTitle: 'core_contributor',
+        showCoreContributor: false,
+        coreContributorUntil: until,
+        points: 10,
+    }, ['username', 'displayBadge', 'visibleBadges', 'activeTitle', 'showCoreContributor', 'coreContributorUntil', 'points'], now);
+    if (hidden.displayBadge !== 'explorer_10') throw new Error('earned displayBadge dropped');
+    if (hidden.coreContributorVisible) throw new Error('hidden still visible');
+    if ('coreContributorUntilDay' in hidden) throw new Error('expiry present while hidden');
+    if (hidden.activeTitle === 'core_contributor') throw new Error('hidden title leaked');
+    console.log('ok public profile privacy and earned displayBadge');
+})();
+
 (async function main() {
     for (let i = 0; i < queue.length; i++) {
         const item = queue[i];

@@ -89,7 +89,8 @@
                 if (t && t.id && seen[t.id] && t.flavor) {
                     for (var i = 0; i < out.length; i++) {
                         if (out[i].id === t.id) {
-                            if (!out[i].hasOfficialDesc && t.flavor) {
+                            var stolen = t.id !== 'core_contributor' && /Merged this week's BIP after 7 daily spins/i.test(out[i].desc);
+                            if ((!out[i].hasOfficialDesc || stolen) && t.flavor) {
                                 out[i].desc = t.flavor;
                                 out[i].how = TITLE_HOW[t.id] || t.flavor;
                                 out[i].hasOfficialDesc = true;
@@ -212,8 +213,25 @@
     }
     function coreContributorVisible(user, nowMs) {
         if (!user) return false;
-        if (user.showCoreContributor === false) return false;
-        return toMs(user.coreContributorUntil) > (Number(nowMs) || Date.now());
+        if ('showCoreContributor' in user || 'coreContributorUntil' in user) {
+            if (user.showCoreContributor === false) return false;
+            return toMs(user.coreContributorUntil) > (Number(nowMs) || Date.now());
+        }
+        return user.coreContributorVisible === true;
+    }
+
+    function canDisplayBadge(user, id) {
+        var key = String(id || '');
+        if (!key || !user) return false;
+        var entry = get(key);
+        if (entry && entry.kind === 'title') return false;
+        var lists = [].concat(user.visibleBadges || [], user.hiddenBadges || [], user.bipBadges || []);
+        if (lists.indexOf(key) === -1) return false;
+        if (entry && entry.secret) {
+            var earnedSecret = [].concat(user.hiddenBadges || [], user.earnedHidden || []);
+            return earnedSecret.indexOf(key) !== -1;
+        }
+        return true;
     }
 
     return {
@@ -226,6 +244,7 @@
         isBitcoinCoreDevQuestion: isBitcoinCoreDevQuestion,
         nachoAnswer: nachoAnswer,
         coreContributorVisible: coreContributorVisible,
+        canDisplayBadge: canDisplayBadge,
         toMs: toMs
     };
 });

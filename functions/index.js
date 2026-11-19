@@ -5775,7 +5775,6 @@ const PUBLIC_PROFILE_FIELDS = [
     'visitedChannelsList', 'readChannels',
     'orangeTickets', 'badges', 'visibleBadges', 'hiddenBadges',
     'displayBadge', 'equippedBadge', 'activeTitle',
-    'showCoreContributor', 'coreContributorUntil',
     'ownedCosmetics', 'spinClosetItems',
     'forumPosts', 'forumReplies',
     'pvpWins', 'pvpLosses',
@@ -5821,8 +5820,7 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
             return null;
         }
         const data = change.after.data() || {};
-        const pub = {};
-        PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in data) pub[f] = data[f]; });
+        const pub = boardSnapshots.publicProfileOf(data, PUBLIC_PROFILE_FIELDS);
         if ('points' in data || 'guestUnclaimableXp' in data) pub.points = boardSnapshots.allTimeXp(data);
         try {
             await pubRef.set(pub, { merge: false });
