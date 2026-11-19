@@ -316,6 +316,7 @@ async function ensureReferralCode() {}
 // ---- Get referral stats for display ----
 var _inviteStatsCache = { uid: '', at: 0, stats: null };
 var INVITE_STATS_MS = 5 * 60 * 1000;
+var INVITE_LOOKUP_MAX = 25;
 
 async function getReferralStats() {
     if (!currentUser || !db) return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
@@ -333,17 +334,49 @@ async function getReferralStats() {
             .where('referrerUid', '==', uid)
             .get();
 
+        // The live list is the invite count. users.referralInvited only
+        // counts pending/flagged referrals at signup, so it runs low (Nov 17:
+        // 8 on the counter vs 15 docs) and is never shown when this list loads.
         let total = snapshot.size;
         let verified = 0;
         let pending = 0;
-        let reachedXp = 0;
+        let qualifies = 0;
+        var unstamped = [];
 
         snapshot.forEach(doc => {
             var data = doc.data() || {};
             var rewarded = data.verified === true || data.status === 'paid' || data.ticketsAwarded === true;
             if (rewarded) verified++;
             else pending++;
-            if (data.maxiReachedAt || rewarded) reachedXp++;
+            if (data.maxiReachedAt || rewarded) qualifies++;
+            else {
+                var rid = String(data.referredUserUid || data.referredUid || data.referredUser || doc.id || '');
+                if (rid && rid !== uid) unstamped.push({ uid: rid, late: data.status === 'late' });
+            }
+        });
+
+        // "Reached 2,140 XP" counts every invited friend past the bar, not just
+        // the ones that qualify. Friends who did not qualify (most often an
+        // account that existed before the code was used) are read one profile
+        // at a time; signed-in users may read single profiles. Capped.
+        var reachedOther = 0;
+        var lateReached = 0;
+        var api = (typeof referralTiers !== 'undefined' && referralTiers) ? referralTiers : (window.referralTiers || null);
+        var bar = api && api.MAXI_RANK_POINTS ? api.MAXI_RANK_POINTS : 2140;
+        var lookups = unstamped.slice(0, INVITE_LOOKUP_MAX);
+        var profiles = await Promise.all(lookups.map(function (r) {
+            return db.collection('users').doc(r.uid).get().then(function (snap) {
+                return snap && snap.exists ? (snap.data() || {}) : null;
+            }).catch(function () { return null; });
+        }));
+        profiles.forEach(function (p, i) {
+            if (!p) return;
+            var pts = api && typeof api.activityPoints === 'function' ? api.activityPoints(p)
+                : Math.max(0, (Number(p.points) || 0) - (Number(p.scholarPoints) || 0));
+            if (pts >= bar) {
+                reachedOther++;
+                if (lookups[i].late) lateReached++;
+            }
         });
 
         var stats = {
@@ -352,9 +385,12 @@ async function getReferralStats() {
             pending: pending,
             invited: total,
             maxi: verified,
-            reached: reachedXp,
-            maxiReached: reachedXp,
-            rewarded: verified
+            reached: qualifies + reachedOther,
+            maxiReached: qualifies + reachedOther,
+            qualifies: qualifies,
+            lateReached: lateReached,
+            rewarded: verified,
+            live: true
         };
         _inviteStatsCache = { uid: uid, at: now, stats: stats };
         return stats;
@@ -364,6 +400,8 @@ async function getReferralStats() {
         var reached = parseInt(currentUser.referralMaxiReachedCount, 10);
         if (isNaN(reached)) reached = maxi;
         if (!isNaN(invited)) {
+            // Offline fallback: the stored counter can run low, so it is
+            // marked and shown as "at least".
             return {
                 total: invited,
                 verified: maxi,
@@ -372,7 +410,8 @@ async function getReferralStats() {
                 maxi: maxi,
                 reached: reached,
                 maxiReached: reached,
-                rewarded: maxi
+                rewarded: maxi,
+                fromCounter: true
             };
         }
         return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
@@ -637,8 +676,16 @@ function _inviteCountLine(stats) {
     var rewarded = stats && typeof stats.rewarded === 'number' ? stats.rewarded
         : (stats && typeof stats.maxi === 'number' ? stats.maxi : 0);
     if (!invited && !reached && !rewarded) return 'No invites yet.';
-    var invitedLabel = invited === 1 ? '1 friend invited' : invited + ' friends invited';
+    var invitedLabel = stats && stats.fromCounter
+        ? 'At least ' + invited + (invited === 1 ? ' friend invited' : ' friends invited')
+        : (invited === 1 ? '1 friend invited' : invited + ' friends invited');
     var reachedLabel = (reached === 1 ? '1 reached 2,140 XP' : reached + ' reached 2,140 XP');
+    if (stats && typeof stats.qualifies === 'number') {
+        var api = (typeof referralTiers !== 'undefined' && referralTiers) ? referralTiers : (typeof window !== 'undefined' ? window.referralTiers : null);
+        var q = Math.min(stats.qualifies, reached);
+        reachedLabel += ', ' + (q === 1 ? '1 qualifies' : q + ' qualify') +
+            (api && typeof api.notCountedNote === 'function' ? api.notCountedNote(reached, q, stats.lateReached) : '');
+    }
     var rewardedLabel = (rewarded === 1 ? '1 rewarded' : rewarded + ' rewarded');
     return invitedLabel + ' · ' + reachedLabel + ' · ' + rewardedLabel;
 }

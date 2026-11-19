@@ -4332,15 +4332,14 @@ function serverMaxiReferralCount(user) {
 }
 window.serverMaxiReferralCount = serverMaxiReferralCount;
 
-function invitedReferralCount(user) {
-    var n = Math.floor(Number(user && user.referralInvited));
-    if (!isFinite(n) || n < 0) return 0;
-    return n;
-}
-
-var _homeInvitedCount = 0;
+var _homeInvitedCount = null;
 var _homeMaxiCount = 0;
 var _homeReachedCount = 0;
+// Last live referral list for this uid (getReferralStats). Until it loads,
+// the invited count is unknown: the stored invite counter runs low, so the tile
+// never paints it (Nov 17: counter 8 vs 15 live referrals).
+var _homeInviteLive = null;
+var _homeInviteBreakdown = null;
 
 function serverReachedReferralCount(user) {
     var raw = user && user.referralMaxiReachedCount;
@@ -4350,7 +4349,7 @@ function serverReachedReferralCount(user) {
 }
 window.serverReachedReferralCount = serverReachedReferralCount;
 
-function paintInviteTier(count, invited, reached) {
+function paintInviteTier(count, invited, reached, breakdown) {
     var api = referralTierApi();
     var n = (api && typeof api.normalizeCount === 'function') ? api.normalizeCount(count) : (Number(count) || 0);
     var progress = (api && typeof api.tierProgress === 'function') ? api.tierProgress(n) : {
@@ -4360,13 +4359,20 @@ function paintInviteTier(count, invited, reached) {
         level: 0
     };
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
-    var inv = (typeof invited === 'number') ? Math.floor(invited) : invitedReferralCount(user);
-    if (!isFinite(inv) || inv < 0) inv = 0;
+    var liveUid = (window.auth && window.auth.currentUser && window.auth.currentUser.uid) || '';
+    var live = (_homeInviteLive && _homeInviteLive.uid && _homeInviteLive.uid === liveUid) ? _homeInviteLive : null;
+    if (typeof invited !== 'number' && live) {
+        invited = live.invited; reached = live.reached; breakdown = live.breakdown;
+    }
+    var inv = (typeof invited === 'number') ? Math.floor(invited) : null;
+    if (inv != null && (!isFinite(inv) || inv < 0)) inv = 0;
     var reachedN = (typeof reached === 'number') ? Math.floor(reached) : serverReachedReferralCount(user);
     if (!isFinite(reachedN) || reachedN < 0) reachedN = n;
+    var bd = (breakdown && typeof breakdown.qualifies === 'number') ? { qualifies: breakdown.qualifies, late: breakdown.late || 0 } : null;
     _homeInvitedCount = inv;
     _homeMaxiCount = n;
     _homeReachedCount = reachedN;
+    _homeInviteBreakdown = bd;
     var tierEl = document.getElementById('homeInvitesTier');
     var noteEl = document.getElementById('homeInvitesNote');
     var progEl = document.getElementById('homeInvitesProgress');
@@ -4374,11 +4380,11 @@ function paintInviteTier(count, invited, reached) {
     var openBtn = document.getElementById('homeInvitesOpen') || tile;
     if (tierEl) tierEl.textContent = progress.tierLabel;
     var noteText = (api && typeof api.reachedRewardLabel === 'function')
-        ? api.reachedRewardLabel(reachedN, n)
+        ? api.reachedRewardLabel(reachedN, n, bd)
         : (String(reachedN) + ' reached · ' + String(n) + ' rewarded');
     if (noteEl) noteEl.textContent = noteText;
     var helpEl = document.getElementById('homeInvitesInfoText');
-    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, reachedN, n);
+    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, reachedN, n, bd);
     if (progEl) progEl.textContent = progress.progressText;
     if (tile) tile.setAttribute('data-referral-tier', String(progress.level));
     if (openBtn) {
@@ -4447,9 +4453,13 @@ window.refreshHomeStrip = function() {
     // and wait until auth confirms this uid.
     if (typeof getReferralStats === 'function' && !optimisticProfilePending()) {
         getReferralStats().then(function (stats) {
-            if (!stats || stats.failed || typeof stats.invited !== 'number') return;
+            // The offline fallback is the stored counter, which runs low.
+            if (!stats || stats.failed || stats.fromCounter || typeof stats.invited !== 'number') return;
             var reached = typeof stats.reached === 'number' ? stats.reached : 0;
-            paintInviteTier(serverMaxiReferralCount(user), stats.invited, reached);
+            var breakdown = typeof stats.qualifies === 'number' ? { qualifies: stats.qualifies, late: stats.lateReached || 0 } : null;
+            var uidNow = (window.auth && window.auth.currentUser && window.auth.currentUser.uid) || '';
+            _homeInviteLive = { uid: uidNow, invited: stats.invited, reached: reached, breakdown: breakdown };
+            paintInviteTier(serverMaxiReferralCount(user), stats.invited, reached, breakdown);
         }).catch(function () {});
     }
     if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
@@ -4594,7 +4604,7 @@ function bindReferralTierLadder() {
         help.addEventListener('mouseleave', hoverClose);
     }
     var api = referralTierApi();
-    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount);
+    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount, _homeInviteBreakdown);
 }
 bindReferralTierLadder();
 
@@ -4604,7 +4614,7 @@ function setMaxiInfoOpen(open) {
     if (!tip) return;
     if (tip.parentElement !== document.body) document.body.appendChild(tip);
     var api = referralTierApi();
-    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount);
+    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount, _homeInviteBreakdown);
     tip.classList.toggle('is-open', !!open);
     if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (!open) return;

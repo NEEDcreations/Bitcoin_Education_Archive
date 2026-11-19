@@ -90,25 +90,61 @@
         return activityPoints(user) >= MAXI_RANK_POINTS;
     }
 
-    function maxiCountHelp(invited, reached, rewarded) {
-        var points = String(MAXI_RANK_POINTS).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-        var inv = Math.floor(Number(invited));
-        if (!isFinite(inv) || inv < 0) inv = 0;
-        var got = Math.floor(Number(reached));
-        if (!isFinite(got) || got < 0) got = 0;
-        var paid = Math.floor(Number(rewarded));
-        if (!isFinite(paid) || paid < 0) paid = got;
-        var people = inv === 1 ? "You've invited 1 person." : "You've invited " + inv + " people.";
-        var rank = (got === 1 ? '1 reached' : got + ' reached') + ' ' + points + " XP (Scholar exam points don't count).";
-        var reward = (paid === 1 ? '1 rewarded' : paid + ' rewarded') + '.';
-        return people + ' ' + rank + ' ' + reward + ' Tickets unlock after the account is 7 days old and passes checks. Tier badges use rewarded referrals.';
+    function wholeCount(v, dflt) {
+        var n = Math.floor(Number(v));
+        if (!isFinite(n) || n < 0) return dflt;
+        return n;
     }
 
-    function reachedRewardLabel(reached, rewarded) {
-        var got = Math.floor(Number(reached));
-        if (!isFinite(got) || got < 0) got = 0;
-        var paid = Math.floor(Number(rewarded));
-        if (!isFinite(paid) || paid < 0) paid = 0;
+    // Why some referrals that reached 2,140 XP do not count (Phil, Nov 17):
+    // "late" means the friend's account existed before they used the code.
+    // Anything else not yet counted is still waiting on checks.
+    function notCountedNote(reached, qualifies, late) {
+        var got = wholeCount(reached, 0);
+        var ok = Math.min(wholeCount(qualifies, 0), got);
+        var lateN = Math.min(wholeCount(late, 0), got - ok);
+        var other = got - ok - lateN;
+        var parts = [];
+        if (lateN) parts.push(lateN + ' joined before using your code');
+        if (other) parts.push(other + ' not counted yet');
+        return parts.length ? ' (' + parts.join(', ') + ')' : '';
+    }
+
+    function qualifiesText(n) {
+        return n === 1 ? '1 qualifies' : n + ' qualify';
+    }
+
+    // opts (optional): { qualifies, late } from the live referral list.
+    // invited null/undefined = not loaded yet; that sentence is left out
+    // rather than showing the stale users.referralInvited counter.
+    function maxiCountHelp(invited, reached, rewarded, opts) {
+        var points = String(MAXI_RANK_POINTS).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        var got = wholeCount(reached, 0);
+        var paid = wholeCount(rewarded, got);
+        var people = '';
+        if (invited != null) {
+            var inv = wholeCount(invited, 0);
+            people = (inv === 1 ? "You've invited 1 person." : "You've invited " + inv + " people.") + ' ';
+        }
+        var rank = (got === 1 ? '1 reached' : got + ' reached') + ' ' + points + " XP (Scholar exam points don't count).";
+        var qual = '';
+        if (opts && typeof opts.qualifies === 'number') {
+            var q = Math.min(wholeCount(opts.qualifies, 0), got);
+            qual = ' ' + qualifiesText(q) + notCountedNote(got, q, opts.late) + '.';
+        }
+        var reward = (paid === 1 ? '1 rewarded' : paid + ' rewarded') + '.';
+        return people + rank + qual + ' ' + reward + ' Tickets unlock after the account is 7 days old and passes checks. Tier badges use rewarded referrals.';
+    }
+
+    // Tile line. With live { qualifies, late }: "3 reached 2,140 XP, 1 qualifies
+    // (2 joined before using your code)". Without: the server counters only.
+    function reachedRewardLabel(reached, rewarded, opts) {
+        var got = wholeCount(reached, 0);
+        var paid = wholeCount(rewarded, 0);
+        if (opts && typeof opts.qualifies === 'number') {
+            var q = Math.min(wholeCount(opts.qualifies, 0), got);
+            return got + ' reached 2,140 XP, ' + qualifiesText(q) + notCountedNote(got, q, opts.late);
+        }
         return got + ' reached 2,140 XP · ' + paid + ' rewarded';
     }
 
@@ -330,6 +366,7 @@
         holdsMaxiRank: holdsMaxiRank,
         maxiCountHelp: maxiCountHelp,
         reachedRewardLabel: reachedRewardLabel,
+        notCountedNote: notCountedNote,
         badgeTiers: badgeTiers,
         badgeIds: badgeIds,
         badgeById: badgeById,
