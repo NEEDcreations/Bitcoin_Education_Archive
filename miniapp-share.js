@@ -516,7 +516,8 @@
         mount(doc.querySelector('#popOverlay .pop-header'), 'pop');
         mount(doc.getElementById('pvpOverlay'), 'pvp');
         mount(doc.getElementById('nachoModeScreen'), 'nacho');
-        mount(doc.getElementById('questHubOverlay'), 'quests');
+        clearHidden('quests', doc.getElementById('questHubOverlay'));
+        mount(doc.getElementById('questHubShareSlot'), 'quests');
         mount(doc.getElementById('aiToolsPanel'), 'ai');
         mount(doc.getElementById('leaderboard'), 'leaderboard');
         mount(doc.getElementById('btcDashCard'), 'metrics');

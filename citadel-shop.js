@@ -191,6 +191,7 @@
 
     function renderHtml(v) {
         var h = '<div class="bq-cshop">';
+        if (!v.open) h += '<div class="cs-banner" data-cs-closed="1" role="status">Building opens Jan 3, 2027</div>';
         h += '<section class="cs-panel cs-progress" aria-label="Citadel progress"><div class="cs-prow"><div class="cs-plabel">' + v.progressLabel + '</div>' +
             '<div class="cs-meta">' + (v.premium
                 ? fmt(v.balance) + ' OrangeTix \u00b7 ' + v.spent + ' / ' + v.cap + ' used this week'
@@ -204,7 +205,6 @@
             h += '<p class="cs-note" data-cs-remaining="' + v.remaining + '">' + (v.atCap
                 ? 'You\u2019ve used this week\u2019s ' + v.cap + ' OrangeTix for parts. Buying opens again next week.'
                 : v.remaining + ' OrangeTix left for parts this week.') + '</p>';
-            if (!v.open) h += '<p class="cs-note" data-cs-closed="1">The Citadel opens January 3, 2027 at 12:00 AM ET.</p>';
             if (v.tooNew) h += '<p class="cs-note">Parts buying opens when your account is ' + CONFIG.MIN_ACCOUNT_AGE_DAYS + ' days old.</p>';
         }
         if (v.lapsed && CONFIG.LAPSED_PARTS_MODE === 'keep_paused') h += '<p class="cs-note">Your parts are kept. Buying and building pause until Premium is renewed.</p>';
@@ -212,7 +212,7 @@
 
         if (v.showGetPremium) {
             h += '<section class="cs-panel cs-cta" id="csGetPremium"><div class="cs-kicker">Premium</div>' +
-                '<p class="cs-copy">Unlock buying Citadel parts and cosmetics. Plans from $5 a month, $50 a year, or Founders\u2019 Lifetime for $150 (500 seats). Embers and Citadel cosmetics start January 3, 2027 at 12:00 AM ET. Your other Premium perks start when you buy.</p>' +
+                '<p class="cs-copy">Get Premium to unlock buying Citadel parts and cosmetics when building opens. Plans from $5 a month, $50 a year, or Founders\u2019 Lifetime for $150 (500 seats). Your other Premium perks start when you buy.</p>' +
                 (v.referralWeek ? '<p class="cs-copy" data-cs-referral="1">Referral week: Premium can be bought here this week.</p>' : '') +
                 '<button class="cs-btn cs-primary" type="button" data-cs-premium="1">' + icon('sparkles', 18) + ' Get Premium</button></section>';
         }
@@ -240,10 +240,11 @@
     }
 
     var STYLE = [
-        '.bq-cshop{--cs-surface:var(--bg-side,#0f172a);--cs-bg:var(--bg,#020617);--cs-dim:#94a3b8;--cs-accent:#F7931A;--cs-accent-fg:#1A1208;--cs-glow:rgba(247,147,26,0.30);--cs-ok:#22c55e;text-align:left;padding:4px 0 16px;}',
+        '.bq-cshop{--cs-surface:var(--bg-side,#0f172a);--cs-bg:var(--bg,#020617);--cs-dim:#94a3b8;--cs-accent:#F7931A;--cs-accent-fg:#1A1208;--cs-glow:rgba(247,147,26,0.30);--cs-ok:#22c55e;text-align:left;padding:4px 0 16px;max-width:100%;overflow-x:hidden;box-sizing:border-box;}',
         '[data-theme="light"] .bq-cshop{--cs-surface:#ffffff;--cs-bg:#f8fafc;--cs-dim:#475569;--cs-glow:rgba(194,65,12,0.18);--cs-ok:#15803d;}',
         '.bq-cshop .cs-icon{display:inline-block;flex-shrink:0;vertical-align:middle;}',
-        '.bq-cshop .cs-panel{background:var(--cs-surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px;}',
+        '.bq-cshop .cs-banner{margin:0 0 16px;padding:12px 14px;border-radius:12px;border:1px solid var(--cs-accent);background:rgba(247,147,26,0.14);color:var(--heading);font-size:0.95rem;font-weight:800;line-height:1.35;text-align:center;box-sizing:border-box;}',
+        '.bq-cshop .cs-panel{background:var(--cs-surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px;min-width:0;max-width:100%;box-sizing:border-box;}',
         '.bq-cshop .cs-prow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap;}',
         '.bq-cshop .cs-plabel{font-size:1rem;font-weight:800;color:var(--heading);}',
         '.bq-cshop .cs-meta,.bq-cshop .cs-hint,.bq-cshop .cs-dim{font-size:0.75rem;font-weight:700;color:var(--cs-dim);}',
@@ -257,11 +258,11 @@
         '.bq-cshop .cs-note,.bq-cshop .cs-foot{margin:10px 0 0;font-size:0.75rem;line-height:1.45;color:var(--cs-dim);}',
         '.bq-cshop .cs-kicker{font-size:0.75rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--cs-dim);margin-bottom:6px;}',
         '.bq-cshop .cs-copy{font-size:0.875rem;line-height:1.45;color:var(--text);margin:0 0 12px;}',
-        '.bq-cshop .cs-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:8px 0 10px;}',
+        '.bq-cshop .cs-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:8px 0 10px;flex-wrap:wrap;min-width:0;}',
         '.bq-cshop .cs-head h2{font-size:1.05rem;font-weight:800;color:var(--heading);margin:0;}',
         '.bq-cshop .cs-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:18px;}',
         '@media (min-width:901px){.bq-cshop .cs-grid{grid-template-columns:1fr 1fr;}.bq-cshop .cs-breakdown{grid-template-columns:repeat(3,1fr);}}',
-        '.bq-cshop .cs-card{background:var(--cs-surface);border:1px solid var(--border);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;}',
+        '.bq-cshop .cs-card{background:var(--cs-surface);border:1px solid var(--border);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0;max-width:100%;box-sizing:border-box;}',
         '.bq-cshop .cs-card-top{display:flex;align-items:flex-start;gap:10px;}',
         '.bq-cshop .cs-card h3{font-size:1rem;font-weight:800;color:var(--heading);margin:0;}',
         '.bq-cshop .cs-sub{font-size:0.75rem;color:var(--cs-dim);margin-top:2px;}',
@@ -276,8 +277,9 @@
         '.bq-cshop .cs-owned{background:transparent;color:var(--text);border:1px solid var(--border);}',
         '.bq-cshop .cs-owned .cs-icon{color:var(--cs-ok);}',
         '.bq-cshop .cs-list{display:flex;flex-direction:column;gap:8px;}',
-        '.bq-cshop .cs-row{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 10px;background:var(--cs-bg);border:1px solid var(--border);border-radius:12px;}',
-        '.bq-cshop .cs-row-name{flex:1;font-size:0.875rem;font-weight:800;color:var(--heading);}',
+        '.bq-cshop .cs-row{display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px 10px;min-height:44px;min-width:0;padding:8px 10px;background:var(--cs-bg);border:1px solid var(--border);border-radius:12px;box-sizing:border-box;}',
+        '.bq-cshop .cs-row-name{flex:1 1 8rem;min-width:0;font-size:0.875rem;font-weight:800;color:var(--heading);overflow-wrap:anywhere;}',
+        '.bq-cshop .cs-dim{flex:1 1 10rem;min-width:0;overflow-wrap:anywhere;}',
         '.bq-cshop .cs-tag{display:block;font-size:0.75rem;font-weight:700;color:var(--cs-dim);}',
         '.bq-cshop .cs-count{font-size:0.875rem;font-weight:800;color:var(--text);}',
         '.bq-cshop .cs-empty{text-align:center;padding:20px 12px;color:var(--cs-dim);font-size:0.875rem;line-height:1.5;}',

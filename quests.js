@@ -3902,25 +3902,26 @@ function _ensureQuestScreen() {
     overlay.id = 'questHubOverlay';
     var align = window.innerWidth <= 900 ? 'flex-start' : 'center';
     var pad = window.innerWidth <= 900 ? '12px 12px 140px' : '20px';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:' + align + ';justify-content:center;backdrop-filter:blur(5px);padding:' + pad + ';animation:nachoPop 0.25s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;box-sizing:border-box;background:rgba(0,0,0,0.88);z-index:400000;display:flex;align-items:' + align + ';justify-content:center;backdrop-filter:blur(5px);padding:' + pad + ';animation:nachoPop 0.25s ease;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) {
         if (e.target === overlay && !window._flexJustCompleted) _closeQuestScreen();
     };
 
     var modal = document.createElement('div');
     var maxH = window.innerWidth <= 900 ? 'calc(100vh - 140px)' : '85vh';
-    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:' + maxH + ';border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
+    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:min(520px,100%);min-width:0;max-height:' + maxH + ';border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;box-sizing:border-box;';
 
     var header = document.createElement('div');
     header.id = 'questHubHeader';
     header.style.cssText = 'padding:20px 24px 0;flex-shrink:0;';
-    header.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;">' +
-        '<h2 id="questHubTitle" style="margin:0;color:var(--heading);font-size:1.3rem;">' + _questScreenTitle(window._questHubTab) + '</h2>' +
-        '<button type="button" aria-label="Close" onclick="if(window._closeQuestScreen)window._closeQuestScreen()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>';
+    header.innerHTML = '<div style="display:flex;align-items:center;margin-bottom:16px;gap:12px;">' +
+        '<h2 id="questHubTitle" style="margin:0;color:var(--heading);font-size:1.3rem;flex:1;min-width:0;">' + _questScreenTitle(window._questHubTab) + '</h2>' +
+        '<span id="questHubShareSlot" style="flex-shrink:0;display:flex;align-items:center;"></span>' +
+        '<button type="button" aria-label="Close" onclick="if(window._closeQuestScreen)window._closeQuestScreen()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;min-width:44px;min-height:44px;">✕</button></div>';
 
     var body = document.createElement('div');
     body.id = 'questHubBody';
-    body.style.cssText = 'padding:0 24px 24px;overflow-y:auto;flex:1;';
+    body.style.cssText = 'padding:0 24px 24px;overflow-x:hidden;overflow-y:auto;flex:1;min-width:0;box-sizing:border-box;';
 
     modal.appendChild(header);
     modal.appendChild(body);
@@ -4785,7 +4786,7 @@ function _renderNookHistory() {
 
 // ── CITADEL TAB ──
 // The Citadel shop lives in citadel-shop.js, loaded the first time this tab opens.
-var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2617';
+var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2623';
 function _renderCitadelTab(body) {
     if (window.CitadelShop && typeof window.CitadelShop.render === 'function') {
         window.CitadelShop.render(body);

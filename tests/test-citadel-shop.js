@@ -135,7 +135,12 @@ test('closed shop (server open=false) disables buy and build with no buttons', (
     v.lessons.forEach(l => assert.strictEqual(l.action, 'soon'));
     const h = CS.renderHtml(v);
     assert.ok(!h.includes('data-cs-buy=') && !h.includes('data-cs-build='));
-    assert.ok(h.includes('data-cs-closed="1"') && h.includes('Opens Jan 3, 2027'));
+    assert.ok(h.includes('data-cs-closed="1"') && h.includes('Building opens Jan 3, 2027'));
+    assert.ok(h.indexOf('Building opens Jan 3, 2027') < h.indexOf('cs-progress'), 'banner is at the top');
+    const freeClosed = CS.renderHtml(CS.computeView(free, { now: NOW, signedIn: true, flags: CS.DEFAULT_FLAGS, open: false }));
+    assert.ok(freeClosed.includes('data-cs-premium="1"') && freeClosed.includes('Get Premium'));
+    assert.ok(freeClosed.includes('Get Premium to unlock buying Citadel parts'));
+    assert.ok(!freeClosed.includes('January 3, 2027'), 'date is not buried in the Premium copy');
     assert.ok(src.includes("if (typeof d.open === 'boolean') shopOpen = d.open;"), 'open comes from the server status');
     assert.ok(src.includes('shopOpen === true'), 'unknown open state is treated as closed');
 });
@@ -146,7 +151,7 @@ test('unknown or missing server open state defaults to closed', () => {
     v.lessons.forEach(l => assert.strictEqual(l.action, 'soon'));
     const h = CS.renderHtml(v);
     assert.ok(!h.includes('data-cs-buy=') && !h.includes('data-cs-build='));
-    assert.ok(h.includes('data-cs-closed="1"'));
+    assert.ok(h.includes('data-cs-closed="1"') && h.includes('Building opens Jan 3, 2027'));
 });
 
 test('new account cannot buy before the minimum age', () => {
@@ -159,14 +164,18 @@ test('no em-dashes in the shop source', () => {
     assert.ok(!/\\u2014/.test(src));
 });
 
-test('SW is v2616 and quests.js loads citadel-shop.js at v2617', () => {
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2616'"));
+test('SW is v2623 and quests.js loads citadel-shop.js at v2623', () => {
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2623'"));
     const q = read('quests.js');
-    assert.ok(q.includes("var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2617';"));
+    assert.ok(q.includes("var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2623';"));
     assert.ok(!q.includes('USE XP TO CONSTRUCT YOUR OWN CITADEL'));
     assert.strictEqual(read('index.html'), read('404.html'));
     assert.ok(read('index.html').includes('ranking.js?v=20261119_v2617'));
-    assert.ok(read('index.html').includes('quests.js?v=20261119_v2617'));
+    assert.ok(read('index.html').includes('quests.js?v=20261119_v2623'));
+    assert.ok(read('index.html').includes('miniapp-share.js?v=20261119_v2623'));
+    assert.ok(q.includes("z-index:400000") && q.includes('questHubShareSlot'));
+    assert.ok(read('miniapp-share.js').includes("mount(doc.getElementById('questHubShareSlot'), 'quests')"));
+    assert.ok(read('index.html').includes('body:has(#questHubOverlay) .fab-btn'));
 });
 
 test('lesson part map: five distinct early Learning Quests, one per part', () => {
