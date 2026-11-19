@@ -7,6 +7,7 @@
  *   FIREBASE_SA_EMAIL     — service account email
  *   FIREBASE_SA_KEY       — PEM private key (with \n literals)
  *   BRIDGE_SECRET         — shared secret for app→telegram calls
+ *   AGENT_CHAT_SECRET     — shared secret for trusted agent-bot self-mirror
  *
  * Vars:
  *   TG_CHAT_ID            — Telegram group chat ID
@@ -314,6 +315,17 @@ export default {
         var result = await nachoDJCheck(env);
         return corsResponse(result);
       }
+      if (url.pathname === '/webhook/agent' && request.method === 'POST') {
+        // Trusted agent bots (e.g. @TimmyJuniorBot) write their own replies
+        // into global_chat. Telegram does not deliver one bot's messages to
+        // another bot, so the mirror bot never sees agent posts; this is the
+        // agents' direct, authenticated self-mirror path. Fail closed.
+        var agentSecret = request.headers.get('X-Agent-Chat-Secret') || '';
+        if (!env.AGENT_CHAT_SECRET || !timingSafeEqual(agentSecret, env.AGENT_CHAT_SECRET)) {
+          return corsResponse({ error: 'unauthorized' }, 401);
+        }
+        return handleAgentWebhook(request, env);
+      }
       if (url.pathname === '/health') {
         return corsResponse({ ok: true, ts: Date.now() });
       }
@@ -557,6 +569,35 @@ async function handleBroadcastPost(post, env) {
 
   await writeToFirestore(env, firestoreDoc);
   return new Response('OK');
+}
+
+// ---- Agent → Firestore (self-mirror for trusted bots) ----
+async function handleAgentWebhook(request, env) {
+  var data = {};
+  try { data = await request.json(); } catch (e) { return corsResponse({ error: 'bad_json' }, 400); }
+
+  var text = String(data.text || '').trim().substring(0, 2000);
+  if (!text) return corsResponse({ error: 'text required' }, 400);
+
+  var name = String(data.name || 'Timmy').trim().substring(0, 50) || 'Timmy';
+  var uid = String(data.uid || 'agent-bot').trim().substring(0, 64) || 'agent-bot';
+
+  // source 'telegram' makes the App→Telegram mirror skip this doc, so the
+  // agent's native Telegram reply is not echoed back as a duplicate.
+  var firestoreDoc = {
+    fields: {
+      text: { stringValue: text },
+      name: { stringValue: name },
+      uid: { stringValue: uid },
+      ts: { timestampValue: new Date().toISOString() },
+      source: { stringValue: 'telegram' },
+      isNachoAuto: { booleanValue: false }
+    }
+  };
+
+  var ok = await writeToFirestore(env, firestoreDoc);
+  if (!ok) return corsResponse({ error: 'write_failed' }, 502);
+  return corsResponse({ ok: true });
 }
 
 // ---- Firestore → Telegram (called from app) ----
