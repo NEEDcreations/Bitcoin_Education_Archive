@@ -10,7 +10,6 @@
     var CONFIG = {
         WEEKLY_CAP_OT: 120,
         BATTLE_LINE: 'Paying never changes who wins a battle.',
-        FLAG_DOC: 'citadelShop', // config/citadelShop, public read
         // TODO(phil): progress label. 'stages' shows "7 / 15 stages" (spec
         // default); 'parts' shows complete part types, "3 / 5 parts".
         PROGRESS_LABEL_MODE: 'stages',
@@ -30,8 +29,9 @@
         COSMETICS_TAB: false
     };
 
-    // Feature flags. Defaults are the live values. Staging can switch them on
-    // in config/citadelShop; a read error keeps the defaults.
+    // Feature flags. Defaults are the live values. The server sends the real
+    // values (config/citadelShop) inside getCitadelShopStatus, so opening the
+    // shop costs one call and no direct Firestore read. Errors keep defaults.
     var DEFAULT_FLAGS = { referralWeekPremiumBuy: false };
     var flags = { referralWeekPremiumBuy: false };
 
@@ -181,9 +181,9 @@
 
     function renderHtml(v) {
         var h = '<div class="bq-cshop">';
-        h += '<section class="cs-panel" aria-label="Citadel progress"><div class="cs-prow"><div class="cs-plabel">' + v.progressLabel + '</div>' +
+        h += '<section class="cs-panel cs-progress" aria-label="Citadel progress"><div class="cs-prow"><div class="cs-plabel">' + v.progressLabel + '</div>' +
             '<div class="cs-meta">' + (v.premium
-                ? fmt(v.balance) + ' OrangeTix, ' + v.spent + ' / ' + v.cap + ' used this week'
+                ? fmt(v.balance) + ' OrangeTix \u00b7 ' + v.spent + ' / ' + v.cap + ' used this week'
                 : 'Premium unlocks buying') + '</div></div>' +
             '<div class="cs-track" role="progressbar" aria-valuemin="0" aria-valuemax="' + TOTAL_STAGES + '" aria-valuenow="' + v.built + '" aria-label="Citadel stages built"><div class="cs-fill" style="width:' + v.pct + '%"></div></div>';
         if (v.premium || v.built > 0) {
@@ -210,10 +210,10 @@
             '<section class="cs-panel cs-list">' + v.lessons.map(lessonRow).join('') +
             (v.premium ? '' : '<p class="cs-note">Building with lesson parts needs Premium. <button class="cs-link" type="button" data-cs-premium="1">Get Premium</button></p>') + '</section>';
 
-        h += '<div class="cs-head"><h2>Parts shop</h2><span class="cs-hint">Draft prices, OrangeTix</span></div>' +
+        h += '<div class="cs-head"><h2>Parts shop</h2><span class="cs-hint">Draft prices \u00b7 OrangeTix</span></div>' +
             '<div class="cs-grid">' + v.parts.map(partCard).join('') + '</div>';
 
-        h += '<div class="cs-head"><h2>Parts inventory</h2><span class="cs-hint">Your built stages</span></div><section class="cs-panel">';
+        h += '<div class="cs-head"><h2>Parts inventory</h2><span class="cs-hint">Your built stages</span></div><section class="cs-panel cs-inv">';
         if (v.built === 0) {
             h += '<div class="cs-empty"><strong>No parts yet</strong>When you buy a stage with OrangeTix you\u2019ve earned, it will show up here.</div>';
         } else {
@@ -236,6 +236,9 @@
         '.bq-cshop .cs-prow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap;}',
         '.bq-cshop .cs-plabel{font-size:1rem;font-weight:800;color:var(--heading);}',
         '.bq-cshop .cs-meta,.bq-cshop .cs-hint,.bq-cshop .cs-dim{font-size:0.75rem;font-weight:700;color:var(--cs-dim);}',
+        '.bq-cshop .cs-progress{min-height:76px;}',
+        '.bq-cshop .cs-inv{min-height:132px;}',
+        '.bq-cshop .cs-card{min-height:150px;}',
         '.bq-cshop .cs-track{position:relative;height:12px;background:var(--cs-bg);border-radius:99px;overflow:hidden;}',
         '.bq-cshop .cs-fill{position:absolute;left:0;top:0;bottom:0;background:var(--cs-accent);border-radius:99px;}',
         '.bq-cshop .cs-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:12px;font-size:0.75rem;color:var(--text);}',
@@ -296,6 +299,12 @@
         if (typeof d.weekSpent === 'number') u.citadel.weekSpent = d.weekSpent;
         if (typeof d.weekCap === 'number') u.citadel.weekCap = d.weekCap;
         if (typeof d.newTickets === 'number') u.orangeTickets = d.newTickets;
+        // Premium starts from the saved user doc; the server's answer wins.
+        if (typeof d.premiumActive === 'boolean') {
+            u.premium = u.premium || {};
+            u.premium.active = d.premiumActive;
+        }
+        if (d.flags) flags = { referralWeekPremiumBuy: d.flags.referralWeekPremiumBuy === true };
     }
 
     function openPremium() {
@@ -304,10 +313,14 @@
         window.location.href = '/?premium=buy';
     }
 
-    var _body = null;
+    // _root is a wrapper inside the Quest Hub body. When the player leaves the
+    // tab the hub replaces it, so its click listener goes with it and any late
+    // reply is dropped (isConnected check).
+    var _root = null;
+    function live() { return _root && _root.isConnected !== false; }
     function draw() {
-        if (!_body) return;
-        _body.innerHTML = renderHtml(computeView(user() || {}, { signedIn: !!user() }));
+        if (!live()) return;
+        _root.innerHTML = renderHtml(computeView(user() || {}, { signedIn: !!user() }));
     }
 
     function runAction(name, payload, btn) {
@@ -327,7 +340,7 @@
 
     function onClick(e) {
         var t = e.target && e.target.closest ? e.target.closest('[data-cs-premium],[data-cs-buy],[data-cs-build]') : null;
-        if (!t || !_body || !_body.contains(t)) return;
+        if (!t || !live()) return;
         if (t.hasAttribute('data-cs-premium')) { openPremium(); return; }
         var u = user();
         if (!u || !(u.premium && u.premium.active === true)) { openPremium(); return; }
@@ -338,35 +351,32 @@
         }
     }
 
-    function loadFlags() {
-        if (typeof firebase === 'undefined' || !firebase.firestore) return Promise.resolve(flags);
-        return firebase.firestore().collection('config').doc(CONFIG.FLAG_DOC).get().then(function (snap) {
-            var d = snap && snap.exists ? snap.data() : {};
-            flags = { referralWeekPremiumBuy: d.referralWeekPremiumBuy === true };
-            return flags;
-        }).catch(function () { flags = { referralWeekPremiumBuy: DEFAULT_FLAGS.referralWeekPremiumBuy }; return flags; });
-    }
-
+    // One server call per open. claimLessonParts only runs when the status
+    // says a lesson grant is pending (rare, idempotent on the server).
     function refresh() {
         var u = user();
-        var signedInReal = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
-        var grant = signedInReal ? callable(CALLABLES.grant) : null;
         var status = u ? callable(CALLABLES.status) : null;
-        // Grant is idempotent server-side, so asking on every open is safe.
-        var p = grant ? grant({}).then(function (r) { applyStatus(r && r.data); }).catch(function () {}) : Promise.resolve();
-        return p.then(function () {
-            return status ? status({}).then(function (r) { applyStatus(r && r.data); }).catch(function () {}) : null;
-        }).then(draw);
+        if (!status) return Promise.resolve();
+        return status({}).then(function (r) {
+            var d = r && r.data;
+            applyStatus(d);
+            draw();
+            var real = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+            var grant = (d && d.lessonGrantPending === true && real && live()) ? callable(CALLABLES.grant) : null;
+            if (grant) return grant({}).then(function (g) { applyStatus(g && g.data); draw(); });
+        }).catch(function () {});
     }
 
     function render(body) {
         if (!body) return;
         ensureStyle();
-        _body = body;
-        if (!body._csBound) { body.addEventListener('click', onClick); body._csBound = true; }
+        var root = document.createElement('div');
+        root.addEventListener('click', onClick);
+        body.innerHTML = '';
+        body.appendChild(root);
+        _root = root;
         draw();
-        loadFlags().then(draw);
-        refresh();
+        return refresh();
     }
 
     window.CitadelShop = {

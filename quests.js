@@ -4791,7 +4791,11 @@ function _renderCitadelTab(body) {
         window.CitadelShop.render(body);
         return;
     }
-    body.innerHTML = '<div style="text-align:center;padding:32px 16px;color:var(--text-muted);font-size:0.85rem;">Loading Citadel\u2026</div>';
+    // Skeleton drawn synchronously on the tap, same blocks and heights as the shop.
+    var sk = 'background:var(--card-bg);border:1px solid var(--border);border-radius:16px;margin-bottom:16px;';
+    body.innerHTML = '<div aria-busy="true" aria-label="Loading Citadel" style="padding:4px 0 16px;">' +
+        '<div style="' + sk + 'height:76px;"></div><div style="' + sk + 'height:190px;"></div>' +
+        '<div style="' + sk + 'height:300px;"></div><div style="' + sk + 'height:150px;"></div></div>';
     var s = document.querySelector('script[src="' + CITADEL_SHOP_SRC + '"]');
     if (!s) {
         s = document.createElement('script');

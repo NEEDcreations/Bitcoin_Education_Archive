@@ -8,10 +8,8 @@ const root = path.join(__dirname, '..');
 function read(f) { return fs.readFileSync(path.join(root, f), 'utf8'); }
 
 let passed = 0, failed = 0;
-function test(name, fn) {
-    try { fn(); console.log('✅ ' + name); passed++; }
-    catch (e) { console.log('❌ ' + name + ': ' + (e && e.message ? e.message : e)); failed++; }
-}
+const queue = [];
+function test(name, fn) { queue.push([name, fn]); }
 
 const src = read('citadel-shop.js');
 const sandbox = { window: {}, console: console };
@@ -39,7 +37,7 @@ test('referral-week flag defaults off', () => {
     assert.strictEqual(CS.DEFAULT_FLAGS.referralWeekPremiumBuy, false);
     assert.strictEqual(view(free).referralWeek, false);
     assert.ok(!html(free).includes('data-cs-referral'));
-    assert.ok(/referralWeekPremiumBuy: d\.referralWeekPremiumBuy === true/.test(src), 'flag only on when the doc says true');
+    assert.ok(src.includes('referralWeekPremiumBuy: d.flags.referralWeekPremiumBuy === true'), 'flag only on when the server says true');
     assert.ok(html(free, { referralWeekPremiumBuy: true }).includes('data-cs-referral'), 'staging can turn it on');
 });
 
@@ -147,5 +145,83 @@ test('SW is v2616 and quests.js loads citadel-shop.js at v2616', () => {
     assert.strictEqual(read('index.html'), read('404.html'));
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-if (failed) process.exit(1);
+// ---- Speed budget ----
+const zlib = require('zlib');
+
+test('shop is not loaded on first app load', () => {
+    ['index.html', '404.html', 'bundle.src.js', 'build.sh', 'sw.js'].forEach(f => {
+        assert.ok(!read(f).includes('citadel-shop'), f + ' must not reference citadel-shop.js');
+    });
+    const q = read('quests.js');
+    assert.strictEqual((q.match(/citadel-shop\.js\?v=/g) || []).length, 1, 'only the Citadel tab loader names it');
+});
+
+test('shop code is 30 KB or less gzipped', () => {
+    const gz = zlib.gzipSync(Buffer.from(src), { level: 9 }).length;
+    console.log('   citadel-shop.js ' + src.length + ' bytes, ' + gz + ' bytes gzip');
+    assert.ok(gz <= 30 * 1024, 'gzip ' + gz);
+});
+
+test('no listeners or direct Firestore reads in the shop', () => {
+    assert.ok(!/onSnapshot/.test(src));
+    assert.ok(!/firestore\(\)/.test(src));
+    assert.ok(!/setInterval/.test(src));
+});
+
+test('no raster art and no payment code loaded by the shop', () => {
+    assert.ok(!/<img|\.webp|\.png|\.jpg|background-image|url\(/i.test(src));
+    assert.ok(!/premium-buy|createElement\('script'\)/.test(src));
+    assert.ok(src.includes("if (typeof window.bqOpenPremium === 'function')"));
+});
+
+test('Citadel tab draws a skeleton before loading the shop file', () => {
+    const q = read('quests.js');
+    const fnStart = q.indexOf('function _renderCitadelTab(body)');
+    const fn = q.slice(fnStart, q.indexOf('// ── CHARITY TAB ──'));
+    assert.ok(fn.indexOf('aria-busy="true"') > 0);
+    assert.ok(fn.indexOf('aria-busy="true"') < fn.indexOf("createElement('script')"));
+});
+
+function fakeDom() {
+    function node() {
+        return { children: [], listeners: {}, isConnected: true, innerHTML: '', style: {},
+            addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); },
+            appendChild(c) { this.children.push(c); return c; } };
+    }
+    const byId = {};
+    return { node, document: { head: node(), createElement: () => node(), getElementById: id => byId[id] || null } };
+}
+
+test('one server call on open, saved Premium first, server confirms', async () => {
+    const dom = fakeDom();
+    const calls = [];
+    const user = { orangeTickets: 210, created: OLD, premium: { active: false }, citadel: {} };
+    const ctx = { window: {}, document: dom.document, console, currentUser: user,
+        auth: { currentUser: { isAnonymous: false } },
+        firebase: { functions: () => ({ httpsCallable: name => payload => {
+            calls.push(name);
+            return Promise.resolve({ data: name === 'getCitadelShopStatus'
+                ? { success: true, premiumActive: true, flags: { referralWeekPremiumBuy: false }, stages: {}, weekSpent: 0 }
+                : { success: true } });
+        } }) } };
+    vm.createContext(ctx);
+    vm.runInContext(src, ctx);
+    const body = dom.node();
+    const p = ctx.window.CitadelShop.render(body);
+    const root = body.children[0];
+    assert.ok(root.innerHTML.includes('data-cs-premium'), 'first paint uses the saved copy (not Premium)');
+    await p;
+    assert.deepStrictEqual(calls, ['getCitadelShopStatus']);
+    assert.ok(!root.innerHTML.includes('data-cs-premium'), 'server confirmed Premium');
+    assert.strictEqual((root.listeners.click || []).length, 1);
+    assert.ok(!body.listeners.click, 'no listener on the shared hub body');
+});
+
+(async () => {
+    for (const [name, fn] of queue) {
+        try { await fn(); console.log('✅ ' + name); passed++; }
+        catch (e) { console.log('❌ ' + name + ': ' + (e && e.message ? e.message : e)); failed++; }
+    }
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    if (failed) process.exit(1);
+})();
