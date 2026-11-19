@@ -1,4 +1,4 @@
-// Cache-buster pin. Dry run v3 step 2 is btc-archive-v2666 (tips; beats.js, lightning-tips.js, bundle.min.js 20261119_v2666). Step 1 was v2665 (global-chat.js and ranking.js stay 20261119_v2665).
+// Cache-buster pin. Dry run v3 step 3 is btc-archive-v2667 (article; bundle.min.js 20261119_v2667). Step 2 v2666: beats.js, lightning-tips.js. Step 1 v2665: global-chat.js, ranking.js.
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
@@ -51,9 +51,10 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     assert.ok(!html.includes('features.registry.js?v=20261109_v2538'));
 });
 
-test('service worker cache is v2666', () => {
+test('service worker cache is v2667', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2666'"))
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2667'"))
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2666'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2665'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2663'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2656'"));
@@ -234,8 +235,10 @@ test('service worker cache is v2666', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2666/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2667/g) || []).length, 2);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2656/g) || []).length, 0);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2666/g) || []).length, 0);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2657/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2665/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2663/g) || []).length, 0);
     assert.strictEqual((html.match(/lightning-tips\.js\?v=20261119_v2644/g) || []).length, 0);
@@ -254,7 +257,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2418'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2415'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2411'));
-    assert.ok(html.includes('bundle.min.js?v=20261119_v2666'));
+    assert.ok(html.includes('bundle.min.js?v=20261119_v2667'));
     assert.ok(!html.includes('bundle.min.js?v=20261119_v2635'));
     assert.ok(!html.includes('bundle.min.js?v=20261118_v2602'));
     assert.ok(!html.includes('bundle.min.js?v=20261114_v2565'));
@@ -375,7 +378,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('auth-boot.js?v=20261027_v2394'));
     assert.ok(html.includes('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('auth-boot.js?v=20261027_v2394'));
-    assert.ok(html.indexOf('bundle.min.js?v=20261119_v2666') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
+    assert.ok(html.indexOf('bundle.min.js?v=20261119_v2667') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.includes('fetchpriority="high"'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2382'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -708,8 +711,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2666');
+    assert.ok(swVersion && swVersion[1] === 'v2667');
     assert.notStrictEqual(swVersion[1], 'v2656');
+    assert.notStrictEqual(swVersion[1], 'v2666');
+    assert.notStrictEqual(swVersion[1], 'v2657');
     assert.notStrictEqual(swVersion[1], 'v2665');
     assert.notStrictEqual(swVersion[1], 'v2663');
     assert.notStrictEqual(swVersion[1], 'v2641');
@@ -876,7 +881,7 @@ test('PR #252 asset busters are v2512 (popup-stack bumped to v2519)', () => {
     assert.ok(html.includes('ranking.js?v=20261119_v2665'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2635'));
     assert.ok(!html.includes('ranking.js?v=20261116_v2581'));
-    assert.ok(html.includes('bundle.min.js?v=20261119_v2666'));
+    assert.ok(html.includes('bundle.min.js?v=20261119_v2667'));
     assert.ok(!html.includes('bundle.min.js?v=20261119_v2635'));
     assert.ok(!html.includes('bundle.min.js?v=20261118_v2602'));
     assert.ok(!html.includes('bundle.min.js?v=20261106_v2512'));
