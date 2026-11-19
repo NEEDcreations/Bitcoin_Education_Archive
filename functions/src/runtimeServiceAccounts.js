@@ -21,6 +21,17 @@
 //   authViewer -> roles/firebaseauth.viewer (listUsers / read-only Auth)
 //   fcm     -> roles/firebasecloudmessaging.admin
 //   storage -> roles/storage.objectAdmin on the default bucket only
+//   authBackupRead  -> custom role projects/<project>/roles/bqAuthBackupReader
+//                      (firebaseauth.users.get, firebaseauth.configs.get,
+//                      firebaseauth.configs.getHashConfig). No predefined role
+//                      fits: firebaseauth.viewer lacks getHashConfig, so
+//                      listUsers omits passwordHash/passwordSalt, and
+//                      firebaseauth.admin can also create/update/delete users.
+//   authBackupWrite -> roles/storage.objectCreator on <project>-auth-backups
+//                      only (create, no read, no overwrite, no delete)
+// `noSecrets: true` marks the few accounts that bind no secret but still get
+// their own account (dailyAuthExport). `noFirestore: true` skips
+// roles/datastore.user.
 //   backups -> roles/storage.objectViewer on the Firestore export bucket
 //              (<project>-backups) so preflight can list/read nightlies,
 //              PLUS roles/storage.objectCreator and objectViewer on the
@@ -48,6 +59,7 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     adminResolveCipherSatsClaim: { id: 'fn-admin-resolve-cipher-claim', extra: [] },
     adminSetKillSwitch: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport', 'authViewer'] },
     killSwitchAutoReturnTick: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport', 'authViewer'] },
+    dailyAuthExport: { id: 'fn-daily-auth-export', extra: ['authBackupRead', 'authBackupWrite'], noSecrets: true, noFirestore: true },
     adminUnbanUser: { id: 'fn-admin-unban-user', extra: [] },
     auditWithdrawals: { id: 'fn-audit-withdrawals', extra: [] },
     backfillJoinDates: { id: 'fn-backfill-join-dates', extra: ['auth'] },
@@ -128,9 +140,17 @@ const EXTRA_ROLES = Object.freeze({
     authViewer: 'roles/firebaseauth.viewer',
     fcm: 'roles/firebasecloudmessaging.admin',
     storage: 'roles/storage.objectAdmin',
+    authBackupRead: 'projects/$PROJECT/roles/bqAuthBackupReader',
+    authBackupWrite: 'roles/storage.objectCreator',
     backups: 'roles/storage.objectCreator+objectViewer',
     killSwitchExport: 'projects/' + (process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'bitcoin-education-archive') + '/roles/killSwitchExport',
 });
+
+const BUCKET_EXTRAS = Object.freeze({
+    storage: '$DEFAULT',
+    authBackupWrite: '$PROJECT-auth-backups',
+});
+
 
 function runtimeSa(functionName) {
     const entry = Object.prototype.hasOwnProperty.call(RUNTIME_SERVICE_ACCOUNTS, functionName)
@@ -164,4 +184,5 @@ module.exports = {
     runtimeSa: runtimeSa,
     runtimeSaOrDefault: runtimeSaOrDefault,
     DEFAULT_SA_HOLDOVER: DEFAULT_SA_HOLDOVER,
+    BUCKET_EXTRAS: BUCKET_EXTRAS
 };

@@ -24,10 +24,13 @@ const names = Object.keys(endpoints);
 const secretBound = names.filter(function (n) { return endpoints[n].secrets.length > 0; }).sort();
 const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
 
-test('manifest lists exactly the secret-bound exports (59)', function () {
-    assert.deepStrictEqual(manifest, secretBound);
-    assert.strictEqual(manifest.length, 59);
+const secretManifest = manifest.filter(function (n) { return !RUNTIME_SERVICE_ACCOUNTS[n].noSecrets; });
+const NO_SECRET_ACCOUNTS = manifest.filter(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].noSecrets; });
+
+test('manifest lists exactly the secret-bound exports (59) plus the no-secret allowlist', function () {
+    assert.deepStrictEqual(secretManifest, secretBound);
     assert.strictEqual(secretBound.length, 59);
+    assert.deepStrictEqual(NO_SECRET_ACCOUNTS, ['dailyAuthExport']);
 });
 
 const HOLDOVER = ['regenerateRecoveryCodes', 'totpCheck', 'totpSetup', 'totpStepUp'];
@@ -98,8 +101,18 @@ test('runtimeSaOrDefault throws for an unknown function (no silent default)', fu
     assert.throws(function () { runtimeSaOrDefault('constructor'); });
 });
 
-test('functions without secrets do not set a service account', function () {
-    names.filter(function (n) { return endpoints[n].secrets.length === 0; }).forEach(function (n) {
+test('no-secret accounts really bind no secret', function () {
+    NO_SECRET_ACCOUNTS.forEach(function (n) { assert.deepStrictEqual(endpoints[n].secrets, [], n); });
+});
+
+test('dailyAuthExport is the no-secret allowlist and has its own runtime SA', function () {
+    assert.strictEqual(endpoints.dailyAuthExport.serviceAccount, 'fn-daily-auth-export@bitcoin-education-archive.iam.gserviceaccount.com');
+    assert.strictEqual(RUNTIME_SERVICE_ACCOUNTS.dailyAuthExport.noFirestore, true);
+    assert.ok(plan.functions.dailyAuthExport && plan.functions.dailyAuthExport.id === 'fn-daily-auth-export');
+});
+
+test('functions without secrets do not set a service account (except the allowlist)', function () {
+    names.filter(function (n) { return endpoints[n].secrets.length === 0 && NO_SECRET_ACCOUNTS.indexOf(n) === -1; }).forEach(function (n) {
         assert.strictEqual(endpoints[n].serviceAccount, null, n);
     });
 });
@@ -146,13 +159,19 @@ test('adminApproveFactionPayout: no account, no secrets, never in a batch', func
 
 test('batches cover each secret-bound function exactly once', function () {
     const all = [];
-    plan.batches.forEach(function (b) { all.push.apply(all, b.fns); });
+    const standalone = [];
+    plan.batches.forEach(function (b) {
+        if (b.standalone) standalone.push.apply(standalone, b.fns);
+        else all.push.apply(all, b.fns);
+    });
     assert.strictEqual(all.length, new Set(all).size);
     assert.deepStrictEqual(all.slice().sort(), secretBound);
+    assert.deepStrictEqual(standalone, ['dailyAuthExport']);
 });
 
-test('wallet functions deploy in the last batch, canary first is read-only admin', function () {
-    const last = plan.batches[plan.batches.length - 1].fns;
+test('wallet functions deploy in the last secret-bound batch, canary first is read-only admin', function () {
+    const secretBatches = plan.batches.filter(function (b) { return !b.standalone; });
+    const last = secretBatches[secretBatches.length - 1].fns;
     ['claimSats', 'claimCipherSats', 'claimCipherWin', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'tctvDripTick', 'getFaucetStats'].forEach(function (n) {
         assert.ok(last.indexOf(n) !== -1, n);
     });
