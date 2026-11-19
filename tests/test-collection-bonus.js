@@ -31,6 +31,8 @@ function test(name, fn) {
 }
 
 const admin = {
+    // Signed-in account for the guest gate (an email sign-in on record).
+    auth: function () { return { getUser: async function (uid) { return { uid: uid, providerData: [{ providerId: 'password' }] }; } }; },
     firestore: {
         FieldValue: {
             serverTimestamp: function () { return { _serverTimestamp: true }; },

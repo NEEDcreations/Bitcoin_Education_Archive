@@ -137,6 +137,11 @@ function paths(db, prefix) {
     return db.dump().filter(function(p) { return p.indexOf(prefix) === 0; });
 }
 
+// Auth lookup for the guest gate: every seeded author has an email sign-in.
+const SIGNED_IN_ADMIN = {
+    auth: function () { return { getUser: async function (uid) { return { uid: uid, providerData: [{ providerId: 'password' }] }; } }; },
+};
+
 function auth(uid) {
     return { auth: { uid: uid, token: { firebase: { sign_in_provider: 'password' }, admin: false } } };
 }
@@ -355,7 +360,7 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         assert.strictEqual(copied.noAward, true);
         assert.strictEqual(copied.authorName, 'Ada');
 
-        const back = await mirror.mirrorForumReplyToTopic({
+        const back = await mirror.mirrorForumReplyToTopic({ admin: SIGNED_IN_ADMIN,
             db: db, replyId: 'tdreply_mining_reply1', nowMs: now, data: copied,
         });
         assert.strictEqual(back.reason, 'origin');
@@ -366,7 +371,7 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
             postId: 'tdforum_mining_root1', body: 'I think the nonce is just a counter.',
             authorId: 'bea', authorName: 'ForgedAdmin', createdAt: now,
         });
-        const inbound = await mirror.mirrorForumReplyToTopic({
+        const inbound = await mirror.mirrorForumReplyToTopic({ admin: SIGNED_IN_ADMIN,
             db: db, replyId: 'clientreply1', nowMs: now + 40000,
             data: db.read('forum_replies/clientreply1'),
         });
@@ -378,7 +383,7 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         assert.strictEqual(topicCopy.name, 'Bea');
         assert.notStrictEqual(topicCopy.name, 'ForgedAdmin');
         assert.strictEqual(topicCopy.parentId, 'root1');
-        const inboundAgain = await mirror.mirrorForumReplyToTopic({
+        const inboundAgain = await mirror.mirrorForumReplyToTopic({ admin: SIGNED_IN_ADMIN,
             db: db, replyId: 'clientreply1', nowMs: now + 80000,
             data: db.read('forum_replies/clientreply1'),
         });
@@ -413,7 +418,7 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
                 postId: 'tdforum_mining_root1', body: 'This reply should stay on the forum only.',
                 authorId: uid, authorName: 'Spoof',
             });
-            const result = await mirror.mirrorForumReplyToTopic({
+            const result = await mirror.mirrorForumReplyToTopic({ admin: SIGNED_IN_ADMIN,
                 db: db, replyId: 'bad' + i, nowMs: now, data: db.read('forum_replies/bad' + i),
             });
             assert.ok(result.reason === 'banned' || result.reason === 'muted', result.reason);
@@ -427,7 +432,7 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
             postId: 'tdforum_mining_root1', body: 'Posting again inside the topic window.',
             authorId: 'fast', authorName: 'Fast',
         });
-        const paced = await mirror.mirrorForumReplyToTopic({
+        const paced = await mirror.mirrorForumReplyToTopic({ admin: SIGNED_IN_ADMIN,
             db: db, replyId: 'toosoon', nowMs: now, data: db.read('forum_replies/toosoon'),
         });
         assert.strictEqual(paced.reason, 'rate');
@@ -437,7 +442,7 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
             postId: 'tdforum_mining_root1', body: 'The daily topic cap is already used.',
             authorId: 'fast', authorName: 'Fast',
         });
-        const capped = await mirror.mirrorForumReplyToTopic({
+        const capped = await mirror.mirrorForumReplyToTopic({ admin: SIGNED_IN_ADMIN,
             db: db, replyId: 'full', nowMs: now + 60000, data: db.read('forum_replies/full'),
         });
         assert.strictEqual(capped.reason, 'daily');
@@ -509,7 +514,7 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
             postId: 'tdforum_mining_root1', body: 'A forum reply worth keeping.',
             authorId: 'bea', authorName: 'Bea',
         });
-        await mirror.mirrorForumReplyToTopic({
+        await mirror.mirrorForumReplyToTopic({ admin: SIGNED_IN_ADMIN,
             db: db, replyId: 'clientedit', nowMs: now + 40000, data: db.read('forum_replies/clientedit'),
         });
         const linked = db.read('forum_replies/clientedit');
@@ -846,7 +851,7 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
             postId: 'tdforum_mining_root1', body: 'I think the nonce is just a counter.',
             authorId: 'bea', deleted: true, hidden: false,
         });
-        const refused = await mirror.mirrorForumReplyToTopic({
+        const refused = await mirror.mirrorForumReplyToTopic({ admin: SIGNED_IN_ADMIN,
             db: db, replyId: 'gone1', nowMs: now,
             data: { postId: 'tdforum_mining_root1', body: 'I think the nonce is just a counter.', authorId: 'bea', deleted: false },
         });
@@ -855,7 +860,7 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         assert.strictEqual(db.read('topic_discussions/mining/posts/tdfrom_gone1'), null);
 
         await db.collection('forum_replies').doc('gone1').delete();
-        const missing = await mirror.mirrorForumReplyToTopic({
+        const missing = await mirror.mirrorForumReplyToTopic({ admin: SIGNED_IN_ADMIN,
             db: db, replyId: 'gone1', nowMs: now,
             data: { postId: 'tdforum_mining_root1', body: 'I think the nonce is just a counter.', authorId: 'bea' },
         });

@@ -223,6 +223,9 @@ function readConfig(raw) {
         mockWallet: d.mockWallet === true,
         mockWalletBalanceSats: posInt(d.mockWalletBalanceSats, 10000000, 50000),
         mockPayOutcome: typeof d.mockPayOutcome === 'string' ? d.mockPayOutcome : 'paid',
+        // Staging mock only: lookup and balance outcomes (see stagingMockWallet.js).
+        mockLookupOutcome: typeof d.mockLookupOutcome === 'string' ? d.mockLookupOutcome : 'pending',
+        mockBalanceOutcome: typeof d.mockBalanceOutcome === 'string' ? d.mockBalanceOutcome : 'ok',
         // Staging mock wallet only (ignored unless the staging build uses the mock).
         mockRouteHint: ['none', 'normal', 'high'].indexOf(d.mockRouteHint) !== -1 ? d.mockRouteHint : 'none',
         mockFeesPaidMsat: posInt(d.mockFeesPaidMsat, 100000000, 0),

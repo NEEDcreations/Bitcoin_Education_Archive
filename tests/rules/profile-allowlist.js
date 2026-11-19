@@ -113,6 +113,17 @@ function valueFor(field) {
                 lnAddress: 'ada@walletofsatoshi.com',
             });
         }, true);
+        await expect('create own profile with guestUnclaimableXp', function () {
+            const own = doc(env.authenticatedContext('user3', password).firestore(), 'users', 'user3');
+            return setDoc(own, { displayName: 'Cy', points: 0, guestUnclaimableXp: -500 });
+        }, false);
+        await expect('create own profile without it (control)', function () {
+            const own = doc(env.authenticatedContext('user4', password).firestore(), 'users', 'user4');
+            return setDoc(own, { displayName: 'Di', points: 0 });
+        }, true);
+        await expect('clear guestUnclaimableXp', function () {
+            return updateDoc(ref, { guestUnclaimableXp: 0 });
+        }, false);
         await expect('experienceMode intermediate', function () {
             return updateDoc(ref, { experienceMode: 'intermediate' });
         }, true);
@@ -152,7 +163,7 @@ function valueFor(field) {
         await expect('delete pvp shard', function () {
             return updateDoc(ref, { pvpPushShard: deleteField() });
         }, true);
-        const denied = ['points', 'orangeTickets', 'tickets', 'favor', 'badges', 'scholarPoints', 'pointsClaimed', 'visibleBadges', 'weeklyXP', 'unclaimableXp', 'chatXpStreak', 'chatXpDay', 'rankReachedAt', 'brandNewReward',
+        const denied = ['points', 'orangeTickets', 'tickets', 'favor', 'badges', 'scholarPoints', 'pointsClaimed', 'visibleBadges', 'weeklyXP', 'unclaimableXp', 'guestUnclaimableXp', 'chatXpStreak', 'chatXpDay', 'rankReachedAt', 'brandNewReward',
             'activeTitle', 'earnedTitles', 'chatFlairEmoji', 'earnedFlair', 'grandfatheredTitles', 'grandfatheredFlair'];
         for (let d = 0; d < denied.length; d++) {
             const field = denied[d];

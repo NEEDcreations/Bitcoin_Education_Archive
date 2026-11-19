@@ -6,6 +6,7 @@
 // read that collection. The salt doc expires after two days.
 
 const crypto = require('crypto');
+const { rateKeyForIp } = require('./faucetGuard');
 
 const SALT_COLLECTION = 'rate_limit_salts';
 const PUBLIC_RATE_KEY = /^delete-rate-\d{4}-\d{2}-\d{2}$/;
@@ -38,8 +39,21 @@ function deletionIpDocId(ip, nowMs, secret) {
         throw err;
     }
     const day = utcDay(nowMs);
+    // Account-deletion buckets hash the raw IP, as they did before the
+    // PvP /64 grouping change.
     const hash = crypto.createHmac('sha256', secret).update(String(ip) + '|' + day).digest('hex').slice(0, 40);
     return 'deleteip_' + hash;
+}
+
+// /64 grouping is opt-in for PvP anonymous network buckets only
+// (pvp_anon_net_, pvp_anon_ans_min_, pvp_anon_ans_hour_). Every other
+// caller hashes the raw key, including the raw IPv6 string, the same
+// way it did before the PvP /64 change.
+function ipKeyForNetworkRate(prefix, ip) {
+    if (typeof prefix === 'string' && prefix.indexOf('pvp_anon_') === 0) {
+        return rateKeyForIp(ip);
+    }
+    return String(ip);
 }
 
 function networkRateDocIdFromSecret(prefix, ip, nowMs, secret) {
@@ -49,7 +63,7 @@ function networkRateDocIdFromSecret(prefix, ip, nowMs, secret) {
         throw err;
     }
     const day = utcDay(nowMs);
-    const hash = crypto.createHmac('sha256', secret).update(prefix + '|' + String(ip) + '|' + day).digest('hex').slice(0, 40);
+    const hash = crypto.createHmac('sha256', secret).update(prefix + '|' + ipKeyForNetworkRate(prefix, ip) + '|' + day).digest('hex').slice(0, 40);
     return prefix + hash;
 }
 

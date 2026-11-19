@@ -10,6 +10,33 @@
 // read-only list after a dedicated connection is created.
 
 const alerts = require('./payoutAlerts');
+const { classifyLookup } = require('./cipherClaim');
+
+// Refunded failures (#376): faucet invoices marked failed and cipher payouts
+// marked restored. If one of them later shows as settled in the wallet, it is
+// flagged for review. Nothing is paid, retried or clawed back here.
+const FAILED_RECHECK_MS = 48 * 3600 * 1000;
+const FAILED_RECHECK_MAX = 50;
+
+function refundedFailure(claim) {
+    if (!claim || !claim.paymentHash) return false;
+    if (claim.source === 'faucet') return claim.status === 'failed' && !isDuplicateFaucetRow(claim);
+    if (claim.source === 'cipher_sats') return claim.status === 'restored';
+    return false;
+}
+
+function refundedAtMs(claim) {
+    return eventMs(claim && claim.data, ['failedAt', 'restoredAt', 'heldAt', 'payingAtMs', 'payingAt', 'tsMs', 'ts', 'createdAtMs', 'createdAt']);
+}
+
+function failuresToRecheck(claims, nowMs, windowMs) {
+    const w = windowMs != null ? windowMs : FAILED_RECHECK_MS;
+    return (claims || []).filter(function (c) {
+        if (!refundedFailure(c)) return false;
+        const at = refundedAtMs(c);
+        return at > 0 && (nowMs - at) <= w;
+    });
+}
 
 const STUCK_PAYING_MS = 15 * 60 * 1000;
 const FLAGS_COLLECTION = 'payout_reconcile_flags';
@@ -260,6 +287,8 @@ async function reconcile(deps, opts) {
         stuckPaying: [],
         unmatchedWallet: [],
         unmatchedLedger: [],
+        settledAfterFailure: [],
+        failedRechecked: 0,
         monthlySpentSats: 0,
         budgetBand: '',
         flagsCreated: 0,
@@ -306,6 +335,14 @@ async function reconcile(deps, opts) {
 
     result.budgetBand = alerts.budgetBand(result.monthlySpentSats);
 
+    const settledSeen = Object.create(null);
+    function noteSettled(c, via) {
+        const key = c.source + ':' + c.id;
+        if (settledSeen[key]) return;
+        settledSeen[key] = true;
+        result.settledAfterFailure.push({ source: c.source, id: c.id, paymentHashSuffix: c.paymentHash.slice(0, 8), via: via });
+    }
+
     const listWallet = (o.listWallet !== false) && typeof deps.listWalletPayments === 'function'
         && (o.forceWalletList || (deps.readConfig && (await deps.readConfig()).listWallet === true));
     if (listWallet) {
@@ -323,10 +360,41 @@ async function reconcile(deps, opts) {
             if (!hash) return;
             if (typ && typ !== 'outgoing' && typ !== 'out' && typ !== 'send' && typ !== 'paid') return;
             const matched = (claimsByHash[hash] && claimsByHash[hash].length) || (payoutsByHash[hash] && payoutsByHash[hash].length);
+            (claimsByHash[hash] || []).forEach(function (c) {
+                if (refundedFailure(c)) noteSettled(c, 'wallet_list');
+            });
             if (!matched) {
                 result.unmatchedWallet.push({ paymentHashSuffix: hash.slice(0, 8), amountSats: Math.max(0, Math.floor(Number(row.amountSats || row.amount_sats || row.amount) || 0)) });
             }
         });
+    }
+
+    // Per-hash lookup of recent refunded failures. Needs a wallet lookup hook,
+    // which is not wired by default (this function binds no wallet secret).
+    if (typeof deps.lookupPayment === 'function') {
+        const recheck = failuresToRecheck(ledger.claims, nowMs).slice(0, FAILED_RECHECK_MAX);
+        for (let i = 0; i < recheck.length; i++) {
+            const c = recheck[i];
+            result.failedRechecked++;
+            let raw = null;
+            try { raw = await deps.lookupPayment({ payment_hash: c.paymentHash }); }
+            catch (e) { raw = null; }
+            if (raw && classifyLookup(raw).kind === 'paid') noteSettled(c, 'lookup');
+        }
+    }
+
+    for (let i = 0; i < result.settledAfterFailure.length; i++) {
+        const f = result.settledAfterFailure[i];
+        const created = await createFlag(db, {
+            id: 'settled_after_failure_' + f.source + '_' + f.id,
+            kind: 'settled_after_failure',
+            source: f.source,
+            claimId: f.id,
+            paymentHashSuffix: f.paymentHashSuffix,
+            via: f.via,
+            atMs: nowMs,
+        });
+        if (created === 'created') result.flagsCreated++;
     }
 
     for (let i = 0; i < result.stuckPaying.length; i++) {
@@ -365,6 +433,16 @@ async function reconcile(deps, opts) {
             });
             if (fired) result.alerts++;
         }
+        if (result.settledAfterFailure.length) {
+            const fired = await emit({
+                kind: 'settled_after_failure',
+                key: 'settled_after_failure',
+                nowMs: nowMs,
+                text: result.settledAfterFailure.length + ' refunded failed payout(s) show as settled in the wallet. Flagged for review; nothing was paid or reversed.',
+                extra: { count: result.settledAfterFailure.length },
+            });
+            if (fired) result.alerts++;
+        }
         if (result.unmatchedWallet.length) {
             const fired = await emit({
                 kind: 'unmatched_payment',
@@ -395,6 +473,8 @@ async function reconcile(deps, opts) {
         walletListed: result.walletListed,
         stuckPaying: result.stuckPaying.length,
         unmatchedWallet: result.unmatchedWallet.length,
+        settledAfterFailure: result.settledAfterFailure.length,
+        failedRechecked: result.failedRechecked,
         monthlySpentSats: result.monthlySpentSats,
         budgetBand: result.budgetBand,
         flagsCreated: result.flagsCreated,
@@ -418,6 +498,7 @@ function factory(functionsV1, deps) {
             admin: deps.admin,
             nowMs: Date.now,
             listWalletPayments: deps.listWalletPayments,
+            lookupPayment: deps.lookupPayment,
             readConfig: deps.readConfig || async function () {
                 try {
                     const snap = await deps.db.collection('config').doc('payoutReconcile').get();
@@ -447,6 +528,9 @@ module.exports = {
     faucetCountsAsPaid: faucetCountsAsPaid,
     isDuplicateFaucetRow: isDuplicateFaucetRow,
     reconcile: reconcile,
+    FAILED_RECHECK_MS: FAILED_RECHECK_MS,
+    refundedFailure: refundedFailure,
+    failuresToRecheck: failuresToRecheck,
     factory: factory,
     monthStartMs: monthStartMs,
 };
