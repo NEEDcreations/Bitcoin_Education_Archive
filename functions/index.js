@@ -173,6 +173,7 @@ async function verifyTurnstile(token, remoteip) {
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
+const payFailGuard = require('./src/payFailGuard');
 const rewardNotify = require('./src/rewardNotify');
 const rankReached = require('./src/rankReached');
 const awardActions = require('./src/awardActions');
@@ -1748,6 +1749,10 @@ exports.claimSats = functionsV1.runWith({
         return { success: false, error: 'Sats claims are paused. Try again later.' };
     }
 
+    // Early exit for the post-failure wait. The claim transaction checks it again.
+    const preWait = payFailGuard.assessRetryWait(ledgerPreSnap.exists ? ledgerPreSnap.data().faucetFailGuard : null, null, Date.now());
+    if (!preWait.ok) return { success: false, error: preWait.error };
+
     const holdUntil = userPreSnap.exists ? (Number(userPreSnap.data().satsHold) || 0) : 0;
     if (holdUntil > Date.now()) {
         return { success: false, error: 'Sats withdrawals are paused on this account. Try again later.' };
@@ -1829,7 +1834,14 @@ exports.claimSats = functionsV1.runWith({
     }
 
     let invoice = '';
+    // STAGING ONLY: null unless the project is bitcoin-quest-staging AND
+    // config/satoshiFavorPayouts.mockWallet is true (src/stagingMockWallet.js).
+    const stagingMock = await require('./src/stagingMockWallet').load(db);
     try {
+        if (stagingMock) {
+            // Staging mock: a signed mainnet-format invoice for the exact amount, no LNURL call.
+            invoice = require('./src/favorBlockClaimsFns').mockInvoice(netSendAmount, 'none');
+        } else {
         await assertPublicHost(_lnDomain);
         const resolved = await resolveLnurlInvoice({
             address: lnNorm,
@@ -1837,13 +1849,15 @@ exports.claimSats = functionsV1.runWith({
         });
         invoice = resolved.pr;
         console.log('[FAUCET] Resolved Lightning Address for ' + netSendAmount + ' net sats domain=' + resolved.domain);
+        }
     } catch (e) {
         console.error('[FAUCET] Lightning Address resolution failed domain=' + (_lnDomain || ''));
         const clear = e && (e.code === 'lnurl_error' || e.code === 'below_min' || e.code === 'above_max' || e.code === 'amount_mismatch' || e.code === 'wrong_network');
         return {
             success: false,
             code: 'address_unresolved',
-            error: clear && e.message ? e.message : RESOLVE_ERROR,
+            // The receiver's address server failed before any send. Nothing was reserved.
+            error: clear && e.message ? e.message : payFailGuard.RECEIVER_UNRESPONSIVE_MESSAGE,
         };
     }
 
@@ -1957,12 +1971,21 @@ exports.claimSats = functionsV1.runWith({
                 const pendingAt = user._pendingClaimAt
                     ? (user._pendingClaimAt.toDate ? user._pendingClaimAt.toDate() : new Date(user._pendingClaimAt))
                     : null;
-                const PENDING_TTL_MS = 5 * 60 * 1000;
+                // Longer than the 300s function timeout, so a live pay is never treated as stale.
+                const PENDING_TTL_MS = 10 * 60 * 1000;
                 if (pendingAt && (Date.now() - pendingAt.getTime() <= PENDING_TTL_MS)) {
                     deny('A previous claim is still processing. Try again in a minute.');
                 }
                 console.log('[FAUCET] Auto-clearing stale _pendingClaim for uid=' + uid);
             }
+
+            // A released failure makes this account and this address wait before the next try.
+            const failWait = payFailGuard.assessRetryWait(
+                ledger.faucetFailGuard,
+                lnRateDoc.exists ? lnRateDoc.data().faucetFailGuard : null,
+                Date.now()
+            );
+            if (!failWait.ok) deny(failWait.error);
 
             let visitedList = Array.isArray(user.visitedChannelsList) ? user.visitedChannelsList : [];
             let visitedUpdate = null;
@@ -2151,6 +2174,11 @@ exports.claimSats = functionsV1.runWith({
                 status: 'pending',
                 paymentHash: paymentHash,
                 ts: admin.firestore.Timestamp.now(),
+                // Server-only. Lets a definite failure put the cooldown back exactly as it was.
+                address: lnNorm,
+                rateEntryTs: nowMs,
+                priorUserLastMs: userLastClaim,
+                priorLedgerLastMs: ledgerLastClaim,
             });
             t.set(fpRef, {
                 lastClaim: admin.firestore.FieldValue.serverTimestamp(),
@@ -2228,7 +2256,9 @@ exports.claimSats = functionsV1.runWith({
     let payResult = null;
     let payError = null;
     try {
-        nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
+        nwc = stagingMock
+            ? require('./src/stagingMockWallet').createMockWallet(stagingMock)
+            : new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
         const balanceResult = await _withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor(balanceResult.balance / 1000);
         if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) throw new Error('WALLET_LOW');
@@ -2258,18 +2288,13 @@ exports.claimSats = functionsV1.runWith({
         return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: decision.preimage, message: '⚡ ' + netSendAmount + ' sats sent to your wallet!' };
     }
     if (decision.action === 'refund') {
-        await _rollbackClaim(uid, amount, today, invoiceRef);
-        if (payError && payError.message === 'WALLET_LOW') {
-            return { success: false, error: 'Faucet is being refilled. Try again later.' };
-        }
+        // Nothing was sent: the send never started (our node, before the pay call).
+        const failKind = faucetGuard.definiteFailureKind({ phase: phase, error: payError });
+        const released = await _releaseFailedClaim(payInfo, today, lnRateRef, failKind);
         if (payError && payError.message === 'HARD_CAP') {
-            return { success: false, error: 'Claim exceeds maximum. Contact support.' };
+            return { success: false, code: 'payment_failed', error: 'Claim exceeds maximum. Contact support.' };
         }
-        const isTimeout = payError && payError.message && payError.message.indexOf('[TIMEOUT]') === 0;
-        if (phase !== 'pay') {
-            return { success: false, error: isTimeout ? 'Payment wallet is not responding. Try again in a moment.' : 'Could not connect to payment wallet. Try again later.' };
-        }
-        return { success: false, error: 'Payment failed. Check your Lightning Address and try again.' };
+        return { success: false, code: 'payment_failed', released: released.released, error: released.message };
     }
 
     const lookupReq = faucetGuard.lookupRequestFromDecoded(decoded);
@@ -2289,7 +2314,7 @@ exports.claimSats = functionsV1.runWith({
             return new Promise(function(resolve) { setTimeout(resolve, ms); });
         },
     });
-    const afterLookup = faucetGuard.decideFaucetLookupResult(settlement);
+    const afterLookup = faucetGuard.decideFaucetLookupResult(settlement, { refused: decision.refused === true });
     if (afterLookup.action === 'record') {
         try {
             await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: afterLookup.preimage, paymentHash: lookupReq.payment_hash }));
@@ -2307,10 +2332,15 @@ exports.claimSats = functionsV1.runWith({
         return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: afterLookup.preimage, message: '⚡ ' + netSendAmount + ' sats sent to your wallet!' };
     }
     if (afterLookup.action === 'refund') {
-        await _rollbackClaim(uid, amount, today, invoiceRef);
-        return { success: false, error: 'Payment failed. Your sats were not sent. Please try again.' };
+        // The wallet lookup reported the payment as failed, so no HTLC can still settle.
+        // Our side only when the pay call itself returned one of our wallet's exact codes.
+        const failKind = decision.refused === true ? faucetGuard.definiteFailureKind({ phase: phase, error: payError }) : 'theirs';
+        const released = await _releaseFailedClaim(payInfo, today, lnRateRef, failKind);
+        return { success: false, code: 'payment_failed', released: released.released, error: released.message };
     }
-
+    // Anything else (pending, empty, error, unclassified), including an explicit
+    // refusal the lookup could not confirm, is held: no refund, no slot release.
+    // An HTLC can still settle, so refunding here could pay twice.
     try { await _holdFaucetUnknown(Object.assign({}, payInfo, { paymentHash: lookupReq.payment_hash })); }
     catch (e) { console.error('[FAUCET] could not hold unknown payment:', e.message); }
     return { success: false, error: _unknownPayError() };
@@ -2348,33 +2378,13 @@ async function _notifyClaimedSats(uid, amount) {
     }));
 }
 
-async function _rollbackClaim(uid, amount, today, invoiceRef) {
-    try {
-        const pointsToRefund = amount * FAUCET.POINTS_PER_SAT;
-        const batch = db.batch();
-        batch.update(db.collection('users').doc(uid), {
-            pointsClaimed: admin.firestore.FieldValue.increment(-pointsToRefund),
-            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            _pendingClaim: admin.firestore.FieldValue.delete(),
-            _pendingClaimAt: admin.firestore.FieldValue.delete()
-        });
-        batch.set(db.collection('faucet_ledger').doc(uid), {
-            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            claimCount: admin.firestore.FieldValue.increment(-1)
-        }, { merge: true });
-        batch.set(db.collection('users').doc(uid).collection('sats_daily').doc(today), {
-            amount: admin.firestore.FieldValue.increment(-amount)
-        }, { merge: true });
-        batch.set(db.collection('faucet_stats').doc(today), {
-            totalPaid: admin.firestore.FieldValue.increment(-amount),
-            claimCount: admin.firestore.FieldValue.increment(-1)
-        }, { merge: true });
-        if (invoiceRef) batch.delete(invoiceRef);
-        await batch.commit();
-        console.log('[FAUCET] Rolled back ' + amount + ' sats for ' + uid);
-    } catch (e) {
-        console.error('[FAUCET] CRITICAL: Rollback failed for ' + uid + ', amount=' + amount + ':', e.message);
-    }
+async function _releaseFailedClaim(info, today, lnRateRef, kind) {
+    return require('./src/faucetRelease').releaseFailedClaim({
+        db: db,
+        admin: admin,
+        pointsPerSat: FAUCET.POINTS_PER_SAT,
+        supportError: faucetGuard.supportError,
+    }, info, today, lnRateRef, kind);
 }
 
 async function _flagFaucetAdmin(flag) {
@@ -6506,9 +6516,14 @@ exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret], se
         // 2. Query recent withdrawals from faucet_invoices (global log)
         const daysBack = parseInt(req.query.days || '7');
         const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
-        const invoiceSnap = await db.collection('faucet_invoices').where('ts', '>=', since).orderBy('ts', 'desc').limit(200).get();
-        invoiceSnap.forEach(inv => {
-            const id = inv.data();
+        // Failed (refunded) claims keep their record, so they are filtered page by
+        // page and can't push real payouts out of the 200-row window.
+        const auditWindow = await require('./src/faucetRelease').collectWithdrawalWindow(async (after) => {
+            let q = db.collection('faucet_invoices').where('ts', '>=', since).orderBy('ts', 'desc');
+            if (after) q = q.startAfter(after);
+            return (await q.limit(200).get()).docs;
+        }, { want: 200, maxPages: 10 });
+        auditWindow.withdrawals.forEach(id => {
             out.recentWithdrawals.push({
                 uid: id.uid ? id.uid.substring(0, 8) : 'unknown',
                 uidFull: id.uid || 'unknown',
@@ -6516,6 +6531,15 @@ exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret], se
                 timestamp: id.ts && id.ts.toDate ? id.ts.toDate().toISOString() : null
             });
         });
+        out.failedClaims = auditWindow.failed.slice(0, 200).map(id => ({
+            uid: id.uid ? id.uid.substring(0, 8) : 'unknown',
+            amount: id.amount || 0,
+            failKind: id.failKind || '',
+            released: id.released === true,
+            timestamp: id.ts && id.ts.toDate ? id.ts.toDate().toISOString() : null
+        }));
+        out.failedClaimCount = auditWindow.failed.length;
+        out.withdrawalWindowTruncated = auditWindow.truncated;
 
         // 3. Check faucet_ip_log for multi-account IPs
         const ipSnap = await db.collection('faucet_ip_log').where('claimCount', '>=', 3).limit(50).get();
@@ -6547,6 +6571,7 @@ exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret], se
         out.summary = {
             totalBlockedAccounts: blockedSnap.size,
             totalWithdrawalsInPeriod: out.recentWithdrawals.length,
+            failedClaimsInPeriod: out.failedClaimCount || 0,
             blockedAccountsWithWithdrawals: out.blockedAccounts.filter(a => a.withdrawals.length > 0).length,
             multiAccountIPs: out.ipClusters.length,
             multiAccountFingerprints: out.fingerprintClusters.length,
@@ -7129,6 +7154,14 @@ exports.myFavorEpochClaims = favorBlockClaimFns.myFavorEpochClaims;
 exports.adminSetFavorClaims = favorBlockClaimFns.adminSetFavorClaims;
 exports.adminFreezeFavorEpoch = favorBlockClaimFns.adminFreezeFavorEpoch;
 exports.adminResolveFavorReview = favorBlockClaimFns.adminResolveFavorReview;
+
+// Payout reconciliation (live since #365 shipped Nov 18, 2026): ledger match, stuck-paying
+// flags, optional wallet listing behind config/payoutReconcile.listWallet.
+// Binds no wallet secret.
+const payoutReconcileFns = require('./src/payoutReconcile').factory(functionsV1, {
+    db: db, admin: admin, onSchedule: onSchedule,
+});
+exports.reconcilePayouts = payoutReconcileFns.reconcilePayouts;
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
 // The same private minute job posts the one ending heads-up. No public invoker.

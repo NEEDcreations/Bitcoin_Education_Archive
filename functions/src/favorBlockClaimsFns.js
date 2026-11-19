@@ -29,16 +29,8 @@ function isStagingProject() { return projectId() === STAGING_PROJECT; }
 // config/satoshiFavorPayouts.mockWallet is true on the staging project.
 const MOCK_NODE_PUBKEY = '02' + 'ab'.repeat(32);
 function mockWallet(cfg) {
-    return {
-        getBalance: async function () { return { balance: cfg.mockWalletBalanceSats * 1000 }; },
-        getInfo: async function () { return { pubkey: cfg.mockBlankPubkey === true ? '' : MOCK_NODE_PUBKEY }; },
-        payInvoice: async function () {
-            if (cfg.mockPayOutcome === 'refuse') { const e = new Error('PAYMENT_FAILED'); e.code = 'PAYMENT_FAILED'; throw e; }
-            if (cfg.mockPayOutcome === 'timeout') throw new Error('[TIMEOUT] payInvoice');
-            return { preimage: require('crypto').randomBytes(32).toString('hex'), fees_paid: cfg.mockFeesPaidMsat || 0 };
-        },
-        lookupInvoice: async function () { return { state: 'pending' }; },
-    };
+    // Shared staging-only fake (src/stagingMockWallet.js). Throws off staging.
+    return require('./stagingMockWallet').createMockWallet(cfg);
 }
 
 // Staging mock invoices: a real, signed mainnet-format BOLT11 for the exact
@@ -232,14 +224,17 @@ function factory(functionsV1, deps) {
                 patch[k] = n;
             }
         });
-        if (d.mockWallet != null || d.mockWalletBalanceSats != null || d.mockPayOutcome != null || d.mockRouteHint != null || d.mockFeesPaidMsat != null || d.mockBlankPubkey != null) {
+        if (d.mockWallet != null || d.mockWalletBalanceSats != null || d.mockPayOutcome != null || d.mockRouteHint != null || d.mockFeesPaidMsat != null || d.mockBlankPubkey != null || d.mockLookupOutcome != null || d.mockBalanceOutcome != null) {
             if (!staging) throw new HttpsError('permission-denied', 'Mock wallet is staging only');
             if (d.mockRouteHint != null) patch.mockRouteHint = ['none', 'normal', 'high'].indexOf(d.mockRouteHint) !== -1 ? d.mockRouteHint : 'none';
             if (d.mockFeesPaidMsat != null) patch.mockFeesPaidMsat = Math.max(0, Math.floor(Number(d.mockFeesPaidMsat)) || 0);
             if (d.mockWallet != null) patch.mockWallet = d.mockWallet === true;
             if (d.mockBlankPubkey != null) patch.mockBlankPubkey = d.mockBlankPubkey === true;
             if (d.mockWalletBalanceSats != null) patch.mockWalletBalanceSats = Math.floor(Number(d.mockWalletBalanceSats)) || 0;
-            if (d.mockPayOutcome != null) patch.mockPayOutcome = ['paid', 'refuse', 'timeout'].indexOf(d.mockPayOutcome) !== -1 ? d.mockPayOutcome : 'paid';
+            const smw = require('./stagingMockWallet');
+            if (d.mockPayOutcome != null) patch.mockPayOutcome = smw.PAY_OUTCOMES.indexOf(d.mockPayOutcome) !== -1 ? d.mockPayOutcome : 'paid';
+            if (d.mockLookupOutcome != null) patch.mockLookupOutcome = smw.LOOKUP_OUTCOMES.indexOf(d.mockLookupOutcome) !== -1 ? d.mockLookupOutcome : 'pending';
+            if (d.mockBalanceOutcome != null) patch.mockBalanceOutcome = smw.BALANCE_OUTCOMES.indexOf(d.mockBalanceOutcome) !== -1 ? d.mockBalanceOutcome : 'ok';
         }
         // Clearing a routing-fee halt is its own explicit, audited step.
         if (d.clearFeeHalt === true) {

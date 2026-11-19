@@ -210,6 +210,15 @@ function createResetHandlers(deps) {
             console.error('[LN-RESET] transaction failed domain=' + domain);
             return fail('rejected', 'Could not save that Lightning Address. Try again.');
         }
+        try {
+            const payoutAlerts = require('./payoutAlerts');
+            await payoutAlerts.emit({ db: db, admin: admin }, {
+                kind: 'address_change',
+                key: 'ln_reset_' + payoutAlerts.maskUid(uid),
+                text: 'A payout address was changed for account ' + payoutAlerts.maskUid(uid) + '.',
+                extra: { uidMasked: payoutAlerts.maskUid(uid) },
+            });
+        } catch (err) { console.warn('[LN-RESET] address-change alert failed'); }
         return { ok: true, address: next };
     }
 

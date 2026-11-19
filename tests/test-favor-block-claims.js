@@ -589,7 +589,7 @@ test('catch-up ceiling: archived epoch 1-8 blocks + fee allowance, enforced in t
 });
 
 test('catch-up ceiling counts routing fees: overpaid fees cannot push spend past the ceiling', async function () {
-    const h = makeHarness({ config: { perUidDailySats: 1000000 } });
+    const h = makeHarness({ config: { perUidDailySats: 1000000, siteDailySats: 1000000 } });
     await freeze(h, 1);
     h.routingFeeMsat = 900 * 1000;
     // A 900-sat fee is over the routing-fee limit, so each paid claim halts
@@ -1416,9 +1416,72 @@ test('staging mock wallet: mockBlankPubkey is staging-only and makes getInfo ret
     assert.strictEqual(core.readConfig({ mockBlankPubkey: true }).mockBlankPubkey, true);
     assert.strictEqual(core.readConfig({ mockBlankPubkey: 'yes' }).mockBlankPubkey, false);
     const fns = fs.readFileSync(path.join(root, 'functions/src/favorBlockClaimsFns.js'), 'utf8');
-    assert.ok(/getInfo: async function \(\) \{ return \{ pubkey: cfg\.mockBlankPubkey === true \? '' : MOCK_NODE_PUBKEY \}; \}/.test(fns));
-    assert.ok(/d\.mockBlankPubkey != null\) \{\s*if \(!staging\) throw new HttpsError\('permission-denied'/.test(fns), 'same staging-only guard as the other mock fields');
+    const smwSrc = fs.readFileSync(path.join(root, 'functions/src/stagingMockWallet.js'), 'utf8');
+    assert.ok(/getInfo: async function \(\) \{ return \{ pubkey: cfg\.mockBlankPubkey === true \? '' : MOCK_NODE_PUBKEY \}; \}/.test(smwSrc));
+    assert.ok(/return require\('\.\/stagingMockWallet'\)\.createMockWallet\(cfg\);/.test(fns));
+    assert.ok(/d\.mockBlankPubkey != null \|\| d\.mockLookupOutcome != null \|\| d\.mockBalanceOutcome != null\) \{\s*if \(!staging\) throw new HttpsError\('permission-denied'/.test(fns), 'same staging-only guard as the other mock fields');
     assert.ok(/logWarn: function \(msg, data\) \{ require\('firebase-functions\/logger'\)\.warn\(msg, data \|\| \{\}\); \}/.test(fns));
+});
+
+// ---------- reserve-then-pay in msat (max fee included) ----------
+test('capCheck: prize caps unchanged; spend check uses reserved msat plus fee headroom', function () {
+    const cfg = core.readConfig({ perUidDailySats: 12600, siteDailySats: 21000, monthlySats: 45000 });
+    assert.strictEqual(core.capCheck(cfg, 4200, { uidDay: 8400, siteDay: 0, month: 0 }, null), '');
+    assert.strictEqual(core.capCheck(cfg, 4200, { uidDay: 8400, siteDay: 0, month: 0 }, null), '', '3rd 4,200 prize still fits');
+    assert.strictEqual(core.capCheck(cfg, 4200, { uidDay: 12600, siteDay: 0, month: 0 }, null), 'uid_daily_cap');
+    const reserved = 4190 * 1000 + core.routeFeeLimitMsat(4190);
+    assert.ok(reserved > 4190 * 1000);
+    assert.strictEqual(core.capCheck(cfg, 4200, {
+        uidDay: 8400, siteDay: 0, month: 0,
+        uidDayMsat: 2 * reserved, siteDayMsat: 0, monthMsat: 0,
+        reservedMsat: reserved, feeLimitMsatFn: core.routeFeeLimitMsat,
+    }, null), '');
+    assert.strictEqual(core.capCheck(cfg, 4200, {
+        uidDay: 0, siteDay: 0, month: 4200,
+        uidDayMsat: 0, siteDayMsat: 0, monthMsat: reserved,
+        reservedMsat: reserved, feeLimitMsatFn: core.routeFeeLimitMsat,
+    }, { ceiling: 0 }), 'catch_up_ceiling');
+});
+
+test('reserve includes max routing fee in msat; failure releases both sats and msats', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.invoiceMutator = function (d) { d.millisatoshis = '1'; return d; };
+    const r = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.strictEqual(r.code, 'bad_invoice');
+    const site = h.db.store.get('sf_claim_counters/site_2026-11-14') || {};
+    assert.strictEqual(site.sats || 0, 0, 'prize reserve released');
+    assert.strictEqual(site.msats || 0, 0, 'msat reserve released');
+    assert.strictEqual(h.pays.length, 0);
+});
+
+test('paid claim trues spend up to net + actual fee and keeps the prize sats on daily counters', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    assert.ok((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).success);
+    const net = 4190;
+    const uid = h.db.store.get('sf_claim_counters/uid_' + core.uidHash(BOB) + '_2026-11-14');
+    const site = h.db.store.get('sf_claim_counters/site_2026-11-14');
+    const month = h.db.store.get('sf_claim_counters/catchup_e1_8');
+    assert.strictEqual(uid.sats, 4200);
+    assert.strictEqual(site.sats, 4200);
+    assert.strictEqual(uid.msats, net * 1000);
+    assert.strictEqual(site.msats, net * 1000);
+    assert.strictEqual(month.sats, net);
+    assert.strictEqual(month.msats, net * 1000);
+    const claim = h.db.store.get('sf_block_claims/e1_b3');
+    assert.ok(claim.reservedMsat > net * 1000, 'reservation included max fee');
+    assert.strictEqual(claim.reservedMsat, net * 1000 + core.routeFeeLimitMsat(net));
+});
+
+test('cap hit alerts once and does not pay', async function () {
+    const h = makeHarness({ epochs: 2, config: { enabledEpochs: [1, 2], siteDailySats: 4200 } });
+    await freeze(h, 1); await freeze(h, 2);
+    assert.ok((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).success);
+    const r = await h.svc.claim(ctx(CARA), { epoch: 1, block: 4 });
+    assert.strictEqual(r.code, 'site_daily_cap');
+    assert.ok(h.alerts.some(function (a) { return /site daily cap/.test(a); }));
+    assert.strictEqual(h.pays.length, 1);
 });
 
 (async function main() {
