@@ -18,6 +18,7 @@
         founders_busy: 'All remaining Founders seats are being checked out right now. Try again in a few minutes.',
         hold_exists: 'You already have a Founders checkout open. Finish it or try again in a few minutes.',
         founders_cooldown: 'Your last Founders checkout timed out. Please wait about 30 minutes before trying again.',
+        founders_cooldown_ip: 'A Founders checkout from this network timed out. Please wait about 30 minutes before trying again.',
         hold_exists_ip: 'A Founders checkout is already open from this network. Try again in a few minutes.',
         email_not_verified: 'Verify your email in Settings first, then come back.',
         already_premium: 'You already have Premium.',
@@ -58,6 +59,44 @@
     function msgFor(e) {
         var r = reasonOf(e);
         return REASONS[r] || (e && e.message) || 'Something went wrong. Please try again.';
+    }
+    // Founders' seat hold countdown (Red Team F2-R). The seat is held only
+    // until holdExpMs; after that the checkout link is expired server-side.
+    function holdMinutesLeft(expMs, nowMs) { return Math.max(0, Math.ceil((expMs - nowMs) / 60000)); }
+    function holdText(expMs, nowMs) {
+        var left = Math.max(0, expMs - nowMs);
+        var m = Math.floor(left / 60000), sec = Math.floor((left % 60000) / 1000);
+        var n = holdMinutesLeft(expMs, nowMs);
+        return 'Your Founders seat is held for ' + n + (n === 1 ? ' minute' : ' minutes') + ' (' + m + ':' + (sec < 10 ? '0' : '') + sec + ' left).';
+    }
+    function showHold(box, buy, url, expMs) {
+        while (box.firstChild) box.removeChild(box.firstChild);
+        box.style.display = 'block';
+        var line = el('p', 'margin:0 0 8px;font-weight:700;color:#f7931a', holdText(expMs, Date.now()));
+        line.setAttribute('role', 'timer');
+        line.setAttribute('aria-live', 'polite');
+        var note = el('p', 'margin:0 0 10px;color:#d1d5db;font-size:.88rem', 'Pay before the timer runs out to keep your seat. After that the checkout closes and the seat goes back to other players.');
+        var pay = el('button', 'width:100%;padding:12px;border-radius:10px;border:0;background:#f7931a;color:#111;font-weight:700;cursor:pointer', 'Pay now');
+        pay.type = 'button';
+        pay.addEventListener('click', function () { if (Date.now() < expMs) location.assign(url); });
+        box.appendChild(line);
+        box.appendChild(note);
+        box.appendChild(pay);
+        buy.style.display = 'none';
+        var timer = setInterval(function () {
+            var now = Date.now();
+            if (now >= expMs) {
+                clearInterval(timer);
+                line.textContent = 'Your Founders seat hold ran out. Start again to hold a new seat.';
+                pay.disabled = true;
+                pay.style.opacity = '.5';
+                buy.style.display = '';
+                buy.disabled = false;
+                buy.textContent = 'Continue to payment';
+                return;
+            }
+            line.textContent = holdText(expMs, now);
+        }, 1000);
     }
     function toast(m) { if (typeof showToast === 'function') showToast(m); }
 
@@ -212,6 +251,8 @@
         msg.setAttribute('role', 'status');
         body.appendChild(buy);
         body.appendChild(msg);
+        var holdBox = el('div', 'display:none;margin-top:10px;padding:12px;border-radius:10px;border:1px solid #f7931a;background:#1f1a10');
+        body.appendChild(holdBox);
 
         function plansForRail() {
             return state.rail === 'lightning' ? [['months', 'Prepaid months'], ['yearly', 'Yearly'], ['founders', "Founders' Lifetime"]]
@@ -274,6 +315,10 @@
             call('createPremiumCheckout', payload).then(function (r) {
                 var u = safeCheckoutUrl(r && r.url, state.rail, st && st.btcpayHost);
                 if (!u) throw { details: { reason: 'provider_error' } };
+                if (state.plan === 'founders' && r && Number(r.holdExpMs) > Date.now()) {
+                    showHold(holdBox, buy, u, Number(r.holdExpMs));
+                    return;
+                }
                 location.assign(u);
             }).catch(function (e) {
                 buy.disabled = false;
@@ -358,7 +403,7 @@
             setTimeout(wait, 500);
         })();
     }
-    window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS };
+    window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS, holdText: holdText, holdMinutesLeft: holdMinutesLeft };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
 })();

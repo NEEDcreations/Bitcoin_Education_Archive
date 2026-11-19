@@ -70,6 +70,7 @@ foundersHoldsAlertThreshold: 15 // holds at/above this for > 1 hour -> review ro
 publicOrderEmailRetentionMonths: 3 // unclaimed public orders: plain email cleared after this (User Data, Nov 18)
 foundersCardHoldMinutes: 10    // Founders card seat hold (5..30); bitcoin hold = 15-min invoice + 5-min grace
 foundersHoldCooldownMinutes: 30 // wait after an unpaid Founders hold lapses (0..240, 0 = off)
+foundersIpHoldCooldownMinutes: 30 // same wait for that hold's network (keyed IP hash; 0..240, 0 = off)
 btcpayHost: null                // exact BTCPay hostname; the app only follows bitcoin links on it. Unset = bitcoin closed
 stripePortalConfigId: null      // bpc_... from functions/scripts/premium-portal-config.js; portal closed until set
 existingUserDiscountEndsAtMs    // may end the 5% earlier; clamped to 2027-01-01 00:00 ET at most
@@ -125,7 +126,7 @@ Phil's OK); rotating it resets trial markers and rate buckets.
 | Plain email on a public order | Cleared when a verified account claims it, on a full refund, or by the hourly sweep `publicOrderEmailRetentionMonths` (default 3) after purchase. The keyed `emailKey` stays. |
 | premium_rate docs (per-IP / per-account / global) | `expireAt` = window start + 2 h |
 | Founders holds | `expMs` in `premium_counters/founders.holds` (released on expiry) |
-| Founders hold cooldowns | `premium_rate/fcool_<holdKey>` with `untilMs`; `expireAt` = cooldown end + 1 h |
+| Founders hold cooldowns | `premium_rate/fcool_<holdKey>` and `premium_rate/fcoolip_<keyed IP hash>` with `untilMs`; `expireAt` = cooldown end + 1 h |
 | premium_entitlements, premium_allowance, premium_email_entitlements | Deleted on account deletion |
 
 TTL: `premium_rate.expireAt` is in place, but no Firestore TTL policy was
@@ -231,3 +232,27 @@ Live (Phil only, after Red Team / QA / Security GO):
   admin alert, and for Founders sells and retires the seat at once.
 - A dispute event carries no order metadata, so the webhook reads its charge
   back from Stripe to find the order.
+
+## Round 3 (Nov 18, Red Team F1-R/F2-R)
+
+- Subscription (monthly/yearly) refund or dispute with no order id on the
+  charge: charge -> invoice (`charge.invoice`, or `invoice_payments` by payment
+  intent on newer Stripe API versions) -> `invoice.parent.subscription_details`
+  metadata, else the subscription's metadata. Accepted only when
+  `checkout/sessions?subscription=` returns the order's own `providerSessionId`.
+  A 4xx on these optional reads means "not found"; other errors answer 500 so
+  Stripe retries.
+- Lapsed Founders card holds: the Stripe Checkout Session is expired
+  (`POST /v1/checkout/sessions/{id}/expire`) when the next Founders checkout
+  finds the hold lapsed and by the hourly sweep (holds lapsed in the last 70
+  minutes). The order gets `sessionExpiredAtMs`. A failed expire is logged and
+  never throws; a payment that still lands goes to
+  `founders_sold_out_late_payment` review if the cap is full.
+- Stripe session `expires_at` stays at 31 minutes (Stripe's 30-minute minimum
+  plus 1 minute).
+- Countdown: the in-app buy screen shows "Your Founders seat is held for N
+  minutes" with a live timer and a Pay now button; the Stripe pay-button text
+  carries the same line; /premium's Founders note says the seat is held for 10
+  minutes once checkout opens.
+- Network cooldown: a lapsed or expired Founders hold also cools down its
+  network for `foundersIpHoldCooldownMinutes` (`founders_cooldown_ip`).

@@ -36,7 +36,7 @@ test('kill switch and other server reasons have friendly messages', function () 
     });
 });
 test('loaded on index.html and 404.html with the same buster', function () {
-    const tag = '<script src="/premium-buy.js?v=20261118_v2607" defer></script>';
+    const tag = '<script src="/premium-buy.js?v=20261118_v2608" defer></script>';
     assert.ok(index.includes(tag));
     assert.ok(notFound.includes(tag));
     assert.strictEqual(index, notFound);
@@ -91,6 +91,19 @@ test('bitcoin: pinned to the configured BTCPay host exactly (Red Team F3)', func
 test('buy screen passes status btcpayHost to the link check and hides bitcoin without it', function () {
     assert.ok(/safeCheckoutUrl\(r && r\.url, state\.rail, st && st\.btcpayHost\)/.test(js));
     assert.ok(/if \(st\.lightningOpen && st\.btcpayHost\)/.test(js));
+});
+test('Founders seat hold countdown: "Your Founders seat is held for N minutes" (Red Team F2-R)', function () {
+    const now = 1000000;
+    assert.strictEqual(T.holdText(now + 10 * 60000, now), 'Your Founders seat is held for 10 minutes (10:00 left).');
+    assert.strictEqual(T.holdText(now + 9 * 60000 + 5000, now), 'Your Founders seat is held for 10 minutes (9:05 left).');
+    assert.strictEqual(T.holdText(now + 30000, now), 'Your Founders seat is held for 1 minute (0:30 left).');
+    assert.strictEqual(T.holdMinutesLeft(now - 1, now), 0);
+    // Founders checkout shows the hold box with a Pay now button instead of redirecting at once.
+    assert.ok(/state\.plan === 'founders' && r && Number\(r\.holdExpMs\) > Date\.now\(\)/.test(js));
+    assert.ok(/showHold\(holdBox, buy, u, Number\(r\.holdExpMs\)\)/.test(js));
+    assert.ok(js.indexOf("'Your Founders seat hold ran out. Start again to hold a new seat.'") !== -1);
+    assert.ok(/if \(Date\.now\(\) < expMs\) location\.assign\(url\)/.test(js));
+    assert.ok(/founders_cooldown_ip:/.test(js));
 });
 test('portal: only billing.stripe.com', function () {
     assert.ok(T.safePortalUrl('https://billing.stripe.com/p/session/test_1'));

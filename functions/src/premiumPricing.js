@@ -90,6 +90,8 @@ const DEFAULT_CONFIG = Object.freeze({
     // After a Founders' hold lapses unpaid, that account waits this long
     // before it can hold a Founders' seat again. 0 turns it off.
     foundersHoldCooldownMinutes: 30,
+    // Same wait for the network (keyed IP hash) the lapsed hold came from.
+    foundersIpHoldCooldownMinutes: 30,
     // Exact BTCPay host (e.g. "pay.example.com"). The app only follows a
     // bitcoin checkout link on this host; unset means bitcoin links are refused.
     btcpayHost: null,
@@ -151,6 +153,7 @@ function normalizeConfig(raw) {
         publicOrderEmailRetentionMonths: intIn(r.publicOrderEmailRetentionMonths, 1, 120, DEFAULT_CONFIG.publicOrderEmailRetentionMonths),
         foundersCardHoldMinutes: intIn(r.foundersCardHoldMinutes, 5, 30, DEFAULT_CONFIG.foundersCardHoldMinutes),
         foundersHoldCooldownMinutes: intIn(r.foundersHoldCooldownMinutes, 0, 240, DEFAULT_CONFIG.foundersHoldCooldownMinutes),
+        foundersIpHoldCooldownMinutes: intIn(r.foundersIpHoldCooldownMinutes, 0, 240, DEFAULT_CONFIG.foundersIpHoldCooldownMinutes),
         btcpayHost: normalizeHost(r.btcpayHost),
         stripePortalConfigId: typeof r.stripePortalConfigId === 'string' && /^bpc_[A-Za-z0-9]{6,80}$/.test(r.stripePortalConfigId) ? r.stripePortalConfigId : null,
         // Absent or any value other than false stays on (Red Team, Nov 14).

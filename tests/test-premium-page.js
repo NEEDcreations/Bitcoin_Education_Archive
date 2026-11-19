@@ -45,6 +45,7 @@ test('approved perks present, dropped perks absent, banned claims absent', funct
     assert.ok(/One username change and one faction change per year/.test(text));
     // Only approved limit: 20 OrangeTix a day bought with the player's own XP (Phil, Nov 18).
     assert.ok(/Buy up to 20 OrangeTix a day with your own XP/.test(text));
+    assert.ok(/Your Founders seat is held for 10 minutes once checkout opens/.test(text));
     assert.ok(!/Higher rewards limit/i.test(text));
     // Citadel perks are cosmetic only (Citadel spec, Nov 18, Red Team C1).
     assert.ok(!/build slot/i.test(text));

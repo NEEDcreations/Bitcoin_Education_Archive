@@ -76,7 +76,7 @@ const SECRET_NAMES = Object.freeze([
 
 const STRIPE_API = 'https://api.stripe.com';
 const STRIPE_TOLERANCE_SEC = 300;
-const STRIPE_CHECKOUT_MINUTES = 31; // Stripe minimum is 30.
+const STRIPE_CHECKOUT_MINUTES = 31; // Stripe minimum is 30, plus a 1-minute margin.
 const BTCPAY_INVOICE_MINUTES = 15;
 const HOLD_GRACE_MS = 5 * 60 * 1000;
 const SUB_GRACE_MS = 3 * 24 * 3600 * 1000;
@@ -408,6 +408,10 @@ function mergeEntitlements(a, b, nowMs) {
 function foundersCooldownId(holdKey) {
     return 'fcool_' + String(holdKey || '').replace(/[^A-Za-z0-9_:-]/g, '_').slice(0, 200);
 }
+// Network cooldown doc id: the keyed IP hash (HMAC with PREMIUM_HASH_KEY), never a plain IP.
+function foundersIpCooldownId(ipHash) {
+    return 'fcoolip_' + String(ipHash || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 128);
+}
 
 // Bitcoin checkout link must be https on the exact configured BTCPay host
 // (Red Team F3). Unset host = refused.
@@ -442,7 +446,7 @@ function fmtEt(msVal) {
 // Text shown above the pay button on Stripe Checkout (custom_text.submit).
 // perksStartMs: when Embers and Citadel perks start, if still in the future.
 // trialEndMs: only when a real trial was granted (trials are off by default).
-function checkoutNote(q, perksStartMs, trialEndMs) {
+function checkoutNote(q, perksStartMs, trialEndMs, holdMinutes) {
     const parts = [];
     if (q.cardMode === 'subscription' && trialEndMs) {
         parts.push('You will not be charged today. Your first charge is on ' + fmtEt(trialEndMs) + '.');
@@ -450,6 +454,7 @@ function checkoutNote(q, perksStartMs, trialEndMs) {
         parts.push("You're charged today.");
     }
     if (q.lifetime) parts.push("Founders' Lifetime is a one-time payment and never renews.");
+    if (q.lifetime && holdMinutes > 0) parts.push('Your Founders seat is held for ' + holdMinutes + ' minutes. Pay before then to keep it.');
     if (perksStartMs) parts.push('Embers and Citadel cosmetics start ' + fmtEt(perksStartMs) + ' at 12:00 AM ET. Your other Premium perks start right away.');
     parts.push(pricing.REFUND_POLICY.text);
     return parts.join(' ').slice(0, 1200);
@@ -630,6 +635,8 @@ function createPremiumHandlers(deps) {
             ? cfg.foundersCardHoldMinutes * 60000
             : (q.rail === 'card' ? STRIPE_CHECKOUT_MINUTES : BTCPAY_INVOICE_MINUTES) * 60000 + HOLD_GRACE_MS;
         const cooldownMs = (Number(cfg.foundersHoldCooldownMinutes) || 0) * 60000;
+        const ipCooldownMs = (Number(cfg.foundersIpHoldCooldownMinutes) || 0) * 60000;
+        let lapsedIds = [];
         if (provider === 'stripe') stripeKey(); else btcpayCfg(); // before any seat is held
         let capHit = false;
 
@@ -638,6 +645,7 @@ function createPremiumHandlers(deps) {
         const rateRef = ref(COL.rate, who.rateKey);
         const globalRef = channel === 'public' ? ref(COL.rate, GLOBAL_PUBLIC_RATE_ID) : null;
         const coolRef = q.lifetime && cooldownMs > 0 ? ref(COL.rate, foundersCooldownId(who.holdKey)) : null;
+        const coolIpRef = q.lifetime && ipCooldownMs > 0 && who.ipHash ? ref(COL.rate, foundersIpCooldownId(who.ipHash)) : null;
         const limit = who.uid ? ORDERS_PER_HOUR : PUBLIC_ORDERS_PER_HOUR_PER_IP;
         function windowCount(d) {
             const ws = Number(d.windowStartMs) || 0;
@@ -649,6 +657,8 @@ function createPremiumHandlers(deps) {
             const globalSnap = globalRef ? await tx.get(globalRef) : null;
             const counterSnap = q.lifetime ? await tx.get(counterRef) : null;
             const coolSnap = coolRef ? await tx.get(coolRef) : null;
+            const coolIpSnap = coolIpRef ? await tx.get(coolIpRef) : null;
+            lapsedIds = [];
             const rate = rateSnap.exists ? rateSnap.data() : {};
             const w = windowCount(rate);
             const inWindow = w.inWindow;
@@ -669,12 +679,20 @@ function createPremiumHandlers(deps) {
                 // Cooldown after an unpaid Founders' hold lapsed (Red Team F2).
                 // Holds that lapsed unpaid are pruned here and each owner gets a
                 // cooldown doc (TTL expireAt), so it holds even after pruning.
-                const lapsed = cooldownMs > 0 ? Object.keys(c.holds || {}).filter(function (id) { return !holds[id] && c.holds[id]; }) : [];
-                const myLapsed = lapsed.filter(function (id) { return c.holds[id].uid === who.holdKey && Number(c.holds[id].expMs) + cooldownMs > nowMs; });
+                const lapsed = Object.keys(c.holds || {}).filter(function (id) { return !holds[id] && c.holds[id]; });
+                lapsedIds = lapsed.slice();
+                const myLapsed = cooldownMs > 0 ? lapsed.filter(function (id) { return c.holds[id].uid === who.holdKey && Number(c.holds[id].expMs) + cooldownMs > nowMs; }) : [];
                 const coolUntil = Math.max(coolSnap && coolSnap.exists ? Number(coolSnap.data().untilMs) || 0 : 0,
                     myLapsed.reduce(function (m, id) { return Math.max(m, Number(c.holds[id].expMs) + cooldownMs); }, 0));
                 if (coolUntil > nowMs) {
                     throw fail('resource-exhausted', "Your last Founders' checkout timed out. Try again in " + Math.max(1, Math.ceil((coolUntil - nowMs) / 60000)) + ' minutes.', 'founders_cooldown');
+                }
+                // Same cooldown per network (keyed IP hash, Red Team F2-R).
+                const ipLapsed = ipCooldownMs > 0 && who.ipHash ? lapsed.filter(function (id) { return c.holds[id].ipHash === who.ipHash && Number(c.holds[id].expMs) + ipCooldownMs > nowMs; }) : [];
+                const ipCoolUntil = Math.max(coolIpSnap && coolIpSnap.exists ? Number(coolIpSnap.data().untilMs) || 0 : 0,
+                    ipLapsed.reduce(function (m, id) { return Math.max(m, Number(c.holds[id].expMs) + ipCooldownMs); }, 0));
+                if (ipCoolUntil > nowMs) {
+                    throw fail('resource-exhausted', "A Founders' checkout from this network timed out. Try again in " + Math.max(1, Math.ceil((ipCoolUntil - nowMs) / 60000)) + ' minutes.', 'founders_cooldown_ip');
                 }
                 // One live Founders' hold per network (IPv6 /64 or exact IPv4; keyed hash only).
                 const sameIp = who.ipHash ? Object.keys(holds).filter(function (id) { return holds[id].ipHash === who.ipHash; }) : [];
@@ -689,8 +707,13 @@ function createPremiumHandlers(deps) {
                 lapsed.forEach(function (id) {
                     const h = c.holds[id];
                     const until = Number(h.expMs) + cooldownMs;
-                    if (!h.uid || until <= nowMs) return;
-                    tx.set(ref(COL.rate, foundersCooldownId(h.uid)), { untilMs: until, orderId: id, expireAt: new Date(until + 3600000) });
+                    if (cooldownMs > 0 && h.uid && until > nowMs) {
+                        tx.set(ref(COL.rate, foundersCooldownId(h.uid)), { untilMs: until, orderId: id, expireAt: new Date(until + 3600000) });
+                    }
+                    const ipUntil = Number(h.expMs) + ipCooldownMs;
+                    if (ipCooldownMs > 0 && h.ipHash && ipUntil > nowMs) {
+                        tx.set(ref(COL.rate, foundersIpCooldownId(h.ipHash)), { untilMs: ipUntil, orderId: id, expireAt: new Date(ipUntil + 3600000) });
+                    }
                 });
                 holds[orderId] = { uid: who.holdKey, ipHash: who.ipHash || null, expMs: nowMs + holdMs };
                 tx.set(counterRef, Object.assign({}, c, { sold: Number(c.sold) || 0, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: nowMs }));
@@ -740,8 +763,11 @@ function createPremiumHandlers(deps) {
             });
         }); } catch (e) {
             if (capHit) await foundersCapAlert(nowMs, cfg);
+            if (lapsedIds.length) await expireLapsedSessions(lapsedIds, nowMs);
             throw e;
         }
+        // Lapsed Founders' card holds can no longer be paid (Red Team F2-R).
+        if (lapsedIds.length) await expireLapsedSessions(lapsedIds, nowMs);
 
         let url = null;
         try {
@@ -778,7 +804,7 @@ function createPremiumHandlers(deps) {
                     // trial_period_days.
                     if (trialDays > 0) params.subscription_data.trial_period_days = trialDays;
                 } else { params.payment_intent_data = { metadata: metadata }; params.customer_creation = 'always'; }
-                const note = checkoutNote(q, perksStartMs, trialEndMs);
+                const note = checkoutNote(q, perksStartMs, trialEndMs, q.lifetime ? Math.round(holdMs / 60000) : 0);
                 if (note) params.custom_text = { submit: { message: note } };
                 if (who.customerId) params.customer = who.customerId;
                 else if (who.email) params.customer_email = who.email;
@@ -813,6 +839,8 @@ function createPremiumHandlers(deps) {
             url: url,
             provider: provider,
             chargedNow: !trialEndMs,
+            // Founders' seat hold end, for the buy screen's countdown.
+            holdExpMs: q.lifetime ? nowMs + holdMs : null,
             deferredPerksStartAtMs: perksStartMs,
             refundPolicy: pricing.REFUND_POLICY.id,
             amountCents: q.amountCents,
@@ -995,6 +1023,41 @@ function createPremiumHandlers(deps) {
         }
     }
 
+    // Expires the Stripe Checkout Session of each lapsed, unpaid Founders' card
+    // hold so it can no longer be paid (Red Team F2-R). Best effort: a failed
+    // expire is logged and never throws; a payment that still slips through
+    // goes to the founders_sold_out_late_payment review path.
+    async function expireLapsedSessions(orderIds, nowMs) {
+        let n = 0;
+        for (const id of (orderIds || []).slice(0, 10)) {
+            try {
+                const snap = await ref(COL.orders, id).get();
+                if (!snap.exists) continue;
+                const o = snap.data();
+                if (!o.lifetime || o.provider !== 'stripe' || o.status !== 'pending' || o.sessionExpiredAtMs) continue;
+                if (!(Number(o.holdExpMs) <= nowMs)) continue;
+                if (typeof o.providerSessionId !== 'string' || !/^cs_[A-Za-z0-9_]{6,200}$/.test(o.providerSessionId)) continue;
+                await stripeRequest('POST', '/v1/checkout/sessions/' + encodeURIComponent(o.providerSessionId) + '/expire', {}, 'bq-expire-' + id);
+                await ref(COL.orders, id).update({ sessionExpiredAtMs: nowMs });
+                n++;
+            } catch (e) {
+                log('premium founders session expire failed', { orderId: id, err: String(e && e.message || e) });
+            }
+        }
+        return n;
+    }
+
+    // Sweep: Founders' card orders whose hold lapsed in the last 70 minutes
+    // (a Stripe session lives at most ~31) still get their session expired.
+    async function expireLapsedFoundersSessions(nowMs) {
+        const q = await db.collection(COL.orders).where('holdExpMs', '>=', nowMs - 70 * 60000).limit(200).get();
+        const ids = q.docs.filter(function (d) {
+            const o = d.data();
+            return o.lifetime && o.provider === 'stripe' && o.status === 'pending' && !o.sessionExpiredAtMs && Number(o.holdExpMs) <= nowMs;
+        }).map(function (d) { return d.id; });
+        return ids.length ? expireLapsedSessions(ids, nowMs) : 0;
+    }
+
     // Marks a pending order expired/error and frees its Founders seat hold.
     async function releaseOrder(orderId, status, nowMs) {
         const cfgForCooldown = status === 'expired' ? await loadConfig() : {};
@@ -1015,9 +1078,15 @@ function createPremiumHandlers(deps) {
                     tx.update(counterRef, { holds: holds, updatedAtMs: nowMs });
                     // Abandoned (expired) Founders' checkout: start the cooldown.
                     const cd = (Number(cfgForCooldown.foundersHoldCooldownMinutes) || 0) * 60000;
+                    const lapseAt = Math.min(Number(h.expMs) || nowMs, nowMs);
                     if (status === 'expired' && h.uid && cd > 0) {
-                        const until = Math.min(Number(h.expMs) || nowMs, nowMs) + cd;
+                        const until = lapseAt + cd;
                         if (until > nowMs) tx.set(ref(COL.rate, foundersCooldownId(h.uid)), { untilMs: until, orderId: orderId, expireAt: new Date(until + 3600000) });
+                    }
+                    const icd = (Number(cfgForCooldown.foundersIpHoldCooldownMinutes) || 0) * 60000;
+                    if (status === 'expired' && h.ipHash && icd > 0) {
+                        const until = lapseAt + icd;
+                        if (until > nowMs) tx.set(ref(COL.rate, foundersIpCooldownId(h.ipHash)), { untilMs: until, orderId: orderId, expireAt: new Date(until + 3600000) });
                     }
                 }
             }
@@ -1171,6 +1240,48 @@ function createPremiumHandlers(deps) {
             if (pm && pm.card && typeof pm.card.fingerprint === 'string' && pm.card.fingerprint) return pm.card.fingerprint;
         }
         return null;
+    }
+
+    // Stripe GET for an optional lookup: a 4xx (missing object, field not on
+    // this API version) means "not found"; anything else throws so the
+    // webhook answers 500 and Stripe retries.
+    async function stripeGetSoft(path) {
+        try { return await stripeRequest('GET', path); } catch (e) {
+            if (/^stripe_4\d\d/.test(String(e && e.message || ''))) return null;
+            throw e;
+        }
+    }
+    const ORDER_ID_RE = /^[A-Za-z0-9_-]{6,64}$/;
+    function metaOrderId(m) { return m && typeof m.orderId === 'string' && ORDER_ID_RE.test(m.orderId) ? m.orderId : null; }
+    // charge -> invoice -> subscription -> order id, accepted only when the
+    // subscription's Checkout Session is the order's own session.
+    async function orderIdFromSubscriptionCharge(invoiceId, pi) {
+        let inv = null;
+        if (!invoiceId && pi && /^pi_[A-Za-z0-9]{6,200}$/.test(pi)) {
+            const ip = await stripeGetSoft('/v1/invoice_payments?limit=1&payment[type]=payment_intent&payment[payment_intent]=' + encodeURIComponent(pi));
+            const row = ip && Array.isArray(ip.data) ? ip.data[0] : null;
+            const iv = row && (typeof row.invoice === 'string' ? row.invoice : (row.invoice && row.invoice.id));
+            if (typeof iv === 'string') invoiceId = iv;
+        }
+        if (!invoiceId || !/^in_[A-Za-z0-9]{6,200}$/.test(invoiceId)) return null;
+        inv = await stripeGetSoft('/v1/invoices/' + encodeURIComponent(invoiceId));
+        if (!inv) return null;
+        const sd = (inv.parent && inv.parent.subscription_details) || inv.subscription_details || null;
+        let subId = (sd && typeof sd.subscription === 'string' && sd.subscription) || (typeof inv.subscription === 'string' ? inv.subscription : null);
+        let oid = metaOrderId(sd && sd.metadata);
+        if (!subId || !/^sub_[A-Za-z0-9]{6,200}$/.test(subId)) return null;
+        if (!oid) {
+            const sub = await stripeGetSoft('/v1/subscriptions/' + encodeURIComponent(subId));
+            oid = metaOrderId(sub && sub.metadata);
+        }
+        if (!oid) return null;
+        const list = await stripeGetSoft('/v1/checkout/sessions?limit=1&subscription=' + encodeURIComponent(subId));
+        const sess = list && Array.isArray(list.data) ? list.data[0] : null;
+        if (!sess || typeof sess.id !== 'string') return null;
+        if (sess.client_reference_id != null && sess.client_reference_id !== oid) return null;
+        const od = await ref(COL.orders, oid).get();
+        if (!od.exists || od.data().providerSessionId !== sess.id || od.data().provider !== 'stripe') return null;
+        return oid;
     }
 
     function orderIdsForCharge(ch) {
@@ -1685,11 +1796,13 @@ function createPremiumHandlers(deps) {
             // charge back so a dispute that lands before checkout completes
             // still stamps the order. A failed read answers 500 (Stripe retries).
             let pi = typeof obj.payment_intent === 'string' ? obj.payment_intent : null;
+            let invoiceId = t === 'charge.refunded' && typeof obj.invoice === 'string' ? obj.invoice : null;
             if (t === 'charge.dispute.created' && !orderIds.length && typeof obj.charge === 'string' && /^(ch|py)_[A-Za-z0-9]{6,200}$/.test(obj.charge)) {
                 const ch = await stripeRequest('GET', '/v1/charges/' + encodeURIComponent(obj.charge));
                 orderIds = orderIdsForCharge(ch);
                 if (!customerId && ch && typeof ch.customer === 'string') customerId = ch.customer;
                 if (!pi && ch && typeof ch.payment_intent === 'string') pi = ch.payment_intent;
+                if (!invoiceId && ch && typeof ch.invoice === 'string') invoiceId = ch.invoice;
             }
             // Still no order (e.g. before checkout completed, when the order has
             // no Stripe customer yet): find the Checkout Session that owns the
@@ -1702,6 +1815,13 @@ function createPremiumHandlers(deps) {
                     const od = await ref(COL.orders, oid).get();
                     if (od.exists && od.data().providerSessionId === sess.id) orderIds = [oid];
                 }
+            }
+            // Subscription (monthly/yearly) charges carry no order id and
+            // their session is not found by payment intent: go charge ->
+            // invoice -> subscription, then require the session match.
+            if (!orderIds.length) {
+                const oid = await orderIdFromSubscriptionCharge(invoiceId, pi);
+                if (oid) orderIds = [oid];
             }
             const subMeta = obj.parent && obj.parent.subscription_details && obj.parent.subscription_details.metadata;
             if (!orderIds.length && subMeta && typeof subMeta.orderId === 'string') orderIds = [subMeta.orderId];
@@ -2081,7 +2201,9 @@ function createPremiumHandlers(deps) {
         }
         const emailsCleared = await clearExpiredOrderEmails(nowMs, limit);
         const holds = await checkHoldsAlert(nowMs);
-        return { checked: snap.docs.length, flipped: flipped, emailsCleared: emailsCleared, holdsAlert: holds };
+        let sessionsExpired = 0;
+        try { sessionsExpired = await expireLapsedFoundersSessions(nowMs); } catch (e) { log('premium sweep session expire failed', { err: String(e && e.message || e) }); }
+        return { checked: snap.docs.length, flipped: flipped, emailsCleared: emailsCleared, holdsAlert: holds, sessionsExpired: sessionsExpired };
     }
 
     // Unclaimed public orders: clear the plain email after

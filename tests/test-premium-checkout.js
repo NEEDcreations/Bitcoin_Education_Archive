@@ -62,6 +62,7 @@ function makeDb() {
                         const x = v[f[0]];
                         if (x === null || x === undefined) return false;
                         if (f[1] === '<=') return x <= f[2];
+                        if (f[1] === '>=') return x >= f[2];
                         if (f[1] === '==') return x === f[2];
                         throw new Error('op');
                     });
@@ -119,6 +120,31 @@ function setup(opts) {
     const fetchMock = async function (url, init) {
         calls.push({ url: url, init: init });
         if (o.providerDown) return { ok: false, status: 503, json: async function () { return {}; } };
+        const exm = url.match(/^https:\/\/api\.stripe\.com\/v1\/checkout\/sessions\/([A-Za-z0-9_]+)\/expire$/);
+        if (exm && init.method === 'POST') {
+            if (o.expireFail) return { ok: false, status: 500, json: async function () { return { error: { code: 'api_error' } }; } };
+            return { ok: true, status: 200, json: async function () { return { id: exm[1], status: 'expired' }; } };
+        }
+        const ivm = url.match(/^https:\/\/api\.stripe\.com\/v1\/invoices\/([A-Za-z0-9_]+)$/);
+        if (ivm && init.method === 'GET') {
+            const iv = o.invoices && o.invoices[ivm[1]];
+            return iv ? { ok: true, status: 200, json: async function () { return clone(iv); } } : { ok: false, status: 404, json: async function () { return { error: { code: 'resource_missing' } }; } };
+        }
+        const sbm = url.match(/^https:\/\/api\.stripe\.com\/v1\/subscriptions\/([A-Za-z0-9_]+)$/);
+        if (sbm && init.method === 'GET') {
+            const sb = o.subs && o.subs[sbm[1]];
+            return sb ? { ok: true, status: 200, json: async function () { return clone(sb); } } : { ok: false, status: 404, json: async function () { return {}; } };
+        }
+        const ssm = url.match(/^https:\/\/api\.stripe\.com\/v1\/checkout\/sessions\?limit=1&subscription=([A-Za-z0-9_]+)$/);
+        if (ssm && init.method === 'GET') {
+            const ss = o.subSessions && o.subSessions[ssm[1]];
+            return { ok: true, status: 200, json: async function () { return { data: ss ? [clone(ss)] : [] }; } };
+        }
+        const ipm = url.match(/^https:\/\/api\.stripe\.com\/v1\/invoice_payments\?limit=1&payment\[type\]=payment_intent&payment\[payment_intent\]=([A-Za-z0-9_]+)$/);
+        if (ipm && init.method === 'GET') {
+            const inv = o.invoicePayments && o.invoicePayments[ipm[1]];
+            return { ok: true, status: 200, json: async function () { return { data: inv ? [{ invoice: inv }] : [] }; } };
+        }
         if (url.indexOf('https://api.stripe.com/v1/checkout/sessions') === 0 && init.method === 'POST') {
             return { ok: true, status: 200, json: async function () { return { id: 'cs_test_' + (++idn), url: 'https://checkout.stripe.test/' + idn }; } };
         }
@@ -2033,6 +2059,159 @@ test('F3: btcpayHost validated; status exposes it; bitcoin closed without it; of
     const c = setup({ config: { btcpayHost: 'pay.other.example' } });
     await rejects(c.h.createPremiumCheckout({ plan: 'founders', rail: 'lightning' }, ctx('old')), 'provider_error');
     assert.strictEqual(Object.keys(c.db.store.get('premium_counters/founders').holds).length, 0);
+});
+
+// ---------- Red Team F1-R: subscription charges carry no order id
+async function subOrder(a, plan, uid) {
+    const out = await a.h.createPremiumCheckout({ plan: plan, rail: 'card' }, ctx(uid || 'old'));
+    const o = a.db.store.get('premium_orders/' + out.orderId);
+    return { out: out, order: o };
+}
+function subFixtures(orderId, opts) {
+    const p = opts || {};
+    return {
+        invoices: { in_sub000001: { id: 'in_sub000001', parent: { subscription_details: { subscription: 'sub_ord000001', metadata: p.invoiceMeta ? { orderId: orderId } : {} } } } },
+        subs: { sub_ord000001: { id: 'sub_ord000001', metadata: { orderId: orderId } } },
+        subSessions: { sub_ord000001: { id: p.sessionId || 'cs_test_1', client_reference_id: orderId } },
+    };
+}
+['monthly', 'yearly'].forEach(function (plan) {
+    test('F1-R: ' + plan + ' card refund before completion with NO order id on the charge finds the order via invoice -> subscription', async function () {
+        const fi = {}, fs = {}, fss = {};
+        const a = setup({ invoices: fi, subs: fs, subSessions: fss });
+        const r = await subOrder(a, plan);
+        const f = subFixtures(r.out.orderId);
+        Object.assign(fi, f.invoices); Object.assign(fs, f.subs); Object.assign(fss, f.subSessions);
+        const ev = { id: 'evt_f1r_' + plan, type: 'charge.refunded', livemode: false, data: { object: { id: 'ch_sub_' + plan, refunded: true, amount_refunded: r.order.amountCents, invoice: 'in_sub000001', payment_intent: 'pi_sub0000001', metadata: {} } } };
+        assert.strictEqual((await stripePost(a, ev)).code, 200);
+        assert.strictEqual(a.db.store.get('premium_orders/' + r.out.orderId).refundKind, 'full');
+        await stripePost(a, completed(r.out.orderId, 'cs_test_1', { amount_total: r.order.expectedTotalCents, subscription: 'sub_ord000001', customer: 'cus_9' }));
+        const e = a.db.store.get('premium_entitlements/old');
+        assert.strictEqual(e.frozen, true);
+        assert.strictEqual(premium.isPremiumActive(e, a.clock.now), false);
+    });
+    test('F1-R: ' + plan + ' card dispute before completion with NO order id: charge -> invoice (newer API: invoice_payments) -> subscription', async function () {
+        const fi = {}, fs = {}, fss = {}; const charges = {}; const ip = {};
+        const a = setup({ invoices: fi, subs: fs, subSessions: fss, charges: charges, invoicePayments: ip });
+        const r = await subOrder(a, plan);
+        const f = subFixtures(r.out.orderId, { invoiceMeta: plan === 'monthly' });
+        Object.assign(fi, f.invoices); Object.assign(fs, f.subs); Object.assign(fss, f.subSessions);
+        // No invoice field on the charge (newer Stripe API): found via invoice_payments.
+        charges.ch_dsub000001 = { id: 'ch_dsub000001', metadata: {}, payment_intent: 'pi_dsub000001' };
+        ip.pi_dsub000001 = 'in_sub000001';
+        const ev = { id: 'evt_f1d_' + plan, type: 'charge.dispute.created', livemode: false, data: { object: { id: 'dp_sub_' + plan, amount: r.order.amountCents, charge: 'ch_dsub000001' } } };
+        assert.strictEqual((await stripePost(a, ev)).code, 200);
+        assert.ok(a.db.store.get('premium_orders/' + r.out.orderId).disputedAtMs > 0);
+        await stripePost(a, completed(r.out.orderId, 'cs_test_1', { amount_total: r.order.expectedTotalCents, subscription: 'sub_ord000001', customer: 'cus_9' }));
+        const e = a.db.store.get('premium_entitlements/old');
+        assert.strictEqual(e.frozen, true);
+        assert.strictEqual(e.frozenReason, 'charge.dispute.created');
+    });
+});
+test('F1-R: subscription lookup needs the session match; a mismatch or missing objects stamp nothing and never 500', async function () {
+    const fi = {}, fs = {}, fss = {};
+    const a = setup({ invoices: fi, subs: fs, subSessions: fss });
+    const r = await subOrder(a, 'yearly');
+    const f = subFixtures(r.out.orderId, { sessionId: 'cs_not_this_order' });
+    Object.assign(fi, f.invoices); Object.assign(fs, f.subs); Object.assign(fss, f.subSessions);
+    const ev = { id: 'evt_f1r_mm', type: 'charge.refunded', livemode: false, data: { object: { id: 'ch_mm', refunded: true, amount_refunded: 4750, invoice: 'in_sub000001', metadata: {} } } };
+    assert.strictEqual((await stripePost(a, ev)).code, 200);
+    assert.ok(!a.db.store.get('premium_orders/' + r.out.orderId).refundKind);
+    // Unknown invoice (404): treated as not found, webhook still 200.
+    const ev2 = { id: 'evt_f1r_404', type: 'charge.refunded', livemode: false, data: { object: { id: 'ch_404', refunded: true, amount_refunded: 4750, invoice: 'in_missing0001', metadata: {} } } };
+    assert.strictEqual((await stripePost(a, ev2)).code, 200);
+});
+
+// ---------- Red Team F2-R (a): network cooldown
+test('F2-R: lapsed Founders hold also cools down its network (keyed IP hash, 30 min, config 0 = off)', async function () {
+    assert.strictEqual(pricing.DEFAULT_CONFIG.foundersIpHoldCooldownMinutes, 30);
+    assert.strictEqual(pricing.normalizeConfig({ foundersIpHoldCooldownMinutes: 999 }).foundersIpHoldCooldownMinutes, 30);
+    const a = setup();
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('old', '198.51.100.31'));
+    a.clock.now = T0 + 11 * MIN;
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', '198.51.100.31')), 'founders_cooldown_ip');
+    // Another network is fine, and its checkout prunes the lapsed hold and records both cooldowns.
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('u9aaaa', '198.51.100.32'));
+    const ipDocs = Array.from(a.db.store.keys()).filter(function (k) { return k.indexOf('premium_rate/fcoolip_') === 0; });
+    assert.strictEqual(ipDocs.length, 1);
+    assert.ok(/^premium_rate\/fcoolip_[0-9a-f]{40}$/.test(ipDocs[0]));
+    assert.strictEqual(a.db.store.get(ipDocs[0]).untilMs, T0 + 40 * MIN);
+    assert.strictEqual(storeJson(a).indexOf('198.51.100.31'), -1);
+    // Still cooling after pruning; clears after 30 minutes.
+    a.db.store.set('users/n2', {});
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n2', '198.51.100.31')), 'founders_cooldown_ip');
+    a.clock.now = T0 + 40 * MIN + 1;
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n2', '198.51.100.31'));
+    // Off by config.
+    const b = setup({ config: { foundersIpHoldCooldownMinutes: 0, foundersHoldCooldownMinutes: 0 } });
+    await b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('old', '198.51.100.33'));
+    b.clock.now = T0 + 11 * MIN;
+    await b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', '198.51.100.33'));
+});
+test('F2-R: checkout.session.expired starts the network cooldown too', async function () {
+    const a = setup();
+    const o = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('old', '198.51.100.41'));
+    a.clock.now = T0 + 5 * MIN;
+    await stripePost(a, { id: 'evt_exp_ip', type: 'checkout.session.expired', livemode: false, data: { object: { id: 'cs_test_1', client_reference_id: o.orderId } } });
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', '198.51.100.41')), 'founders_cooldown_ip');
+});
+
+// ---------- Red Team F2-R (b): lapsed holds can no longer be paid
+function expireCalls(a) { return a.calls.filter(function (c) { return c.init.method === 'POST' && /\/v1\/checkout\/sessions\/[^/]+\/expire$/.test(c.url); }); }
+test('F2-R: Founders session: expires_at = 31 min (Stripe minimum + margin), hold note on Stripe, holdExpMs returned', async function () {
+    const a = setup();
+    const o = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    assert.strictEqual(o.holdExpMs, T0 + 10 * MIN);
+    const post = a.calls.find(function (c) { return c.init.method === 'POST' && c.url === 'https://api.stripe.com/v1/checkout/sessions'; });
+    const body = bodyOf(post);
+    assert.ok(body.indexOf('expires_at=' + (Math.floor(T0 / 1000) + 31 * 60)) !== -1);
+    assert.ok(body.indexOf('Your Founders seat is held for 10 minutes. Pay before then to keep it.') !== -1);
+    const y = await a.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('new'));
+    assert.strictEqual(y.holdExpMs, null);
+});
+test('F2-R: a lapsed Founders hold found by the next checkout gets its Stripe session expired (once)', async function () {
+    const a = setup();
+    const o = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    a.clock.now = T0 + 11 * MIN;
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', '198.51.100.51'));
+    const ex = expireCalls(a);
+    assert.strictEqual(ex.length, 1);
+    assert.strictEqual(ex[0].url, 'https://api.stripe.com/v1/checkout/sessions/cs_test_1/expire');
+    assert.strictEqual(a.db.store.get('premium_orders/' + o.orderId).sessionExpiredAtMs, T0 + 11 * MIN);
+    // The sweep does not expire it again, and never touches live holds.
+    await a.h.sweepExpired(10);
+    assert.strictEqual(expireCalls(a).length, 1);
+});
+test('F2-R: the sweep expires sessions of lapsed holds; paid or bitcoin orders are left alone', async function () {
+    const a = setup();
+    const o1 = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    const o2 = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', '198.51.100.61'));
+    await stripePost(a, founderDone(o2.orderId, 'cs_test_2'));
+    a.clock.now = T0 + 9 * MIN;
+    await a.h.sweepExpired(10);
+    assert.strictEqual(expireCalls(a).length, 0);
+    a.clock.now = T0 + 12 * MIN;
+    const res = await a.h.sweepExpired(10);
+    assert.strictEqual(res.sessionsExpired, 1);
+    const ex = expireCalls(a);
+    assert.strictEqual(ex.length, 1);
+    assert.ok(ex[0].url.indexOf('/cs_test_1/expire') !== -1);
+    assert.ok(a.db.store.get('premium_orders/' + o1.orderId).sessionExpiredAtMs);
+    assert.ok(!a.db.store.get('premium_orders/' + o2.orderId).sessionExpiredAtMs);
+});
+test('F2-R: a failed expire never throws (checkout and sweep still answer); late payment still has the review fallback', async function () {
+    const a = setup({ expireFail: true, config: { foundersHoldCooldownMinutes: 0, foundersIpHoldCooldownMinutes: 0 } });
+    a.db.store.set('premium_counters/founders', { sold: 499, holds: {} });
+    const o = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('old'));
+    a.clock.now = T0 + 11 * MIN;
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', '198.51.100.71'));
+    assert.strictEqual(expireCalls(a).length, 1);
+    assert.ok(!a.db.store.get('premium_orders/' + o.orderId).sessionExpiredAtMs);
+    const sw = await a.h.sweepExpired(10);
+    assert.strictEqual(sw.sessionsExpired, 0);
+    // Session still paid (expire failed) while the last seat is held: review, never oversold.
+    assert.strictEqual((await stripePost(a, founderDone(o.orderId, 'cs_test_1'))).body.outcome, 'review');
+    assert.strictEqual(a.db.store.get('premium_counters/founders').sold, 499);
 });
 
 (async function () {
