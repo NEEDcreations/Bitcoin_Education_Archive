@@ -221,6 +221,16 @@ async function main() {
         });
         assert.ok(/const rewardUids = badgePlan\.rewardUids;/.test(fin));
         assert.ok(fin.indexOf('recordPvpPlayed') < fin.indexOf("familyFor('pvpBestStreak')"), 'played count first, then badges');
+        assert.ok(fin.indexOf('let settled = null;') !== -1);
+        assert.ok(fin.indexOf('planPvpBadgeGrants(sideUids, stamp, settled && settled.plan)') !== -1);
+    });
+
+    await test('L1: the unused uncapped recordPvpFinished helper is gone', async function () {
+        const activityCounters = require('../functions/src/activityCounters');
+        assert.strictEqual(typeof activityCounters.recordPvpFinished, 'undefined');
+        const src = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'activityCounters.js'), 'utf8');
+        assert.ok(!/function recordPvpFinished/.test(src));
+        assert.ok(!/recordPvpFinished:/.test(src));
     });
 
     console.log(failed ? ('\n' + failed + ' failed') : ('\n' + passed + ' passed'));

@@ -615,6 +615,85 @@ test('a normal 30s+ finished match still counts as played', function () {
     assert.deepStrictEqual(badges.winGrantUids, ['p1', 'p2']);
 });
 
+test('a null plan, unexpected reason, or failed settle does not count as played', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+
+    const noPlan = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, null);
+    assert.deepStrictEqual(noPlan.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(noPlan.winGrantUids, []);
+    assert.deepStrictEqual(noPlan.rewardUids, ['p1', 'p2']);
+
+    const unexpected = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, {
+        reason: 'mystery',
+        grant: true,
+        players: [{ uid: 'p1' }, { uid: 'p2' }],
+    });
+    assert.deepStrictEqual(unexpected.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(unexpected.winGrantUids, []);
+
+    const noMatch = flow.planPvpReward({
+        status: 'finished',
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(noMatch.reason, 'no_match');
+    const noMatchBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, noMatch);
+    assert.deepStrictEqual(noMatchBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(noMatchBadges.winGrantUids, []);
+
+    const badPlayers = flow.planPvpReward({
+        matchId: 'm-bad-players',
+        status: 'finished',
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p1', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(badPlayers.reason, 'bad_players');
+    const badPlayersBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, badPlayers);
+    assert.deepStrictEqual(badPlayersBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(badPlayersBadges.winGrantUids, []);
+
+    const already = flow.planPvpReward({
+        matchId: 'm-already',
+        status: 'finished',
+        alreadyGranted: true,
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(already.reason, 'already_granted');
+    const alreadyBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, already);
+    assert.deepStrictEqual(alreadyBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(alreadyBadges.winGrantUids, []);
+
+    const badForfeit = flow.planPvpReward({
+        matchId: 'm-bad-forfeit',
+        status: 'forfeit',
+        forfeitReason: 'manual_leave',
+        forfeitedBy: 'someone-else',
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 2 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(badForfeit.reason, 'bad_forfeit');
+    const badForfeitBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, badForfeit);
+    assert.deepStrictEqual(badForfeitBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(badForfeitBadges.winGrantUids, []);
+});
+
+test('onPvpMatchFinished treats a thrown or null settle as a null plan', function () {
+    const src = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
+    const fin = src.slice(src.indexOf('exports.onPvpMatchFinished'), src.indexOf('exports.onUserDocCreated'));
+    assert.ok(fin.indexOf('let settled = null;') !== -1, 'settled starts null so a thrown settle cannot leave a stale plan');
+    const tryAt = fin.indexOf('settled = await settlePvpMatch');
+    const catchAt = fin.indexOf("} catch (e) { console.error('[onPvpMatchFinished] settle failed:'");
+    const badgeAt = fin.indexOf('planPvpBadgeGrants(sideUids, stamp, settled && settled.plan)');
+    assert.ok(tryAt !== -1 && catchAt !== -1 && badgeAt !== -1, 'settle is tried, caught, then planned');
+    assert.ok(tryAt < catchAt && catchAt < badgeAt, 'a thrown settle leaves settled null before the badge plan');
+    // An existing pvp_rewards doc returns { plan: null } from settlePvpMatch.
+    const start = src.indexOf('async function settlePvpMatch');
+    const settle = src.slice(start, start + 12000);
+    assert.ok(settle.indexOf('if (existing.exists) return false;') !== -1, 'an existing reward doc does not mint a second grant');
+    assert.ok(/return \{ plan: plan, stamp: stamp \};/.test(settle), 'settle returns the plan, which stays null when the reward doc already exists');
+});
+
 test('settle reads the pair count inside the transaction and uses finish time', function () {
     const src = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
     const start = src.indexOf('async function settlePvpMatch');

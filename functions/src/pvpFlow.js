@@ -815,20 +815,27 @@ function settleRewardPlan(input) {
 // Server-counted PvP badge families granted after a match settles. A guest
 // match (or a missing stamp, which reads as a guest match) grants none.
 const PVP_BADGE_FIELDS = ['pvpWins', 'pvpPlayed', 'pvpBestStreak'];
+// Only a finished win or draw counts as played. Farm-capped wins and draws
+// (too_short, pair_cap, young_account) still use the normal path so a
+// young-account cap skips only that side. A null plan (thrown or incomplete
+// settle), forfeit_void, disconnect, and any other reason skip every uid.
+const PVP_PLAYED_REASONS = {
+    win: true,
+    draw: true,
+    too_short: true,
+    pair_cap: true,
+    young_account: true,
+};
 function planPvpBadgeGrants(sideUids, stamp, plan) {
     const uids = (sideUids || []).filter(function (u) { return typeof u === 'string' && u; });
     const guest = !stamp || stamp.guestMatch !== false;
     if (guest) return { rewardUids: [], skipUids: uids, winGrantUids: [], fields: [] };
     const reason = plan && plan.reason;
-    // forfeit_void (tied manual_leave) and disconnect return from planPvpReward
-    // before the duration and pair-cap checks, so those players are not marked
-    // statsCapped. Still skip both sides: an instant tied forfeit or a
-    // disconnect must not bump pvpPlayed or grant pvp_played_* badges.
-    if (reason === 'forfeit_void' || reason === 'disconnect') {
+    if (!reason || !PVP_PLAYED_REASONS[reason]) {
         return { rewardUids: uids, skipUids: uids.slice(), winGrantUids: [], fields: PVP_BADGE_FIELDS.slice() };
     }
     const capped = {};
-    (plan && plan.players || []).forEach(function (p) {
+    (plan.players || []).forEach(function (p) {
         if (p && p.uid && p.statsCapped === true) capped[p.uid] = true;
     });
     const winGrantUids = uids.filter(function (u) { return !capped[u]; });
@@ -914,6 +921,7 @@ module.exports = {
     GUEST_STAMP_VERSION: GUEST_STAMP_VERSION,
     planMatchCharges: planMatchCharges,
     PVP_BADGE_FIELDS: PVP_BADGE_FIELDS,
+    PVP_PLAYED_REASONS: PVP_PLAYED_REASONS,
     planPvpBadgeGrants: planPvpBadgeGrants,
     PVP_LOBBY_EVENTS_PER_MIN: PVP_LOBBY_EVENTS_PER_MIN,
     PVP_LOBBY_EVENTS_WINDOW_MS: PVP_LOBBY_EVENTS_WINDOW_MS,
