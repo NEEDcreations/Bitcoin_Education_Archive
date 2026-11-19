@@ -319,7 +319,11 @@ test('article comments skip odd ids and keep valid ones', async function() {
     const tags = assertClean(f.els.articleReplies.innerHTML);
     const ids = tags.filter(function(t) { return t.attrs['data-forum-action'] === 'article-reply-to'; }).map(function(t) { return t.attrs['data-id']; });
     assert.deepStrictEqual(ids, ['c_ok']);
-    const del = tags.find(function(t) { return t.attrs['data-forum-action'] === 'delete-reply'; });
+    // Article comments delete from article_replies (#357), so the trash button
+    // uses its own action, never the forum reply delete.
+    assert.ok(!tags.some(function(t) { return t.attrs['data-forum-action'] === 'delete-reply'; }));
+    const del = tags.find(function(t) { return t.attrs['data-forum-action'] === 'article-delete-reply'; });
+    assert.strictEqual(del.attrs['data-id'], 'c_ok');
     assert.strictEqual(del.attrs['data-parent'], 'art_1');
 });
 
