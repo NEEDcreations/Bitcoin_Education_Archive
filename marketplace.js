@@ -520,7 +520,7 @@ function loadMarketListings(category, search, sort, section) {
     query.limit(50).get().then(function(snap) {
         var listings = [];
         snap.forEach(function(doc) {
-            listings.push({ id: doc.id, ...doc.data() });
+            listings.push({ ...doc.data(), id: doc.id });
         });
 
         // Client-side section filter
@@ -627,16 +627,16 @@ function mktPayEntry(l) {
     return { sellerUid: l.sellerUid, sellerName: l.sellerName, priceSats: l.priceSats };
 }
 function mktNoteGridPay(listings) {
-    var me = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
     _mktGridPay = new Map();
     listings.forEach(function(l) {
-        if (l && typeof l.id === 'string' && l.sellerUid !== me) _mktGridPay.set(l.id, mktPayEntry(l));
+        if (l && typeof l.id === 'string') _mktGridPay.set(l.id, mktPayEntry(l));
     });
 }
 window._mktListingPay = function(id) {
     if (typeof id !== 'string') return null;
     var c = (_mktPayCur && id === _mktPayCur.id) ? _mktPayCur : (_mktGridPay.has(id) ? _mktGridPay.get(id) : null);
-    if (!c) return null;
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
+    if (!c || (me && c.sellerUid === me)) return null;
     return {
         sellerUid: typeof c.sellerUid === 'string' ? c.sellerUid : '',
         sellerName: typeof c.sellerName === 'string' ? c.sellerName : '',
@@ -652,7 +652,7 @@ function renderListingDetail(container, listingId) {
             container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:16px;text-align:center;"><div style="font-size:2rem;margin-bottom:8px;">😕</div><div style="color:var(--text-muted);">Listing not found</div><button onclick="history.back()" style="margin-top:12px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;">← Back to LightningMart</button></div>';
             return;
         }
-        var l = { id: doc.id, ...doc.data() };
+        var l = { ...doc.data(), id: doc.id };
         var cond = CONDITIONS.find(function(c) { return c.id === l.condition; });
         var condLabel = cond ? cond.label : '';
         var condColor = cond ? cond.color : 'var(--text-faint)';
@@ -662,7 +662,7 @@ function renderListingDetail(container, listingId) {
         var isSaved = savedItems.indexOf(l.id) !== -1;
         var isOwner = (typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.uid === l.sellerUid);
         var isAdmin = isMarketAdmin();
-        _mktPayCur = isOwner ? null : Object.assign({ id: l.id }, mktPayEntry(l));
+        _mktPayCur = Object.assign({ id: l.id }, mktPayEntry(l));
 
         // Format price
         var priceDisplay = l.priceSats >= 1000000 ? (l.priceSats / 1000000).toFixed(2) + 'M sats' :
@@ -1170,7 +1170,7 @@ function loadMyMessages() {
                 var d = doc.data();
                 // Show if I'm the buyer or need to check if I'm the seller
                 if (d.buyerUid === myUid) {
-                    messages.push({ id: doc.id, ...d, role: 'buyer' });
+                    messages.push({ ...d, id: doc.id, role: 'buyer' });
                 }
             });
 
@@ -1182,7 +1182,7 @@ function loadMyMessages() {
                 snap.forEach(function(doc) {
                     var d = doc.data();
                     if (myListingIds.indexOf(d.listingId) !== -1 && d.buyerUid !== myUid) {
-                        messages.push({ id: doc.id, ...d, role: 'seller' });
+                        messages.push({ ...d, id: doc.id, role: 'seller' });
                     }
                 });
 

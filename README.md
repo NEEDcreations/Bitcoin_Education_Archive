@@ -57,6 +57,8 @@ To click through the UI, serve the repo root with any static file server. That p
 
 `channel_index.js`, `utils.js`, `raid-hp.js`, `badges.catalog.js`, `badge-search.js`, `badges.js`, `tickets.js`, `engagement.js`, `nacho-live.js`, `nacho.js`, `nacho-engage.js`, `nacho-closet.js`, `forum.js`, `marketplace.js`, `messaging.js`, `features.js`, `mobile-ux.js`, `bitcoin-dashboard.js`, `usermap.js`, `app.js`, `topic-discussions.js`, `ux-patches.js`, `quest-defer.js`.
 
+`irl-sync.js` is built from `irl-sync.js.src`, outside the bundle: `terser irl-sync.js.src --format quote_style=3 | sed -z 's/\n$//' > irl-sync.js`. `tests/test-irl-sync-source.js` checks that the two match.
+
 ## Project layout
 
 | Path | What it is |

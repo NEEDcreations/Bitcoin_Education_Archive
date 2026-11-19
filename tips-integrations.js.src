@@ -16,6 +16,17 @@
 (function() {
 'use strict';
 
+var _tipOwnerAuthReady = !(typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'function');
+if (!_tipOwnerAuthReady) auth.onAuthStateChanged(function() {
+    _tipOwnerAuthReady = true;
+    var fc = document.getElementById('forumContainer');
+    // Owner checks ran before sign-in resolved; clear and redo them.
+    if (fc) ['[data-mkt-pay]', '[data-market-tip]', '[data-irl-tip]'].forEach(function(sel) {
+        fc.querySelectorAll(sel).forEach(function(el) { el.remove(); });
+    });
+    runAllInjections();
+});
+
 // ─── Utility: safely get attribute ───────────────────────
 function esc(s) { return typeof escapeHtml === 'function' ? escapeHtml(s) : s; }
 
@@ -187,6 +198,7 @@ function mktSats(v) {
 }
 
 function injectMarketplaceTips() {
+    if (!_tipOwnerAuthReady) return;
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
 
@@ -245,6 +257,7 @@ function injectMarketplaceTips() {
 // =============================================
 
 function injectIRLTips() {
+    if (!_tipOwnerAuthReady) return;
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
 

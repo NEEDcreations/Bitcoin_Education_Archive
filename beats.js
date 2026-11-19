@@ -3861,6 +3861,12 @@ window.beatsQuickCreateAndAdd = function(trackId) {
 // The payee and name come from the track doc, read once per track id (the author field is fixed after upload).
 (function() {
     var _djTrackPay = new Map();
+    var _djTipLast = null;
+    var _djTipAuthReady = !(typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'function');
+    if (!_djTipAuthReady) auth.onAuthStateChanged(function() {
+        _djTipAuthReady = true;
+        if (_djTipLast) djTipHook(_djTipLast.bar, _djTipLast.data);
+    });
     function djViewerUid() {
         return (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
     }
@@ -3873,9 +3879,14 @@ window.beatsQuickCreateAndAdd = function(trackId) {
         }).then(function(snap) {
             var t = snap && snap.exists && typeof snap.data === 'function' ? snap.data() : null;
             if (!t || !beatsIdOk(t.authorId)) return null;
-            var name = (typeof t.authorName === 'string' && t.authorName) ? t.authorName.slice(0, 64) : 'Artist';
             var title = (typeof t.title === 'string' && t.title) ? t.title.slice(0, 128) : 'Unknown';
-            return { uid: t.authorId, name: name, title: title };
+            return Promise.resolve().then(function() {
+                return db.collection('public_profiles').doc(t.authorId).get();
+            }).then(function(profile) {
+                var p = profile && profile.exists ? profile.data() : null;
+                var name = p && typeof p.username === 'string' && p.username ? p.username.slice(0, 64) : 'Artist';
+                return { uid: t.authorId, name: name, title: title };
+            }, function() { return { uid: t.authorId, name: 'Artist', title: title }; });
         }, function() {
             _djTrackPay.delete(trackId);
             return null;
@@ -3886,11 +3897,13 @@ window.beatsQuickCreateAndAdd = function(trackId) {
     function djTipHook(bar, d) {
         var btn = bar && bar.querySelector ? bar.querySelector('[data-dj-tip]') : null;
         if (!btn || !d) return;
+        _djTipLast = { bar: bar, data: d };
+        btn.style.display = 'none';
         var trackId = typeof d.trackId === 'string' ? d.trackId : '';
         btn.onclick = function(e) {
             e.stopPropagation();
             djTrackPayee(trackId).then(function(info) {
-                if (!info || info.uid === djViewerUid() || typeof showTipOverlay !== 'function') return;
+                if (!_djTipAuthReady || !info || info.uid === djViewerUid() || typeof showTipOverlay !== 'function') return;
                 var name = info.name, title = info.title;
                 if (typeof beatsCensor === 'function') {
                     name = beatsCensor(name);
@@ -3907,7 +3920,7 @@ window.beatsQuickCreateAndAdd = function(trackId) {
         btn.title = 'Tip the artist of this track';
         if (!beatsIdOk(trackId)) { btn.style.display = 'none'; return; }
         djTrackPayee(trackId).then(function(info) {
-            if (!info || info.uid === djViewerUid()) btn.style.display = 'none';
+            btn.style.display = (!_djTipAuthReady || !info || info.uid === djViewerUid()) ? 'none' : '';
         });
     }
     if (typeof window.bqDJBarTipHook === 'function') window.bqDJBarTipHook(djTipHook);

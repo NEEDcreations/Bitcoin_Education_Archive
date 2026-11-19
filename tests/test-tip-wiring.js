@@ -115,7 +115,15 @@ function marketCode() {
 const GOOD_INV = 'lnbc210n1pjq0xyzpp5' + 'qpzry9x8gf2tvdw0s3jn54khce6mua7l'.repeat(6);
 const LISTING = { title: 'Hardware wallet', sellerUid: 'sellerUid01', sellerName: 'Sam "the" Seller', priceSats: 21000, condition: 'new', category: 'other', description: 'x' };
 
-function marketEnv(tiCode, viewerUid) {
+// Auth that resolves later, like the app before sign-in finishes.
+function lateAuth() {
+    const listeners = [];
+    const a = { currentUser: null, onAuthStateChanged: function(fn) { listeners.push(fn); } };
+    a.resolve = function(uid) { a.currentUser = uid ? { uid: uid } : null; listeners.slice().forEach(function(fn) { fn(a.currentUser); }); };
+    return a;
+}
+
+function marketEnv(tiCode, viewerUid, authObj) {
     const fc = makeNode('div'); fc.id = 'forumContainer';
     const grid = makeNode('div'); grid.id = 'marketListings';
     const tipCalls = [];
@@ -123,7 +131,7 @@ function marketEnv(tiCode, viewerUid) {
     const sandbox = {
         console: quiet, escapeHtml: escapeHtml, addEventListener: function() {},
         localStorage: { getItem: function() { return null; }, setItem: function() {} },
-        auth: { currentUser: viewerUid ? { uid: viewerUid } : null },
+        auth: authObj || { currentUser: viewerUid ? { uid: viewerUid } : null },
         firebase: { firestore: { FieldValue: { increment: function() { return 0; } } } },
         CONDITIONS: [], MARKETPLACE_CATEGORIES: [],
         safeJSON: function(k, d) { return d; },
@@ -147,7 +155,7 @@ function marketEnv(tiCode, viewerUid) {
     vm.runInContext(tiCode, sandbox);
     return {
         fc: fc, grid: grid, tipCalls: tipCalls, profileCalls: profileCalls, sandbox: sandbox,
-        render: async function(listing) {
+        render: async function(listing, docId) {
             const data = Object.assign({}, LISTING, listing || {});
             sandbox.db = {
                 collection: function() { return { doc: function(id) { return {
@@ -156,15 +164,15 @@ function marketEnv(tiCode, viewerUid) {
                 }; } }; },
             };
             fc.innerHTML = '';
-            sandbox.renderListingDetail(fc, data.id || 'listingA1');
+            sandbox.renderListingDetail(fc, docId || data.id || 'listingA1');
             await new Promise(function(r) { setImmediate(r); });
         },
-        renderGrid: async function(rows) {
+        renderGrid: async function(rows, extra) {
             const list = rows.map(function(r) { return Object.assign({}, LISTING, r); });
             sandbox.db = {
                 collection: function() {
                     const q = { where: function() { return q; }, orderBy: function() { return q; }, limit: function() { return q; },
-                        get: function() { return Promise.resolve({ forEach: function(cb) { list.forEach(function(l) { cb({ id: l.id, data: function() { const c = Object.assign({}, l); delete c.id; return c; } }); }); } }); } };
+                        get: function() { return Promise.resolve({ forEach: function(cb) { list.forEach(function(l) { cb({ id: l.id, data: function() { const c = Object.assign({}, l); delete c.id; return Object.assign(c, extra && extra[l.id]); } }); }); } }); } };
                     return q;
                 },
             };
@@ -320,7 +328,7 @@ const IRL_ROWS = {
     evtB_2: { title: 'Meetup B', date: '2099-01-02T18:00:00Z', locationName: 'There', hostId: 'hostB', hostName: 'Bo', attendees: [] },
     evtMine: { title: 'Mine', date: '2099-01-03T18:00:00Z', locationName: 'Home', hostId: 'viewer01', hostName: 'Me', attendees: [] },
 };
-function irlEnv(tiCode) {
+function irlEnv(tiCode, lateAuthObj) {
     const fc = makeNode('div'); fc.id = 'forumContainer';
     const tipCalls = [], irlCalls = [];
     const rows = JSON.parse(JSON.stringify(IRL_ROWS));
@@ -331,7 +339,7 @@ function irlEnv(tiCode) {
             doc: function(id) { return { get: async function() { return docSnap(id); }, update: async function() {} }; } };
         return q;
     } };
-    const authObj = { currentUser: { uid: 'viewer01', isAnonymous: false } };
+    const authObj = lateAuthObj || { currentUser: { uid: 'viewer01', isAnonymous: false } };
     const sandbox = {
         console: quiet, auth: authObj, escapeHtml: escapeHtml, addEventListener: function() {},
         localStorage: { getItem: function() { return null; }, setItem: function() {} },
@@ -439,6 +447,11 @@ const TRACKS = {
     track01: { authorId: 'realArtist01', authorName: 'Real Artist', title: 'Real Song' },
     trackNoAuthor: { authorName: 'Nobody', title: 'x' },
     trackMine: { authorId: 'viewer01', authorName: 'Me', title: 'Mine' },
+    trackNoProfile: { authorId: 'ghostArtist', authorName: 'Free Text Name', title: 'Ghost Song' },
+};
+const PROFILES = {
+    realArtist01: { username: 'real_artist' },
+    viewer01: { username: 'viewer' },
 };
 
 function djEnv(opts) {
@@ -448,12 +461,17 @@ function djEnv(opts) {
     panel.appendChild(msgs);
     const tipCalls = [], profileCalls = [], reads = [];
     const sandbox = {
-        console: quiet, auth: { currentUser: { uid: 'viewer01' } }, Map: Map, Promise: Promise,
+        console: quiet, auth: opts.auth || { currentUser: { uid: 'viewer01' } }, Map: Map, Promise: Promise,
         showUserProfile: function(u) { profileCalls.push(u); },
         setTimeout: function(fn) { fn(); return 0; },
         db: { collection: function(col) { return { doc: function(id) { return { get: function() {
             reads.push(col + '/' + id);
             if (opts.unreadable) return Promise.reject(new Error('denied'));
+            if (col === 'public_profiles') {
+                if (opts.profileUnreadable) return Promise.reject(new Error('denied'));
+                const profiles = opts.profiles || PROFILES;
+                return Promise.resolve({ exists: Object.prototype.hasOwnProperty.call(profiles, id), data: function() { return Object.assign({}, profiles[id]); } });
+            }
             return Promise.resolve({ exists: Object.prototype.hasOwnProperty.call(TRACKS, id), data: function() { return Object.assign({}, TRACKS[id]); } });
         } }; } }; } },
         document: {
@@ -489,7 +507,8 @@ async function expectTip(env) {
     assert.strictEqual(env.profileCalls.length, 0, 'profile not opened');
     assert.strictEqual(env.tipCalls.length, 1, 'tip overlay opened once');
     assert.strictEqual(env.tipCalls[0].recipientUid, 'realArtist01', 'payee from the track doc');
-    assert.strictEqual(env.tipCalls[0].recipientName, 'Real Artist', 'name from the track doc');
+    assert.strictEqual(env.tipCalls[0].recipientName, 'real_artist', 'name from the public profile');
+    assert.ok(JSON.stringify(env.tipCalls[0]).indexOf('Real Artist') === -1, 'track free-text name not used');
     assert.strictEqual(env.tipCalls[0].label, 'Tip Artist');
     assert.ok(JSON.stringify(env.tipCalls[0]).indexOf('spoof') === -1 && JSON.stringify(env.tipCalls[0]).indexOf('Spoofed') === -1);
 }
@@ -506,6 +525,7 @@ test('dj bar: global chat before beats, payee and name come from the track doc',
     env.show();
     await expectTip(env);
     assert.deepStrictEqual(env.reads.filter(function(r) { return r === 'beats_tracks/track01'; }).length, 1);
+    assert.deepStrictEqual(env.reads.filter(function(r) { return r === 'public_profiles/realArtist01'; }).length, 1);
 });
 
 test('dj bar: beats before global chat, payee from the track doc', async () => {
@@ -530,7 +550,7 @@ test('dj bar: hook is idempotent, re-renders keep one handler and one read per t
     assert.strictEqual(env.sandbox.bqDJBarTipHook(function() { throw new Error('second hook'); }), false);
     env.show(); env.show(); env.show();
     await expectTip(env);
-    assert.strictEqual(env.reads.length, 1);
+    assert.deepStrictEqual(env.reads, ['beats_tracks/track01', 'public_profiles/realArtist01']);
     assert.strictEqual(typeof env.sandbox.showDJBar, 'undefined', 'render function stays private');
 });
 
@@ -587,6 +607,128 @@ test('dj bar: without the tips script nothing opens', async () => {
     env.loadGc(); env.loadBeats();
     env.show();
     await expectNoTip(env);
+});
+
+// ---------- payee names ----------
+test('dj bar: missing profile or no username shows a generic label, never the track name', async () => {
+    for (const o of [{ trackId: 'trackNoProfile' }, { profiles: { ghostArtist: { username: '' } }, trackId: 'trackNoProfile' }, { profiles: { ghostArtist: { bio: 'x' } }, trackId: 'trackNoProfile' }, { profileUnreadable: true, trackId: 'trackNoProfile' }]) {
+        const env = djEnv(o);
+        env.loadGc(); env.loadBeats();
+        env.show({ trackId: o.trackId });
+        clickEl(env.tipBtn());
+        await settle();
+        assert.strictEqual(env.tipCalls.length, 1, JSON.stringify(o));
+        assert.strictEqual(env.tipCalls[0].recipientUid, 'ghostArtist');
+        assert.strictEqual(env.tipCalls[0].recipientName, 'Artist', JSON.stringify(o));
+        assert.ok(JSON.stringify(env.tipCalls[0]).indexOf('Free Text Name') === -1);
+    }
+});
+
+test('dj bar: a long username is trimmed to 64 characters', async () => {
+    const env = djEnv({ profiles: { realArtist01: { username: 'u'.repeat(200) } } });
+    env.loadGc(); env.loadBeats();
+    env.show();
+    clickEl(env.tipBtn());
+    await settle();
+    assert.strictEqual(env.tipCalls[0].recipientName.length, 64);
+});
+
+// ---------- doc ids ----------
+[['src', TI_SRC], ['min', TI_MIN]].forEach(function(v) {
+    const label = v[0], code = v[1];
+
+    test('marketplace ' + label + ': an id field in listing data does not replace the doc id', async () => {
+        const env = marketEnv(code, 'buyer01');
+        await env.render({ id: 'otherDoc9' }, 'listingA1');
+        const contact = env.fc.querySelector('button[data-mkt-action="contact"]');
+        assert.ok(contact, 'contact button rendered');
+        assert.strictEqual(contact.getAttribute('data-listing-id'), 'listingA1');
+        assert.strictEqual(env.sandbox._mktListingPay('otherDoc9'), null);
+        env.sandbox.__inject();
+        clickEl(payButtons(env.fc)[0]);
+        assert.strictEqual(env.tipCalls[0].contextId, 'listingA1');
+    });
+
+    test('listing grid ' + label + ': an id field in listing data does not replace the doc id', async () => {
+        const env = marketEnv(code, 'buyer01');
+        await env.renderGrid([{ id: 'gridA1' }, { id: 'gridB2' }], { gridB2: { id: 'gridA1', sellerUid: 'evilUid' } });
+        const ids = env.grid.querySelectorAll('div[data-mkt-action="open"]').map(function(c) { return c.getAttribute('data-listing-id'); });
+        assert.deepStrictEqual(ids, ['gridA1', 'gridB2']);
+        assert.strictEqual(env.sandbox._mktListingPay('gridA1').sellerUid, 'sellerUid01');
+        assert.strictEqual(env.sandbox._mktListingPay('gridB2').sellerUid, 'evilUid');
+    });
+});
+
+// ---------- owner checks after sign-in ----------
+[['src', TI_SRC], ['min', TI_MIN]].forEach(function(v) {
+    const label = v[0], code = v[1];
+
+    test('marketplace ' + label + ': no Pay button for the seller when sign-in resolves after render', async () => {
+        const a = lateAuth();
+        const env = marketEnv(code, null, a);
+        await env.render({ id: 'listingA1' });
+        env.sandbox.__inject();
+        assert.strictEqual(payButtons(env.fc).length, 0, 'nothing before sign-in resolves');
+        a.resolve('sellerUid01');
+        assert.strictEqual(payButtons(env.fc).length, 0, 'seller');
+        a.resolve('buyer01');
+        assert.strictEqual(payButtons(env.fc).length, 1, 'buyer');
+        a.resolve('sellerUid01');
+        assert.strictEqual(payButtons(env.fc).length, 0, 'seller after switching');
+    });
+
+    test('listing grid ' + label + ': own listing hint cleared when sign-in resolves', async () => {
+        const a = lateAuth();
+        const env = marketEnv(code, null, a);
+        await env.renderGrid([{ id: 'gridA1' }, { id: 'gridMine', sellerUid: 'buyer01' }]);
+        env.sandbox.__inject();
+        a.resolve(null);
+        assert.strictEqual(hints(env.grid).length, 2, 'signed out sees both');
+        a.resolve('buyer01');
+        assert.strictEqual(hints(env.grid).length, 1);
+        assert.ok(!cardFor(env.grid, 'gridMine').querySelector('[data-market-tip]'));
+    });
+
+    test('irl ' + label + ': no ticket on own event when sign-in resolves after render', async () => {
+        const a = lateAuth();
+        const env = irlEnv(code, a);
+        await env.render();
+        env.sandbox.__inject();
+        assert.strictEqual(ticketsFor(env.fc, 'evtMine').length, 0, 'nothing before sign-in resolves');
+        a.resolve(null);
+        assert.strictEqual(ticketsFor(env.fc, 'evtMine').length, 1, 'signed out');
+        a.resolve('viewer01');
+        assert.strictEqual(ticketsFor(env.fc, 'evtMine').length, 0);
+        assert.strictEqual(ticketsFor(env.fc, 'evtA_1').length, 1);
+        assert.strictEqual(env.fc.querySelectorAll('[data-irl-tip]').length, 2);
+    });
+});
+
+test('dj bar: own track button stays hidden until sign-in resolves, then rechecks', async () => {
+    const a = lateAuth();
+    const env = djEnv({ auth: a });
+    env.loadGc(); env.loadBeats();
+    env.show({ trackId: 'trackMine' });
+    await settle();
+    assert.strictEqual(env.tipBtn().style.display, 'none', 'hidden before sign-in resolves');
+    await expectNoTip(env);
+    a.resolve('viewer01');
+    await settle();
+    assert.strictEqual(env.tipBtn().style.display, 'none', 'own track');
+    await expectNoTip(env);
+});
+
+test('dj bar: another artist\'s track shows once sign-in resolves', async () => {
+    const a = lateAuth();
+    const env = djEnv({ auth: a });
+    env.loadGc(); env.loadBeats();
+    env.show();
+    await settle();
+    assert.strictEqual(env.tipBtn().style.display, 'none', 'hidden before sign-in resolves');
+    a.resolve('viewer01');
+    await settle();
+    assert.strictEqual(env.tipBtn().style.display, '');
+    await expectTip(env);
 });
 
 run();

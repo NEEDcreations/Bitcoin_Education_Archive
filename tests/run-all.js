@@ -181,6 +181,7 @@ const TESTS = [
     { name: 'Double XP all sources', file: 'test-double-xp-all.js' },
     { name: 'Tip Confirmation', file: 'test-tip-confirm.js' },
     { name: 'Tip button wiring', file: 'test-tip-wiring.js' },
+    { name: 'IRL sync source', file: 'test-irl-sync-source.js' },
     { name: 'Spin Reminder', file: 'test-spin-reminder.js' },
     { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },
     { name: 'Popup queue', file: 'test-popup-queue.js' },
