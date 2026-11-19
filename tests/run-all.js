@@ -50,6 +50,7 @@ const TESTS = [
     { name: 'Marketplace Listing Count', file: 'test-market-listing-count.js' },
     { name: 'Article publish XP', file: 'test-article-publish-xp.js' },
     { name: 'Article markdown', file: 'test-article-markdown.js' },
+    { name: 'Article display', file: 'test-article-display.js' },
     { name: 'Earn XP guide', file: 'test-earn-xp-guide.js' },
     { name: 'Badge engine', file: 'test-badge-engine.js' },
     { name: 'Badge distribution', file: 'test-badge-distribution.js' },

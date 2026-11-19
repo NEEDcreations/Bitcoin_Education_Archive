@@ -42,6 +42,7 @@ assert.ok(fEscLine, 'fEsc');
 vm.runInContext([
     sliceFn(utils, 'sanitizeUrl'),
     fEscLine,
+    forum.split('\n').filter(function (l) { return l.indexOf('var MD_') === 0; }).join('\n'),
     sliceFn(forum, 'mdUnescape'),
     sliceFn(forum, 'mdSafeUrl'),
     sliceFn(forum, 'forumRenderMentions'),
@@ -118,7 +119,8 @@ function assertClean(input) {
             }
             if (a.name === 'href' || a.name === 'src') {
                 const v = a.value.replace(/[\u0000-\u0020]/g, '');
-                assert.ok(/^https?:\/\/[^\/\\]/i.test(v) || /^\/(?![\/\\])/.test(v), 'url not allowed: ' + a.value + ' for ' + JSON.stringify(input));
+                assert.ok(/^https?:\/\/[^\/\\]/i.test(v) || /^\/(?![\/\\])/.test(v)
+                    || (t.name === 'img' && DATA_IMG.test(a.value)) || (t.name === 'a' && MAILTO.test(a.value)), 'url not allowed: ' + a.value + ' for ' + JSON.stringify(input));
             }
             if (a.name === 'style') assert.ok(!/url\(|expression|javascript/i.test(a.value), 'style: ' + a.value);
         });
@@ -126,6 +128,8 @@ function assertClean(input) {
     return html;
 }
 
+const DATA_IMG = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+\/]+=*$/;
+const MAILTO = /^mailto:[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 const SCHEMES = ['javascript:x()', 'JaVaScRiPt:x()', ' javascript:x()', 'java\tscript:x()', 'vbscript:x', 'VBScript:x',
     'data:text/html,<b>x</b>', 'DATA:text/html;base64,PGI+', 'data:image/svg+xml,<svg onload=x()>',
     '&#106;avascript:x()', '&#x6A;avascript:x()', 'javascript&colon;x()', 'jav&#x09;ascript:x()', '//evil.example/x', '\\\\evil/x', 'blob:https://x/y'];
@@ -232,6 +236,43 @@ test('a URL with a query string is escaped once', function () {
     assert.ok(html.includes('href="https://x.example/?a=1&amp;b=2"'), html);
     const img = tags(md('![q](https://x.example/i.png?a=1&b=2)')).find(function (x) { return x.name === 'img'; });
     assert.strictEqual(img.attrs.find(function (x) { return x.name === 'src'; }).value, 'https://x.example/i.png?a=1&b=2');
+});
+
+test('inline base64 pictures and plain mailto links render', function () {
+    ['png', 'jpeg', 'gif', 'webp'].forEach(function (type) {
+        const url = 'data:image/' + type + ';base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYPj/HwADAgH/eL9qWQAAAABJRU5ErkJggg==';
+        const html = assertClean('![pic](' + url + ')');
+        const img = tags(html).find(function (x) { return x.name === 'img'; });
+        assert.ok(img, type);
+        assert.strictEqual(img.attrs.find(function (x) { return x.name === 'src'; }).value, url);
+    });
+    const html = assertClean('[mail me](mailto:satoshi.n+btc@example.org)');
+    const a = tags(html).find(function (x) { return x.name === 'a'; });
+    assert.ok(a);
+    assert.strictEqual(a.attrs.find(function (x) { return x.name === 'href'; }).value, 'mailto:satoshi.n+btc@example.org');
+});
+
+test('other data types and mailto with extra content are refused', function () {
+    [
+        '![x](data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=)',
+        '![x](data:text/html;base64,PGI+eDwvYj4=)',
+        '![x](data:image/png;base64,AAAA\"onerror=\"x())',
+        '![x](data:image/png,raw)',
+        '![x](DATA:image/png;base64,AAAA)',
+        '[x](data:image/png;base64,AAAA)',
+        '[x](mailto:a@b.co?subject=hi)',
+        '[x](mailto:a@b.co,c@d.co)',
+        '[x](mailto:a@b.co&body=x)',
+        '[x](mailto:a@b.co%0Ax)',
+        '[x](mailto:javascript:x@b.co)',
+        '![x](mailto:a@b.co)',
+    ].forEach(function (input) {
+        const html = assertClean(input);
+        tags(html).forEach(function (t) {
+            if (t.name !== 'img' && t.name !== 'a') return;
+            assert.fail('unexpected ' + t.name + ' for ' + input + ': ' + html);
+        });
+    });
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
