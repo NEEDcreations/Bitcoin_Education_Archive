@@ -7155,6 +7155,14 @@ exports.adminSetFavorClaims = favorBlockClaimFns.adminSetFavorClaims;
 exports.adminFreezeFavorEpoch = favorBlockClaimFns.adminFreezeFavorEpoch;
 exports.adminResolveFavorReview = favorBlockClaimFns.adminResolveFavorReview;
 
+// Citadel shop (client citadel-shop.js). NEVER DEPLOYED: Rufus deploys these by
+// name only after review, Red Team and Security sign-off (debits OrangeTix).
+const citadelShopFns = require('./src/citadelShopFns').factory(functionsV1, { db: db, admin: admin });
+exports.getCitadelShopStatus = citadelShopFns.getCitadelShopStatus;
+exports.buyCitadelStage = citadelShopFns.buyCitadelStage;
+exports.buildCitadelPart = citadelShopFns.buildCitadelPart;
+exports.claimLessonParts = citadelShopFns.claimLessonParts;
+
 // Payout reconciliation (live since #365 shipped Nov 18, 2026): ledger match, stuck-paying
 // flags, optional wallet listing behind config/payoutReconcile.listWallet.
 // Binds no wallet secret.

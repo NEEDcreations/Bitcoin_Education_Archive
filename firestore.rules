@@ -249,7 +249,9 @@ service cloud.firestore {
         'bipBreakthroughClaimedBipId', 'bipBadges',
         'coreContributorUntil', 'coreContributorTitle',
         // Faction race end prizes (server-only; onFactionTotalsWritten awards)
-        'factionRaceBadges', 'factionChampionUntil', 'factionChampionFlair'
+        'factionRaceBadges', 'factionChampionUntil', 'factionChampionFlair',
+        // Citadel shop state { stages, lessonParts, lessonBuilt }. citadelShop callables only.
+        'citadel'
       ];
     }
 
@@ -2990,6 +2992,15 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
     match /kill_switch_rate/{docId} {
+      allow read, write: if false;
+    }
+    // Citadel shop (functions/src/citadelShop.js). Admin SDK only. The client
+    // gets everything it shows from getCitadelShopStatus and users/{uid}.citadel,
+    // so there are no client reads here.
+    match /citadel_weekly/{docId} {
+      allow read, write: if false;
+    }
+    match /citadel_purchases/{docId} {
       allow read, write: if false;
     }
 
