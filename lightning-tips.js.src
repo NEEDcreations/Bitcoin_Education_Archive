@@ -46,6 +46,55 @@ function tipBindDm(box, opts, amount) {
     });
 }
 
+// ─── Tip options ─────────────────────────────────────────
+var TIP_MAX_SATS = 10000000;
+function tipText(v, max) { return typeof v === 'string' ? v.slice(0, max) : ''; }
+function tipSats(v) {
+    return (typeof v === 'number' && Number.isSafeInteger(v) && v > 0 && v <= TIP_MAX_SATS) ? v : null;
+}
+// Rebuild options from known fields only.
+function tipCleanOpts(o) {
+    o = (o && typeof o === 'object') ? o : {};
+    var amt = tipSats(o.suggestedAmount);
+    var out = {
+        recipientName: tipText(o.recipientName, 128),
+        recipientUid: tipText(o.recipientUid, 128),
+        context: tipText(o.context, 128),
+        contextId: tipText(o.contextId, 256),
+        lightningAddress: tipText(o.lightningAddress, 320),
+        label: tipText(o.label, 128),
+        suggestedAmount: amt,
+        fixedAmount: !!(o.fixedAmount === true && amt),
+    };
+    if (typeof o.bolt11 === 'string' && o.bolt11) out.bolt11 = o.bolt11;
+    if (typeof o.onSuccess === 'function') out.onSuccess = o.onSuccess;
+    return out;
+}
+// Options read back from page markup: plain data only, never a payment target.
+function tipOptsFromMarkup(raw) {
+    if (typeof raw !== 'string' || raw.charAt(0) !== '{' || raw.length > 4096) return null;
+    var o;
+    try { o = JSON.parse(raw); } catch (e) { return null; }
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+    if (o.recipientName !== undefined && typeof o.recipientName !== 'string') return null;
+    var out = tipCleanOpts(o);
+    delete out.bolt11;
+    delete out.onSuccess;
+    out.fixedAmount = false;
+    return out;
+}
+// Attribute-safe JSON for data-tip-action="...".
+function tipDataAttr(obj) {
+    return JSON.stringify(obj).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+window._tipDataAttr = tipDataAttr;
+window._tipOptsFromMarkup = tipOptsFromMarkup;
+window._tipFromEl = function(el) {
+    if (!el || !el.getAttribute) return;
+    var opts = tipOptsFromMarkup(el.getAttribute('data-tip-action') || el.getAttribute('data-tip'));
+    if (opts && typeof window.showTipOverlay === 'function') window.showTipOverlay(opts);
+};
+
 // ─── Check Lightning Connection ──────────────────────────
 
 function isLnConnected() {
@@ -111,9 +160,10 @@ async function makeInvoice(amountSats, memo) {
 window.showTipOverlay = function(opts) {
     opts = opts || {};
     if (opts.recipientName !== undefined && typeof opts.recipientName !== 'string') return;
+    opts = tipCleanOpts(opts);
     var name = opts.recipientName || 'this user';
-    var amount = opts.suggestedAmount || '';
-    var fixed = opts.fixedAmount || false;
+    var amount = opts.suggestedAmount || 0;
+    var fixed = opts.fixedAmount;
     var label = opts.label || 'Send Tip';
     var hasBolt11 = !!opts.bolt11;
     var hasLnAddr = !!opts.lightningAddress;
@@ -152,9 +202,9 @@ window.showTipOverlay = function(opts) {
         connBanner +
 
         // Amount input
-        (fixed ? '<div style="text-align:center;margin-bottom:14px;"><div style="font-size:1.6rem;font-weight:900;color:var(--accent);">' + (amount || 0).toLocaleString() + ' sats</div></div>'
+        (fixed ? '<div style="text-align:center;margin-bottom:14px;"><div style="font-size:1.6rem;font-weight:900;color:var(--accent);">' + escapeHtml(Number(amount || 0).toLocaleString()) + ' sats</div></div>'
          : '<div style="margin-bottom:6px;">' +
-                '<input type="number" id="tipAmount" placeholder="Amount in sats" min="1" value="' + (amount || '') + '" style="width:100%;padding:13px;background:var(--input-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:1.1rem;font-family:inherit;outline:none;text-align:center;box-sizing:border-box;font-weight:700;" oninput="updateTipUsd()">' +
+                '<input type="number" id="tipAmount" placeholder="Amount in sats" min="1" value="' + (amount ? String(amount) : '') + '" style="width:100%;padding:13px;background:var(--input-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:1.1rem;font-family:inherit;outline:none;text-align:center;box-sizing:border-box;font-weight:700;" oninput="updateTipUsd()">' +
                 '<div id="tipUsdDisplay" style="text-align:center;color:var(--text-faint);font-size:0.72rem;margin-top:3px;height:14px;"></div>' +
             '</div>'
         ) +
@@ -193,7 +243,7 @@ window.showTipOverlay = function(opts) {
 // ─── Execute Tip / Payment ───────────────────────────────
 
 window.executeTip = async function() {
-    var opts = window._tipOpts || {};
+    var opts = tipCleanOpts(window._tipOpts);
     var btn = document.getElementById('tipPayBtn');
     var res = document.getElementById('tipResult');
     var amtInput = document.getElementById('tipAmount');
@@ -203,7 +253,7 @@ window.executeTip = async function() {
         res.innerHTML = '<span style="color:#ef4444;">Enter an amount</span>';
         return;
     }
-    if (amount > 10000000) {
+    if (amount > TIP_MAX_SATS) {
         res.innerHTML = '<span style="color:#ef4444;">Max 10M sats per tip</span>';
         return;
     }
@@ -217,7 +267,7 @@ window.executeTip = async function() {
     try {
         // If we have a pre-made invoice, pay it directly
         if (opts.bolt11) {
-            if (method && typeof window.lnSendPaymentDirect === 'function') {
+            if (tipBolt11Ok(opts.bolt11) && method && typeof window.lnSendPaymentDirect === 'function') {
                 await window.lnSendPaymentDirect(opts.bolt11);
                 showTipSuccess(amount, opts);
                 return;
@@ -495,21 +545,20 @@ function _showInvoicePending(amount, opts) {
 window.tipButtonHtml = function(p) {
     var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
     var size = p.size || 'sm';
-    var label = p.label || '⚡ Tip';
+    var label = typeof p.label === 'string' && p.label ? p.label : '⚡ Tip';
     var pad = size === 'md' ? 'padding:8px 16px;font-size:0.82rem;' : 'padding:4px 12px;font-size:0.72rem;';
     
-    var argsJson = JSON.stringify({
-        recipientName: typeof p.recipientName === 'string' ? p.recipientName : '',
-        recipientUid: p.recipientUid || '',
-        context: p.context || '',
-        contextId: p.contextId || '',
-        lightningAddress: p.lightningAddress || '',
-        suggestedAmount: p.amount || null,
-        fixedAmount: !!p.amount,
-        label: p.label || 'Send Tip',
-    }).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    var argsAttr = tipDataAttr({
+        recipientName: tipText(p.recipientName, 128),
+        recipientUid: tipText(p.recipientUid, 128),
+        context: tipText(p.context, 128),
+        contextId: tipText(p.contextId, 256),
+        lightningAddress: tipText(p.lightningAddress, 320),
+        suggestedAmount: tipSats(p.amount),
+        label: tipText(p.label, 128) || 'Send Tip',
+    });
 
-    return '<button onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip\').replace(/&quot;/g,\'\\&quot;\')))" data-tip="' + argsJson + '" style="' + pad + 'background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;color:#eab308;font-weight:700;cursor:pointer;font-family:inherit;transition:0.15s;touch-action:manipulation;display:inline-flex;align-items:center;gap:4px;" onmouseover="this.style.background=\'rgba(234,179,8,0.15)\';this.style.borderColor=\'#eab308\'" onmouseout="this.style.background=\'rgba(234,179,8,0.06)\';this.style.borderColor=\'rgba(234,179,8,0.2)\'">' + label + '</button>';
+    return '<button onclick="event.stopPropagation();_tipFromEl(this)" data-tip-action="' + argsAttr + '" style="' + pad + 'background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;color:#eab308;font-weight:700;cursor:pointer;font-family:inherit;transition:0.15s;touch-action:manipulation;display:inline-flex;align-items:center;gap:4px;" onmouseover="this.style.background=\'rgba(234,179,8,0.15)\';this.style.borderColor=\'#eab308\'" onmouseout="this.style.background=\'rgba(234,179,8,0.06)\';this.style.borderColor=\'rgba(234,179,8,0.2)\'">' + esc(label) + '</button>';
 };
 
 // ─── Simple data attribute approach for tip buttons ──────
@@ -517,15 +566,12 @@ window.tipButtonHtml = function(p) {
 // This avoids issues with inline onclick escaping
 
 document.addEventListener('click', function(e) {
-    var btn = e.target.closest('[data-tip-action]');
+    var btn = e.target && e.target.closest ? e.target.closest('[data-tip-action]') : null;
     if (!btn) return;
+    var opts = tipOptsFromMarkup(btn.getAttribute('data-tip-action'));
+    if (!opts) return;
     e.stopPropagation();
-    try {
-        var opts = JSON.parse(btn.getAttribute('data-tip-action'));
-        showTipOverlay(opts);
-    } catch(err) {
-        console.warn('[TIP] Invalid tip data:', err);
-    }
+    showTipOverlay(opts);
 });
 
 console.log('[TIP] Lightning tips engine loaded');

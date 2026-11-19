@@ -337,8 +337,8 @@ var GC_ACTIONS = {
     del: function(el, id) { if (typeof deleteChatMsg === 'function') deleteChatMsg(id); },
     tip: function(el, id) {
         var m = gcMsgFor(id);
-        if (!m || !gcIdOk(String(m.uid || '')) || typeof showTipOverlay !== 'function') return;
-        showTipOverlay({ recipientName: String(m.name || 'Anon'), recipientUid: String(m.uid), context: 'Global Chat tip', label: 'Tip Message' });
+        if (!m || typeof m.uid !== 'string' || !gcIdOk(m.uid) || typeof showTipOverlay !== 'function') return;
+        showTipOverlay({ recipientName: (typeof m.name === 'string' && m.name) ? m.name : 'Anon', recipientUid: m.uid, context: 'Global Chat tip', label: 'Tip Message' });
     },
     dm: function(el, id) {
         var name = Object.prototype.hasOwnProperty.call(_gcDmNames, id) ? _gcDmNames[id] : 'User';

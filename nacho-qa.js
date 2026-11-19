@@ -4,10 +4,14 @@
 // 🦌 Nacho Q&A - Ask Nacho about Bitcoin!
 // =============================================
 
-// HTML sanitizer — prevents XSS from external data (web search, usernames, etc)
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+// HTML escaping comes from utils.js (the shared escapeHtml). This file only
+// fills it in when loaded on its own, with the same rules.
+if (typeof escapeHtml !== 'function') {
+    var escapeHtml = function(str) {
+        if (typeof str === 'number') str = String(str);
+        else if (typeof str !== 'string') return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
 }
 
 function sanitizeUrl(url) {
@@ -5705,7 +5709,6 @@ window.isFinancialAdvice = isFinancialAdvice;
 window.deepContentSearch = deepContentSearch;
 window.nachoWebSearch = nachoWebSearch;
 window._nachoStep5Fallback = _nachoStep5Fallback;
-window.escapeHtml = escapeHtml;
 
 })();
 
