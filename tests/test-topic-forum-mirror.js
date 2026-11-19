@@ -165,6 +165,7 @@ function makeApi(opts) {
                 return { answer: '' };
             }
             calls.ask += 1;
+            if (opts && opts.answer) return { answer: opts.answer };
             return { answer: 'Miners change the nonce while hashing the block header.' };
         },
         mirror: async function() {},
@@ -249,6 +250,12 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
     assert.strictEqual(anchored.data.anchorHash, 'ab12cd34');
     assert.strictEqual(anchored.data.topicLink, '#topic/mining/root1/4/ab12cd34');
     assert.ok(anchored.data.link.includes('#topic/mining/root1/4/ab12cd34'));
+    assert.strictEqual(anchored.data.body, 'What changed in 2008?');
+    assert.ok(!anchored.data.body.includes('A short note on the 2008 crisis.'));
+    assert.strictEqual(mirror.forumBodyFor('<script>alert(1)</script> What does "scarce" mean to you?'), 'What does "scarce" mean to you?');
+    assert.ok(forumSrc.includes('function forumPlainBodyHtml'));
+    assert.ok(forumSrc.includes("p.origin === 'topic'"));
+    assert.ok(forumSrc.includes('forumPlainBodyHtml(p.body)'));
     assert.ok(forumSrc.includes('r.deleted !== true && r.hidden !== true'));
     const replyTrigger = index.split('exports.onForumReplyToTopic')[1].split('exports.onForumReplyMirrorSync')[0];
     assert.ok(replyTrigger.indexOf(".collection('forum_replies')") < replyTrigger.indexOf('mirrorForumReplyToTopic'));
@@ -329,7 +336,8 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         assert.strictEqual(forum.mirrorOf, 'root1');
         assert.strictEqual(forum.authorId, 'ada');
         assert.strictEqual(forum.title.indexOf('Discussion:'), 0);
-        assert.ok(forum.body.includes('A short note on the nonce.'));
+        assert.strictEqual(forum.body, 'What is a nonce?');
+        assert.ok(!forum.body.includes('A short note on the nonce.'));
         assert.ok(!forum.body.includes('http'));
         assert.ok(!forum.body.includes('Continue it here'));
         assert.ok(forum.link.includes('#topic/mining/root1'));
@@ -593,7 +601,7 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         }, auth('ada'));
         const saved = local.db.read('topic_discussions/mining/posts/' + posted.postId);
         assert.ok(saved.forumPostId);
-        assert.strictEqual(local.calls.summaries, 1);
+        assert.strictEqual(local.calls.summaries, 0);
         assert.strictEqual(local.calls.ask, 1);
         const forum = local.db.read('forum_posts/' + saved.forumPostId);
         assert.strictEqual(forum.origin, 'topic');
@@ -601,7 +609,8 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         assert.strictEqual(forum.authorId, 'ada');
         assert.strictEqual(forum.authorName, 'Ada');
         assert.ok(forum.title.indexOf('Discussion:') === 0);
-        assert.ok(forum.body.includes('Miners look for a nonce that clears the target.'));
+        assert.strictEqual(forum.body, 'What is a nonce in the block header?');
+        assert.ok(!forum.body.includes('Miners look for a nonce that clears the target.'));
         assert.ok(!forum.body.includes('http'));
         assert.ok(!forum.body.includes('Continue it here'));
         assert.ok(forum.link.includes('#topic/mining/' + posted.postId));
@@ -610,6 +619,8 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         const chats = paths(local.db, 'global_chat/');
         assert.strictEqual(chats.length, 1);
         const chat = local.db.read(chats[0]);
+        assert.ok(chat.text.includes('What is a nonce in the block header?'));
+        assert.ok(!chat.text.includes('Miners look for a nonce that clears the target.'));
         assert.ok(chat.text.includes('#topic/mining/' + posted.postId));
         assert.ok(chat.text.includes('#forum/post/' + saved.forumPostId));
         assert.strictEqual(chat.forumPost, saved.forumPostId);
@@ -676,21 +687,67 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         assert.strictEqual(paced.calls.summaries, 0);
     });
 
-    await testAsync('the forum post is saved with a placeholder before the model answers', async function() {
+    await testAsync('the forum post body is the user message even if a summary patch is attempted', async function() {
         const hung = makeApi({ summaryTimeoutMs: 30, hangSummary: true });
         seedUser(hung.db, 'ada', { username: 'Ada' });
         const text = 'What is a nonce in the block header? Miners change it while hashing.';
         const posted = await hung.api.postTopicComment({ channelId: 'mining', text: text }, auth('ada'));
         const saved = hung.db.read('topic_discussions/mining/posts/' + posted.postId);
         const forum = hung.db.read('forum_posts/' + saved.forumPostId);
-        assert.ok(forum.summary && forum.body.includes(forum.summary));
-        assert.ok(forum.summary.includes('What is a nonce') || forum.body.includes('What is a nonce'));
+        assert.strictEqual(forum.body, text);
+        assert.ok(forum.summary.includes('What is a nonce'));
         assert.ok(!forum.body.includes('<') && !forum.summary.includes('<'));
-        assert.strictEqual(hung.calls.summaries, 1);
+        assert.strictEqual(hung.calls.summaries, 0);
+        const delayed = await mirror.patchForumSummary({
+            db: hung.db,
+            askNacho: async function() { return { answer: 'In the context of Bitcoin, a nonce is a number miners change.' }; },
+            forumPostId: saved.forumPostId,
+            channelId: 'mining',
+            postId: posted.postId,
+            title: 'Mining',
+            text: text,
+        });
+        assert.strictEqual(delayed.patched, false);
+        assert.strictEqual(delayed.reason, 'opener_body_fixed');
+        assert.strictEqual(hung.db.read('forum_posts/' + saved.forumPostId).body, text);
         const nasty = mirror.placeholderSummary('Mining', '<script>alert(1)</script> What is a nonce in mining?');
         assert.ok(!nasty.includes('<'));
         assert.ok(!nasty.includes('>'));
         assert.ok(nasty.includes('Mining:'));
+    });
+
+    await testAsync('a topic conversation posts the user question, not Nacho, as the forum body', async function() {
+        const local = makeApi({
+            summary: "In the context of Bitcoin, 'scarce' refers to the limited supply of 21 million bitcoins.",
+            answer: "In the context of Bitcoin, 'scarce' refers to the limited supply of 21 million bitcoins that will ever exist.",
+        });
+        seedUser(local.db, 'ada', { username: 'chill_guy2' });
+        const question = 'What does "scarce" mean to you?';
+        const posted = await local.api.postTopicComment({
+            channelId: 'scarce',
+            text: question,
+        }, auth('ada'));
+        const saved = local.db.read('topic_discussions/scarce/posts/' + posted.postId);
+        const forum = local.db.read('forum_posts/' + saved.forumPostId);
+        assert.strictEqual(forum.authorId, 'ada');
+        assert.strictEqual(forum.authorName, 'chill_guy2');
+        assert.strictEqual(forum.body, question);
+        assert.ok(forum.title.indexOf('Discussion:') === 0);
+        assert.ok(!forum.body.includes('21 million'));
+        assert.ok(!forum.summary.includes('21 million'));
+        const chats = paths(local.db, 'global_chat/');
+        assert.strictEqual(chats.length, 1);
+        const chat = local.db.read(chats[0]);
+        assert.ok(chat.text.includes('What does scarce mean to you?'));
+        assert.ok(!chat.text.includes('21 million'));
+        const nacho = paths(local.db, 'topic_discussions/scarce/posts/').map(function(p) { return local.db.read(p); }).filter(function(p) { return p.isNacho; });
+        assert.strictEqual(nacho.length, 1);
+        assert.ok(nacho[0].text.includes('21 million'));
+        const forumReplies = paths(local.db, 'forum_replies/').map(function(p) { return local.db.read(p); });
+        assert.strictEqual(forumReplies.length, 1);
+        assert.strictEqual(forumReplies[0].authorId, 'nacho-bot');
+        assert.strictEqual(forumReplies[0].body, nacho[0].text);
+        assert.notStrictEqual(forum.body, forumReplies[0].body);
     });
 
     await testAsync('author cannot restore a moderated mirror by clearing hidden', async function() {
@@ -803,24 +860,22 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         assert.strictEqual(db.read('forum_posts/' + id).hidden, true);
 
         db.seed('forum_posts/' + id, {
-            origin: 'topic', title: 'Discussion: Mining', body: 'placeholder', summary: 'placeholder',
+            origin: 'topic', title: 'Discussion: Mining', body: 'What is a nonce in the block header?', summary: 'What is a nonce in the block header?',
             hidden: false, deleted: false, topicChannel: 'mining', topicPost: 'root1',
         });
-        const raced = await mirror.patchForumSummary({
+        const visible = await mirror.patchForumSummary({
             db: db, channelId: 'mining', postId: 'root1', forumPostId: id,
             title: 'Mining', text: 'What is a nonce in the block header?',
             askNacho: async function() {
                 calls += 1;
-                const current = db.read('forum_posts/' + id);
-                db.seed('forum_posts/' + id, Object.assign({}, current, { deleted: true, hidden: false, body: '' }));
                 return { answer: 'Miners vary a nonce until the hash is small enough.' };
             },
         });
-        assert.strictEqual(calls, 1);
-        assert.strictEqual(raced.patched, false);
-        assert.strictEqual(raced.reason, 'removed');
-        assert.strictEqual(db.read('forum_posts/' + id).deleted, true);
-        assert.strictEqual(db.read('forum_posts/' + id).body, '');
+        assert.strictEqual(calls, 0);
+        assert.strictEqual(visible.patched, false);
+        assert.strictEqual(visible.reason, 'opener_body_fixed');
+        assert.strictEqual(db.read('forum_posts/' + id).body, 'What is a nonce in the block header?');
+        assert.strictEqual(db.read('forum_posts/' + id).deleted, false);
 
         await db.collection('forum_posts').doc(id).delete();
         const gone = await mirror.patchForumSummary({
@@ -833,8 +888,114 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         });
         assert.strictEqual(gone.patched, false);
         assert.strictEqual(gone.reason, 'missing');
-        assert.strictEqual(calls, 1);
+        assert.strictEqual(calls, 0);
         assert.strictEqual(db.read('forum_posts/' + id), null);
+    });
+
+    await testAsync('a forum post id over the stored length is refused', async function() {
+        const mid = 'A'.repeat(200);
+        const atMax = 'A'.repeat(256);
+        const justOver = 'A'.repeat(257);
+        const over = 'A'.repeat(300);
+        const sample = { channelId: 'mining', postId: 'root1', text: 'hi', uid: 'ada', name: 'Ada' };
+        assert.strictEqual(mirror.buildForumReplyDoc(Object.assign({}, sample, { forumPostId: over })), null);
+        assert.strictEqual(mirror.buildForumReplyDoc(Object.assign({}, sample, { forumPostId: justOver })), null);
+        const okMax = mirror.buildForumReplyDoc(Object.assign({}, sample, { forumPostId: atMax }));
+        assert.ok(okMax);
+        assert.strictEqual(okMax.data.postId, atMax);
+        const okMid = mirror.buildForumReplyDoc(Object.assign({}, sample, { forumPostId: mid }));
+        assert.ok(okMid);
+        assert.strictEqual(okMid.data.postId, mid);
+        const patched = await mirror.patchForumSummary({
+            db: createMemoryDb(), channelId: 'mining', postId: 'root1', forumPostId: over,
+        });
+        assert.strictEqual(patched.patched, false);
+        assert.strictEqual(patched.reason, 'bad_id');
+        assert.strictEqual(mirror.buildForumPostDoc(Object.assign({}, sample, { forumPostId: over, text: 'What is a nonce?' })), null);
+        const builtMax = mirror.buildForumPostDoc(Object.assign({}, sample, { forumPostId: atMax, text: 'What is a nonce?' }));
+        assert.ok(builtMax);
+        assert.strictEqual(builtMax.id, atMax);
+    });
+
+    test('mirror id builders cap constructed ids at the stored length', function() {
+        const src = fs.readFileSync(path.join(root, 'functions/src/topicForumMirror.js'), 'utf8');
+        function bodyOf(name) {
+            const start = src.indexOf('function ' + name + '(');
+            const next = src.indexOf('\nfunction ', start + 1);
+            return src.slice(start, next);
+        }
+        ['forumPostIdFor', 'forumReplyIdFor', 'topicPostIdForForumReply'].forEach(function(name) {
+            const body = bodyOf(name);
+            assert.ok(body.includes('slice(0, 256)'), name);
+            assert.ok(!body.includes('slice(0, 400)'), name);
+        });
+        const built = mirror.forumPostIdFor('c'.repeat(80), 'p'.repeat(128));
+        assert.strictEqual(built.length, 217);
+        assert.ok(built.length <= 256);
+        assert.strictEqual(mirror.topicPostIdForForumReply('x'.repeat(200)).length, 207);
+    });
+
+    test('a forum reply id over the stored length is refused', function() {
+        const sample = { channelId: 'mining', postId: 'root1', text: 'hi', uid: 'ada', name: 'Ada', forumPostId: 'tdforum_mining_root1' };
+        const atMax = 'R'.repeat(256);
+        const justOver = 'R'.repeat(257);
+        const ok = mirror.buildForumReplyDoc(Object.assign({}, sample, { forumReplyId: atMax }));
+        assert.ok(ok);
+        assert.strictEqual(ok.id, atMax);
+        assert.strictEqual(mirror.buildForumReplyDoc(Object.assign({}, sample, { forumReplyId: justOver })), null);
+        assert.strictEqual(mirror.buildForumReplyDoc(Object.assign({}, sample, { forumReplyId: 'bad id' })), null);
+    });
+
+    await testAsync('a topic post id over the stored length is refused', async function() {
+        const db = createMemoryDb();
+        const atMax = 'A'.repeat(256);
+        const justOver = 'A'.repeat(257);
+        const editOver = await mirror.syncForumReplyEdit({
+            db: db,
+            before: { topicChannel: 'mining', topicPost: justOver, body: 'a', deleted: false, hidden: false, authorId: 'ada' },
+            after: { topicChannel: 'mining', topicPost: justOver, body: 'b', deleted: false, hidden: false, authorId: 'ada' },
+        });
+        assert.strictEqual(editOver.reason, 'not_topic');
+        const editMax = await mirror.syncForumReplyEdit({
+            db: db,
+            before: { topicChannel: 'mining', topicPost: atMax, body: 'a', deleted: false, hidden: false, authorId: 'ada' },
+            after: { topicChannel: 'mining', topicPost: atMax, body: 'b', deleted: false, hidden: false, authorId: 'ada' },
+        });
+        assert.strictEqual(editMax.reason, 'missing');
+        const delOver = await mirror.syncForumReplyDelete({
+            db: db, before: { topicChannel: 'mining', topicPost: justOver },
+        });
+        assert.strictEqual(delOver.reason, 'not_topic');
+        const delMax = await mirror.syncForumReplyDelete({
+            db: db, before: { topicChannel: 'mining', topicPost: atMax },
+        });
+        assert.strictEqual(delMax.reason, 'missing');
+        const postOver = await mirror.syncForumPostDelete({
+            db: db, before: { origin: 'topic', topicChannel: 'mining', topicPost: justOver },
+        });
+        assert.strictEqual(postOver.reason, 'bad_id');
+        const postMax = await mirror.syncForumPostDelete({
+            db: db, before: { origin: 'topic', topicChannel: 'mining', topicPost: atMax },
+        });
+        assert.strictEqual(postMax.reason, 'missing');
+    });
+
+    await testAsync('a long stored forum reply id is kept and a longer one is refused', async function() {
+        const db = createMemoryDb();
+        const atMax = 'R'.repeat(256);
+        const justOver = 'R'.repeat(257);
+        const over = await mirror.syncTopicToForum({
+            db: db, channelId: 'mining', postId: 'child1',
+            before: { channelId: 'mining', parentId: 'root1', text: 'hi', forumReplyId: justOver, deleted: false, hidden: false },
+            after: { channelId: 'mining', parentId: 'root1', text: 'hi2', forumReplyId: justOver, deleted: false, hidden: false },
+        });
+        assert.strictEqual(over.reason, 'no_reply');
+        const kept = await mirror.syncTopicToForum({
+            db: db, channelId: 'mining', postId: 'child1',
+            before: { channelId: 'mining', parentId: 'root1', text: 'hi', forumReplyId: atMax, deleted: false, hidden: false },
+            after: { channelId: 'mining', parentId: 'root1', text: 'hi2', forumReplyId: atMax, deleted: false, hidden: false },
+        });
+        assert.strictEqual(kept.reason, 'missing');
     });
 
     await testAsync('a forum reply is re-read and a deleted copy is not mirrored', async function() {
