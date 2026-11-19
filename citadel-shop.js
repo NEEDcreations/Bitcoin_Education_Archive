@@ -243,7 +243,7 @@
 
         if (v.showGetPremium) {
             h += '<section class="cs-panel cs-cta" id="csGetPremium"><div class="cs-kicker">Premium</div>' +
-                '<p class="cs-copy">Get Premium to collect Citadel parts. Plans from $5 a month, $50 a year, or Founders\u2019 Lifetime for $150 (500 seats). Your other Premium perks start when you buy.</p>' +
+                '<p class="cs-copy">Get Premium to buy Citadel parts. Plans from $5 a month, $50 a year, or Founders\u2019 Lifetime for $150 (500 seats). Your other Premium perks start when you buy.</p>' +
                 (v.referralWeek ? '<p class="cs-copy" data-cs-referral="1">Referral week: Premium can be bought here this week.</p>' : '') +
                 '<button class="cs-btn cs-primary" type="button" data-cs-premium="1">' + icon('sparkles', 18) + ' Get Premium</button></section>';
         }

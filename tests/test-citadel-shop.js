@@ -140,7 +140,7 @@ test('closed shop (server open=false) disables buy and build with no buttons', (
     assert.ok(h.indexOf('Start collecting parts Jan 3, 2027') < h.indexOf('cs-progress'), 'banner is at the top');
     const freeClosed = CS.renderHtml(CS.computeView(free, { now: NOW, signedIn: true, flags: CS.DEFAULT_FLAGS, open: false }));
     assert.ok(freeClosed.includes('data-cs-premium="1"') && freeClosed.includes('Get Premium'));
-    assert.ok(freeClosed.includes('Get Premium to collect Citadel parts.'));
+    assert.ok(freeClosed.includes('Get Premium to buy Citadel parts.'));
     assert.ok(!freeClosed.includes('when building opens'), 'Premium copy does not tie buying to building');
     assert.ok(!freeClosed.includes('January 3, 2027'), 'date is not buried in the Premium copy');
     assert.ok(src.includes("if (typeof d.open === 'boolean') shopOpen = d.open;"), 'open comes from the server status');
@@ -235,10 +235,10 @@ test('no em-dashes in the shop source', () => {
     assert.ok(!/\\u2014/.test(src));
 });
 
-test('SW is v2631 and quests.js loads citadel-shop.js at v2631', () => {
+test('SW is v2631 and quests.js loads citadel-shop.js at v2631b', () => {
     assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2631'"));
     const q = read('quests.js');
-    assert.ok(q.includes("var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2631';"));
+    assert.ok(q.includes("var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2631b';"));
     assert.ok(!q.includes('USE XP TO CONSTRUCT YOUR OWN CITADEL'));
     assert.strictEqual(read('index.html'), read('404.html'));
     assert.ok(read('index.html').includes('ranking.js?v=20261119_v2617'));
