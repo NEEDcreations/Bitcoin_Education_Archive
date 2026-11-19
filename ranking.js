@@ -12403,6 +12403,7 @@ var LN_PERMANENT_WARNING = 'This will be your permanent Lightning Address for wi
 var LN_READONLY_NOTE = 'This is your permanent Lightning Address for withdrawals. If you ever need to change it, contact support at info.603btc@gmail.com.';
 var LN_DOUBLE_CHECK = 'Please double-check this is written exactly right';
 var LN_SET_TITLE = 'Set your withdrawal Lightning Address';
+var LN_RESET_SUCCESS = 'Lightning Address saved. For safety, payouts are paused for 48 hours.';
 var LN_TURNSTILE_SITEKEY = '0x4AAAAAAD-ivgpRkbXpgz86';
 
 function _savedWithdrawalLn() {
@@ -12544,9 +12545,25 @@ function openWithdrawalAddress(opts) {
         stepRead.appendChild(readNote);
         stepRead.appendChild(closeBtn);
 
+        var stepSuccess = document.createElement('div');
+        stepSuccess.id = 'lnAddrStepSuccess';
+        var successAddr = document.createElement('div');
+        successAddr.id = 'lnAddrSuccessText';
+        successAddr.style.cssText = addrEl.style.cssText;
+        var successNote = document.createElement('p');
+        successNote.id = 'lnAddrSuccessNote';
+        successNote.textContent = LN_RESET_SUCCESS;
+        successNote.style.cssText = 'margin:0 0 14px;font-size:0.8rem;line-height:1.45;color:#cbd5e1;text-align:center;';
+        var successBtn = _lnBtn('Done', true);
+        successBtn.id = 'lnAddrSuccessBtn';
+        stepSuccess.appendChild(successAddr);
+        stepSuccess.appendChild(successNote);
+        stepSuccess.appendChild(successBtn);
+
         panel.appendChild(stepInput);
         panel.appendChild(stepConfirm);
         panel.appendChild(stepRead);
+        panel.appendChild(stepSuccess);
         overlay.appendChild(panel);
 
         var chosen = normalizeClientLn(opts.address || '');
@@ -12556,7 +12573,8 @@ function openWithdrawalAddress(opts) {
             stepInput.style.display = name === 'input' ? 'block' : 'none';
             stepConfirm.style.display = name === 'confirm' ? 'block' : 'none';
             stepRead.style.display = name === 'readonly' ? 'block' : 'none';
-            title.textContent = name === 'readonly' ? 'Withdrawal Lightning Address' : LN_SET_TITLE;
+            stepSuccess.style.display = name === 'success' ? 'block' : 'none';
+            title.textContent = name === 'readonly' ? 'Withdrawal Lightning Address' : (name === 'success' ? 'Lightning Address saved' : LN_SET_TITLE);
             if (name === 'confirm' && mode === 'reset' && !widgetRendered) {
                 widgetRendered = true;
                 var lnWidget = document.getElementById('lnAddrTurnstile');
@@ -12578,6 +12596,7 @@ function openWithdrawalAddress(opts) {
 
         cancelBtn.addEventListener('click', function () { finish(null); });
         closeBtn.addEventListener('click', function () { finish(null); });
+        successBtn.addEventListener('click', function () { finish(chosen); });
         nextBtn.addEventListener('click', function () {
             var addr = normalizeClientLn(input.value);
             if (!clientLnValid(addr)) {
@@ -12613,7 +12632,13 @@ function openWithdrawalAddress(opts) {
                     paintLnStep('input');
                     return;
                 }
-                finish(result.address || chosen);
+                var savedAddr = result.address || chosen;
+                if (mode === 'reset') {
+                    successAddr.textContent = savedAddr;
+                    paintLnStep('success');
+                    return;
+                }
+                finish(savedAddr);
             }).catch(function (e) {
                 paintLnError((e && e.message) ? e.message : 'Could not resolve Lightning Address. Check the address and try again.');
                 confirmBtn.textContent = 'Confirm';
@@ -12639,7 +12664,7 @@ function openWithdrawalAddress(opts) {
     });
 }
 
-function _callResetLightning(addr, proofId) {
+function _callResetLightning(addr, proofId, retried) {
     var token = '';
     var tsEl = document.querySelector('#lnAddrTurnstile [name="cf-turnstile-response"]');
     if (tsEl) token = tsEl.value || '';
@@ -12654,18 +12679,24 @@ function _callResetLightning(addr, proofId) {
     } catch (e) {
         return Promise.resolve({ ok: false, error: 'Security check failed. Refresh the page and try again.' });
     }
+    var reauthReady = (typeof window.reauthForSensitiveAction === 'function')
+        ? window.reauthForSensitiveAction('changing your Lightning Address')
+        : Promise.resolve(true);
     var proofReady = Promise.resolve(proofId || '');
     if (!proofId && mfaNeedsFreshCode()) proofReady = window._showFreshStepUp('resetLightningAddress');
-    return proofReady.then(function (proof) {
-        if (proof === null) return { ok: false, error: 'Enter a fresh authenticator code to change your Lightning Address.', code: 'fresh' };
-        return appCheckReady.then(function () {
-            var fn = firebase.functions().httpsCallable('resetLightningAddressOnce');
-            var body = { lightningAddress: addr, turnstileToken: token };
-            if (proof) body.freshProofId = proof;
-            return fn(body);
+    return reauthReady.then(function (ready) {
+        if (!ready) return { ok: false, error: 'Sign in again, then try this.', code: 'reauth' };
+        return proofReady.then(function (proof) {
+            if (proof === null) return { ok: false, error: 'Enter a fresh authenticator code to change your Lightning Address.', code: 'fresh' };
+            return appCheckReady.then(function () {
+                var fn = firebase.functions().httpsCallable('resetLightningAddressOnce');
+                var body = { lightningAddress: addr, turnstileToken: token };
+                if (proof) body.freshProofId = proof;
+                return fn(body);
+            });
         });
     }).then(function (res) {
-        if (res && res.ok === false && res.code === 'fresh') return res;
+        if (res && res.ok === false && (res.code === 'fresh' || res.code === 'reauth')) return res;
         var data = res && res.data ? res.data : {};
         if (!data.ok) return { ok: false, error: data.error || 'Could not resolve Lightning Address. Check the address and try again.', code: data.code || 'address_unresolved' };
         if (typeof currentUser !== 'undefined' && currentUser) {
@@ -12673,14 +12704,20 @@ function _callResetLightning(addr, proofId) {
             currentUser.lightningAddress = data.address || addr;
         }
         try { sessionStorage.removeItem('btc_ln_needs_reset'); } catch (e) {}
-        if (typeof showToast === 'function') showToast('Lightning Address saved.');
+        if (typeof showToast === 'function') showToast(LN_RESET_SUCCESS);
         return { ok: true, address: data.address || addr };
     }).catch(function (e) {
         var msg = (e && e.message) ? e.message : 'Could not resolve Lightning Address. Check the address and try again.';
+        if (!retried && msg.indexOf('Sign in again') !== -1 && typeof window.reauthForSensitiveAction === 'function') {
+            return window.reauthForSensitiveAction('changing your Lightning Address').then(function (ok) {
+                if (!ok) return { ok: false, error: msg, code: 'reauth' };
+                return _callResetLightning(addr, proofId, true);
+            });
+        }
         if (!proofId && msg.indexOf('fresh authenticator') !== -1 && typeof window._showFreshStepUp === 'function') {
             return window._showFreshStepUp('resetLightningAddress').then(function (proof) {
                 if (!proof) return { ok: false, error: msg, code: 'fresh' };
-                return _callResetLightning(addr, proof);
+                return _callResetLightning(addr, proof, retried);
             });
         }
         return { ok: false, error: msg, code: 'address_unresolved' };

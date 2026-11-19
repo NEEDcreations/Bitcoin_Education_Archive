@@ -304,6 +304,43 @@ function auth(email) {
         assert.ok(!referral.includes('email: profile.email || referred.email'));
     });
 
+    await test('beginPayout holds all payouts for 48 hours after a Lightning address change', async function () {
+        const now = 1_700_000_000_000;
+        const faucetGuard = require('../functions/src/faucetGuard');
+        const authUser = { uid: 'u1', email: 'same@example.com', emailVerified: true, providerData: [] };
+        const authApi = { revokeRefreshTokens: async function () {} };
+        const held = await emailChange.beginPayout(createDb({
+            'users/u1': {
+                email: 'same@example.com',
+                emailHash: tomb.emailHmac('same@example.com'),
+                lightningAddressChangedAt: now,
+            },
+        }), authApi, 'u1', authUser, now);
+        assert.strictEqual(held.ok, false);
+        assert.strictEqual(held.hold, true);
+        assert.strictEqual(held.error, faucetGuard.ADDRESS_CHANGE_HOLD_ERROR);
+
+        const clear = await emailChange.beginPayout(createDb({
+            'users/u1': {
+                email: 'same@example.com',
+                emailHash: tomb.emailHmac('same@example.com'),
+                lightningAddressChangedAt: now - faucetGuard.ADDRESS_CHANGE_HOLD_MS,
+            },
+        }), authApi, 'u1', authUser, now);
+        assert.strictEqual(clear.ok, true);
+
+        const bad = await emailChange.beginPayout(createDb({
+            'users/u1': {
+                email: 'same@example.com',
+                emailHash: tomb.emailHmac('same@example.com'),
+                lightningAddressChangedAt: 'garbage',
+            },
+        }), authApi, 'u1', authUser, now);
+        assert.strictEqual(bad.ok, false);
+        assert.strictEqual(bad.hold, true);
+        assert.strictEqual(bad.error, faucetGuard.ADDRESS_CHANGE_HOLD_ERROR);
+    });
+
     await test('a provider-set change holds sats and keeps the old provider hashes', async function () {
         const oldProviders = [{ providerId: 'google.com', uid: 'google-old' }];
         const oldIds = tomb.providerHashIds(tomb.identityFrom({ providers: oldProviders }));

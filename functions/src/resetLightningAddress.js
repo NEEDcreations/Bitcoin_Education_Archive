@@ -8,6 +8,16 @@ const { runtimeSa } = require('./runtimeServiceAccounts');
 
 const faucetGuard = require('./faucetGuard');
 const { emailOk } = require('./referrals');
+
+const REAUTH_MAX_AGE_SEC = 5 * 60;
+const SIGN_IN_AGAIN = 'Sign in again, then try this.';
+
+function authTimeOk(auth, nowSec) {
+    const authTime = auth && auth.token && Number(auth.token.auth_time);
+    const age = nowSec - authTime;
+    return Number.isFinite(authTime) && age >= 0 && age <= REAUTH_MAX_AGE_SEC;
+}
+
 const {
     resolveLnurlInvoice,
     normalizeLnAddress,
@@ -43,6 +53,7 @@ function createResetHandlers(deps) {
     const admin = options.admin;
     const verifyTurnstile = options.verifyTurnstile;
     const requireSecondFactor = options.requireSecondFactor || async function () {};
+    const nowSec = options.nowSec || function () { return Math.floor(Date.now() / 1000); };
     const resolve = options.resolveLnurlInvoice || resolveLnurlInvoice;
     const HttpsError = options.HttpsError || function (code, message) {
         const err = new Error(message);
@@ -66,7 +77,6 @@ function createResetHandlers(deps) {
     }
 
     async function resetLightningAddressOnce(data, context) {
-        await requireSecondFactor(data, context);
         if (!context || !context.auth || !context.auth.uid) {
             throw new HttpsError('unauthenticated', 'Must be signed in');
         }
@@ -75,6 +85,14 @@ function createResetHandlers(deps) {
         if (provider === 'anonymous') {
             throw new HttpsError('permission-denied', 'Account required.');
         }
+        // Same recent-signin window as email change and account deletion.
+        // Guest and recent-signin checks run first so a stale session does
+        // not consume a fresh authenticator proof. A fresh code is still
+        // required when 2FA is on.
+        if (!authTimeOk(context.auth, nowSec())) {
+            throw new HttpsError('failed-precondition', SIGN_IN_AGAIN);
+        }
+        await requireSecondFactor(data, context);
 
         const uid = context.auth.uid;
         const userRef = db.collection('users').doc(uid);
@@ -195,8 +213,13 @@ function createResetHandlers(deps) {
                 }
 
                 const stamp = admin.firestore.FieldValue.serverTimestamp();
-                if (freshUser.exists) t.set(userRef, { lightning: next, lightningAddress: next }, { merge: true });
-                else t.set(userRef, { lightning: next, lightningAddress: next });
+                const userPatch = {
+                    lightning: next,
+                    lightningAddress: next,
+                    lightningAddressChangedAt: stamp,
+                };
+                if (freshUser.exists) t.set(userRef, userPatch, { merge: true });
+                else t.set(userRef, userPatch);
                 if (!lockDoc.exists) {
                     t.set(lockRef, { uid: uid, address: next, lockedAt: stamp });
                 }
@@ -241,4 +264,6 @@ module.exports = {
     bindResetLightningAddress: bindResetLightningAddress,
     identityOk: identityOk,
     storedAddress: storedAddress,
+    authTimeOk: authTimeOk,
+    REAUTH_MAX_AGE_SEC: REAUTH_MAX_AGE_SEC,
 };

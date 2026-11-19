@@ -11,6 +11,7 @@ const createRule = rules.slice(rules.indexOf('allow create: if request.auth != n
 assert.ok(keysFn.includes("'email'"), 'email is server-only on update');
 assert.ok(keysFn.includes("'emailHash'"));
 assert.ok(keysFn.includes("'satsHold'"));
+assert.ok(keysFn.includes("'lightningAddressChangedAt'"), 'hold stamp is server-only');
 assert.ok(keysFn.includes("'emailHistory'"));
 assert.ok(keysFn.includes("'emailHistoryHashes'"));
 assert.ok(keysFn.includes("'providersHash'"));

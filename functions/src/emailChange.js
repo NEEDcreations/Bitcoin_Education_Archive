@@ -484,11 +484,22 @@ async function beginPayout(db, authApi, uid, authUser, nowMs, token, providersKn
     }
     const tomb = reconciled && reconciled.tomb;
     let holdUntil = Number(reconciled && reconciled.holdUntil) || 0;
+    let user = {};
+    let userReadable = false;
     try {
         const snap = await db.collection('users').doc(uid).get();
-        const user = snap && snap.exists ? (snap.data() || {}) : {};
+        user = snap && snap.exists ? (snap.data() || {}) : {};
+        userReadable = true;
         holdUntil = Math.max(holdUntil, Number(user.satsHold) || 0);
-    } catch (e) { /* the hold written above still applies */ }
+    } catch (e) { /* an unreadable user doc means the payout is held */ }
+    const faucetGuard = require('./faucetGuard');
+    if (!userReadable) {
+        return { ok: false, hold: true, error: faucetGuard.ADDRESS_CHANGE_HOLD_ERROR, holdUntil: clock + faucetGuard.ADDRESS_CHANGE_HOLD_MS, tomb: tomb };
+    }
+    const addrHold = faucetGuard.assessAddressChangeHold(user, clock);
+    if (!addrHold.ok) {
+        return { ok: false, hold: true, error: addrHold.error, holdUntil: addrHold.untilMs, tomb: tomb };
+    }
     if ((reconciled && reconciled.hold) || holdUntil > clock) {
         return { ok: false, hold: true, error: HOLD_ERROR, holdUntil: holdUntil, tomb: tomb };
     }

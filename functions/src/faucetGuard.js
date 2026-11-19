@@ -532,6 +532,59 @@ function buildAbuseReport(input) {
     };
 }
 
+
+// Wavelength Decision 4: payouts wait 48 hours after a Lightning Address reset.
+const ADDRESS_CHANGE_HOLD_MS = 48 * 60 * 60 * 1000;
+const ADDRESS_CHANGE_HOLD_ERROR = 'For safety, payouts are paused for 48 hours after you change your Lightning Address.';
+// Returns { ok, ms }. ok is false when a value is present but unreadable.
+// A missing/null/undefined value is ok with ms 0 (no hold from this field).
+function parseHoldMillis(value) {
+    if (value == null) return { ok: true, ms: 0 };
+    if (typeof value === 'number') {
+        if (isFinite(value) && value > 0) return { ok: true, ms: value };
+        return { ok: false, ms: 0 };
+    }
+    if (typeof value.toMillis === 'function') {
+        const ms = value.toMillis();
+        if (typeof ms === 'number' && isFinite(ms) && ms > 0) return { ok: true, ms: ms };
+        return { ok: false, ms: 0 };
+    }
+    if (value instanceof Date) {
+        const ms = value.getTime();
+        if (isFinite(ms) && ms > 0) return { ok: true, ms: ms };
+        return { ok: false, ms: 0 };
+    }
+    if (typeof value === 'object') {
+        const seconds = typeof value.seconds === 'number' ? value.seconds
+            : (typeof value._seconds === 'number' ? value._seconds : null);
+        if (seconds == null || !isFinite(seconds) || seconds <= 0) return { ok: false, ms: 0 };
+        return { ok: true, ms: seconds * 1000 };
+    }
+    return { ok: false, ms: 0 };
+}
+function _holdMillis(value) {
+    const parsed = parseHoldMillis(value);
+    return parsed.ok ? parsed.ms : 0;
+}
+function assessAddressChangeHold(user, nowMs) {
+    const now = typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : Date.now();
+    // A present but unreadable stamp holds the payout. A missing stamp does not
+    // (legacy addresses predating the field).
+    if (user && Object.prototype.hasOwnProperty.call(user, 'lightningAddressChangedAt')) {
+        const parsed = parseHoldMillis(user.lightningAddressChangedAt);
+        if (!parsed.ok) {
+            return { ok: false, error: ADDRESS_CHANGE_HOLD_ERROR, untilMs: now + ADDRESS_CHANGE_HOLD_MS, unreadable: true };
+        }
+        if (!parsed.ms) return { ok: true, untilMs: 0 };
+        const untilMs = parsed.ms + ADDRESS_CHANGE_HOLD_MS;
+        if (now < untilMs) {
+            return { ok: false, error: ADDRESS_CHANGE_HOLD_ERROR, untilMs: untilMs };
+        }
+        return { ok: true, untilMs: untilMs };
+    }
+    return { ok: true, untilMs: 0 };
+}
+
 module.exports = {
     MAX_PER_CLAIM_SATS: MAX_PER_CLAIM_SATS,
     MAX_DAILY_PER_USER_SATS: MAX_DAILY_PER_USER_SATS,
@@ -551,6 +604,10 @@ module.exports = {
     publicDisplayName: publicDisplayName,
     assessBan: assessBan,
     assessAddressLock: assessAddressLock,
+    ADDRESS_CHANGE_HOLD_MS: ADDRESS_CHANGE_HOLD_MS,
+    ADDRESS_CHANGE_HOLD_ERROR: ADDRESS_CHANGE_HOLD_ERROR,
+    assessAddressChangeHold: assessAddressChangeHold,
+    parseHoldMillis: parseHoldMillis,
     assessFingerprint: assessFingerprint,
     fingerprintDocId: fingerprintDocId,
     addressRateDocId: addressRateDocId,
