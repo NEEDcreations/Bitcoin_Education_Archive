@@ -103,6 +103,57 @@ function isCleanText(text) {
 // Sanitize HTML
 function fEsc(str) { return typeof escapeHtml === 'function' ? escapeHtml(str) : String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// Item ids accepted by the list renderers and the delegated click handler.
+var FORUM_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+function forumIdOk(id) { return typeof id === 'string' && FORUM_ID_RE.test(id); }
+function forumIdSkip(where) { try { console.warn('[forum] skipped an item with an unsupported id (' + where + ')'); } catch (e) {} }
+// Profile link markup for an author. Falls back to plain text when the uid is not usable.
+function forumProfileAttrs(uid) {
+    if (!forumIdOk(uid)) { if (uid) forumIdSkip('author'); return ''; }
+    return ' data-forum-action="profile" data-id="' + fEsc(uid) + '"';
+}
+function forumCall(name) {
+    var fn = window[name];
+    if (typeof fn === 'function') return fn.apply(window, Array.prototype.slice.call(arguments, 1));
+}
+var FORUM_ACTIONS = {
+    'view-post': function(id) { forumCall('forumViewPost', id); },
+    'vote-post': function(id) { forumCall('forumVotePost', id); },
+    'delete-post': function(id) { forumCall('forumDeletePost', id); },
+    'submit-reply': function(id) { forumCall('forumSubmitReply', id); },
+    'vote-reply': function(id) { forumCall('forumVoteReply', id); },
+    'reply-to': function(id, el) { forumCall('forumReplyToReply', id, el.getAttribute('data-author') || 'Anon'); },
+    'delete-reply': function(id, el, parent) { forumCall('forumDeleteReply', id, parent); },
+    'profile': function(id) { if (typeof showUserProfile === 'function') showUserProfile(id); },
+    'article-view': function(id) { forumCall('articleView', id); },
+    'article-edit': function(id) { forumCall('articleEdit', id); },
+    'article-pin': function(id, el) { forumCall('articleTogglePin', id, el.getAttribute('data-pin') === '1'); },
+    'article-vote': function(id) { forumCall('articleVote', id); },
+    'article-delete': function(id) { forumCall('articleDelete', id); },
+    'article-submit-reply': function(id) { forumCall('articleSubmitReply', id); },
+    'article-reply-to': function(id, el) { forumCall('articleReplyToComment', id, el.getAttribute('data-author') || 'Anon'); }
+};
+function forumOnAction(e) {
+    var t = e && e.target;
+    if (t && t.nodeType !== 1) t = t.parentNode;
+    var el = t && t.closest ? t.closest('[data-forum-action]') : null;
+    if (!el || (this && this.contains && !this.contains(el))) return;
+    var action = el.getAttribute('data-forum-action');
+    var fn = Object.prototype.hasOwnProperty.call(FORUM_ACTIONS, action) ? FORUM_ACTIONS[action] : null;
+    if (!fn) return;
+    var id = el.getAttribute('data-id');
+    var parent = el.getAttribute('data-parent');
+    if (!forumIdOk(id) || (parent !== null && !forumIdOk(parent))) { forumIdSkip('action'); return; }
+    fn(id, el, parent);
+}
+// One delegated click listener per forum container.
+function forumBindActions(fc) {
+    if (!fc || fc._forumActionsBound) return;
+    fc._forumActionsBound = true;
+    fc.addEventListener('click', forumOnAction);
+}
+window._forumIdOk = forumIdOk;
+
 // Time ago helper
 // [AUDIT FIX] timeAgo moved to utils.js
 
@@ -139,6 +190,7 @@ window.renderForum = function() {
     } catch(e) {}
 
     fc.innerHTML = '';
+    forumBindActions(fc);
 
     var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
     html += '<div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' + 
@@ -319,6 +371,7 @@ function forumRenderPosts(posts, container) {
 
     var html = '';
     posts.forEach(function(p) {
+        if (!forumIdOk(p.id)) { forumIdSkip('post'); return; }
         var lv = typeof getLevel === 'function' ? getLevel(p.authorPoints || 0) : { emoji: '🟢' };
         var cat = FORUM_CATEGORIES.find(function(c) { return c.id === p.category; });
         var catLabel = cat ? cat.emoji + ' ' + cat.name : '';
@@ -326,21 +379,21 @@ function forumRenderPosts(posts, container) {
         var canDelete = isOwn || isForumAdmin();
         var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
 
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:0.2s;-webkit-tap-highlight-color:rgba(247,147,26,0.1);" onclick="forumViewPost(\'' + p.id + '\')" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:0.2s;-webkit-tap-highlight-color:rgba(247,147,26,0.1);" data-forum-card="post" data-forum-action="view-post" data-id="' + fEsc(p.id) + '" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
             '<div style="display:flex;gap:10px;">' +
                 '<div style="display:flex;flex-direction:column;align-items:center;min-width:36px;flex-shrink:0;">' +
-                    '<button onclick="event.stopPropagation();forumVotePost(\'' + p.id + '\')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">👍</button>' +
+                    '<button data-forum-action="vote-post" data-id="' + fEsc(p.id) + '" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">👍</button>' +
                     '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;">' + (p.upvotes || 0) + '</span>' +
                 '</div>' +
                 '<div style="flex:1;min-width:0;overflow:hidden;">' +
                     '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:3px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</div>' +
                     (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body).substring(0, 120) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
                     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
-                        '<span onclick="event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')" style="font-size:0.7rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-faint)') + ';cursor:pointer;transition:0.2s;">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                        '<span' + forumProfileAttrs(p.authorId) + ' style="font-size:0.7rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-faint)') + ';cursor:pointer;transition:0.2s;">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                         '<span style="font-size:0.65rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
                         '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + (p.replyCount || 0) + '</span>' +
                         (catLabel ? '<span style="font-size:0.6rem;padding:2px 6px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);white-space:nowrap;">' + catLabel + '</span>' : '') +
-                        (canDelete ? '<button onclick="event.stopPropagation();forumDeletePost(\'' + p.id + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
+                        (canDelete ? '<button data-forum-action="delete-post" data-id="' + fEsc(p.id) + '" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -397,6 +450,8 @@ function forumTopicContinueLink(p) {
 window.forumViewPost = async function(postId, fromPopState) {
     var fc = document.getElementById('forumContainer');
     if (!fc || typeof db === 'undefined') return;
+    if (!forumIdOk(postId)) { forumIdSkip('post'); return; }
+    forumBindActions(fc);
     if (!fromPopState) history.pushState({ channel: 'forum', forumPost: postId }, '', '#forum/post/' + postId);
     fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;"><div style="text-align:center;padding:100px 40px;display:flex;flex-direction:column;gap:12px;">' +
         '<div class="skeleton" style="height:40px;width:80%;margin:0 auto;"></div>' +
@@ -422,10 +477,10 @@ window.forumViewPost = async function(postId, fromPopState) {
         html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to PlebTalk</button>';
 
         // Post
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+        html += '<div data-forum-card="post" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<h2 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 8px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</h2>' +
             '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
-                '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + forumProfileAttrs(p.authorId) + '>' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                 '<span style="font-size:0.75rem;color:var(--text-faint);">' + forumWhen(p.createdAt) + '</span>' +
             '</div>';
 
@@ -452,9 +507,9 @@ window.forumViewPost = async function(postId, fromPopState) {
         // Vote + meta + admin delete
         var canDeletePost = (auth && auth.currentUser && p.authorId === auth.currentUser.uid) || isForumAdmin();
         html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
-            '<button onclick="forumVotePost(\'' + p.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">👍 ' + (p.upvotes || 0) + '</button>' +
+            '<button data-forum-action="vote-post" data-id="' + fEsc(p.id) + '" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">👍 ' + (p.upvotes || 0) + '</button>' +
             '<span style="color:var(--text-faint);font-size:0.8rem;">💬 ' + (p.replyCount || 0) + ' replies</span>' +
-            (canDeletePost ? '<button onclick="forumDeletePost(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
+            (canDeletePost ? '<button data-forum-action="delete-post" data-id="' + fEsc(p.id) + '" style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
         '</div>';
         html += '</div>';
 
@@ -468,7 +523,7 @@ window.forumViewPost = async function(postId, fromPopState) {
                 '<textarea id="forumReplyInput" rows="3" maxlength="1000" placeholder="Write a reply..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;min-height:70px;-webkit-appearance:none;"></textarea>' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
                     '<span id="forumReplyStatus" style="font-size:0.8rem;flex:1;min-width:0;"></span>' +
-                    '<button onclick="forumSubmitReply(\'' + p.id + '\')" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;flex-shrink:0;">Reply</button>' +
+                    '<button data-forum-action="submit-reply" data-id="' + fEsc(p.id) + '" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;flex-shrink:0;">Reply</button>' +
                 '</div></div>';
         } else {
             html += '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;background:var(--card-bg);border:2px solid var(--accent);border-radius:12px;">' +
@@ -520,7 +575,10 @@ async function forumLoadReplies(postId) {
         var snap = await db.collection('forum_replies').where('postId', '==', postId).orderBy('createdAt', 'asc').limit(100).get();
         var replies = [];
         snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
-        replies = replies.filter(function(r) { return r.deleted !== true && r.hidden !== true; });
+        replies = replies.filter(function(r) {
+            if (!forumIdOk(r.id)) { forumIdSkip('reply'); return false; }
+            return r.deleted !== true && r.hidden !== true;
+        });
 
         if (replies.length === 0) {
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;">No replies yet. Be the first!</div>';
@@ -551,17 +609,17 @@ async function forumLoadReplies(postId) {
             var canReply = auth && auth.currentUser && !auth.currentUser.isAnonymous;
             var replyToLabel = r.parentAuthorName ? '<div style="font-size:0.7rem;color:var(--accent);margin-bottom:4px;">\u21A9 ' + fEsc(r.parentAuthorName) + '</div>' : '';
             var indent = isNested ? 'margin-left:24px;border-left:2px solid var(--accent);' : '';
-            var out = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;' + indent + '">' +
+            var out = '<div data-forum-card="reply" style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;' + indent + '">' +
                 replyToLabel +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + forumProfileAttrs(r.authorId) + '>' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">' + forumWhen(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;">' +
-                    '<button onclick="forumVoteReply(\'' + r.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + (r.upvotes || 0) + '</button>' +
-                    (canReply ? '<button data-reply-id="' + r.id + '" data-reply-author="' + fEsc(r.authorName || 'Anon') + '" onclick="window.forumReplyToReply(this.dataset.replyId,this.dataset.replyAuthor)" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\u21A9 Reply</button>' : '') +
-                    (canDeleteReply ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + r.postId + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
+                    '<button data-forum-action="vote-reply" data-id="' + fEsc(r.id) + '" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + (r.upvotes || 0) + '</button>' +
+                    (canReply ? '<button data-forum-action="reply-to" data-id="' + fEsc(r.id) + '" data-author="' + fEsc(r.authorName || 'Anon') + '" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\u21A9 Reply</button>' : '') +
+                    (canDeleteReply && forumIdOk(r.postId) ? '<button data-forum-action="delete-reply" data-id="' + fEsc(r.id) + '" data-parent="' + fEsc(r.postId) + '" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
                 '</div>' +
             '</div>';
             return out;
@@ -1124,12 +1182,13 @@ async function loadArticles() {
         
         var html = '';
         articles.forEach(function(a) {
+            if (!forumIdOk(a.id)) { forumIdSkip('article'); return; }
             var lv = typeof getLevel === 'function' ? getLevel(a.authorPoints || 0) : { emoji: '🟢' };
             var readTime = Math.max(1, Math.round((a.wordCount || 500) / 200));
             var dateStr = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().toLocaleDateString() : '';
             var pinned = a.pinned ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;">📌 PINNED</span> ' : '';
             
-            html += '<div onclick="articleView(\'' + a.id + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:12px;cursor:pointer;transition:0.2s;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+            html += '<div data-forum-action="article-view" data-id="' + fEsc(a.id) + '" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:12px;cursor:pointer;transition:0.2s;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
             
             if (a.coverUrl) {
                 html += '<div style="height:160px;background:url(' + fEsc(a.coverUrl) + ') center/cover no-repeat;"></div>';
@@ -1581,6 +1640,8 @@ window.articleSubmit = async function() {
 window.articleView = async function(articleId) {
     var fc = document.getElementById('forumContainer');
     if (!fc || !db) return;
+    if (!forumIdOk(articleId)) { forumIdSkip('article'); return; }
+    forumBindActions(fc);
     
     fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:40px 12px;text-align:center;color:var(--text-muted);">Loading article...</div>';
     
@@ -1613,13 +1674,13 @@ window.articleView = async function(articleId) {
         html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">';
         if (a.authorPic) html += '<img src="' + fEsc(a.authorPic) + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
         html += '<div>' +
-            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + a.authorId + '\')">' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</div>' +
+            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;"' + forumProfileAttrs(a.authorId) + '>' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</div>' +
             '<div style="font-size:0.75rem;color:var(--text-faint);">' + dateStr + ' · ' + readTime + ' min read · ' + (a.wordCount || 0).toLocaleString() + ' words</div>' +
         '</div>';
         // Edit button for author
-        if (isAuthor) html += '<button onclick="articleEdit(\'' + articleId + '\')" style="margin-left:auto;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>';
+        if (isAuthor) html += '<button data-forum-action="article-edit" data-id="' + fEsc(articleId) + '" style="margin-left:auto;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>';
         // Pin button for admin
-        if (isAdmin) html += '<button onclick="articleTogglePin(\'' + articleId + '\',' + (a.pinned ? 'false' : 'true') + ')" style="margin-left:' + (isAuthor ? '4px' : 'auto') + ';padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">' + (a.pinned ? '📌 Unpin' : '📌 Pin') + '</button>';
+        if (isAdmin) html += '<button data-forum-action="article-pin" data-id="' + fEsc(articleId) + '" data-pin="' + (a.pinned ? '0' : '1') + '" style="margin-left:' + (isAuthor ? '4px' : 'auto') + ';padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">' + (a.pinned ? '📌 Unpin' : '📌 Pin') + '</button>';
         html += '</div>';
         
         // Tags
@@ -1634,7 +1695,7 @@ window.articleView = async function(articleId) {
         
         // Action bar
         html += '<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:20px;">';
-        html += '<button onclick="articleVote(\'' + articleId + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:8px 14px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:600;font-family:inherit;">👍 ' + (a.upvotes || 0) + '</button>';
+        html += '<button data-forum-action="article-vote" data-id="' + fEsc(articleId) + '" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:8px 14px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:600;font-family:inherit;">👍 ' + (a.upvotes || 0) + '</button>';
         
         // Tip button
         if (typeof tipButtonHtml === 'function') {
@@ -1643,7 +1704,7 @@ window.articleView = async function(articleId) {
         
         // Delete for admin/author
         if (isAuthor || isAdmin) {
-            html += '<button onclick="articleDelete(\'' + articleId + '\')" style="margin-left:auto;padding:8px 14px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🗑️ Delete</button>';
+            html += '<button data-forum-action="article-delete" data-id="' + fEsc(articleId) + '" style="margin-left:auto;padding:8px 14px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🗑️ Delete</button>';
         }
         html += '</div>';
         
@@ -1659,7 +1720,7 @@ window.articleView = async function(articleId) {
                     '<button onclick="window.articleCancelReplyTo()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1;touch-action:manipulation;" title="Cancel reply">✕</button>' +
                 '</div>' +
                 '<textarea id="articleReplyInput" rows="3" maxlength="1000" placeholder="Share your thoughts..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;"></textarea>' +
-                '<button onclick="articleSubmitReply(\'' + articleId + '\')" style="margin-top:6px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Post Comment</button>' +
+                '<button data-forum-action="article-submit-reply" data-id="' + fEsc(articleId) + '" style="margin-top:6px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Post Comment</button>' +
                 '<div id="articleReplyStatus" style="margin-top:4px;font-size:0.8rem;"></div>' +
             '</div>';
         } else {
@@ -1749,7 +1810,10 @@ async function articleLoadReplies(articleId) {
         if (snap.empty) { container.innerHTML = '<div style="padding:12px;color:var(--text-faint);font-size:0.85rem;">No comments yet. Be the first!</div>'; return; }
 
         var replies = [];
-        snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
+        snap.forEach(function(doc) {
+            if (!forumIdOk(doc.id)) { forumIdSkip('comment'); return; }
+            replies.push({ id: doc.id, ...doc.data() });
+        });
 
         // Build threaded structure (one level deep)
         var topLevel = [];
@@ -1776,12 +1840,12 @@ async function articleLoadReplies(articleId) {
             return '<div style="padding:12px 0;border-bottom:1px solid var(--border);' + indent + '">' +
                 replyToLabel +
                 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
-                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + forumProfileAttrs(r.authorId) + '>' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">· ' + rDate + '</span>' +
-                    (canDel ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
+                    (canDel ? '<button data-forum-action="delete-reply" data-id="' + fEsc(r.id) + '" data-parent="' + fEsc(articleId) + '" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
                 '</div>' +
                 '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;margin-bottom:6px;">' + bodyHtml + '</div>' +
-                (canReply ? '<button data-rid="' + r.id + '" data-rname="' + fEsc(r.authorName || 'Anon') + '" onclick="window.articleReplyToComment(this.dataset.rid,this.dataset.rname)" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +
+                (canReply ? '<button data-forum-action="article-reply-to" data-id="' + fEsc(r.id) + '" data-author="' + fEsc(r.authorName || 'Anon') + '" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +
             '</div>';
         }
 

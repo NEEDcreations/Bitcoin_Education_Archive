@@ -44,31 +44,29 @@ function injectForumTips() {
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
 
-    // Find upvote buttons (they contain "⚡" and a number)
-    // Pattern: <button onclick="forumVotePost('id')">⚡ N</button>
-    var voteBtns = fc.querySelectorAll('button[onclick*="forumVotePost"], button[onclick*="forumVoteReply"]');
+    // Find upvote buttons by their data attributes
+    // Pattern: <button data-forum-action="vote-post" data-id="id">👍 N</button>
+    var voteBtns = fc.querySelectorAll('button[data-forum-action="vote-post"], button[data-forum-action="vote-reply"]');
     voteBtns.forEach(function(btn) {
         // Skip if already has a tip sibling
         if (btn.nextElementSibling && btn.nextElementSibling.hasAttribute('data-tip-action')) return;
         if (btn.parentElement && btn.parentElement.querySelector('[data-tip-action]')) return;
 
         // Extract post/reply ID and author info from the surrounding context
-        var onclickStr = btn.getAttribute('onclick') || '';
-        var idMatch = onclickStr.match(/(?:forumVotePost|forumVoteReply)\('([^']+)'\)/);
-        var itemId = idMatch ? idMatch[1] : '';
-        var isReply = onclickStr.includes('forumVoteReply');
+        var itemId = btn.getAttribute('data-id') || '';
+        if (typeof window._forumIdOk === 'function' && !window._forumIdOk(itemId)) return;
+        var isReply = btn.getAttribute('data-forum-action') === 'vote-reply';
 
         // Try to find author name and UID from nearby elements
-        var card = btn.closest('div[style*="background"]') || btn.parentElement;
+        var card = btn.closest('[data-forum-card]') || btn.parentElement;
         var authorName = 'this user';
         var authorUid = '';
 
         // First try: find the showUserProfile link (most reliable — has both UID and name)
         if (card) {
-            var profileLink = card.querySelector('[onclick*="showUserProfile"]');
+            var profileLink = card.querySelector('[data-forum-action="profile"]');
             if (profileLink) {
-                var uidMatch = (profileLink.getAttribute('onclick') || '').match(/showUserProfile\('([^']+)'\)/);
-                if (uidMatch) authorUid = uidMatch[1];
+                authorUid = profileLink.getAttribute('data-id') || '';
                 // Extract name from the profile link text (strip emoji prefix)
                 var linkText = profileLink.textContent.trim();
                 if (linkText) authorName = linkText.replace(/^[^\w\s]+\s*/, '').trim() || linkText;

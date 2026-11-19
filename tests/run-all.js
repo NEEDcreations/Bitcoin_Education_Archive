@@ -163,6 +163,7 @@ const TESTS = [
     { name: 'Topic Discussions', file: 'test-topic-discussion.js' },
     { name: 'Quest defer', file: 'test-quest-defer.js' },
     { name: 'Topic Forum Mirror', file: 'test-topic-forum-mirror.js' },
+    { name: 'Forum id handling', file: 'test-forum-id-escape.js' },
     { name: 'Topic Conversation XP', file: 'test-topic-conversation-xp.js' },
     { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
     { name: 'Quote of the Day', file: 'test-quotes.js' },

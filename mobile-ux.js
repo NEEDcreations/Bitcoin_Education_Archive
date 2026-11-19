@@ -236,10 +236,10 @@ document.addEventListener('touchend', function(e) {
     var now = Date.now();
     if (now - lastTapTime < 300) {
         // Double tap detected
-        var forumPost = e.target.closest && e.target.closest('[onclick*="forumViewPost"]');
+        var forumPost = e.target.closest && e.target.closest('[data-forum-action="view-post"]');
         if (forumPost) {
             // Find the upvote button inside
-            var upBtn = forumPost.querySelector('[onclick*="forumVotePost"]');
+            var upBtn = forumPost.querySelector('[data-forum-action="vote-post"]');
             if (upBtn) { upBtn.click(); haptic('medium'); }
             e.preventDefault();
         }
