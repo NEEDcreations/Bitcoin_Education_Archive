@@ -173,6 +173,15 @@ function memoryDb() {
 
 function adminFor() {
     return {
+        // Guest gate lookup: uids starting with "guest" are anonymous Auth
+        // accounts with no sign-in method; everyone else has an email sign-in.
+        auth: function () {
+            return {
+                getUser: async function (uid) {
+                    return { uid: uid, providerData: /^guest/.test(uid) ? [] : [{ providerId: 'password' }] };
+                },
+            };
+        },
         firestore: {
             FieldValue: {
                 serverTimestamp: function () {
@@ -653,6 +662,19 @@ async function main() {
             data: { title: 'A real note', body: body, authorId: 'ada' },
         });
         assert.strictEqual(queued.queued, true);
+        // A guest (anonymous Auth, no sign-in method) deals no forum damage,
+        // even with an old user doc and a clean post.
+        await db.collection('users').doc('guestpleb').set({ username: 'guestpleb', created: born });
+        await db.collection('forum_posts').doc('guestpost1').set({
+            title: 'Guest note', body: legitBody('guestword'), authorId: 'guestpleb', createdAt: ts(now),
+        });
+        const guestHit = await engine.queueForumDamage(db, admin, {
+            kind: 'forum', sourceId: 'guestpost1', uid: 'guestpleb', now: now,
+            data: { title: 'Guest note', body: legitBody('guestword'), authorId: 'guestpleb' },
+        });
+        assert.strictEqual(guestHit.queued, false);
+        assert.strictEqual(guestHit.reason, 'guest');
+        assert.strictEqual((await db.collection('raid_forum_pending').doc('forum-guestpost1').get()).exists, false);
         const pending = await db.collection('raid_forum_pending').doc('forum-legit1').get();
         assert.strictEqual(pending.exists, true);
         const early = await engine.sweepForumDamage(db, admin, new Date(now.getTime() + 60 * 60 * 1000));
