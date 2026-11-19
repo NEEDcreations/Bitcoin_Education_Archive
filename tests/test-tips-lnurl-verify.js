@@ -67,12 +67,27 @@ function hexWords(hex) {
     return out;
 }
 const sha = (str) => nodeCrypto.createHash('sha256').update(Buffer.from(str, 'utf8')).digest('hex');
+function routeHex(hops) {
+    return hops.map((hop) => {
+        const b = Buffer.alloc(51);
+        b[0] = 2;
+        b.writeUInt32BE(hop.base >>> 0, 41);
+        b.writeUInt32BE(hop.ppm >>> 0, 45);
+        b.writeUInt16BE(40, 49);
+        return b.toString('hex');
+    }).join('');
+}
 function makeInvoice(hrp, opts) {
     opts = opts || {};
     const ts = opts.timestamp != null ? opts.timestamp : Math.floor(Date.now() / 1000);
     let words = intWords(ts, 7);
     // payment hash tag (p = 1), 52 words
     words = words.concat([1], intWords(52, 2), new Array(52).fill(3));
+    (opts.r || []).forEach((route) => {
+        const hex = typeof route === 'string' ? route : routeHex(route);
+        const rw = hexWords(hex);
+        words = words.concat([3], intWords(rw.length, 2), rw);
+    });
     (opts.h || []).forEach((hex) => {
         const hw = hexWords(hex);
         words = words.concat([23], intWords(hw.length, 2), hw);
@@ -202,9 +217,21 @@ async function runFallback(file, pr, opt) {
     const paid = [];
     const qr = [];
     const calls = [];
-    const { win } = load(file, {
+    const serverCalls = [];
+    const extra = {};
+    if ('serverInvoice' in opt) {
+        extra.firebase = {
+            functions: () => ({
+                httpsCallable: (name) => async (data) => {
+                    serverCalls.push(name);
+                    return { data: { invoice: opt.serverInvoice, paymentHash: 'ab'.repeat(32) } };
+                },
+            }),
+        };
+    }
+    const { win } = load(file, Object.assign(extra, {
         document: { addEventListener() {}, getElementById: (id) => (id === 'tipOverlay' ? null : mk(id)) },
-        localStorage: { getItem: () => JSON.stringify({ method: 'nwc', nwcRelay: 'wss://relay.example' }) },
+        localStorage: { getItem: () => (opt.noWallet ? null : JSON.stringify({ method: 'nwc', nwcRelay: 'wss://relay.example' })) },
         fetch: async (url) => {
             calls.push(url);
             if (calls.length === 1) {
@@ -216,12 +243,12 @@ async function runFallback(file, pr, opt) {
         },
         setTimeout: () => 0,
         ...('crypto' in opt ? { crypto: opt.crypto } : {}),
-    });
+    }));
     win.lnSendPaymentDirect = async (inv) => { paid.push(inv); };
     win._renderQRCode = (el, data) => { qr.push(data); };
-    win._tipOpts = { lightningAddress: 'alice@example.com', fixedAmount: true, suggestedAmount: 1000 };
+    win._tipOpts = opt.tipOpts || { lightningAddress: 'alice@example.com', fixedAmount: true, suggestedAmount: 1000 };
     await win.executeTip();
-    return { paid, qr, res: mk('tipResult').innerHTML, calls };
+    return { paid, qr, res: mk('tipResult').innerHTML, calls, serverCalls };
 }
 
 ['lightning-tips.js.src', 'lightning-tips.js'].forEach((file) => {
@@ -304,6 +331,85 @@ function expectRefused(out, label) {
         expectRefused(await runFallback(file, goodInvoice, { crypto: {} }), 'no subtle');
         expectRefused(await runFallback(file, goodInvoice, { crypto: undefined }), 'no crypto');
         expectRefused(await runFallback(file, goodInvoice, { crypto: { subtle: { digest: () => Promise.reject(new Error('x')) } } }), 'digest throws');
+    });
+});
+
+// ---- route hint fees, every pay path, and the address box ----
+['lightning-tips.js.src', 'lightning-tips.js'].forEach((file) => {
+    const check = (pr, msats) => load(file).win._tipCheckInvoice(pr, msats, NOW);
+
+    test(file + ': route hint base fee up to max(10 sat, 1%) passes, over fails', () => {
+        // 1000 sats: the limit is 10 sat = 10,000 msat.
+        assert.ok(check(makeInvoice('lnbc10u', { r: [[{ base: 10000, ppm: 100 }]] }), MSATS));
+        assert.ok(check(makeInvoice('lnbc10u', { r: [[{ base: 4000, ppm: 0 }, { base: 6000, ppm: 0 }]] }), MSATS));
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [[{ base: 10001, ppm: 0 }]] }), MSATS), null);
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [[{ base: 6000, ppm: 0 }, { base: 5000, ppm: 0 }]] }), MSATS), null);
+        // 1,000,000 sats: 1% is 10,000 sat = 10,000,000 msat.
+        assert.ok(check(makeInvoice('lnbc10m', { r: [[{ base: 10000000, ppm: 0 }]] }), 1e9));
+        assert.strictEqual(check(makeInvoice('lnbc10m', { r: [[{ base: 10000001, ppm: 0 }]] }), 1e9), null);
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [[{ base: 0xffffffff, ppm: 0 }]] }), MSATS), null);
+    });
+
+    test(file + ': route hint fee rate up to 10,000 ppm passes, over fails', () => {
+        assert.ok(check(makeInvoice('lnbc10u', { r: [[{ base: 0, ppm: 10000 }]] }), MSATS));
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [[{ base: 0, ppm: 10001 }]] }), MSATS), null);
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [[{ base: 0, ppm: 1 }, { base: 0, ppm: 20000 }]] }), MSATS), null);
+        // A second route is checked on its own.
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [[{ base: 0, ppm: 1 }], [{ base: 0, ppm: 50000 }]] }), MSATS), null);
+    });
+
+    test(file + ': malformed route hints are refused', () => {
+        const one = routeHex([{ base: 1, ppm: 1 }]);
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [one.slice(0, 100)] }), MSATS), null, 'short hop');
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [one + 'ff'] }), MSATS), null, 'trailing bytes');
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [''] }), MSATS), null, 'empty');
+    });
+
+    test(file + ': a given invoice is checked before paying', async () => {
+        const tipOpts = (bolt11) => ({ bolt11, fixedAmount: true, suggestedAmount: 1000 });
+        const ok = await runFallback(file, null, { tipOpts: tipOpts('lightning:' + valid.toUpperCase()) });
+        assert.deepStrictEqual(ok.paid, [valid]);
+        for (const bad of [makeInvoice('lnbc100u'), makeInvoice('lntb10u'), makeInvoice('lnbc10u', { timestamp: Math.floor(NOW / 1000) - 7200 }),
+            makeInvoice('lnbc10u', { r: [[{ base: 20000, ppm: 0 }]] }), "x');alert(1);('"]) {
+            expectRefused(await runFallback(file, null, { tipOpts: tipOpts(bad) }), 'given ' + bad.slice(0, 20));
+            expectRefused(await runFallback(file, null, { tipOpts: tipOpts(bad), noWallet: true }), 'given qr ' + bad.slice(0, 20));
+        }
+        const qrOk = await runFallback(file, null, { tipOpts: tipOpts(valid), noWallet: true });
+        assert.deepStrictEqual(qrOk.paid, []);
+        assert.deepStrictEqual(qrOk.qr, ['lightning:' + valid]);
+    });
+
+    test(file + ': a server invoice is checked before paying', async () => {
+        const tipOpts = { recipientUid: 'recipient1', fixedAmount: true, suggestedAmount: 1000 };
+        const ok = await runFallback(file, null, { tipOpts, serverInvoice: valid.toUpperCase() });
+        assert.deepStrictEqual(ok.serverCalls, ['requestTipInvoice']);
+        assert.deepStrictEqual(ok.paid, [valid]);
+        for (const bad of [makeInvoice('lnbc10010n'), makeInvoice('lnbc100u'), makeInvoice('lnbcrt10u'),
+            makeInvoice('lnbc10u', { timestamp: Math.floor(NOW / 1000) - 7200 }),
+            makeInvoice('lnbc10u', { r: [[{ base: 0, ppm: 20000 }]] }), 'lnbc10u1garbage']) {
+            const out = await runFallback(file, null, { tipOpts, serverInvoice: bad });
+            expectRefused(out, 'server ' + bad.slice(0, 20));
+            assert.deepStrictEqual(out.calls, [], 'no fallback fetch after a refused server invoice');
+            expectRefused(await runFallback(file, null, { tipOpts, serverInvoice: bad, noWallet: true }), 'server qr ' + bad.slice(0, 20));
+        }
+    });
+
+    test(file + ': a failed metadata check shows the Lightning Address box', async () => {
+        const out = await runFallback(file, makeInvoice('lnbc10u', { h: [sha(META + 'x')] }));
+        expectRefused(out, 'hash');
+        assert.ok(out.res.includes('_tipCopyLnBtn'), 'copy button');
+        assert.ok(out.res.includes('alice@example.com'), 'address shown');
+        const missing = await runFallback(file, goodInvoice, { metadata: undefined });
+        assert.ok(missing.res.includes('_tipCopyLnBtn'));
+        const amount = await runFallback(file, makeInvoice('lnbc100u', { h: [META_HASH] }));
+        expectRefused(amount, 'amount');
+        assert.ok(!amount.res.includes('_tipCopyLnBtn'), 'no address box for a wrong amount');
+    });
+
+    test(file + ': fallback refuses route hints over the fee limit', async () => {
+        expectRefused(await runFallback(file, makeInvoice('lnbc10u', { h: [META_HASH], r: [[{ base: 10001, ppm: 0 }]] })), 'fallback fee');
+        const ok = await runFallback(file, makeInvoice('lnbc10u', { h: [META_HASH], r: [[{ base: 10000, ppm: 10000 }]] }));
+        assert.strictEqual(ok.paid.length, 1);
     });
 });
 

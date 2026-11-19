@@ -4320,6 +4320,19 @@ window.beatsExecuteV4VTip = async function(trackId) {
         var paidCount = 0;
         var rowHtml = '';
 
+        // Check each invoice (amount, network, expiry, route fees) with the
+        // tip checker before paying or showing it. Fails closed if missing.
+        var checkInv = window._tipCheckInvoice;
+        lnurlPayable = lnurlPayable.filter(function(inv) {
+            var ok = typeof checkInv === 'function' ? checkInv(inv.invoice, Number(inv.amountSats) * 1000) : null;
+            if (!ok) {
+                rowHtml += _v4vRow(inv.name, inv.amountSats, 'fail', 'Could not verify this invoice. No payment was sent.');
+                return false;
+            }
+            inv.invoice = ok;
+            return true;
+        });
+
         // 1. Pay LNURL invoices
         if (lnurlPayable.length && hasWallet) {
             btn.textContent = '⏳ Paying ' + lnurlPayable.length + ' LNURL…';
