@@ -5729,8 +5729,12 @@ exports.onPvpMatchFinished = onDocumentUpdated({
         await activityCounters.recordPvpPlayed(db, admin, after, matchId, { skipUids: skipUids, guestMatch: stamp.guestMatch });
         // pvpWins, pvpPlayed and pvpBestStreak (Hot Streak, Unstoppable).
         // awardBadge re-checks each counter on the fresh user doc.
+        // Capped, void, and disconnect uids are in skipUids: do not grant the
+        // played family from a match that did not count as played.
         for (let ri = 0; ri < rewardUids.length; ri++) {
-            await grantFamily(db, admin, rewardUids[ri], familyFor('pvpPlayed'));
+            if (skipUids.indexOf(rewardUids[ri]) === -1) {
+                await grantFamily(db, admin, rewardUids[ri], familyFor('pvpPlayed'));
+            }
             if (winGrantUids.indexOf(rewardUids[ri]) !== -1) {
                 await grantFamily(db, admin, rewardUids[ri], familyFor('pvpWins'));
                 await grantFamily(db, admin, rewardUids[ri], familyFor('pvpBestStreak'));

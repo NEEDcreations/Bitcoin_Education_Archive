@@ -353,6 +353,7 @@ test('awardBadge checks pvp badge counters and finished path grants played badge
     const finish = src.slice(src.indexOf('exports.onPvpMatchFinished'), src.indexOf('exports.onUserDocCreated'));
     assert.ok(finish.includes("familyFor('pvpPlayed')"), 'finished matches must grant played badges');
     assert.ok(finish.includes('skipUids'), 'played grants must skip anonymous and guest-match uids');
+    assert.ok(finish.includes('skipUids.indexOf(rewardUids[ri])'), 'played family is not granted for capped, void, or disconnect uids');
     assert.ok(!src.includes('pvp badge rejected'), 'awardPoints must not log pvp badge rejections with a uid');
 });
 
@@ -559,6 +560,59 @@ test('farm caps skip win-badge grants for the capped player', function () {
     const youngBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, young);
     assert.deepStrictEqual(youngBadges.winGrantUids, ['p2']);
     assert.deepStrictEqual(youngBadges.skipUids, ['p1']);
+});
+
+test('an instant tied forfeit does not count as played', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+    const voided = flow.planPvpReward({
+        matchId: 'm-void',
+        status: 'forfeit',
+        forfeitReason: 'manual_leave',
+        forfeitedBy: 'p1',
+        durationMs: 1000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 10, roundWins: 1 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(voided.reason, 'forfeit_void');
+    const badges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, voided);
+    assert.deepStrictEqual(badges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(badges.winGrantUids, []);
+});
+
+test('a disconnect does not count as played', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+    const disc = flow.planPvpReward({
+        matchId: 'm-disc',
+        status: 'forfeit',
+        forfeitReason: 'disconnect',
+        forfeitedBy: 'p1',
+        durationMs: 60000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 2 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(disc.reason, 'disconnect');
+    const badges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, disc);
+    assert.deepStrictEqual(badges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(badges.winGrantUids, []);
+});
+
+test('a normal 30s+ finished match still counts as played', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+    const ok = flow.planPvpReward({
+        matchId: 'm-ok',
+        status: 'finished',
+        durationMs: 30000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(ok.reason, 'win');
+    const badges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, ok);
+    assert.deepStrictEqual(badges.rewardUids, ['p1', 'p2']);
+    assert.deepStrictEqual(badges.skipUids, []);
+    assert.deepStrictEqual(badges.winGrantUids, ['p1', 'p2']);
 });
 
 test('settle reads the pair count inside the transaction and uses finish time', function () {

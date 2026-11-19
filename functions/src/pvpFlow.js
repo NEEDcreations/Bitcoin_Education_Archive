@@ -819,6 +819,14 @@ function planPvpBadgeGrants(sideUids, stamp, plan) {
     const uids = (sideUids || []).filter(function (u) { return typeof u === 'string' && u; });
     const guest = !stamp || stamp.guestMatch !== false;
     if (guest) return { rewardUids: [], skipUids: uids, winGrantUids: [], fields: [] };
+    const reason = plan && plan.reason;
+    // forfeit_void (tied manual_leave) and disconnect return from planPvpReward
+    // before the duration and pair-cap checks, so those players are not marked
+    // statsCapped. Still skip both sides: an instant tied forfeit or a
+    // disconnect must not bump pvpPlayed or grant pvp_played_* badges.
+    if (reason === 'forfeit_void' || reason === 'disconnect') {
+        return { rewardUids: uids, skipUids: uids.slice(), winGrantUids: [], fields: PVP_BADGE_FIELDS.slice() };
+    }
     const capped = {};
     (plan && plan.players || []).forEach(function (p) {
         if (p && p.uid && p.statsCapped === true) capped[p.uid] = true;
