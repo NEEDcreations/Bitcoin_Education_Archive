@@ -299,5 +299,24 @@ test('other data types and mailto with extra content are refused', function () {
     });
 });
 
+test('image alt and link text with a bare URL carrying a handler stay inert', function () {
+    [
+        '![https://x.example/onerror=alert(1)// ](https://nope.invalid/a.png)',
+        '![x https://x.example/onerror=alert(1)//](https://nope.invalid/a.png)',
+        '[![https://x.example/onerror=alert(1)//](https://nope.invalid/a.png)](https://ok.example/)',
+        '**![https://x.example/onerror=alert(1)//](https://nope.invalid/a.png)**',
+        '> ![https://x.example/onerror=alert(1)//](https://nope.invalid/a.png)',
+        '![a](https://nope.invalid/a.png "https://x.example/onerror=alert(1)//")',
+        '[https://x.example/onmouseover=alert(1)// ](https://ok.example/)',
+        '[x https://a.b/" onmouseover="x() y](https://ok.example/)',
+    ].forEach(function (input) {
+        const html = assertClean(input);
+        tags(html).forEach(function (t) {
+            t.attrs.forEach(function (a) { assert.ok(!/^on/i.test(a.name), input + ' => ' + a.name); });
+            if (t.name === 'img') t.attrs.forEach(function (a) { assert.ok(['src', 'alt', 'style'].indexOf(a.name) !== -1, input + ' => img ' + a.name); });
+        });
+    });
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
