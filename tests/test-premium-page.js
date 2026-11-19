@@ -157,6 +157,75 @@ function run(hostname, search, reply, plan, opts) {
         assert.ok(/busy/.test(g.msg.textContent));
         ['founders_sign_in', 'founders_busy', 'hold_exists_ip', 'rate_limited_global'].forEach(function (k) { assert.ok(js.indexOf(k + ':') !== -1, k); });
     });
+
+    function loadReturn(search, href) {
+        const nodes = {};
+        function el(id) {
+            return nodes[id] || (nodes[id] = { id: id, hidden: true, disabled: false, value: '', textContent: '', className: '', checked: false, children: [],
+                focus: function () {}, appendChild: function (c) { this.children.push(c); return c; }, addEventListener: function (t, fn) { this['on' + t] = fn; } });
+        }
+        const form = el('premiumForm');
+        form.addEventListener = function () {};
+        form.querySelector = function () { return null; };
+        el('pmReceived').hidden = true;
+        el('pmReceivedPlan').hidden = true;
+        el('pmReceivedPlan').textContent = '';
+        el('pmCheckout').hidden = false;
+        const replaced = [];
+        const ctx = {
+            location: { hostname: 'premium-322.bq-staging.pages.dev', search: search, href: href || ('https://premium-322.bq-staging.pages.dev/premium' + search), pathname: '/premium', hash: '', assign: function (u) { ctx.assigned = u; } },
+            URL: URL,
+            URLSearchParams: URLSearchParams,
+            history: { replaceState: function (st, t, url) { replaced.push(url); }, state: null },
+            document: { getElementById: el, createElement: function () { return {}; }, head: { appendChild: function () {} } },
+            window: { history: { replaceState: function (st, t, url) { replaced.push(url); } } },
+        };
+        ctx.window.history = ctx.history;
+        vm.runInNewContext(js, ctx);
+        return { nodes: nodes, replaced: replaced, assigned: ctx.assigned, ctx: ctx };
+    }
+
+    test('public success, signed-out: Payment received, allowlisted plan, no URL params in the DOM', function () {
+        const q = '?premium=success&order=ord_SECRET123&email=victim@example.com&name=Alice&amount=47.50&session_id=cs_test_SECRET&plan=yearly';
+        const r = loadReturn(q);
+        const rec = r.nodes.pmReceived;
+        const plan = r.nodes.pmReceivedPlan;
+        assert.strictEqual(rec.hidden, false);
+        assert.strictEqual(plan.hidden, false);
+        assert.strictEqual(plan.textContent, 'yearly');
+        assert.strictEqual(r.nodes.pmReceivedTitle ? r.nodes.pmReceivedTitle.textContent : 'Payment received', 'Payment received');
+        assert.ok(html.indexOf('Sign in with the email you paid with to claim your Premium') !== -1);
+        assert.strictEqual(r.nodes.pmCheckout.hidden, true);
+        assert.strictEqual(r.nodes.premiumForm.hidden, true);
+        const dumped = JSON.stringify(r.nodes);
+        ['ord_SECRET123', 'victim@example.com', 'Alice', '47.50', 'cs_test_SECRET'].forEach(function (bad) {
+            assert.strictEqual(dumped.indexOf(bad), -1, 'leaked ' + bad);
+        });
+        assert.ok(r.replaced.length);
+        assert.ok(r.replaced.every(function (u) { return !/ord_SECRET123|victim@example.com|plan=yearly|premium=success/.test(u); }));
+        r.nodes.pmSignIn.onclick();
+        assert.strictEqual(r.ctx.assigned, '/?premium=success&plan=yearly');
+    });
+
+    test('public success: unknown plan shows no plan name and does not echo the raw param', function () {
+        const r = loadReturn('?premium=success&plan=enterprise&order=ord_LEAK');
+        assert.strictEqual(r.nodes.pmReceived.hidden, false);
+        assert.strictEqual(r.nodes.pmReceivedPlan.textContent, '');
+        assert.strictEqual(r.nodes.pmReceivedPlan.hidden, true);
+        const dumped = JSON.stringify(r.nodes);
+        assert.strictEqual(dumped.indexOf('enterprise'), -1);
+        assert.strictEqual(dumped.indexOf('ord_LEAK'), -1);
+        r.nodes.pmSignIn.onclick();
+        assert.strictEqual(r.ctx.assigned, '/?premium=success');
+    });
+
+    test('public Payment received screen has 44px Sign in and light/dark styles', function () {
+        assert.ok(/#pmReceived \.signin\{min-height:44px;min-width:44px/.test(html));
+        assert.ok(/@media \(prefers-color-scheme: light\)/.test(html));
+        assert.ok(html.indexOf('Payment received') !== -1);
+        assert.ok(/premium\.js\?v=20261119_v2613/.test(html));
+    });
+
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);
 })();

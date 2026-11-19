@@ -33,8 +33,22 @@
 
   function endpoint() { return LIVE_HOSTS.indexOf(location.hostname) !== -1 ? ENDPOINTS.live : ENDPOINTS.staging; }
   function cleanSrc(v) { v = String(v || '').toLowerCase().trim(); return /^[a-z0-9][a-z0-9_-]{0,39}$/.test(v) ? v : ''; }
+  var PLAN_NAMES = { monthly: 'monthly', yearly: 'yearly', founders: "Founders' Lifetime" };
+  function allowlistedPlan(raw) {
+    var k = String(raw == null ? '' : raw).toLowerCase();
+    return Object.prototype.hasOwnProperty.call(PLAN_NAMES, k) ? PLAN_NAMES[k] : '';
+  }
+  function stripReturnParams() {
+    try {
+      var href = location.href || ('https://' + (location.hostname || 'bitcoineducation.quest') + '/premium' + (location.search || ''));
+      var u = new URL(href);
+      ['premium', 'order', 'plan', 'session_id', 'email', 'name', 'amount', 'customer_email', 'customer', 'invoice', 'invoiceId', 'invoice_id'].forEach(function (k) { u.searchParams.delete(k); });
+      if (window.history && history.replaceState) history.replaceState(history.state, '', u.pathname + (u.search || '') + u.hash);
+    } catch (_) {}
+  }
   var params = new URLSearchParams(location.search);
   var src = cleanSrc(params.get('src'));
+  var planLabel = allowlistedPlan(params.get('plan'));
 
   var MESSAGES = {
     success: ["You're in. Check your email for your receipt, then sign in to Bitcoin Quest with the same email.", 'ok'],
@@ -59,7 +73,33 @@
     msg.textContent = m[0]; msg.className = 'msg ' + m[1];
   }
   var back = params.get('premium');
-  if (back === 'success' || back === 'cancel') show(back);
+  if (back === 'success') {
+    var rec = document.getElementById('pmReceived');
+    var recPlan = document.getElementById('pmReceivedPlan');
+    var signIn = document.getElementById('pmSignIn');
+    var checkout = document.getElementById('pmCheckout');
+    if (rec) {
+      if (recPlan) {
+        if (planLabel) { recPlan.textContent = planLabel; recPlan.hidden = false; }
+        else { recPlan.textContent = ''; recPlan.hidden = true; }
+      }
+      rec.hidden = false;
+    }
+    if (checkout) checkout.hidden = true;
+    if (form) form.hidden = true;
+    if (signIn) signIn.addEventListener('click', function () {
+      var q = '/?premium=success';
+      if (planLabel === 'monthly' || planLabel === 'yearly' || planLabel === "Founders' Lifetime") {
+        var key = planLabel === "Founders' Lifetime" ? 'founders' : planLabel;
+        q += '&plan=' + key;
+      }
+      location.assign(q);
+    });
+    stripReturnParams();
+  } else if (back === 'cancel') {
+    show(back);
+    stripReturnParams();
+  }
   if (SHOW_BTC_LINE) { var n = document.getElementById('btcNote'); if (n) n.hidden = false; }
 
   var ts = document.createElement('script');

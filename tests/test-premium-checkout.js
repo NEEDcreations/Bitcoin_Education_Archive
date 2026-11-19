@@ -714,6 +714,7 @@ test('staging app hosts: dev.bitcoineducation.quest and bq-staging previews are 
     c.rawRequest = { headers: { origin: 'https://premium-322.bq-staging.pages.dev' }, get: function (k) { return this.headers[k.toLowerCase()]; } };
     await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, c);
     assert.ok(bodyOf(a.calls[0]).indexOf('success_url=https://premium-322.bq-staging.pages.dev/?premium=success') !== -1);
+    assert.ok(bodyOf(a.calls[0]).indexOf('&plan=monthly') !== -1);
     const evil = ctx('old');
     evil.rawRequest = { headers: { origin: 'https://evil.example' }, get: function (k) { return this.headers[k.toLowerCase()]; } };
     a.clock.now += 1;
@@ -811,6 +812,7 @@ test('public checkout: full price only, src carried, email locked, CORS + Turnst
     assert.ok(body.indexOf('customer_email=old@example.com') !== -1);
     assert.ok(body.indexOf('metadata[src]=yt-teaser') !== -1);
     assert.ok(body.indexOf('success_url=https://preview1.bitcoin-quest.pages.dev/premium?premium=success') !== -1);
+    assert.ok(body.indexOf('&plan=yearly') !== -1);
     assert.strictEqual(res.headers['access-control-allow-origin'], 'https://preview1.bitcoin-quest.pages.dev');
     assert.strictEqual((await publicPost(a, { plan: 'yearly', rail: 'card', email: 'x@example.com', turnstileToken: 'ok-token' }, 'https://evil.example')).code, 403);
     assert.strictEqual((await publicPost(a, { plan: 'yearly', rail: 'card', email: 'x@example.com', turnstileToken: 'bad' })).body.reason, 'turnstile');
@@ -923,6 +925,7 @@ test('BTCPay Founders (mock store): $135 / $127.50, 15-min invoice + hold, final
     assert.strictEqual(post.checkout.expirationMinutes, 15);
     assert.strictEqual(post.checkout.redirectAutomatically, false);
     assert.ok(/^https:\/\/dev\.bitcoineducation\.quest\/\?premium=success&order=/.test(post.checkout.redirectURL));
+    assert.ok(/&plan=founders/.test(post.checkout.redirectURL));
     assert.ok(/final sale, no refunds/.test(post.metadata.itemDesc));
     assert.strictEqual(post.metadata.orderId, f.orderId);
     assert.strictEqual(a.calls[0].init.redirect, 'error');

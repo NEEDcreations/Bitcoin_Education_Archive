@@ -47,11 +47,29 @@
   .agree input{margin-top:4px;width:18px;height:18px;flex:0 0 auto}
   .foot{margin-top:18px;font-size:.8rem;color:#6b7280;text-align:center}
   .foot a,.fine a{color:#f7931a;text-decoration:none}
+  #pmReceived{width:100%;max-width:460px;margin:0 auto 22px;background:#12151d;border:1px solid #232838;border-radius:16px;padding:24px 20px;color:#e5e7eb}
+  #pmReceived h2{margin:0 0 10px;font-size:1.3rem;color:#fff}
+  #pmReceived .pmPlan{margin:0 0 12px;font-size:16px;color:#e5e7eb}
+  #pmReceived .hint{margin:0 0 16px;font-size:16px;color:#cbd5e1}
+  #pmReceived .signin{min-height:44px;min-width:44px;display:block;width:100%;padding:12px 18px;border:0;border-radius:10px;background:#F7931A;color:#111;font-weight:700;font-size:16px;cursor:pointer}
+  @media (prefers-color-scheme: light){
+    #pmReceived{background:#ffffff;border-color:#e2e8f0;color:#0f172a}
+    #pmReceived h2{color:#0f172a}
+    #pmReceived .pmPlan{color:#0f172a}
+    #pmReceived .hint{color:#334155}
+  }
   @media (max-width:720px){.plans{grid-template-columns:1fr}}
+  @media (min-width:1280px){#pmReceived{max-width:460px}}
 </style>
 </head>
 <body>
 <main class="wrap">
+  <section id="pmReceived" hidden>
+    <h2 id="pmReceivedTitle">Payment received</h2>
+    <p id="pmReceivedPlan" class="pmPlan" hidden></p>
+    <p class="hint">Sign in with the email you paid with to claim your Premium</p>
+    <button type="button" class="signin" id="pmSignIn">Sign in</button>
+  </section>
   <div class="eyebrow">Bitcoin Quest</div>
   <h1>Bitcoin Quest Premium</h1>
   <p class="lede">Embers and Citadel cosmetics unlock with Citadel Spark on Jan 3. Every other perk starts the moment you buy.</p>
@@ -99,6 +117,6 @@
 
   <p class="foot"><a href="/">Bitcoin Quest</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
 </main>
-<script src="/premium.js" defer></script>
+<script src="/premium.js?v=20261119_v2613" defer></script>
 </body>
 </html>

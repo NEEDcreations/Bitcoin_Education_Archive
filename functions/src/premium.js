@@ -830,6 +830,12 @@ function createPremiumHandlers(deps) {
         try {
             const base = who.returnBase || siteUrl();
             const back = channel === 'public' ? base + '/premium' : base + '/';
+            // plan= is an allowlisted slug only (monthly|yearly|founders). The
+            // client shows that name on the signed-out return screen and never
+            // echoes other URL params (email, amount, order id) into the DOM.
+            const planQs = (q.plan === 'monthly' || q.plan === 'yearly' || q.plan === 'founders') ? '&plan=' + q.plan : '';
+            const successQs = '?premium=success&order=' + orderId + planQs;
+            const cancelQs = '?premium=cancel&order=' + orderId;
             const metadata = { orderId: orderId };
             if (src) metadata.src = src;
             if (provider === 'stripe') {
@@ -850,8 +856,8 @@ function createPremiumHandlers(deps) {
                             recurring: q.cardMode === 'subscription' ? { interval: q.interval } : undefined,
                         },
                     }],
-                    success_url: back + '?premium=success&order=' + orderId,
-                    cancel_url: back + '?premium=cancel&order=' + orderId,
+                    success_url: back + successQs,
+                    cancel_url: back + cancelQs,
                     expires_at: Math.floor(nowMs / 1000) + STRIPE_CHECKOUT_MINUTES * 60,
                 };
                 if (q.cardMode === 'subscription') {
@@ -876,7 +882,7 @@ function createPremiumHandlers(deps) {
                     metadata: Object.assign({ itemDesc: q.label + ' (final sale, no refunds)' }, metadata),
                     checkout: {
                         expirationMinutes: BTCPAY_INVOICE_MINUTES,
-                        redirectURL: back + '?premium=success&order=' + orderId,
+                        redirectURL: back + successQs,
                         redirectAutomatically: false,
                     },
                 });

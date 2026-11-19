@@ -36,7 +36,7 @@ test('kill switch and other server reasons have friendly messages', function () 
     });
 });
 test('loaded on index.html and 404.html with the same buster', function () {
-    const tag = '<script src="/premium-buy.js?v=20261118_v2612" defer></script>';
+    const tag = '<script src="/premium-buy.js?v=20261119_v2613" defer></script>';
     assert.ok(index.includes(tag));
     assert.ok(notFound.includes(tag));
     assert.strictEqual(index, notFound);
@@ -247,10 +247,156 @@ async function mountWith(status, fail) {
         assert.strictEqual(n, 2);
         assert.strictEqual(toasts.indexOf('Premium is on.'), -1);
     });
-    await atest('success and portal returns start the status watch; success_url carries ?premium=success', async function () {
-        assert.ok(/if \(p === 'success' \|\| p === 'portal'\) watchReturn\(p\)/.test(js));
+    await atest('success and portal returns start the status watch; success_url carries ?premium=success and an allowlisted plan', async function () {
+        assert.ok(/if \(p === 'success'\) \{ stripParams\(\); handleSuccessReturn\(planLabel\); return; \}/.test(js));
+        assert.ok(/if \(p === 'portal'\) watchReturn\(p\)/.test(js));
         const srv = fs.readFileSync(path.join(root, 'functions/src/premium.js'), 'utf8');
-        assert.ok(srv.indexOf("success_url: back + '?premium=success&order=' + orderId") !== -1);
+        assert.ok(srv.indexOf("success_url: back + successQs") !== -1);
+        assert.ok(srv.indexOf("const successQs = '?premium=success&order=' + orderId + planQs;") !== -1);
+        assert.ok(srv.indexOf("q.plan === 'monthly' || q.plan === 'yearly' || q.plan === 'founders'") !== -1);
+    });
+
+    function contrast(fg, bg) {
+        function lin(c) {
+            c = c / 255;
+            return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        }
+        function lum(hex) {
+            const h = hex.replace('#', '');
+            const n = parseInt(h.length === 3 ? h[0]+h[0]+h[1]+h[1]+h[2]+h[2] : h, 16);
+            const r = lin((n >> 16) & 255), g = lin((n >> 8) & 255), b = lin(n & 255);
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        }
+        const L1 = lum(fg), L2 = lum(bg);
+        const hi = Math.max(L1, L2), lo = Math.min(L1, L2);
+        return (hi + 0.05) / (lo + 0.05);
+    }
+    function allText(n, out) {
+        out = out || [];
+        if (!n) return out;
+        if (n.textContent) out.push(n.textContent);
+        (n.children || []).forEach(function (c) { allText(c, out); });
+        return out;
+    }
+    function installDom(search, href) {
+        const body = fakeNode('body');
+        body.appendChild = function (c) { c.parentNode = this; this.children.push(c); return c; };
+        ctx.document.createElement = function (tag) {
+            const n = fakeNode(tag);
+            n.style = { cssText: '' };
+            n.setAttribute = function (k, v) { this.attrs = this.attrs || {}; this.attrs[k] = v; };
+            return n;
+        };
+        ctx.document.body = body;
+        ctx.document.documentElement = { getAttribute: function () { return 'dark'; } };
+        ctx.document.getElementById = function () { return null; };
+        const replaced = [];
+        ctx.history.replaceState = function (st, t, url) { replaced.push(url); };
+        ctx.location.search = search;
+        ctx.location.href = href || ('https://dev.bitcoineducation.quest/' + search);
+        ctx.location.pathname = '/';
+        return { body: body, replaced: replaced };
+    }
+
+    await atest('plan allowlist: only monthly, yearly, Founders\' Lifetime; unknown is blank', function () {
+        assert.strictEqual(T.allowlistedPlan('monthly'), 'monthly');
+        assert.strictEqual(T.allowlistedPlan('YEARLY'), 'yearly');
+        assert.strictEqual(T.allowlistedPlan('founders'), "Founders' Lifetime");
+        assert.strictEqual(T.allowlistedPlan('months'), '');
+        assert.strictEqual(T.allowlistedPlan('enterprise'), '');
+        assert.strictEqual(T.allowlistedPlan('monthly<script>'), '');
+        assert.strictEqual(T.allowlistedPlan('victim@example.com'), '');
+        assert.strictEqual(T.allowlistedPlan('ord_SECRET'), '');
+        assert.strictEqual(T.allowlistedPlan(null), '');
+        assert.strictEqual(T.PLAN_NAMES.monthly, 'monthly');
+        assert.strictEqual(T.PLAN_NAMES.yearly, 'yearly');
+        assert.strictEqual(T.PLAN_NAMES.founders, "Founders' Lifetime");
+        assert.strictEqual(Object.keys(T.PLAN_NAMES).sort().join(','), 'founders,monthly,yearly');
+    });
+
+    await atest('signed-out success: Payment received screen, allowlisted plan, no URL params in the DOM', async function () {
+        toasts.length = 0;
+        const signIns = [];
+        ctx.showSignInOnly = function () { signIns.push(1); };
+        ctx.auth = { currentUser: null, onAuthStateChanged: function (fn) { fn(null); return function () {}; } };
+        const q = '?premium=success&order=ord_SECRET123&email=victim@example.com&name=Alice&amount=47.50&session_id=cs_test_SECRET&plan=yearly';
+        const dom = installDom(q, 'https://dev.bitcoineducation.quest/' + q);
+        T.boot();
+        const overlay = dom.body.children[0];
+        assert.ok(overlay, 'screen should mount');
+        const t = allText(overlay).join(' | ');
+        assert.ok(t.indexOf('Payment received') !== -1);
+        assert.ok(t.indexOf('yearly') !== -1);
+        assert.ok(t.indexOf('Sign in with the email you paid with to claim your Premium') !== -1);
+        assert.ok(t.indexOf('Sign in') !== -1);
+        ['ord_SECRET123', 'victim@example.com', 'Alice', '47.50', 'cs_test_SECRET'].forEach(function (bad) {
+            assert.strictEqual(t.indexOf(bad), -1, 'leaked ' + bad);
+        });
+        assert.ok(dom.replaced.length, 'URL should be tidied');
+        assert.ok(dom.replaced.every(function (u) { return !/ord_SECRET123|victim@example.com|Alice|47\.50|cs_test_SECRET|plan=yearly|premium=success/.test(u); }));
+        assert.strictEqual(toasts.indexOf("Thanks! Your payment is being confirmed. Premium turns on within a minute."), -1);
+        // Sign in button is 44px and opens existing sign-in
+        const btn = (function find(n) {
+            if (!n) return null;
+            if (n.tag === 'button' && n.textContent === 'Sign in') return n;
+            for (var i = 0; i < (n.children || []).length; i++) { var f = find(n.children[i]); if (f) return f; }
+            return null;
+        })(overlay);
+        assert.ok(btn);
+        assert.ok(/min-height:44px/.test(btn.style.cssText));
+        assert.ok(/min-width:44px/.test(btn.style.cssText));
+        btn.onclick();
+        assert.strictEqual(signIns.length, 1);
+        if (typeof T.close === 'function') T.close();
+    });
+
+    await atest('signed-out success: unknown plan shows no plan name and does not echo the raw param', async function () {
+        toasts.length = 0;
+        ctx.auth = { currentUser: null, onAuthStateChanged: function (fn) { fn(null); return function () {}; } };
+        const q = '?premium=success&plan=enterprise&order=ord_LEAK';
+        const dom = installDom(q, 'https://dev.bitcoineducation.quest/' + q);
+        T.boot();
+        const t = allText(dom.body.children[0]).join(' | ');
+        assert.ok(t.indexOf('Payment received') !== -1);
+        assert.strictEqual(t.indexOf('enterprise'), -1);
+        assert.strictEqual(t.indexOf('ord_LEAK'), -1);
+        assert.strictEqual(t.indexOf('monthly'), -1);
+        assert.strictEqual(t.indexOf('yearly'), -1);
+        assert.strictEqual(t.indexOf("Founders' Lifetime"), -1);
+        if (typeof T.close === 'function') T.close();
+    });
+
+    await atest('signed-in success keeps the Confirming payment toast and status watch, no Payment received screen', async function () {
+        toasts.length = 0;
+        let n = 0;
+        ctx.auth = { currentUser: { isAnonymous: false } };
+        ctx.firebase = { functions: function () { return { httpsCallable: function () { return function () { n++; return Promise.resolve({ data: { active: true } }); }; } }; } };
+        const q = '?premium=success&plan=monthly&order=ord_HIDE&email=victim@example.com';
+        const dom = installDom(q, 'https://dev.bitcoineducation.quest/' + q);
+        T.boot();
+        await new Promise(function (r) { setTimeout(r, 20); });
+        assert.strictEqual(dom.body.children.length, 0, 'no signed-out screen when signed in');
+        assert.ok(toasts.indexOf("Thanks! Your payment is being confirmed. Premium turns on within a minute.") !== -1);
+        const dumped = allText(dom.body).join(' | ');
+        assert.strictEqual(dumped.indexOf('Payment received'), -1);
+        assert.strictEqual(dumped.indexOf('ord_HIDE'), -1);
+        assert.strictEqual(dumped.indexOf('victim@example.com'), -1);
+    });
+
+    await atest('Payment received screen meets 44px and 4.5:1 contrast in dark and light', function () {
+        assert.ok(contrast('#e5e7eb', '#0f1115') >= 4.5);
+        assert.ok(contrast('#cbd5e1', '#0f1115') >= 4.5);
+        assert.ok(contrast('#0f172a', '#ffffff') >= 4.5);
+        assert.ok(contrast('#334155', '#ffffff') >= 4.5);
+        assert.ok(contrast('#111111', '#F7931A') >= 4.5);
+        ctx.document.documentElement = { getAttribute: function () { return 'light'; } };
+        assert.strictEqual(T.isLightTheme(), true);
+        ctx.document.documentElement = { getAttribute: function () { return 'dark'; } };
+        assert.strictEqual(T.isLightTheme(), false);
+        const src = js;
+        assert.ok(src.indexOf('min-height:44px') !== -1);
+        assert.ok(src.indexOf("font:16px/1.45") !== -1);
+        assert.ok(src.indexOf('max-width:460px') !== -1);
     });
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);

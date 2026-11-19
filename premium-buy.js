@@ -389,13 +389,118 @@
         cancel: 'Checkout canceled. You were not charged.',
         portal: 'Billing settings updated.'
     };
+    // Plan name on the signed-out return screen comes only from this list.
+    // Unknown or missing values show nothing. Raw query text never goes in the DOM.
+    var PLAN_NAMES = { monthly: 'monthly', yearly: 'yearly', founders: "Founders' Lifetime" };
+    function allowlistedPlan(raw) {
+        var k = String(raw == null ? '' : raw).toLowerCase();
+        return Object.prototype.hasOwnProperty.call(PLAN_NAMES, k) ? PLAN_NAMES[k] : '';
+    }
+    function isLightTheme() {
+        try {
+            var t = (document.documentElement && document.documentElement.getAttribute('data-theme'))
+                || (document.body && document.body.getAttribute && document.body.getAttribute('data-theme'))
+                || '';
+            if (t === 'light') return true;
+            if (t === 'dark') return false;
+            if (document.body && document.body.classList && document.body.classList.contains('oled-theme')) return false;
+            return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+        } catch (e) { return false; }
+    }
     function stripParams() {
         try {
             var u = new URL(location.href);
-            u.searchParams.delete('premium');
-            u.searchParams.delete('order');
+            ['premium', 'order', 'plan', 'session_id', 'email', 'name', 'amount', 'customer_email', 'customer', 'invoice', 'invoiceId', 'invoice_id'].forEach(function (k) { u.searchParams.delete(k); });
             history.replaceState(history.state, '', u.pathname + (u.search || '') + u.hash);
         } catch (e) {}
+    }
+    // Signed-out return from Stripe or BTCPay: static claim screen. Never reads
+    // or shows email, name, amount or order id from the URL.
+    function showPaymentReceived(planLabel) {
+        close();
+        var light = isLightTheme();
+        var cardBg = light ? '#ffffff' : '#0f1115';
+        var cardFg = light ? '#0f172a' : '#e5e7eb';
+        var cardBd = light ? '#e2e8f0' : '#2a2f3a';
+        var muted = light ? '#334155' : '#cbd5e1';
+        var overlayBg = light ? 'rgba(15,23,42,.45)' : 'rgba(0,0,0,.72)';
+        overlay = el('div', 'position:fixed;inset:0;z-index:100000;background:' + overlayBg + ';display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px');
+        overlay.id = 'bqPremiumReceived';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'bqPremiumReceivedTitle');
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        var box = el('div', 'width:100%;max-width:460px;background:' + cardBg + ';color:' + cardFg + ';border:1px solid ' + cardBd + ';border-radius:16px;padding:24px 20px;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;position:relative');
+        var x = el('button', 'position:absolute;top:8px;right:8px;min-height:44px;min-width:44px;background:none;border:0;color:' + muted + ';font-size:22px;cursor:pointer', '×');
+        x.setAttribute('aria-label', 'Close');
+        x.addEventListener('click', close);
+        box.appendChild(x);
+        var title = el('h2', 'margin:0 0 10px;font-size:1.3rem;color:' + cardFg, 'Payment received');
+        title.id = 'bqPremiumReceivedTitle';
+        box.appendChild(title);
+        var shown = (planLabel === 'monthly' || planLabel === 'yearly' || planLabel === "Founders' Lifetime") ? planLabel : allowlistedPlan(planLabel);
+        if (shown) box.appendChild(el('p', 'margin:0 0 12px;font-size:16px;color:' + cardFg, shown));
+        box.appendChild(el('p', 'margin:0 0 16px;font-size:16px;color:' + muted, 'Sign in with the email you paid with to claim your Premium'));
+        var btn = el('button', 'min-height:44px;min-width:44px;display:block;width:100%;padding:12px 18px;border:0;border-radius:10px;background:#F7931A;color:#111;font-weight:700;font-size:16px;cursor:pointer', 'Sign in');
+        btn.type = 'button';
+        btn.addEventListener('click', function () {
+            if (typeof window.showSignInOnly === 'function') window.showSignInOnly();
+        });
+        box.appendChild(btn);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        var a = authObj();
+        if (a && typeof a.onAuthStateChanged === 'function') {
+            var off = a.onAuthStateChanged(function (u) {
+                if (u && !u.isAnonymous) {
+                    if (typeof off === 'function') off();
+                    close();
+                    toast(RETURN_MSG.success);
+                    watchReturn('success');
+                }
+            });
+        }
+        return overlay;
+    }
+    function handleSuccessReturn(planLabel) {
+        function startSignedIn() {
+            toast(RETURN_MSG.success);
+            watchReturn('success');
+        }
+        if (signedIn()) { startSignedIn(); return; }
+        var settled = false;
+        function asSignedOut() {
+            if (settled) return;
+            settled = true;
+            showPaymentReceived(planLabel);
+        }
+        function asSignedIn() {
+            if (settled) return;
+            settled = true;
+            startSignedIn();
+        }
+        var a = authObj();
+        if (a && typeof a.onAuthStateChanged === 'function') {
+            var off = a.onAuthStateChanged(function (u) {
+                if (typeof off === 'function') off();
+                if (u && !u.isAnonymous) asSignedIn();
+                else asSignedOut();
+            });
+            setTimeout(function () {
+                if (settled) return;
+                if (signedIn()) asSignedIn();
+                else asSignedOut();
+            }, 3000);
+            return;
+        }
+        var tries = 0;
+        (function wait() {
+            if (signedIn()) { asSignedIn(); return; }
+            var a2 = authObj();
+            if (a2 && typeof a2.onAuthStateChanged === 'function') { handleSuccessReturn(planLabel); return; }
+            if (++tries > 6) { asSignedOut(); return; }
+            setTimeout(wait, 500);
+        })();
     }
     // Back from Stripe: the webhook may land a few seconds after the redirect.
     // Re-read status a few times, then refresh Settings and tell the app.
@@ -424,13 +529,16 @@
     }
     function boot() {
         var p = '';
+        var planLabel = '';
         try {
             var qs = new URLSearchParams(location.search);
             p = qs.get('premium') || '';
+            planLabel = allowlistedPlan(qs.get('plan'));
             var s = (qs.get('src') || '').toLowerCase();
             if (/^[a-z0-9_-]{1,40}$/.test(s)) sessionStorage.setItem('bq_premium_src', s);
         } catch (e) {}
-        if (RETURN_MSG[p]) { toast(RETURN_MSG[p]); stripParams(); if (p === 'success' || p === 'portal') watchReturn(p); return; }
+        if (p === 'success') { stripParams(); handleSuccessReturn(planLabel); return; }
+        if (RETURN_MSG[p]) { toast(RETURN_MSG[p]); stripParams(); if (p === 'portal') watchReturn(p); return; }
         var pending = '';
         try { pending = sessionStorage.getItem('bq_premium_pending') || ''; } catch (e) {}
         var want = (p === 'buy' || p === 'founders') ? p : pending;
@@ -463,7 +571,7 @@
             setTimeout(wait, 500);
         })();
     }
-    window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS, holdText: holdText, holdMinutesLeft: holdMinutesLeft, isCardSubscriber: isCardSubscriber, mountSettingsBilling: mountSettingsBilling, render: render, watchReturn: watchReturn, boot: boot };
+    window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS, holdText: holdText, holdMinutesLeft: holdMinutesLeft, isCardSubscriber: isCardSubscriber, mountSettingsBilling: mountSettingsBilling, render: render, watchReturn: watchReturn, boot: boot, allowlistedPlan: allowlistedPlan, isLightTheme: isLightTheme, showPaymentReceived: showPaymentReceived, handleSuccessReturn: handleSuccessReturn, PLAN_NAMES: PLAN_NAMES, close: close };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
 })();

@@ -391,3 +391,22 @@ entitlement, allowance and per-account rate docs are deleted, as before.
   On staging, any non-empty token passes; rate limits, CORS, the kill switch and the
   final-sale box still apply.
 - No client files changed, so the SW stays `btc-archive-v2612`.
+
+## Round 11 (Nov 19, signed-out Payment received screen)
+
+- Buyers who return from Stripe or BTCPay while signed out now see a static
+  **Payment received** screen: the plan name (only `monthly`, `yearly`, or
+  `Founders' Lifetime`; unknown or missing stays blank), "Sign in with the
+  email you paid with to claim your Premium", and a Sign in button that opens
+  the existing sign-in. Signed-in buyers keep the existing "Thanks! Your
+  payment is being confirmed…" toast and status watch.
+- The screen never reads or shows an email, name, amount, or order id from the
+  return URL, and it never echoes other query values into the DOM. The
+  success URL adds an allowlisted `&plan=` slug only. The client then tidies
+  `premium`, `order`, `plan`, and `session_id` from the address bar.
+- No new Cloud Function. The plan on the signed-out screen comes from that
+  allowlisted slug; after sign-in, status still comes from `getPremiumStatus`.
+- Public `/premium` uses the same screen (Sign in goes to `/?premium=success`
+  with the allowlisted plan only). Light and dark themes, 44px controls, and
+  4.5:1 contrast; the card is capped at 460px so it holds at 375px and 1280px.
+- Cache bump `btc-archive-v2613` (premium-buy.js and premium.js `20261119_v2613`).
