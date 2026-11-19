@@ -9072,6 +9072,23 @@ function articleTipTotal(a) {
 }
 // Image URL for an attribute: http(s), same-site path, or inline base64 picture.
 function articleImgUrl(u) { return typeof u === 'string' && u ? mdSafeUrl(fEsc(u), 'img') : ''; }
+// Stored author fields and cover URL for a new or edited article.
+function articleAuthorPic(u) {
+    if (u === '') return '';
+    if (typeof u !== 'string') return '';
+    if (u.indexOf('https://') === 0 && u.length <= 2048) return u;
+    if (u.length <= 20000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(u)) return u;
+    return '';
+}
+function articleAuthorPoints(pts) {
+    return Math.max(0, Math.floor(Number(pts)) || 0);
+}
+function articleAuthorName(name) {
+    return (typeof name === 'string' && name) ? name.slice(0, 40) : 'Anon';
+}
+function articleCoverUrl(u) {
+    return (typeof u === 'string' && u.indexOf('https://') === 0) ? u : '';
+}
 
 // Time ago helper
 // [AUDIT FIX] timeAgo moved to utils.js
@@ -10520,9 +10537,9 @@ window.articleSubmit = async function() {
     if (status) status.innerHTML = '<span style="color:var(--text-muted);">Publishing...</span>';
     
     try {
-        var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anon';
-        var userPts = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
-        var userPic = (typeof currentUser !== 'undefined' && currentUser && currentUser.profilePic) ? currentUser.profilePic : '';
+        var userName = articleAuthorName((typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : '');
+        var userPts = articleAuthorPoints((typeof currentUser !== 'undefined' && currentUser) ? currentUser.points : 0);
+        var userPic = articleAuthorPic((typeof currentUser !== 'undefined' && currentUser && currentUser.profilePic) ? currentUser.profilePic : '');
         
         // Upload cover image if provided
         var coverUrl = '';
@@ -10535,7 +10552,7 @@ window.articleSubmit = async function() {
                 var storage = firebase.storage();
                 var ref = storage.ref('articles/' + auth.currentUser.uid + '/' + Date.now() + '_cover');
                 var snap = await ref.put(file);
-                coverUrl = await snap.ref.getDownloadURL();
+                coverUrl = articleCoverUrl(await snap.ref.getDownloadURL());
             } catch(e) { console.warn('Cover upload failed:', e); }
         }
         
@@ -10910,7 +10927,7 @@ window.articleUpdate = async function() {
             try {
                 var ref = firebase.storage().ref('articles/' + auth.currentUser.uid + '/' + Date.now() + '_cover');
                 var snap = await ref.put(file);
-                coverUrl = await snap.ref.getDownloadURL();
+                coverUrl = articleCoverUrl(await snap.ref.getDownloadURL());
             } catch(e) { console.warn('Cover upload failed:', e); }
         }
         
