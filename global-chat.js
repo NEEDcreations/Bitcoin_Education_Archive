@@ -910,7 +910,7 @@ function formatChatText(text, mentionUid) {
     var _inAppLinks = [];
     var _safeMentions = [];
     text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_\/-]+)\)/g, function(match, label, route) {
-        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128}|topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\/\d+\/[a-z0-9]{8})?)$/.test(route)) return label;
+        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,256}|marketplace\/listing\/[A-Za-z0-9_-]{1,128}|topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\/\d+\/[a-z0-9]{8})?)$/.test(route)) return label;
         var _deepId = '';
         var _action;
         if (route.indexOf('forum/post/') === 0) {
@@ -4680,13 +4680,13 @@ if (!window._annHashClickBound) {
         e.preventDefault();
         e.stopPropagation();
         var hash = a.getAttribute('data-ann-hash') || '';
-        if (!/^(?:[a-zA-Z0-9_-]+|(?:forum\/post|marketplace\/listing)\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
+        if (!/^(?:[a-zA-Z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,256}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
         if (typeof window._annNavToHash === 'function') window._annNavToHash(hash);
     }, true);
 }
 
 window._annNavToHash = function(hash) {
-    if (!hash || !/^(?:[a-zA-Z0-9_-]+|(?:forum\/post|marketplace\/listing)\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
+    if (!hash || !/^(?:[a-zA-Z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,256}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
     var wasOverlayOpen = !!window._chatOverlayOpen;
     // Close overlay if open
     if (wasOverlayOpen && typeof toggleChatOverlay === 'function') toggleChatOverlay();
@@ -4934,7 +4934,7 @@ function _renderAnnouncementItem(doc, context) {
     // 1b. [text](#hash) — single-segment hashes, plus forum/post and marketplace/listing ids.
     // Never interpolate into onclick (HTML-escaped quotes decode inside attributes).
     text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_\/-]+)\)/g, function(_, label, hash) {
-        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return label;
+        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,256}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return label;
         return '<a href="#' + hash + '" data-ann-hash="' + hash + '" class="ann-hash-link" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
     });
 
