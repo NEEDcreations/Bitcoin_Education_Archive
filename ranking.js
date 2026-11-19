@@ -4251,7 +4251,12 @@ async function loadUser(uid, prefetchedDoc) {
 var _authBtnSignedIn = false;
 
 function homeSignedInNow() {
-    return !!_authBtnSignedIn;
+    // Account A was cleared and B's profile is not in yet. Keep the guest home.
+    if (window._btcHoldGuestUntilProfile && !(typeof currentUser !== 'undefined' && currentUser)) return false;
+    var fu = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser : null;
+    // A guest battle name (displayName or localStorage) is not a signed-in account.
+    // The wallet strip and claimable-sats tile require a real, non-anonymous Firebase user.
+    return !!(fu && !fu.isAnonymous);
 }
 
 // Strip numbers come only from server-maintained counters.
@@ -4794,8 +4799,13 @@ function updateAuthButton() {
         guestBanner.style.display = 'none';
     }
     if (!(keepOptimistic && !_authBtnSignedIn)) {
-        document.documentElement.classList.toggle('home-signed-in', !!_authBtnSignedIn);
-        if (document.body) document.body.classList.toggle('home-signed-in', !!_authBtnSignedIn);
+        var walletSignedIn = homeSignedInNow();
+        // Keep optimistic signed-in chrome until Auth settles. A live anonymous
+        // session must not show the claimable-sats tile, even with a battle name.
+        if (!( !walletSignedIn && document.documentElement.getAttribute('data-auth-display') === '1' && !firebaseUser )) {
+            document.documentElement.classList.toggle('home-signed-in', walletSignedIn);
+            if (document.body) document.body.classList.toggle('home-signed-in', walletSignedIn);
+        }
         if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
     }
     if (typeof window.placeInvitePill === 'function') window.placeInvitePill();

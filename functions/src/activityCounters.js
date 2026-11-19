@@ -94,22 +94,64 @@ function recordArticle(db, adminSdk, data) {
     return bumpCounter(db, adminSdk, cleanUid(data && (data.authorId || data.uid)), 'articlesPublished');
 }
 
-async function recordPvpPlayed(db, adminSdk, after) {
-    if (!after || after.status !== 'finished') return { bumped: false, reason: 'not_finished' };
+async function recordPvpPlayed(db, adminSdk, after, matchId, opts) {
+    if (!after || (after.status !== 'finished' && after.status !== 'forfeit')) {
+        return { bumped: false, reason: 'not_settled' };
+    }
+    const id = typeof matchId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(matchId) ? matchId : '';
+    if (!id) return { bumped: false, reason: 'no_match' };
+    const options = opts || {};
+    // Guest matches never count. The caller passes the create-time stamp;
+    // without guestMatch === false nothing is bumped (fail closed).
+    if (options.guestMatch !== false) {
+        options.skipUids = [(after.player1 || {}).uid, (after.player2 || {}).uid].concat(options.skipUids || []);
+    }
+    const skip = {};
+    (options.skipUids || []).forEach(function (uid) {
+        const s = cleanUid(uid);
+        if (s) skip[s] = true;
+    });
     const p1 = after.player1 || {};
     const p2 = after.player2 || {};
     const u1 = cleanUid(p1.uid || after.player1Uid);
     const u2 = cleanUid(p2.uid || after.player2Uid);
-    const jobs = [];
-    if (u1) jobs.push(bumpCounter(db, adminSdk, u1, 'pvpPlayed'));
-    if (u2 && u2 !== u1) jobs.push(bumpCounter(db, adminSdk, u2, 'pvpPlayed'));
-    await Promise.all(jobs);
-    const day = offsetDateKey(Date.now());
-    const zones = [];
-    if (u1) zones.push(noteComboZone(db, adminSdk, u1, 'pvp', day).catch(function () { return null; }));
-    if (u2 && u2 !== u1) zones.push(noteComboZone(db, adminSdk, u2, 'pvp', day).catch(function () { return null; }));
-    await Promise.all(zones);
-    return { bumped: true };
+    const uids = [];
+    if (u1 && !skip[u1]) uids.push(u1);
+    if (u2 && u2 !== u1 && !skip[u2]) uids.push(u2);
+    const markerRef = db.collection('pvp_played').doc(id);
+    const result = await db.runTransaction(async function (t) {
+        const markerSnap = await t.get(markerRef);
+        if (markerSnap.exists) return { bumped: false, reason: 'already', uids: uids };
+        const bumpedUids = [];
+        const userSnaps = [];
+        const ledgerSnaps = [];
+        for (let i = 0; i < uids.length; i++) {
+            userSnaps.push(await t.get(db.collection('users').doc(uids[i])));
+            ledgerSnaps.push(await t.get(db.collection('faucet_ledger').doc(uids[i])));
+        }
+        for (let i = 0; i < uids.length; i++) {
+            if (!userSnaps[i].exists) continue;
+            const ledger = ledgerSnaps[i].exists ? (ledgerSnaps[i].data() || {}) : {};
+            if (rewardBlocked(userSnaps[i].data() || {}, ledger)) continue;
+            t.update(db.collection('users').doc(uids[i]), {
+                pvpPlayed: adminSdk.firestore.FieldValue.increment(1),
+            });
+            bumpedUids.push(uids[i]);
+        }
+        t.set(markerRef, {
+            matchId: id,
+            uids: bumpedUids,
+            recordedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
+        });
+        return { bumped: true, uids: bumpedUids };
+    });
+    if (result.bumped) {
+        const day = offsetDateKey(Date.now());
+        for (let i = 0; i < (result.uids || []).length; i++) {
+            await noteComboZone(db, adminSdk, result.uids[i], 'pvp', day).catch(function () { return null; });
+        }
+    }
+    return result;
 }
 
 async function recordPvpFinished(db, adminSdk, before, after) {

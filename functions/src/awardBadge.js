@@ -18,6 +18,7 @@ const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoint } = require('./favorPool');
 const { offsetDateKey } = require('./offsetDay');
 const { serverHoldsBadge, hiddenOnlyBadge, progressAwardIds } = require('./badgeProfile');
+const awardActions = require('./awardActions');
 
 const ALIASES = { country_set: 'global_citizen' };
 
@@ -156,6 +157,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         // are the merged collection bonus, which pays the remainder itself.
         if (require('./collectionBonus').isRetiredSetBonus(badgeId)) {
             return { granted: false, success: false, reason: 'retired', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
+        }
+        if (!awardActions.pvpBadgeAllowed(badgeId, user)) {
+            return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
         }
 
         // flexClaims is the server tally of daily_action_counts, computed
