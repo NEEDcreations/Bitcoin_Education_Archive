@@ -74,6 +74,7 @@ test('service worker cache is v2668', () => {
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2588'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2582'"));
     assert.ok(!sw.includes('btc-archive-v2581'));
+    assert.ok(!sw.includes('btc-archive-v2580'));
     assert.ok(!sw.includes('btc-archive-v2578'));
     assert.ok(!sw.includes('btc-archive-v2572'));
     assert.ok(!sw.includes('btc-archive-v2571'));
@@ -337,7 +338,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261116_v2581'));
     assert.ok(!html.includes('ranking.js?v=20261114_v2565'));
     assert.ok(!html.includes('ranking.js?v=20261104_v2483'));
-    assert.ok(html.includes('/tctv-drip.js?v=20261117_v2588'));
+    assert.ok(html.includes('/tctv-drip.js?v=20261117_v2598'));
+    assert.ok(!html.includes('tctv-drip.js?v=20261117_v2588'));
+    assert.ok(!html.includes('tctv-drip.js?v=20261117_v2583'));
     assert.ok(!html.includes('tctv-drip.js?v=20261114_v2573'));
     assert.ok(!html.includes('tctv-drip.js?v=20261114_v2572'));
     assert.ok(!html.includes('tctv-drip.js?v=20261114_v2571'));
