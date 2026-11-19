@@ -165,6 +165,7 @@ const TESTS = [
     { name: 'Topic inline reply state', file: 'test-topic-inline-reply-state.js' },
     { name: 'Quest defer', file: 'test-quest-defer.js' },
     { name: 'Topic Forum Mirror', file: 'test-topic-forum-mirror.js' },
+    { name: 'Forum id length', file: 'test-forum-id-length.js' },
     { name: 'Topic Conversation XP', file: 'test-topic-conversation-xp.js' },
     { name: 'Education cleanup', file: 'test-edu-cleanup.js' },
     { name: 'Quote of the Day', file: 'test-quotes.js' },
