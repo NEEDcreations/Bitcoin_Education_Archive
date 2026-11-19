@@ -374,13 +374,39 @@ function decideFaucetPayment(info) {
     if (action === 'paid') {
         return { action: 'record', preimage: (src.payResult && src.payResult.preimage) || '' };
     }
+    if (action === 'release' && src.phase !== 'pay') {
+        // The send never started, so nothing can settle.
+        return { action: 'refund', reason: 'balance' };
+    }
     if (action === 'release') {
-        return { action: 'refund', reason: src.phase === 'pay' ? 'refused' : 'balance' };
+        // An explicit refusal during the pay call is confirmed by lookup first.
+        // An HTLC can still be in flight when a node reports PAYMENT_FAILED.
+        return { action: 'lookup', refused: true, reason: 'refused' };
     }
     return { action: 'lookup' };
 }
 
-function decideFaucetLookupResult(settlement) {
+// Which side a definite failure came from. Callers use this only after
+// decideFaucetPayment returned refund.
+// 'ours': the send never started (our node unreachable, timed out or low), or
+//   our wallet refused with its own limit code. Pay-phase codes are matched on
+//   the exact NWC error code only, never on message text, which can carry
+//   wording from the receiving side.
+// 'theirs': everything else, including any failure whose side is not certain.
+const OUR_SIDE_REFUSALS = ['INSUFFICIENT_BALANCE', 'QUOTA_EXCEEDED', 'RATE_LIMITED'];
+function definiteFailureKind(info) {
+    const src = info || {};
+    if (src.phase !== 'pay') return 'ours';
+    const err = src.error || {};
+    const code = String(err.code || '').toUpperCase();
+    return OUR_SIDE_REFUSALS.indexOf(code) !== -1 ? 'ours' : 'theirs';
+}
+
+// Only an explicit failed lookup refunds. Pending, empty, error and
+// unclassified results are all held ('unknown'), even after an explicit
+// refusal code (opts.refused): an HTLC can still settle, so a refund here
+// could pay twice. opts is kept for callers; it no longer changes the result.
+function decideFaucetLookupResult(settlement, opts) { // eslint-disable-line no-unused-vars
     const d = settlement || {};
     if (d.action === 'paid') return { action: 'record', preimage: d.preimage || '' };
     if (d.action === 'release') return { action: 'refund', reason: 'lookup_failed' };
@@ -538,6 +564,7 @@ module.exports = {
     networkKeys: networkKeys,
     decideFaucetPayment: decideFaucetPayment,
     decideFaucetLookupResult: decideFaucetLookupResult,
+    definiteFailureKind: definiteFailureKind,
     lookupSettlement: cipher.lookupSettlement,
     lookupRequestFromDecoded: cipher.lookupRequestFromDecoded,
     buildAbuseReport: buildAbuseReport,
