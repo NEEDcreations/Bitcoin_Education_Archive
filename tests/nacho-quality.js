@@ -91,6 +91,13 @@ function checkProbe(row, result) {
     if (expect.noYouShouldBuy && /\byou should buy\b/i.test(answer)) problems.push('told the user to buy');
     if (expect.mentionsBitcoin && !/bitcoin/i.test(answer)) problems.push('no bitcoin steer');
     if (expect.banLive && new RegExp(expect.banLive, 'i').test(answer)) problems.push('live number on concept: ' + answer);
+    function listed(v) { return Array.isArray(v) ? v : (v ? [v] : []); }
+    listed(expect.includes).forEach(function (n) {
+        if (!new RegExp(n, 'i').test(answer)) problems.push('missing: ' + n);
+    });
+    listed(expect.excludes).forEach(function (n) {
+        if (new RegExp(n, 'i').test(answer)) problems.push('unexpected: ' + n);
+    });
     if (!answer || answer.length < 8) problems.push('thin answer');
     return problems;
 }
@@ -995,7 +1002,7 @@ const CASES = [
             if (/^What is .+ in Bitcoin Quest\?$/.test(phrase)) kbFail.push('generic what-is ' + phrase);
         });
     });
-    if ((byCat.app || 0) !== 190) kbFail.push('app count ' + byCat.app);
+    if ((byCat.app || 0) !== 193) kbFail.push('app count ' + byCat.app);
     if (logic.kbEntries().length < 1000) kbFail.push('count ' + logic.kbEntries().length);
     if ((byCat['crypto-steer'] || 0) < 50) kbFail.push('steer ' + byCat['crypto-steer']);
     if (kbFail.length) {

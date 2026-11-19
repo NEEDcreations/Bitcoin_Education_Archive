@@ -3812,6 +3812,14 @@ function findAnswer(input) {
     // Trailing "?" used to glue onto the last word and hide the real key.
     input = input.replace(/[?!.,;:()"]/g, ' ').replace(/['’]s\b/g, '').replace(/['’]/g, ' ').replace(/\s+/g, ' ').trim();
     if (input.length < 2) return null;
+    // Badge catalog answers beat the generic Badges feature and the Bitcoin Core developers FAQ,
+    // except when the question is clearly about Bitcoin Core developers.
+    if (typeof BQBadgeIndex !== 'undefined' && BQBadgeIndex.nachoAnswer) {
+        var _badgeA = BQBadgeIndex.nachoAnswer(_rawQ) || BQBadgeIndex.nachoAnswer(input);
+        if (_badgeA && _badgeA.answer) {
+            return { keys: [input], answer: _badgeA.answer, title: _badgeA.title, id: 'badge-' + _badgeA.id };
+        }
+    }
     // Feature registry wins before synonym expansion (which maps "keys" to "private key")
     // and before the fuzzy KB matcher. A worker kbId still wins in nachoUnifiedAnswer.
     if (typeof window.resolveNachoFeature === 'function') {

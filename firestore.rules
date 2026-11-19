@@ -191,7 +191,7 @@ service cloud.firestore {
         'tosVersion', 'tosAcceptedAt', 'signupSource',
         'inviteCard', 'notificationPrefs', 'notifPrompt', 'resetReminders', 'beatsShowUncensored',
         'blockedUsers', 'favorites', 'bookmarks',
-        'displayBadge', 'equippedBadge', 'pinnedBadgeId',
+        'displayBadge', 'equippedBadge', 'pinnedBadgeId', 'showCoreContributor',
         // Titles and chat flair are set by the titleFlair callable only.
         'lqProgress', 'trailProgress', 'trailsPassed',
         'nachoStoryProgress', 'nachoStoryDate', 'nachoStoryDays',
@@ -477,6 +477,9 @@ service cloud.firestore {
             || (request.resource.data.equippedBadge is string
                 && request.resource.data.equippedBadge.size() <= 50
                 && request.resource.data.equippedBadge.matches('^[a-zA-Z0-9_\\-]+$')))
+          && (!changed.hasAny(['showCoreContributor'])
+            || !('showCoreContributor' in request.resource.data)
+            || request.resource.data.showCoreContributor is bool)
           // XSS prevention: country must be valid country-name chars
           && (!changed.hasAny(['country'])
             || !('country' in request.resource.data)
@@ -1910,11 +1913,12 @@ service cloud.firestore {
                     // F-004: imageUrl/gifUrl must come from Firebase Storage or Tenor CDN only
                     && (!('imageUrl' in request.resource.data) || request.resource.data.imageUrl.matches('^https://(firebasestorage[.]googleapis[.]com|[^/]+[.]firebasestorage[.]app|media[.]tenor[.]com|c[.]tenor[.]com)/.*'))
                     && (!('gifUrl'   in request.resource.data) || request.resource.data.gifUrl.matches('^https://(firebasestorage[.]googleapis[.]com|[^/]+[.]firebasestorage[.]app|media[.]tenor[.]com|c[.]tenor[.]com)/.*'))
-                    // BIP Breakthrough title: only if server-set until is still active
+                    // BIP Breakthrough title: only if the 7-day window is open and the owner has not hidden it
                     && (!('hasCoreContributor' in request.resource.data)
                         || (request.resource.data.hasCoreContributor == true
                             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coreContributorUntil is number
-                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coreContributorUntil > request.time.toMillis()))
+                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coreContributorUntil > request.time.toMillis()
+                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('showCoreContributor', true) != false))
                     // Faction race champion flair: only while the server-set window is open
                     && (!('hasFactionChampion' in request.resource.data)
                         || (request.resource.data.hasFactionChampion == true

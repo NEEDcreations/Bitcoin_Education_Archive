@@ -690,7 +690,7 @@ window.showUserProfile = function(uid) {
                 // Raw badge ID with no emoji found — hide it rather than show ugly ID text
                 badgeEmoji = '';
             }
-            badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;">' + badgeEmoji + ' <span style="font-size:1.8rem;opacity:0.6;vertical-align:middle;">' + lvl.emoji + '</span></div>';
+            badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;"><span tabindex="0" data-bq-badge="' + displayBadge + '" data-bq-uid="' + (uid || '') + '">' + badgeEmoji + '</span> <span style="font-size:1.8rem;opacity:0.6;vertical-align:middle;">' + lvl.emoji + '</span></div>';
         } else {
             badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;">' + lvl.emoji + '</div>';
         }
@@ -738,9 +738,14 @@ window.showUserProfile = function(uid) {
                 // Active title pill
                 (function(){
                     var _tid = u.activeTitle || '';
+                    var _coreVis = (typeof BQBadgeIndex !== 'undefined' && BQBadgeIndex.coreContributorVisible)
+                        ? BQBadgeIndex.coreContributorVisible(u)
+                        : (u.showCoreContributor !== false && Number(u.coreContributorUntil) > Date.now());
+                    if (_tid === 'core_contributor' && !_coreVis) return '';
                     var _tDef = (typeof TITLE_DEFS !== 'undefined' && _tid) ? TITLE_DEFS.find(function(t){return t.id===_tid;}) : null;
                     if (!_tDef) return '';
-                    return '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + _tDef.emoji + ' ' + escapeHtml(_tDef.title) + '</div>' +
+                    var _own = (auth && auth.currentUser && auth.currentUser.uid === uid) ? ' data-bq-own="1"' : '';
+                    return '<div tabindex="0" data-bq-badge="' + escapeHtml(_tid) + '" data-bq-uid="' + escapeHtml(uid || '') + '"' + _own + ' style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + _tDef.emoji + ' ' + escapeHtml(_tDef.title) + '</div>' +
                            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_tDef.flavor) + '</div>';
                 })() +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +

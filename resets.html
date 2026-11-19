@@ -90,10 +90,11 @@
   </table>
 
   <h2 class="sec">Weekly</h2>
-  <p class="note">The week used for XP, quests, and prediction prizes ends Monday at 05:00 UTC.</p>
+  <p class="note">The week used for XP, quests, and prediction prizes ends Monday at 05:00 UTC. BIP Breakthrough uses a different clock: Monday 00:00 America/New_York.</p>
   <table>
     <thead><tr><th>What</th><th>Resets</th><th>Cadence</th><th>Enforced by</th></tr></thead>
     <tbody>
+      <tr><td>BIP Breakthrough (Bit Devs Socratic Seminar)</td><td class="when">Monday 00:00 ET<small>America/New_York, not the 05:00 UTC game day</small></td><td>Each Eastern week has one BIP for everyone. Spin the daily wheel on 7 New York calendar days in a row during that week to merge the BIP, earn its badge, and get the Core Contributor title for 7 days. After the title expires, complete another BIP week to earn it again. A new week resets the spin streak to 0.</td><td>bipBreakthrough, dailySpin, questBoard.weekKey</td></tr>
       <tr><td>Weekly XP leaderboard</td><td class="when">Monday 05:00 UTC<small>Monday 12:00 AM EST</small></td><td>Weekly XP starts over. Top 10 earn 25 orange tickets.</td><td>resetWeeklyXP</td></tr>
       <tr><td>Weekly quest leaderboard</td><td class="when">Monday 05:00 UTC<small>Monday 12:00 AM EST</small></td><td>Same Monday boundary as weekly XP</td><td>payWeeklyQuestLB</td></tr>
       <tr><td>Weekly prediction prizes</td><td class="when">Monday 05:00 UTC<small>Monday 12:00 AM EST</small></td><td>Top 5 with at least 5 resolved predictions earn 25 orange tickets</td><td>payWeeklyPredictors</td></tr>

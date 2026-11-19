@@ -1328,6 +1328,50 @@
             var overlayOpen = overlay && (overlay.getAttribute('data-open') === '1' || overlay.style.display === 'flex');
             return overlayOpen ? document.getElementById('searchResults') : (document.getElementById('sidebarSearchResults') || document.getElementById('searchResults'));
         }
+        function openBadgeSearchHit(id) {
+            if (typeof win.bqCloseSearch === 'function') win.bqCloseSearch();
+            if (typeof win.bqOpenFeature === 'function') win.bqOpenFeature('badges');
+            if (typeof win.jumpToBadge === 'function') {
+                try { win.jumpToBadge(id); } catch (e1) {}
+            }
+        }
+        if (!win._bqBadgeSearchClick) {
+            win._bqBadgeSearchClick = true;
+            document.addEventListener('click', function (e) {
+                var btn = e.target && e.target.closest && e.target.closest('[data-bq-badge-open]');
+                var row = e.target && e.target.closest && e.target.closest('[data-bq-badge-result]');
+                var id = (btn && btn.getAttribute('data-bq-badge-open')) || (row && row.getAttribute('data-bq-badge-result'));
+                if (!id) return;
+                e.preventDefault();
+                e.stopPropagation();
+                openBadgeSearchHit(id);
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                var row = e.target && e.target.closest && e.target.closest('[data-bq-badge-result]');
+                if (!row) return;
+                e.preventDefault();
+                openBadgeSearchHit(row.getAttribute('data-bq-badge-result'));
+            });
+        }
+        function badgeBlock(q) {
+            if (!win.BQBadgeIndex || typeof win.BQBadgeIndex.search !== 'function') return '';
+            var hits = win.BQBadgeIndex.search(q, { limit: 8 });
+            if (!hits.length) return '';
+            var html = '<div data-bq-badge-block="1"><div style="padding:8px 16px 4px;font-size:0.7rem;color:var(--text-faint);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">' +
+                hits.length + ' badge' + (hits.length === 1 ? '' : 's') + ' &amp; titles</div><div>';
+            hits.forEach(function (e) {
+                var label = (e.emoji ? e.emoji + ' ' : '') + e.name;
+                html += '<div class="sr-item" data-bq-badge-result="' + esc(e.id) + '" tabindex="0" style="border-left:3px solid var(--accent);cursor:pointer;">' +
+                    '<div class="sr-cat">' + (e.kind === 'title' ? 'Title' : 'Badge') + '</div>' +
+                    '<div>' + esc(label) + '</div>' +
+                    '<div class="sr-match">' + esc(e.desc) + '</div>' +
+                    '<button type="button" data-bq-badge-open="' + esc(e.id) + '" style="margin-top:6px;padding:6px 12px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Open Badges</button>' +
+                    '</div>';
+            });
+            html += '</div></div>';
+            return html;
+        }
         function featureBlock(q) {
             var feats = searchFeatures(q).filter(function (row) { return row.feature && !row.feature.aux; }).slice(0, 12);
             if (!feats.length) return '';
@@ -1351,7 +1395,9 @@
             if (!sr) return;
             var old = sr.querySelector('[data-bq-feature-block]');
             if (old && old.parentNode) old.parentNode.removeChild(old);
-            var block = featureBlock(q);
+            var oldB = sr.querySelector('[data-bq-badge-block]');
+            if (oldB && oldB.parentNode) oldB.parentNode.removeChild(oldB);
+            var block = (badgeBlock(q) || '') + featureBlock(q);
             win._bqSearchQuery = q;
             if (!block) return;
             var cl = document.getElementById('channelList');

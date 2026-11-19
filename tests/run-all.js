@@ -62,6 +62,7 @@ const TESTS = [
     { name: 'GGs celebration', file: 'test-gg-reaction.js' },
     { name: 'New badge sources', file: 'test-new-badges.js' },
     { name: 'Badge search', file: 'test-badge-search.js' },
+    { name: 'Badge catalog index', file: 'test-badge-index.js' },
     { name: 'Collection bonus remainder', file: 'test-collection-bonus.js' },
     { name: 'Title & Flair server checks', file: 'test-title-flair.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },

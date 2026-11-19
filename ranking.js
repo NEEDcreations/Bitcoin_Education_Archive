@@ -8687,7 +8687,11 @@ window._renderTitleFlairSection = function() {
     var pv = window._tfPreview || {};
     var showTitle = pv.title !== undefined ? pv.title : active;
     var showFlair = pv.flair !== undefined ? pv.flair : flair;
-    var tDef = _tfTitleDef(showTitle);
+    var showCore = (typeof BQBadgeIndex !== 'undefined' && BQBadgeIndex.coreContributorVisible)
+        ? BQBadgeIndex.coreContributorVisible(u)
+        : (u.showCoreContributor !== false && Number(u.coreContributorUntil) > Date.now());
+    var visTitle = (showTitle === 'core_contributor' && !showCore) ? '' : showTitle;
+    var tDef = _tfTitleDef(visTitle);
     var name = _tfEsc(u.username || 'Bitcoiner');
     var h = '<style>' +
         '.tf-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;box-sizing:border-box;max-width:100%;}' +
@@ -8699,7 +8703,7 @@ window._renderTitleFlairSection = function() {
         '</style>';
     h += '<div class="tf-wrap" id="titleFlairSection">';
     h += '<div class="tf-h">🎖️ Title &amp; Flair</div>';
-    h += '<div class="tf-prev" aria-live="polite"><div><strong>' + name + '</strong>' + (tDef ? '<span class="tf-pill">' + tDef.emoji + ' ' + _tfEsc(tDef.title) + '</span>' : '') + '</div>' +
+    h += '<div class="tf-prev" aria-live="polite"><div><strong>' + name + '</strong>' + (tDef ? '<span class="tf-pill" tabindex="0" data-bq-badge="' + _tfEsc(visTitle) + '" data-bq-own="1">' + tDef.emoji + ' ' + _tfEsc(tDef.title) + '</span>' : '') + '</div>' +
         '<div style="color:var(--text-muted);">' + (showFlair ? _tfEsc(showFlair) + ' ' : '') + '<strong style="color:var(--text);">' + name + '</strong>: gm, stacking sats 🧡</div></div>';
     // Titles: one compact dropdown. Locked collection titles stay visible but cannot be picked.
     h += '<label class="tf-sub" for="tfTitleSelect">Title</label>';
@@ -8783,7 +8787,17 @@ window._renderTitleFlairSection = function() {
         lockedF.forEach(function(item) { h += flairOpt(item); });
         h += '</optgroup>';
     }
-    h += '</select></div>';
+    h += '</select>';
+    var coreUntil = Number(u.coreContributorUntil) || 0;
+    var coreOpen = coreUntil > Date.now();
+    if (coreOpen || earnedT.indexOf('core_contributor') !== -1) {
+        h += '<label class="tf-sub" for="tfShowCore">Core Contributor</label>';
+        h += '<label class="tf-show-core" for="tfShowCore" style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;">';
+        h += '<input type="checkbox" id="tfShowCore"' + (u.showCoreContributor !== false ? ' checked' : '') + (coreOpen ? '' : ' disabled') + '>';
+        h += '<span>Show Core Contributor</span></label>';
+        h += '<p class="tf-note" style="font-size:0.75rem;color:var(--text-muted);margin:6px 0 0;">Hide the title in chat and on your profile without losing it. After the 7-day window ends, complete another BIP week to show it again.</p>';
+    }
+    h += '</div>';
     return h;
 };
 window._tfRepaint = function() {
@@ -8846,8 +8860,10 @@ window._tfPick = function(kind, value) {
         window._tfRepaint();
         var pill = document.getElementById('settingsTitlePill');
         if (pill) {
-            var t = _tfTitleDef(d.activeTitle);
-            pill.innerHTML = t ? '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + t.emoji + ' ' + _tfEsc(t.title) + '</div>' : '';
+            var hideCore = d.activeTitle === 'core_contributor' && typeof currentUser !== 'undefined' && currentUser && currentUser.showCoreContributor === false;
+            var t = hideCore ? null : _tfTitleDef(d.activeTitle);
+            var pillAttrs = ' tabindex="0" data-bq-badge="' + _tfEsc(d.activeTitle || '') + '" data-bq-own="1"';
+            pill.innerHTML = t ? '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;"' + pillAttrs + '>' + t.emoji + ' ' + _tfEsc(t.title) + '</div>' : '';
         }
     }).catch(function() { if (typeof showToast === 'function') showToast('Could not save. Try again.'); });
 };
@@ -9066,9 +9082,13 @@ function showSettingsPage(tab) {
             : '<div style="font-size:2.5rem;margin-bottom:0;">' + settingsEmoji + '</div>';
         // Build title pill for own profile
         var _activeTitleId = currentUser ? currentUser.activeTitle || '' : '';
+        var _coreVis = (typeof BQBadgeIndex !== 'undefined' && BQBadgeIndex.coreContributorVisible && currentUser)
+            ? BQBadgeIndex.coreContributorVisible(currentUser)
+            : (currentUser && currentUser.showCoreContributor !== false && Number(currentUser.coreContributorUntil) > Date.now());
+        if (_activeTitleId === 'core_contributor' && !_coreVis) _activeTitleId = '';
         var _activeTitleDef = (typeof TITLE_DEFS !== 'undefined' && _activeTitleId) ? TITLE_DEFS.find(function(t){return t.id===_activeTitleId;}) : null;
         var _titlePillHtml = _activeTitleDef
-            ? '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + _activeTitleDef.emoji + ' ' + escapeHtml(_activeTitleDef.title) + '</div><div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_activeTitleDef.flavor) + '</div>'
+            ? '<div tabindex="0" data-bq-badge="' + escapeHtml(_activeTitleId) + '" data-bq-own="1" style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + _activeTitleDef.emoji + ' ' + escapeHtml(_activeTitleDef.title) + '</div><div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_activeTitleDef.flavor) + '</div>'
             : '';
         var _equipTitleHtml = '';
         html += '<div style="text-align:center;margin-bottom:20px;">' +

@@ -5775,6 +5775,7 @@ const PUBLIC_PROFILE_FIELDS = [
     'visitedChannelsList', 'readChannels',
     'orangeTickets', 'badges', 'visibleBadges', 'hiddenBadges',
     'displayBadge', 'equippedBadge', 'activeTitle',
+    'showCoreContributor', 'coreContributorUntil',
     'ownedCosmetics', 'spinClosetItems',
     'forumPosts', 'forumReplies',
     'pvpWins', 'pvpLosses',

@@ -644,7 +644,13 @@ function renderChatMessages(msgs) {
             nameStyle += 'cursor:pointer;';
             nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')"';
         }
-        var _coreTitle = (!isNacho && m.hasCoreContributor) ? ' <span title="Core Contributor — BIP Breakthrough" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.35);color:#f97316;vertical-align:middle;">🔧 Core Contributor</span>' : '';
+        var _showCorePill = !isNacho && m.hasCoreContributor;
+        if (isMe && typeof currentUser !== 'undefined' && currentUser) {
+            _showCorePill = (typeof BQBadgeIndex !== 'undefined' && BQBadgeIndex.coreContributorVisible)
+                ? BQBadgeIndex.coreContributorVisible(currentUser)
+                : (currentUser.showCoreContributor !== false && Number(currentUser.coreContributorUntil) > Date.now());
+        }
+        var _coreTitle = _showCorePill ? ' <span tabindex="0" data-bq-badge="core_contributor" data-bq-uid="' + esc(m.uid || '') + '"' + (isMe ? ' data-bq-own="1"' : '') + ' style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.35);color:#f97316;vertical-align:middle;cursor:pointer;">🔧 Core Contributor</span>' : '';
         _coreTitle += (!isNacho && m.hasFactionChampion) ? (function(){ var _fl = ({'🐝👑':'Hive Mind Champion','🦡👑':"Honey Badger Don't Care Champion",'🐝🛡️':'Still Buzzing','🦡🛡️':"Badger Don't Quit"})[m.factionRaceFlair]; return _fl ? ' <span title="Faction race" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">' + esc(m.factionRaceFlair + ' ' + _fl) + '</span>' : null; })() || ' <span title="Faction race champion" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">👑 Race Champion</span>' : '';
         html += '<span style="' + nameStyle + '"' + nameClick + '>' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + _coreTitle + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
@@ -1463,7 +1469,7 @@ window.sendGlobalChat = function() {
     if (_oc.indexOf('nacho_skin_nook') !== -1) {
         msgData.hasNachoSkin = true;
     }
-    if (typeof currentUser !== 'undefined' && currentUser && Number(currentUser.coreContributorUntil) > Date.now()) {
+    if (typeof currentUser !== 'undefined' && currentUser && Number(currentUser.coreContributorUntil) > Date.now() && currentUser.showCoreContributor !== false) {
         msgData.hasCoreContributor = true;
     }
     // Server-set 30-day window; rules re-check it against the user doc.

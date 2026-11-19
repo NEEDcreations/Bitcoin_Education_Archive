@@ -312,7 +312,7 @@
     "followUps": [
       "app-tctv-what",
       "app-badges-exact",
-      "app-pleb-what"
+      "app-core-contributor"
     ],
     "sources": "features.registry.js entry wheel."
   },
@@ -332,8 +332,8 @@
     ],
     "followUps": [
       "app-badges-exact",
-      "app-pleb-what",
-      "app-home-what"
+      "app-core-contributor",
+      "app-core-contributor-what"
     ],
     "sources": "features.registry.js entries tv and tctv-watch."
   },
@@ -352,11 +352,71 @@
       "leaderboard"
     ],
     "followUps": [
+      "app-core-contributor",
+      "app-core-contributor-what",
+      "app-core-contributor-how"
+    ],
+    "sources": "features.registry.js entry badges."
+  },
+  {
+    "id": "app-core-contributor",
+    "category": "app",
+    "question": "What is the Core Contributor badge?",
+    "alts": [
+      "Define the Core Contributor badge?",
+      "Explain the Core Contributor badge?",
+      "Describe the Core Contributor badge?"
+    ],
+    "answer": "Core Contributor is a Bitcoin Quest title, not a Bitcoin Core developer role. Spin the daily wheel on 7 New York calendar days in a row during the same BIP Breakthrough week, which starts Monday at midnight Eastern. That grants the week's BIP badge and the title for 7 days. After it expires, complete another BIP week to earn it again. You can hide the title in Title and Flair without losing it. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "badges"
+    ],
+    "followUps": [
+      "app-core-contributor-what",
+      "app-core-contributor-how",
+      "app-pleb-what"
+    ],
+    "sources": "badge-index.js core_contributor."
+  },
+  {
+    "id": "app-core-contributor-what",
+    "category": "app",
+    "question": "What is Core Contributor?",
+    "alts": [
+      "Define Core Contributor?",
+      "Explain Core Contributor?",
+      "Describe Core Contributor?"
+    ],
+    "answer": "Core Contributor is a Bitcoin Quest title, not a Bitcoin Core developer role. Spin the daily wheel on 7 New York calendar days in a row during the same BIP Breakthrough week, which starts Monday at midnight Eastern. That grants the week's BIP badge and the title for 7 days. After it expires, complete another BIP week to earn it again. You can hide the title in Title and Flair without losing it. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "badges"
+    ],
+    "followUps": [
+      "app-core-contributor-how",
+      "app-pleb-what",
+      "app-home-what"
+    ],
+    "sources": "badge-index.js core_contributor."
+  },
+  {
+    "id": "app-core-contributor-how",
+    "category": "app",
+    "question": "How do I earn Core Contributor?",
+    "alts": [
+      "How can I earn Core Contributor?",
+      "Show me how to earn Core Contributor?",
+      "What is the way to earn Core Contributor?"
+    ],
+    "answer": "Core Contributor is a Bitcoin Quest title, not a Bitcoin Core developer role. Spin the daily wheel on 7 New York calendar days in a row during the same BIP Breakthrough week, which starts Monday at midnight Eastern. That grants the week's BIP badge and the title for 7 days. After it expires, complete another BIP week to earn it again. You can hide the title in Title and Flair without losing it. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "badges"
+    ],
+    "followUps": [
       "app-pleb-what",
       "app-home-what",
       "app-home-how"
     ],
-    "sources": "features.registry.js entry badges."
+    "sources": "badge-index.js core_contributor."
   },
   {
     "id": "app-pleb-what",
@@ -3454,7 +3514,7 @@
     ],
     "answer": "Delete account is on the Account tab. You confirm your username, and any sats balance is forfeited. There is no waiting period. Open Settings → Account and choose Delete account. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "delete-account",
       "one-stop-shop"
     ],
     "followUps": [
@@ -3475,7 +3535,7 @@
     ],
     "answer": "Delete account is on the Account tab. You confirm your username, and any sats balance is forfeited. There is no waiting period. Open Settings → Account and choose Delete account. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "delete-account",
       "one-stop-shop"
     ],
     "followUps": [
@@ -3496,7 +3556,7 @@
     ],
     "answer": "Email sign-ins can change the address from the Account tab. Linked Google, X, GitHub, and Facebook emails stay with that sign-in. Open Settings → Account and choose Change email or Add email. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "change-email",
       "one-stop-shop"
     ],
     "followUps": [
@@ -3517,7 +3577,7 @@
     ],
     "answer": "Email sign-ins can change the address from the Account tab. Linked Google, X, GitHub, and Facebook emails stay with that sign-in. Open Settings → Account and choose Change email or Add email. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "change-email",
       "one-stop-shop"
     ],
     "followUps": [

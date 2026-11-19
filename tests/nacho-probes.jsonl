@@ -100,3 +100,6 @@
 {"cat": "concept", "q": "What is coinjoin?", "expect": {"noNfa": true, "no988": true, "noAntlers": true, "noInternals": true, "notRefused": true}}
 {"cat": "eli5", "q": "Explain UTXOs like I am five.", "expect": {"noNfa": true, "no988": true, "noAntlers": true, "noInternals": true, "notRefused": true}}
 {"cat": "smalltalk", "q": "Good morning Nacho!", "expect": {"noNfa": true, "no988": true, "noAntlers": true, "noInternals": true, "notRefused": true}}
+{"cat": "app", "q": "What is the Core Contributor badge?", "expect": {"no988": true, "noAntlers": true, "noInternals": true, "notRefused": true, "includes": ["Core Contributor", "7", "spin"], "excludes": ["who develops bitcoin"]}}
+{"cat": "app", "q": "core contributor", "expect": {"no988": true, "noAntlers": true, "noInternals": true, "notRefused": true, "includes": ["Core Contributor"], "excludes": ["Bitcoin Core developers"]}}
+{"cat": "app", "q": "How do I earn Core Contributor?", "expect": {"no988": true, "noAntlers": true, "noInternals": true, "notRefused": true, "includes": ["spin", "7"]}}

@@ -6,6 +6,7 @@
 
 const TITLE_DEFS = require('./title-defs.json');
 const collectionBonus = require('./collectionBonus');
+const coreContributor = require('./coreContributor');
 
 // Nook "Chat Flair" item (ownedCosmetics: chat_flair) unlocks these.
 const NOOK_FLAIR = ['🔥', '⚡', '🦌', '🧡', '💎', '👑', '🎯', '⛏️', '🟠'];
@@ -125,7 +126,9 @@ async function handle(db, adminSdk, uid, data, nowMs) {
         if (flair && earned.flair.indexOf(flair) < 0) { flair = null; patch.chatFlairEmoji = del; }
     }
     if (Object.keys(patch).length) await loaded.userRef.set(patch, { merge: true });
-    return { ok: true, titles: earned.titles, flair: earned.flair, activeTitle: active, chatFlairEmoji: flair };
+    const visibleUser = Object.assign({}, user, patch);
+    if (patch.activeTitle === del) visibleUser.activeTitle = null;
+    return { ok: true, titles: earned.titles, flair: earned.flair, activeTitle: active, chatFlairEmoji: flair, coreContributorVisible: coreContributor.isVisible(visibleUser, nowMs) };
 }
 
 module.exports = {
@@ -137,4 +140,5 @@ module.exports = {
     planEquip: planEquip,
     handle: handle,
     toMs: toMs,
+    coreContributor: coreContributor,
 };

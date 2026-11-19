@@ -346,6 +346,237 @@ window.BADGE_CATALOG_VERSION=1;
 window.BADGE_COLLECTION_PAY={"col_learning":{"bonusPts":300,"legacy":[{"id":"set_scholar_complete","pts":0},{"id":"set_scholar_daily","pts":150},{"id":"set_explorer_complete","pts":150},{"id":"set_trails_complete","pts":0}]},"col_daily_habits":{"bonusPts":4150,"legacy":[{"id":"set_daily_complete","pts":0},{"id":"set_daily_five","pts":150},{"id":"set_trifecta_complete","pts":2000},{"id":"set_streak_complete","pts":2000},{"id":"set_spin_complete","pts":0}]},"col_mining":{"bonusPts":500,"legacy":[{"id":"set_miner_complete","pts":0},{"id":"set_favor","pts":500}]},"col_foresight":{"bonusPts":1000,"legacy":[{"id":"set_oracle","pts":500},{"id":"set_raffle","pts":500}]},"col_arena":{"bonusPts":1150,"legacy":[{"id":"set_pvp_complete","pts":500},{"id":"set_gladiator","pts":150},{"id":"set_codebreaker","pts":500}]},"col_chat_forum":{"bonusPts":300,"legacy":[{"id":"set_social_complete","pts":150},{"id":"set_voice","pts":150}]},"col_peers":{"bonusPts":500,"legacy":[{"id":"set_network","pts":500}]},"col_irl":{"bonusPts":0,"legacy":[{"id":"set_irl_complete","pts":0}]},"col_lightning":{"bonusPts":150,"legacy":[{"id":"set_lightning_complete","pts":0},{"id":"set_generous","pts":150}]},"col_builder":{"bonusPts":650,"legacy":[{"id":"set_builder_complete","pts":500},{"id":"set_trader","pts":150}]},"col_tctv":{"bonusPts":150,"legacy":[{"id":"set_tctv_complete","pts":0},{"id":"set_tv","pts":150}]},"col_beats":{"bonusPts":0,"legacy":[{"id":"set_beats_complete","pts":0}]},"col_profile":{"bonusPts":300,"legacy":[{"id":"set_profile_complete","pts":0},{"id":"set_newcomer","pts":150},{"id":"set_sovereign","pts":150}]},"col_fitness":{"bonusPts":0,"legacy":[{"id":"set_fun_complete","pts":0},{"id":"set_pow_complete","pts":0}]},"col_bip_s1":{"bonusPts":0,"legacy":[]},"col_proof_of_everything":{"bonusPts":0,"legacy":[]}};
 window.BADGE_COLLECTION_DEFS=[{"id":"col_learning","name":"Learning","emoji":"📚","color":"#3b82f6","kind":"core","optional":false,"badgeIds":["first_channel","explorer_5","explorer_25","explorer_all","trivia_correct_1","trivia_correct_10","trivia_correct_30","trivia_streak_7","quest_days_7","quest_days_30","cert_scholar","cert_tech","cert_double","trail_started","trail_summit"],"bonusId":"col_learning_bonus","title":{"id":"col_title_learning","title":"Satoshi Scholar","emoji":"🎓","flavor":"Finished the Learning collection"},"flair":"🎓"},{"id":"col_daily_habits","name":"Daily Habits","emoji":"🎯","color":"#f7931a","kind":"core","optional":false,"badgeIds":["streak_3","streak_7","streak_14","streak_30","daily_triple_1","daily_triple_7","daily_triple_30","spin_1","spin_7","spin_streak_7","daily_five_1","daily_five_7","say_hi_1","poll_days_7","poll_days_30"],"bonusId":"col_daily_habits_bonus","title":{"id":"col_title_daily_habits","title":"Diamond Hands","emoji":"🙌","flavor":"Finished the Daily Habits collection"},"flair":"🙌"},{"id":"col_mining","name":"Mining","emoji":"⛏️","color":"#f7931a","kind":"core","optional":false,"badgeIds":["sf_first_hash","sf_10_hashes","sf_50_hashes","sf_100_hashes","sf_1000_hashes","sf_low_hash","sf_block_solver","sf_lucky_1","sf_lucky_5","sf_lucky_10","sf_unlucky_1","sf_unlucky_5","sf_unlucky_10","sf_trifecta_10","sf_contributor_10"],"bonusId":"col_mining_bonus","title":{"id":"col_title_mining","title":"Master Miner","emoji":"⚒️","flavor":"Finished the Mining collection"},"flair":"⚒️"},{"id":"col_foresight","name":"Foresight and Luck","emoji":"🔮","color":"#a78bfa","kind":"core","optional":false,"badgeIds":["predict_1","predict_top_week","predict_top_week_5","predict_top_month","raffle_entered","raffle_10","raffle_50"],"bonusId":"col_foresight_bonus","title":{"id":"col_title_foresight","title":"The Oracle","emoji":"🔮","flavor":"Finished the Foresight and Luck collection"},"flair":"🔮"},{"id":"col_arena","name":"Arena","emoji":"⚔️","color":"#ec4899","kind":"core","optional":false,"badgeIds":["pvp_played_1","pvp_played_10","pvp_played_50","pvp_first","pvp_5","pvp_25","pvp_50","cipher_1","cipher_10","cipher_peer_key_1","cipher_full_ring","cipher_sats_1"],"bonusId":"col_arena_bonus","title":{"id":"col_title_arena","title":"Arena Champion","emoji":"⚔️","flavor":"Finished the Arena collection"},"flair":"⚔️"},{"id":"col_chat_forum","name":"Chat & Forum","emoji":"💬","color":"#8b5cf6","kind":"core","optional":false,"badgeIds":["chat_first","chat_10","chat_50","chat_100","chat_200","dm_first","dm_10","say_hi_7","reply_bonus_25","forum_reply_10","topic_comment_1","topic_channels_10"],"bonusId":"col_chat_forum_bonus","title":{"id":"col_title_chat_forum","title":"Town Crier","emoji":"📣","flavor":"Finished the Chat & Forum collection"},"flair":"📣"},{"id":"col_peers","name":"Peers & Referrals","emoji":"🤝","color":"#06b6d4","kind":"core","optional":false,"badgeIds":["peer_1","peer_3","peer_10","referral_1","referral_10","key_peers_5","key_peers_21","peer_level_2","peer_level_3","peer_level_4","peer_level_5","peer_hub_5"],"bonusId":"col_peers_bonus","title":{"id":"col_title_peers","title":"Community Pillar","emoji":"🏛️","flavor":"Finished the Peers & Referrals collection"},"flair":"🏛️"},{"id":"col_irl","name":"IRL Meetups","emoji":"🍻","color":"#f59e0b","kind":"core","optional":true,"badgeIds":["irl_host","irl_host_5","irl_host_10","irl_attend_1","irl_attend_5"],"bonusId":"col_irl_bonus","title":{"id":"col_title_irl","title":"Meetup Legend","emoji":"🍻","flavor":"Finished the optional IRL Meetups set"},"flair":"🍻"},{"id":"col_lightning","name":"Lightning and Giving","emoji":"⚡","color":"#eab308","kind":"core","optional":false,"badgeIds":["tip_first","tip_10","tip_received_1","tip_magnet","tip_received_50","sats_first","sats_1k","sats_5k","sats_10k","gift_sent_1","gift_sent_10","gift_open_1","donor_1000"],"bonusId":"col_lightning_bonus","title":{"id":"col_title_lightning","title":"Lightning Lord","emoji":"⚡","flavor":"Finished the Lightning and Giving collection"},"flair":"⚡"},{"id":"col_builder","name":"Builder and Market","emoji":"🏗️","color":"#22c55e","kind":"core","optional":false,"badgeIds":["producer_1","producer_10","forum_first","forum_10","market_listed_1","market_listed_5","market_message","first_purchase"],"bonusId":"col_builder_bonus","title":{"id":"col_title_builder","title":"Archive Builder","emoji":"🏗️","flavor":"Finished the Builder and Market collection"},"flair":"🏗️"},{"id":"col_tctv","name":"Timechain TV","emoji":"📺","color":"#a855f7","kind":"core","optional":false,"badgeIds":["tctv_tuned_in","tctv_couch_potato","tctv_binge_watcher","tctv_couch_king","tctv_channel_hopper","tctv_remote_warrior","tctv_dial_spinner","tctv_signal_seeker","tctv_antenna_wizard","tctv_timechain_surfer","tctv_daily_1","tctv_daily_7","tctv_daily_30"],"bonusId":"col_tctv_bonus","title":{"id":"col_title_tctv","title":"Timechain Veteran","emoji":"📺","flavor":"Finished the Timechain TV collection"},"flair":"📺"},{"id":"col_beats","name":"Beats & DJ","emoji":"🎵","color":"#f472b6","kind":"core","optional":false,"badgeIds":["beats_first_listen","beats_50_plays","beats_100_plays","beats_200_plays","beats_liked_10","beats_liked_50","beats_comment_1","dj_first","dj_5","dj_25","dj_songs_10","dj_songs_50"],"bonusId":"col_beats_bonus","title":{"id":"col_title_beats","title":"Beats Maestro","emoji":"🎧","flavor":"Finished the Beats & DJ collection"},"flair":"🎧"},{"id":"col_profile","name":"Profile and Setup","emoji":"👤","color":"#6366f1","kind":"core","optional":false,"badgeIds":["onboarding_complete","push_enabled","profile_complete","global_citizen","bio_author","profile_curious","profile_explorer_5","profile_explorer_10","profile_explorer_25","lightning_address_set","totp_enabled","faction_chosen"],"bonusId":"col_profile_bonus","title":{"id":"col_title_profile","title":"Sovereign Individual","emoji":"🔐","flavor":"Finished the Profile and Setup collection"},"flair":"🔐"},{"id":"col_fitness","name":"Fun and Fitness","emoji":"🚶","color":"#84cc16","kind":"core","optional":false,"badgeIds":["pow_first_step","pow_km_10","pow_km_50","pow_km_100","pow_streak_3","pow_streak_7","pow_streak_30","pow_marathoner","fun_weekend","fun_friday","fun_midnight"],"bonusId":"col_fitness_bonus","title":{"id":"col_title_fitness","title":"Distance Legend","emoji":"🚶","flavor":"Finished the Fun and Fitness collection"},"flair":"🚶"},{"id":"col_bip_s1","name":"BIP Breakthroughs · Season 1","emoji":"📜","color":"#f7931a","kind":"bip","optional":true,"badgeIds":["bip_360","bip_119","bip_347","bip_118","bip_352","bip_348","bip_349","bip_443","bip_353","bip_324","bip_85","bip_86"],"bonusId":"col_bip_s1_bonus","title":{"id":"col_title_bip_s1","title":"BIP Merger","emoji":"📜","flavor":"Merged all 12 BIPs of Season 1"},"flair":"📜"},{"id":"col_proof_of_everything","name":"Proof of Everything","emoji":"🛡️","color":"#fbbf24","kind":"meta","optional":false,"badgeIds":["col_learning_bonus","col_daily_habits_bonus","col_mining_bonus","col_foresight_bonus","col_arena_bonus","col_chat_forum_bonus","col_peers_bonus","col_lightning_bonus","col_builder_bonus","col_tctv_bonus","col_beats_bonus","col_profile_bonus","col_fitness_bonus"],"bonusId":"col_proof_of_everything_bonus","title":{"id":"col_title_proof_of_everything","title":"Unconfiscatable","emoji":"🛡️","flavor":"Completed every collection. Nothing can take it away."},"flair":"⚡🛡️"}];
 window.BADGE_LEGEND_IDS=["trivia_correct_100","trivia_streak_30","explorer_10","explorer_50","explorer_100","trail_meadow","trail_mountain","trail_all","trail_double","trail_perfectionist","trail_speed_3","trail_meadow_fast","streak_60","streak_100","streak_200","streak_365","daily_triple_90","daily_triple_365","spin_30","spin_100","spin_streak_14","spin_streak_30","spin_jackpot","spin_closet_1","spin_closet_5","sf_lucky_50","sf_lucky_100","sf_lucky_1000","sf_unlucky_50","sf_unlucky_100","sf_unlucky_1000","raffle_250","raffle_1000","raffle_winner","pvp_100","cipher_50","gift_sent_200","sats_21k","tip_sats_10k","tip_whale","market_sold_1","beats_500_plays","dj_songs_100","tctv_satellite","profile_explorer_50","profile_explorer_100","pow_km_500","pow_km_1000","pow_km_5000","fun_bitcoin_birthday","fun_whitepaper_day","fun_new_year","fun_halving_day","fun_pi_day"];
+/* Shared badge and title catalog for search, Nacho, and the display popover.
+   Descriptions already in the catalog are used as-is. Missing text gets a
+   neutral fallback. Draft wording is not wired in until Phil approves it.
+   Secret (hidden) badges are omitted from public search and Nacho. */
+(function (root, factory) {
+    var api = factory(root);
+    if (typeof module === 'object' && module.exports) module.exports = api;
+    if (root) root.BQBadgeIndex = api;
+})(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this), function (root) {
+    var FALLBACK_DESC = 'A Bitcoin Quest badge. Open Badges to track your progress.';
+    var FALLBACK_HOW = 'Keep exploring the app to earn this. A fuller how-to will appear once the official description is reviewed.';
+    var TITLE_HOW = {
+        core_contributor: 'Spin the daily wheel on 7 New York calendar days in a row during the same BIP Breakthrough week, which starts Monday at midnight Eastern. That merges the week\'s BIP, grants its badge, and gives you the Core Contributor title for 7 days. After it expires, complete another BIP week to earn it again. You can hide the title without losing it.'
+    };
+
+    function catalogMap() {
+        if (root && root.BADGE_CATALOG) return root.BADGE_CATALOG;
+        return {};
+    }
+    function titleList() {
+        if (root && Array.isArray(root.TITLE_DEFS)) return root.TITLE_DEFS;
+        return [];
+    }
+    function collections() {
+        if (root && Array.isArray(root.BADGE_COLLECTION_DEFS)) return root.BADGE_COLLECTION_DEFS;
+        if (root && Array.isArray(root.BADGE_COLLECTIONS)) return root.BADGE_COLLECTIONS;
+        return [];
+    }
+
+    function normalize(value) {
+        var s = String(value == null ? '' : value);
+        if (typeof s.normalize === 'function') s = s.normalize('NFKD');
+        s = s.replace(/\p{M}/gu, '');
+        s = s.toLowerCase();
+        s = s.replace(/[_\-/]+/g, ' ');
+        s = s.replace(/\s+/g, ' ').trim();
+        return s;
+    }
+
+    function isSecretFlag(row) {
+        return !!(row && (row.hidden || row.secret));
+    }
+
+    function titleIds() {
+        var set = {};
+        titleList().forEach(function (t) { if (t && t.id) set[t.id] = true; });
+        collections().forEach(function (col) {
+            if (col && col.title && col.title.id) set[col.title.id] = true;
+        });
+        set.core_contributor = true;
+        return set;
+    }
+
+    function entryFromCatalog(id, raw, titles) {
+        var name = (raw && raw.name) || id;
+        var desc = String((raw && (raw.desc || raw.flavor)) || '').trim();
+        var hidden = !!(raw && raw.hidden);
+        var kind = titles[id] ? 'title' : 'badge';
+        var how = '';
+        if (TITLE_HOW[id]) how = TITLE_HOW[id];
+        else if (desc) how = desc;
+        else how = FALLBACK_HOW;
+        return {
+            id: id,
+            kind: kind,
+            name: name,
+            emoji: (raw && raw.emoji) || '',
+            desc: desc || FALLBACK_DESC,
+            how: how,
+            secret: hidden,
+            hidden: hidden,
+            xp: (raw && typeof raw.xp === 'number') ? raw.xp : (raw && raw.pts) || 0,
+            category: (raw && raw.category) || '',
+            hasOfficialDesc: !!desc
+        };
+    }
+
+    function allEntries() {
+        var titles = titleIds();
+        var out = [];
+        var seen = {};
+        var cat = catalogMap();
+        Object.keys(cat).forEach(function (id) {
+            seen[id] = true;
+            out.push(entryFromCatalog(id, cat[id], titles));
+        });
+        titleList().forEach(function (t) {
+            if (!t || !t.id || seen[t.id]) {
+                if (t && t.id && seen[t.id] && t.flavor) {
+                    for (var i = 0; i < out.length; i++) {
+                        if (out[i].id === t.id) {
+                            if (!out[i].hasOfficialDesc && t.flavor) {
+                                out[i].desc = t.flavor;
+                                out[i].how = TITLE_HOW[t.id] || t.flavor;
+                                out[i].hasOfficialDesc = true;
+                            }
+                            if (t.emoji && !out[i].emoji) out[i].emoji = t.emoji;
+                            if (t.title) out[i].name = t.title;
+                            out[i].kind = 'title';
+                        }
+                    }
+                }
+                return;
+            }
+            seen[t.id] = true;
+            out.push({
+                id: t.id,
+                kind: 'title',
+                name: t.title || t.name || t.id,
+                emoji: t.emoji || '',
+                desc: t.flavor || t.desc || FALLBACK_DESC,
+                how: TITLE_HOW[t.id] || t.flavor || t.desc || FALLBACK_HOW,
+                secret: false,
+                hidden: false,
+                xp: 0,
+                category: 'Title',
+                hasOfficialDesc: !!(t.flavor || t.desc)
+            });
+        });
+        if (!seen.core_contributor) {
+            out.push({
+                id: 'core_contributor',
+                kind: 'title',
+                name: 'Core Contributor',
+                emoji: '🔧',
+                desc: 'Merged this week\'s BIP after 7 daily spins. Bit Devs energy.',
+                how: TITLE_HOW.core_contributor,
+                secret: false,
+                hidden: false,
+                xp: 0,
+                category: 'Title',
+                hasOfficialDesc: true
+            });
+        }
+        return out;
+    }
+
+    function get(id) {
+        var key = String(id || '');
+        var list = allEntries();
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].id === key) return list[i];
+        }
+        return null;
+    }
+
+    function search(query, opts) {
+        var options = opts || {};
+        var q = normalize(query);
+        if (!q || q.length < 2) return [];
+        var stop = { a:1, an:1, the:1, is:1, are:1, was:1, were:1, what:1, whats:1, who:1, how:1, do:1, does:1, did:1, i:1, me:1, my:1, to:1, of:1, in:1, on:1, for:1, and:1, or:1, can:1, you:1, your:1, it:1, this:1, that:1, with:1, about:1 };
+        var tokens = q.split(' ').filter(function (t) { return t && !stop[t]; });
+        if (!tokens.length) tokens = q.split(' ').filter(Boolean);
+        var earned = options.earnedIds || {};
+        var hits = [];
+        allEntries().forEach(function (row) {
+            if (row.secret && !earned[row.id] && !options.includeSecret) return;
+            var blob = normalize([row.id, row.name, row.desc, row.how, row.category, row.kind].join(' '));
+            var ok = true;
+            for (var t = 0; t < tokens.length; t++) {
+                if (blob.indexOf(tokens[t]) === -1) { ok = false; break; }
+            }
+            if (!ok) return;
+            var name = normalize(row.name);
+            var score = 5;
+            if (name === q) score = 0;
+            else if (name.indexOf(q) === 0) score = 1;
+            else if (name.indexOf(q) !== -1) score = 2;
+            else if (normalize(row.id).indexOf(q) !== -1) score = 3;
+            hits.push({ entry: row, score: score });
+        });
+        hits.sort(function (a, b) {
+            if (a.score !== b.score) return a.score - b.score;
+            return (a.entry.name || '').localeCompare(b.entry.name || '');
+        });
+        var limit = options.limit > 0 ? options.limit : 12;
+        return hits.slice(0, limit).map(function (h) { return h.entry; });
+    }
+
+    function isBitcoinCoreDevQuestion(query) {
+        var s = normalize(query);
+        return /bitcoin core (contributor|developer)s?/.test(s)
+            || /who develops bitcoin/.test(s)
+            || /how many bitcoin developers/.test(s);
+    }
+
+    function nachoAnswer(query) {
+        if (isBitcoinCoreDevQuestion(query)) return null;
+        var hits = search(query, { includeSecret: false, limit: 3 });
+        if (!hits.length) return null;
+        var top = hits[0];
+        var name = normalize(top.name);
+        var q = normalize(query);
+        var strong = name === q || name.indexOf(q) !== -1 || q.indexOf(name) !== -1
+            || normalize(top.id).indexOf(q) !== -1
+            || /badge|title|how (do i|to) (earn|get|unlock)|what is/.test(q);
+        if (!strong && hits[0] && q.split(' ').length < 2) return null;
+        var parts = [top.emoji ? top.emoji + ' ' : '', top.name, ' is a Bitcoin Quest ', (top.kind === 'title' ? 'title' : 'badge'), '. ', top.desc];
+        if (top.how && top.how !== top.desc) parts.push(' ', top.how);
+        if (hits.length > 1) {
+            parts.push(' Related: ', hits.slice(1).map(function (h) { return h.name; }).join(', '), '.');
+        }
+        return { id: top.id, kind: top.kind, title: top.name, answer: parts.join(''), entries: hits };
+    }
+
+    function toMs(v) {
+        if (!v) return 0;
+        if (typeof v === 'number') return v;
+        if (typeof v.toMillis === 'function') return v.toMillis();
+        if (v instanceof Date) return v.getTime();
+        return Number(v) || 0;
+    }
+    function coreContributorVisible(user, nowMs) {
+        if (!user) return false;
+        if (user.showCoreContributor === false) return false;
+        return toMs(user.coreContributorUntil) > (Number(nowMs) || Date.now());
+    }
+
+    return {
+        FALLBACK_DESC: FALLBACK_DESC,
+        FALLBACK_HOW: FALLBACK_HOW,
+        normalize: normalize,
+        allEntries: allEntries,
+        get: get,
+        search: search,
+        isBitcoinCoreDevQuestion: isBitcoinCoreDevQuestion,
+        nachoAnswer: nachoAnswer,
+        coreContributorVisible: coreContributorVisible,
+        toMs: toMs
+    };
+});
 /* Badge search. Names, ids, descriptions, categories, and collection names.
    Normalization is accent-insensitive and treats _, -, and spaces as the same.
    Results are drawn with textContent. */
@@ -658,6 +889,191 @@ window.BADGE_LEGEND_IDS=["trivia_correct_100","trivia_streak_30","explorer_10","
         install: install,
     };
 });
+/* Shared badge/title popover. Hover, tap, and keyboard focus. No inline handlers. */
+(function (root) {
+    if (!root || root._bqBadgePopoverInstalled) return;
+    root._bqBadgePopoverInstalled = true;
+
+    var hideTimer = null;
+    var currentId = '';
+
+    function entryOf(id) {
+        if (root.BQBadgeIndex && typeof root.BQBadgeIndex.get === 'function') return root.BQBadgeIndex.get(id);
+        return null;
+    }
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+    function ensure() {
+        var el = document.getElementById('bqBadgePopover');
+        if (el) return el;
+        el = document.createElement('div');
+        el.id = 'bqBadgePopover';
+        el.setAttribute('role', 'dialog');
+        el.setAttribute('aria-modal', 'false');
+        el.hidden = true;
+        el.style.cssText = 'position:fixed;z-index:400010;display:none;max-width:min(280px,calc(100vw - 24px));background:#1a1a2e;border:1px solid var(--accent,#f7931a);color:var(--text,#e2e8f0);padding:12px 14px;border-radius:12px;font-size:0.8rem;line-height:1.45;box-shadow:0 8px 32px rgba(0,0,0,0.85);';
+        document.body.appendChild(el);
+        return el;
+    }
+    function isOwnCore(anchor) {
+        if (!anchor || anchor.getAttribute('data-bq-badge') !== 'core_contributor') return false;
+        if (anchor.getAttribute('data-bq-own') === '1') return true;
+        try {
+            var uid = anchor.getAttribute('data-bq-uid') || '';
+            return !!(root.auth && root.auth.currentUser && uid && root.auth.currentUser.uid === uid);
+        } catch (e) { return false; }
+    }
+    function fill(el, entry, anchor) {
+        var html = '<div style="font-weight:800;font-size:0.95rem;margin-bottom:6px;">' +
+            esc((entry.emoji ? entry.emoji + ' ' : '') + entry.name) + '</div>';
+        html += '<div>' + esc(entry.desc) + '</div>';
+        if (entry.how && entry.how !== entry.desc) {
+            html += '<div style="margin-top:8px;color:var(--text-muted,#94a3b8);"><strong>How to earn it.</strong> ' + esc(entry.how) + '</div>';
+        }
+        if (isOwnCore(anchor) && typeof currentUser !== 'undefined' && currentUser && Number(currentUser.coreContributorUntil) > Date.now()) {
+            var on = currentUser.showCoreContributor !== false;
+            html += '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;">' +
+                '<input type="checkbox" id="bqShowCorePop"' + (on ? ' checked' : '') + '>' +
+                '<span>Show Core Contributor</span></label>';
+        }
+        el.innerHTML = html;
+        var box = el.querySelector('#bqShowCorePop');
+        if (box) {
+            box.addEventListener('change', function () {
+                if (typeof root._setShowCoreContributor === 'function') root._setShowCoreContributor(box.checked);
+            });
+        }
+    }
+    function place(el, anchor, ev) {
+        var vw = window.innerWidth || 320;
+        var vh = window.innerHeight || 480;
+        var tw = el.offsetWidth || 240;
+        var th = el.offsetHeight || 80;
+        var x = 12, y = 12;
+        if (ev && (ev.clientX || ev.clientY)) {
+            x = ev.clientX - tw / 2;
+            y = ev.clientY - th - 12;
+        } else if (anchor && anchor.getBoundingClientRect) {
+            var r = anchor.getBoundingClientRect();
+            x = r.left + r.width / 2 - tw / 2;
+            y = r.top - th - 8;
+            if (y < 8) y = r.bottom + 8;
+        }
+        x = Math.max(8, Math.min(x, vw - tw - 8));
+        y = Math.max(8, Math.min(y, vh - th - 8));
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+    }
+    function show(anchor, ev) {
+        var id = anchor && anchor.getAttribute('data-bq-badge');
+        var entry = entryOf(id);
+        if (!entry) return;
+        clearTimeout(hideTimer);
+        hideTimer = null;
+        currentId = id;
+        var el = ensure();
+        fill(el, entry, anchor);
+        el.hidden = false;
+        el.style.display = 'block';
+        place(el, anchor, ev);
+        el.setAttribute('data-bq-open-id', id);
+    }
+    function hide() {
+        var el = document.getElementById('bqBadgePopover');
+        if (!el) return;
+        el.style.display = 'none';
+        el.hidden = true;
+        currentId = '';
+    }
+    function scheduleHide() {
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(hide, 220);
+    }
+    function cancelHide() {
+        clearTimeout(hideTimer);
+        hideTimer = null;
+    }
+
+    document.addEventListener('pointerover', function (e) {
+        var a = e.target && e.target.closest && e.target.closest('[data-bq-badge]');
+        var pop = document.getElementById('bqBadgePopover');
+        if (pop && pop.contains(e.target)) { cancelHide(); return; }
+        if (!a) return;
+        if (window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches) show(a, e);
+    });
+    document.addEventListener('pointerout', function (e) {
+        var pop = document.getElementById('bqBadgePopover');
+        var to = e.relatedTarget;
+        if (pop && to && pop.contains(to)) { cancelHide(); return; }
+        var a = e.target && e.target.closest && e.target.closest('[data-bq-badge]');
+        if (a || (pop && pop.contains(e.target))) scheduleHide();
+    });
+    document.addEventListener('focusin', function (e) {
+        var a = e.target && e.target.closest && e.target.closest('[data-bq-badge]');
+        if (a) show(a, e);
+    });
+    document.addEventListener('focusout', function (e) {
+        var pop = document.getElementById('bqBadgePopover');
+        var to = e.relatedTarget;
+        if (pop && to && (pop.contains(to) || (to.closest && to.closest('[data-bq-badge]')))) return;
+        scheduleHide();
+    });
+    document.addEventListener('click', function (e) {
+        var a = e.target && e.target.closest && e.target.closest('[data-bq-badge]');
+        var pop = document.getElementById('bqBadgePopover');
+        if (a) {
+            e.preventDefault();
+            var fine = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+            if (!fine && pop && pop.style.display === 'block' && pop.getAttribute('data-bq-open-id') === a.getAttribute('data-bq-badge')) {
+                hide();
+                return;
+            }
+            show(a, e);
+            return;
+        }
+        if (pop && pop.contains(e.target)) {
+            cancelHide();
+            return;
+        }
+        hide();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') hide();
+        if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.closest && e.target.closest('[data-bq-badge]')) {
+            e.preventDefault();
+            show(e.target.closest('[data-bq-badge]'), e);
+        }
+    });
+    document.addEventListener('change', function (e) {
+        if (e.target && e.target.id === 'tfShowCore') {
+            if (typeof root._setShowCoreContributor === 'function') root._setShowCoreContributor(!!e.target.checked);
+        }
+    });
+
+    root._bqHideBadgePopover = hide;
+    root._setShowCoreContributor = function (on) {
+        if (typeof currentUser === 'undefined' || !currentUser) return;
+        if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
+        currentUser.showCoreContributor = !!on;
+        if (typeof db !== 'undefined' && db) {
+            db.collection('users').doc(auth.currentUser.uid).update({ showCoreContributor: !!on }).catch(function () {});
+        }
+        if (typeof showToast === 'function') showToast(on ? 'Core Contributor is visible' : 'Core Contributor is hidden');
+        if (typeof root._tfRepaint === 'function') root._tfRepaint();
+        var pill = document.getElementById('settingsTitlePill');
+        if (pill && typeof root._tfTitleDef === 'function') {
+            /* updated on repaint in ranking */
+        }
+        if (typeof updateRankUI === 'function') try { updateRankUI(); } catch (err) {}
+        var box = document.getElementById('tfShowCore');
+        if (box) box.checked = !!on;
+        var popBox = document.getElementById('bqShowCorePop');
+        if (popBox) popBox.checked = !!on;
+    };
+})(typeof window !== 'undefined' ? window : this);
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
@@ -13649,7 +14065,7 @@ window.showUserProfile = function(uid) {
                 // Raw badge ID with no emoji found — hide it rather than show ugly ID text
                 badgeEmoji = '';
             }
-            badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;">' + badgeEmoji + ' <span style="font-size:1.8rem;opacity:0.6;vertical-align:middle;">' + lvl.emoji + '</span></div>';
+            badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;"><span tabindex="0" data-bq-badge="' + displayBadge + '" data-bq-uid="' + (uid || '') + '">' + badgeEmoji + '</span> <span style="font-size:1.8rem;opacity:0.6;vertical-align:middle;">' + lvl.emoji + '</span></div>';
         } else {
             badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;">' + lvl.emoji + '</div>';
         }
@@ -13697,9 +14113,14 @@ window.showUserProfile = function(uid) {
                 // Active title pill
                 (function(){
                     var _tid = u.activeTitle || '';
+                    var _coreVis = (typeof BQBadgeIndex !== 'undefined' && BQBadgeIndex.coreContributorVisible)
+                        ? BQBadgeIndex.coreContributorVisible(u)
+                        : (u.showCoreContributor !== false && Number(u.coreContributorUntil) > Date.now());
+                    if (_tid === 'core_contributor' && !_coreVis) return '';
                     var _tDef = (typeof TITLE_DEFS !== 'undefined' && _tid) ? TITLE_DEFS.find(function(t){return t.id===_tid;}) : null;
                     if (!_tDef) return '';
-                    return '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + _tDef.emoji + ' ' + escapeHtml(_tDef.title) + '</div>' +
+                    var _own = (auth && auth.currentUser && auth.currentUser.uid === uid) ? ' data-bq-own="1"' : '';
+                    return '<div tabindex="0" data-bq-badge="' + escapeHtml(_tid) + '" data-bq-uid="' + escapeHtml(uid || '') + '"' + _own + ' style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + _tDef.emoji + ' ' + escapeHtml(_tDef.title) + '</div>' +
                            '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_tDef.flavor) + '</div>';
                 })() +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' XP</div>' +
