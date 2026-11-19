@@ -424,25 +424,33 @@ function btcpayLinkOk(url, cfg) {
     } catch (e) { return false; }
 }
 
-// Lapsed Founders' holds whose Stripe session still needs expiring:
-// { orderId: deadlineMs }. The deadline is when the session would have expired
-// on its own (it was created before the hold started), so there is nothing to
-// do after it. Bounded so the counter doc stays small.
+// Lapsed Founders' holds whose Stripe session still needs expiring live in
+// their own server-only doc (premium_counters/founders_expire, Red Team N4) as
+// entries { orderId: deadlineMs }, so queue upkeep never writes the seat
+// counter. The deadline is when the session would have expired on its own (it
+// was created before the hold started), so there is nothing to do after it.
+const FOUNDERS_EXPIRE_DOC = 'founders_expire';
 const EXPIRE_BATCH = 10;
 const EXPIRE_QUEUE_MAX = 300;
-function queueLapsed(queue, lapsedHolds, nowMs) {
+const EXPIRE_DRAIN_EVERY_MS = 15000; // at most one drain per 15 s, all callers (N3)
+// New queue entries for holds that just lapsed (merged into the queue doc).
+function lapsedEntries(lapsedHolds, nowMs) {
+    const out = {};
+    (lapsedHolds || []).forEach(function (e) {
+        const deadline = Number(e[1] && e[1].expMs) + STRIPE_CHECKOUT_MINUTES * 60000;
+        if (deadline > nowMs) out[e[0]] = deadline;
+    });
+    return out;
+}
+// Drops entries past their deadline and keeps at most EXPIRE_QUEUE_MAX, the
+// ones with the latest deadlines (still payable the longest).
+function trimQueue(queue, nowMs) {
     const out = {};
     Object.keys(queue && typeof queue === 'object' ? queue : {}).forEach(function (id) {
         if (Number(queue[id]) > nowMs) out[id] = Number(queue[id]);
     });
-    (lapsedHolds || []).forEach(function (e) {
-        const h = e[1];
-        const deadline = Number(h && h.expMs) + STRIPE_CHECKOUT_MINUTES * 60000;
-        if (deadline > nowMs && out[e[0]] === undefined) out[e[0]] = deadline;
-    });
     const ids = Object.keys(out);
     if (ids.length <= EXPIRE_QUEUE_MAX) return out;
-    // Keep the entries with the latest deadlines (still payable the longest).
     ids.sort(function (x, y) { return out[y] - out[x] || (x < y ? -1 : 1); });
     const kept = {};
     ids.slice(0, EXPIRE_QUEUE_MAX).forEach(function (id) { kept[id] = out[id]; });
@@ -662,6 +670,7 @@ function createPremiumHandlers(deps) {
         const cooldownMs = (Number(cfg.foundersHoldCooldownMinutes) || 0) * 60000;
         const ipCooldownMs = (Number(cfg.foundersIpHoldCooldownMinutes) || 0) * 60000;
         let lapsedIds = [];
+        let foundersStage = false;
         if (provider === 'stripe') stripeKey(); else btcpayCfg(); // before any seat is held
         let capHit = false;
 
@@ -696,6 +705,9 @@ function createPremiumHandlers(deps) {
                 const gws = g.inWindow ? g.windowStart : nowMs;
                 tx.set(globalRef, { windowStartMs: gws, count: g.count + 1, expireAt: new Date(gws + 2 * 3600000) });
             }
+            // From here a Founders' refusal still counts against the per-account
+            // rate limit (written after the abort, Red Team N3).
+            foundersStage = q.lifetime;
             if (q.lifetime) {
                 const c = counterSnap.exists ? counterSnap.data() : { sold: 0, holds: {} };
                 const holds = liveHolds(c.holds, nowMs);
@@ -744,9 +756,16 @@ function createPremiumHandlers(deps) {
                 // Lapsed holds leave the seat count now (seat freed at once) and
                 // move to a server-only queue whose Stripe sessions are expired
                 // in small batches until each is done (Red Team N1).
-                const expireQueue = queueLapsed(c.expireQueue, lapsed.map(function (id) { return [id, c.holds[id]]; }), nowMs);
-                tx.set(counterRef, Object.assign({}, c, { sold: Number(c.sold) || 0, holds: holds, expireQueue: expireQueue, cap: pricing.FOUNDERS_CAP, updatedAtMs: nowMs }));
+                // Blind merge into the queue doc (no read, so the seat transaction
+                // never conflicts with queue upkeep). A legacy queue left on the
+                // counter by an earlier build moves over once.
+                const newEntries = Object.assign(trimQueue(c.expireQueue, nowMs), lapsedEntries(lapsed.map(function (id) { return [id, c.holds[id]]; }), nowMs));
+                if (Object.keys(newEntries).length) tx.set(ref(COL.counters, FOUNDERS_EXPIRE_DOC), { entries: newEntries, updatedAtMs: nowMs }, { merge: true });
+                const nextCounter = Object.assign({}, c, { sold: Number(c.sold) || 0, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: nowMs });
+                delete nextCounter.expireQueue;
+                tx.set(counterRef, nextCounter);
             }
+            foundersStage = false;
             // expireAt: Firestore TTL field (policy on premium_rate.expireAt; see docs).
             const ws = inWindow ? windowStart : nowMs;
             tx.set(rateRef, { windowStartMs: ws, count: count + 1, expireAt: new Date(ws + 2 * 3600000) });
@@ -792,6 +811,7 @@ function createPremiumHandlers(deps) {
             });
         }); } catch (e) {
             if (capHit) await foundersCapAlert(nowMs, cfg);
+            if (foundersStage) await countRefusedAttempt(rateRef, nowMs, limit);
             // Nothing was pruned: those lapsed holds stay on the counter and are
             // queued by the next successful hold; expire what we can now.
             if (q.lifetime) await drainExpireQueue(nowMs, lapsedIds);
@@ -1085,16 +1105,44 @@ function createPremiumHandlers(deps) {
         }
         return n;
     }
-    // Works through the server-only expire queue on the Founders' counter, at
-    // most EXPIRE_BATCH Stripe calls per call (soonest deadline first), then
-    // removes only the entries that are done. Failed ones stay for the next
-    // call until their Stripe session would have expired on its own anyway.
-    // Never throws.
+    // A refused Founders' checkout still uses one checkout attempt from the
+    // per-account hourly window (Red Team N3). Never changes the refusal.
+    async function countRefusedAttempt(rateRef, nowMs, limit) {
+        try {
+            await db.runTransaction(async function (tx) {
+                const snap = await tx.get(rateRef);
+                const d = snap.exists ? snap.data() : {};
+                const ws0 = Number(d.windowStartMs) || 0;
+                const inW = nowMs - ws0 < 3600000;
+                const count = inW ? (Number(d.count) || 0) : 0;
+                if (count >= limit) return;
+                const ws = inW ? ws0 : nowMs;
+                tx.set(rateRef, { windowStartMs: ws, count: count + 1, expireAt: new Date(ws + 2 * 3600000) });
+            });
+        } catch (e) {
+            log('premium refused attempt count failed', { err: String(e && e.message || e) });
+        }
+    }
+    // Works through the server-only expire queue (its own doc), at most once
+    // every EXPIRE_DRAIN_EVERY_MS across all callers (claimed with lastDrainMs
+    // in a transaction), and at most EXPIRE_BATCH Stripe calls per drain
+    // (soonest deadline first). Then removes only the entries that are done;
+    // failed ones stay for a later drain until their Stripe session would have
+    // expired on its own anyway. Never writes the seat counter. Never throws.
     async function drainExpireQueue(nowMs, extraIds) {
         try {
-            const counterRef = ref(COL.counters, 'founders');
-            const snap = await counterRef.get();
-            const queue = snap.exists && snap.data().expireQueue && typeof snap.data().expireQueue === 'object' ? snap.data().expireQueue : {};
+            const queueRef = ref(COL.counters, FOUNDERS_EXPIRE_DOC);
+            let queue = null;
+            await db.runTransaction(async function (tx) {
+                queue = null;
+                const snap = await tx.get(queueRef);
+                const d = snap.exists ? snap.data() : {};
+                const last = Number(d.lastDrainMs) || 0;
+                if (last <= nowMs && nowMs - last < EXPIRE_DRAIN_EVERY_MS) return;
+                queue = d.entries && typeof d.entries === 'object' ? d.entries : {};
+                tx.set(queueRef, { lastDrainMs: nowMs }, { merge: true });
+            });
+            if (!queue) return 0;
             const ids = Object.keys(queue).filter(function (id) { return Number(queue[id]) > nowMs; })
                 .sort(function (x, y) { return Number(queue[x]) - Number(queue[y]) || (x < y ? -1 : 1); });
             (extraIds || []).forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
@@ -1109,17 +1157,15 @@ function createPremiumHandlers(deps) {
                 if (r === 'expired') n++;
                 if (r !== 'failed') done.push(id);
             }
-            const stale = Object.keys(queue).filter(function (id) { return !(Number(queue[id]) > nowMs); });
-            const drop = done.filter(function (id) { return queue[id] !== undefined; }).concat(stale);
-            if (drop.length) {
-                await db.runTransaction(async function (tx) {
-                    const cs = await tx.get(counterRef);
-                    if (!cs.exists) return;
-                    const q2 = Object.assign({}, cs.data().expireQueue || {});
-                    drop.forEach(function (id) { delete q2[id]; });
-                    tx.update(counterRef, { expireQueue: q2 });
-                });
-            }
+            await db.runTransaction(async function (tx) {
+                const qs = await tx.get(queueRef);
+                if (!qs.exists) return;
+                const cur = qs.data().entries || {};
+                const q2 = Object.assign({}, cur);
+                done.forEach(function (id) { delete q2[id]; });
+                const trimmed = trimQueue(q2, nowMs);
+                if (Object.keys(trimmed).length !== Object.keys(cur).length) tx.update(queueRef, { entries: trimmed, updatedAtMs: nowMs });
+            });
             return n;
         } catch (e) {
             log('premium founders expire queue failed', { err: String(e && e.message || e) });

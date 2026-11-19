@@ -279,3 +279,19 @@ Live (Phil only, after Red Team / QA / Security GO):
   works the queue plus the lapsed holds it saw.
 - Buy-screen copy: "After that your seat is released and may go to someone
   else." (no promise that the checkout itself closes).
+
+## Round 5 (Nov 18, Red Team N3/N4)
+
+- The expire queue moved off the seat counter into its own server-only doc,
+  `premium_counters/founders_expire` (`entries: { orderId: deadlineMs }`,
+  `lastDrainMs`). Client access is already denied by the existing
+  `premium_counters/{docId}` rule; no rules change. The seat transaction still
+  prunes lapsed holds from `premium_counters/founders` and adds their entries
+  with a blind merge into the queue doc (no read, so it never conflicts with
+  queue upkeep). A legacy `expireQueue` field on the counter moves over once.
+- Drains run at most once every 15 seconds across all callers (claimed with
+  `lastDrainMs` in a transaction). Cap 300, deadlines and retry rules unchanged;
+  the cap is applied when a drain finishes.
+- A refused Founders' checkout (hold open, cooldown, sold out, busy) still uses
+  one attempt from the per-account hourly window; the refusal answer itself is
+  unchanged until that limit is reached.

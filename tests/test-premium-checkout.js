@@ -2224,6 +2224,8 @@ function seedLapsed(a, n, opts) {
     return Object.keys(holds);
 }
 function expiredIds(a) { return expireCalls(a).map(function (c) { return c.url.match(/sessions\/([^/]+)\/expire/)[1]; }); }
+function qdoc(a) { const d = a.db.store.get('premium_counters/founders_expire'); return d ? d.entries : undefined; }
+const DRAIN_GAP = 16000;
 test('N1: 15 lapsed holds: seats freed at once, 10 sessions expired now, the other 5 on the next checkout (none lost)', async function () {
     const a = setup();
     const ids = seedLapsed(a, 15, { sold: 480 });
@@ -2232,17 +2234,17 @@ test('N1: 15 lapsed holds: seats freed at once, 10 sessions expired now, the oth
     // Every lapsed hold left the seat count in the same transaction.
     assert.deepStrictEqual(Object.keys(c1.holds), [o1.orderId]);
     assert.strictEqual(c1.sold, 480);
+    assert.strictEqual(c1.expireQueue, undefined, 'queue is not on the seat counter (N4)');
     assert.strictEqual(expireCalls(a).length, 10);
-    assert.strictEqual(Object.keys(c1.expireQueue).length, 5);
+    assert.strictEqual(Object.keys(qdoc(a)).length, 5);
     ids.slice(0, 10).forEach(function (id) { assert.ok(a.db.store.get('premium_orders/' + id).sessionExpiredAtMs, id); });
-    // Next Founders checkout drains the rest.
+    a.clock.now += DRAIN_GAP;
     await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n1b', '198.51.100.82'));
     assert.strictEqual(expireCalls(a).length, 15);
     assert.deepStrictEqual(expiredIds(a).sort(), ids.map(function (_, i) { return 'cs_lapse_' + String(i).padStart(4, '0'); }).sort());
-    assert.deepStrictEqual(a.db.store.get('premium_counters/founders').expireQueue, {});
-    // Seats: only the two live holds count; nothing oversold or locked.
+    assert.deepStrictEqual(qdoc(a), {});
     assert.strictEqual(Object.keys(a.db.store.get('premium_counters/founders').holds).length, 2);
-    // A later checkout makes no further expire calls.
+    a.clock.now += DRAIN_GAP;
     await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n1c', '198.51.100.83'));
     assert.strictEqual(expireCalls(a).length, 15);
 });
@@ -2254,6 +2256,7 @@ test('N1: 25 lapsed holds drain over three checkouts, 10 Stripe calls at most ea
         const before = expireCalls(a).length;
         await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx(u, ip));
         counts.push(expireCalls(a).length - before);
+        a.clock.now += DRAIN_GAP;
     }
     assert.deepStrictEqual(counts, [10, 10, 5]);
     assert.strictEqual(new Set(expiredIds(a)).size, 25);
@@ -2264,45 +2267,89 @@ test('N1: a failed expire stays queued and is retried; paid or Stripe-expired or
     const ids = seedLapsed(a, 12);
     a.db.store.get('premium_orders/' + ids[2]).status = 'active';
     await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n3a', '198.51.100.101'));
-    const q1 = a.db.store.get('premium_counters/founders').expireQueue;
+    const q1 = qdoc(a);
     assert.ok(q1[ids[1]], 'failed one stays');
     assert.ok(!q1[ids[2]], 'paid one dropped');
     assert.ok(!q1[ids[0]]);
     assert.ok(expiredIds(a).indexOf('cs_lapse_0002') === -1);
     fail.clear();
+    a.clock.now += DRAIN_GAP;
     await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n3b', '198.51.100.102'));
     assert.ok(a.db.store.get('premium_orders/' + ids[1]).sessionExpiredAtMs);
-    assert.deepStrictEqual(a.db.store.get('premium_counters/founders').expireQueue, {});
-    // Past Stripe's own session expiry there is nothing to call.
+    assert.deepStrictEqual(qdoc(a), {});
     const b = setup();
     seedLapsed(b, 12, { ageMin: 40 });
     await b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n3c', '198.51.100.103'));
     assert.strictEqual(expireCalls(b).length, 0);
-    assert.deepStrictEqual(b.db.store.get('premium_counters/founders').expireQueue, {});
+    assert.deepStrictEqual(qdoc(b) || {}, {});
 });
-test('N1: a checkout that is refused still works the queue; webhook grants keep the queue', async function () {
+test('N1: a checkout that is refused still works the queue; webhook grants never touch the queue doc', async function () {
     const a = setup();
-    const ids = seedLapsed(a, 15, { sold: 500 });
-    // Sold out: the transaction aborts, but lapsed sessions still get expired.
+    seedLapsed(a, 15, { sold: 500 });
     await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n4a', '198.51.100.111')), 'founders_sold_out');
     assert.strictEqual(expireCalls(a).length, 10);
-    // Seat count never moved.
     assert.strictEqual(a.db.store.get('premium_counters/founders').sold, 500);
     const b = setup();
     seedLapsed(b, 15);
     const o = await b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n4b', '198.51.100.112'));
+    const before = JSON.stringify(b.db.store.get('premium_counters/founders_expire'));
     const ord = b.db.store.get('premium_orders/' + o.orderId);
     assert.strictEqual((await stripePost(b, completed(o.orderId, ord.providerSessionId, { amount_total: ord.expectedTotalCents, mode: 'payment', subscription: null }))).body.outcome, 'granted');
-    const c = b.db.store.get('premium_counters/founders');
-    assert.strictEqual(c.sold, 1);
-    assert.strictEqual(Object.keys(c.expireQueue).length, 5);
-    void ids;
+    assert.strictEqual(b.db.store.get('premium_counters/founders').sold, 1);
+    assert.strictEqual(JSON.stringify(b.db.store.get('premium_counters/founders_expire')), before);
+    assert.strictEqual(Object.keys(qdoc(b)).length, 5);
 });
 test('N1: the expire queue is bounded (300 entries)', async function () {
     const a = setup({ expireFail: true, config: { maxLiveFoundersHolds: 1000 } });
     seedLapsed(a, 320);
     await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n5a', '198.51.100.121'));
-    assert.strictEqual(Object.keys(a.db.store.get('premium_counters/founders').expireQueue).length, 300);
+    assert.strictEqual(Object.keys(qdoc(a)).length, 300);
+});
+// ---------- Red Team N3 / N4
+test('N4: the queue lives in its own server-only doc; a legacy queue on the seat counter moves over once', async function () {
+    const a = setup();
+    seedLapsed(a, 3, { extra: { expireQueue: { ordlegacy0001xxxxxxxx: T0 + 20 * MIN } } });
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n6a', '198.51.100.131'));
+    assert.strictEqual(a.db.store.get('premium_counters/founders').expireQueue, undefined);
+    // Legacy entry has no order doc: skipped and removed; the 3 lapsed were expired.
+    assert.strictEqual(expireCalls(a).length, 3);
+    assert.deepStrictEqual(qdoc(a), {});
+    const rules = require('fs').readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    assert.ok(/match \/premium_counters\/\{docId\} \{ allow read, write: if false; \}/.test(rules));
+});
+test('N3: queue drains run at most once every 15 seconds across all callers', async function () {
+    const a = setup({ expireFail: true });
+    seedLapsed(a, 4);
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n7a', '198.51.100.141'));
+    assert.strictEqual(expireCalls(a).length, 4);
+    // Refused and successful callers within 15 s do no Stripe work.
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n7a', '198.51.100.141')), 'hold_exists');
+    a.clock.now += 5000;
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n7b', '198.51.100.142'));
+    a.clock.now += 9000;
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n7b', '198.51.100.142')), 'hold_exists');
+    assert.strictEqual(expireCalls(a).length, 4);
+    a.clock.now += 2000;
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n7b', '198.51.100.142')), 'hold_exists');
+    assert.strictEqual(expireCalls(a).length, 8);
+    assert.ok(a.db.store.get('premium_counters/founders_expire').lastDrainMs === a.clock.now);
+});
+test('N3: refused Founders checkouts count against the per-account hourly limit; answers unchanged until it is reached', async function () {
+    const a = setup();
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n8a', '198.51.100.151'));
+    const reasons = [];
+    for (let i = 0; i < 12; i++) {
+        try { await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('n8a', '198.51.100.151')); reasons.push('ok'); }
+        catch (e) { reasons.push(e.details && e.details.reason || e.message); }
+    }
+    assert.ok(reasons[0] === 'hold_exists', reasons[0]);
+    assert.ok(reasons.indexOf('rate_limited') > 0, 'refusals reach the hourly limit: ' + reasons.join(','));
+    const firstLimited = reasons.indexOf('rate_limited');
+    reasons.slice(0, firstLimited).forEach(function (r) { assert.strictEqual(r, 'hold_exists'); });
+    reasons.slice(firstLimited).forEach(function (r) { assert.strictEqual(r, 'rate_limited'); });
+    // A plain (non-Founders) refusal before the Founders checks is unchanged too.
+    const b = setup();
+    await rejects(b.h.createPremiumCheckout({ plan: 'monthly', rail: 'card', acceptNoRefunds: false }, ctx('n8b')), 'terms_required');
 });
 test('F2-R: a failed expire never throws (checkout and sweep still answer); late payment still has the review fallback', async function () {
     const a = setup({ expireFail: true, config: { foundersHoldCooldownMinutes: 0, foundersIpHoldCooldownMinutes: 0 } });
