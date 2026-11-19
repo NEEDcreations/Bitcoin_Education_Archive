@@ -9018,6 +9018,9 @@ document.addEventListener('click', function(e) {
 function showSettingsPage(tab) {
     try {
     if (window._btcTotpHold) return;
+    var openPeers = (tab === 'peers') || !!window._openPeersOnce;
+    if (tab === 'peers') tab = 'account';
+    if (openPeers) window._openPeersOnce = true;
     settingsTab = tab || 'account';
     // Set page title to app name when on security tab — Authy/browser extensions
     // read document.title (not the otpauth issuer) when auto-detecting QR codes.
@@ -9303,8 +9306,9 @@ function showSettingsPage(tab) {
         }
 
         // Peers / Gifts section - collapsible, above Advanced Account
-        html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';var _arrows=this.querySelectorAll(\'span\');if(_arrows.length)_arrows[_arrows.length-1].textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers / Gifts <span id="peersGiftsBadge"></span> <span>▼</span></button>';
-        html += '<div id="peersSectionContent" style="display:none;margin-bottom:12px;">';
+        var _peersOpen = !!openPeers;
+        html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';var _arrows=this.querySelectorAll(\'span\');if(_arrows.length)_arrows[_arrows.length-1].textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;min-height:44px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers / Gifts <span id="peersGiftsBadge"></span> <span>' + (_peersOpen ? '▲' : '▼') + '</span></button>';
+        html += '<div id="peersSectionContent" style="display:' + (_peersOpen ? 'block' : 'none') + ';margin-bottom:12px;">';
         html += '<style>@media(max-width:420px){.peer-action-row .peer-primary,.peer-action-row .peer-more{flex-basis:100%!important;}}'
             + '#peersSectionContent .peer-sent{color:#f97316;}#peersSectionContent .peer-hold{color:#c4b5fd;}#peersSectionContent .peer-remove{color:#fca5a5;}'
             + '[data-theme="light"] #peersSectionContent .peer-sent{color:#c2410c;}'
@@ -11026,17 +11030,29 @@ function accountDeleteRowHtml(user) {
                     .where('to', '==', uid).where('status', '==', 'pending').limit(20).get();
                 var reqHtml = '';
                 if (!reqSnap.empty) {
-                    reqHtml += '<h4 style="font-size:0.85rem;margin:0 0 8px;color:var(--text);">Incoming Requests</h4>';
+                    var peersBox = document.getElementById('peersSectionContent');
+                    if (peersBox) peersBox.style.display = 'block';
+                    var peersArrow = document.querySelector('#usernameModal button[onclick*="peersSectionContent"] span:last-child, #settingsModal button[onclick*="peersSectionContent"] span:last-child');
+                    if (peersArrow) peersArrow.textContent = '▲';
+                    window._pendingPeerReqCount = reqSnap.size;
+                    var badge = document.getElementById('peersGiftsBadge');
+                    if (badge && badge.innerHTML.indexOf('request') === -1) {
+                        var label = reqSnap.size + (reqSnap.size === 1 ? ' request' : ' requests');
+                        badge.innerHTML = (badge.innerHTML || '') + ' <span style="display:inline-block;background:rgba(194,65,12,0.15);border:1px solid rgba(194,65,12,0.45);border-radius:10px;padding:1px 7px;font-size:0.72rem;color:#c2410c;font-weight:800;">🧡 ' + label + '</span>';
+                    }
+                    reqHtml += '<h4 style="font-size:0.95rem;margin:0 0 8px;color:var(--heading,#fff);">Incoming Requests (' + reqSnap.size + ')</h4>';
                     reqSnap.forEach(function(doc) {
                         var d = doc.data();
                         reqHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
                             '<span style="font-size:0.85rem;">🧡 ' + (d.fromUsername || 'Bitcoiner') + '</span>' +
                             '<div style="display:flex;gap:6px;">' +
-                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
-                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="min-height:44px;min-width:44px;padding:8px 12px;background:#c2410c;border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Accept</button>' +
+                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="min-height:44px;min-width:44px;padding:8px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--heading,#111827);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Decline</button>' +
                             '</div></div>';
                     });
                 }
+
+                if (window._openPeersOnce && settingsTab === 'account') window._openPeersOnce = false;
 
                 // Load current peers
                 var peerHtml = '';
@@ -14456,15 +14472,24 @@ window.managePeer = async function(action, targetUid, btnEl) {
     window._peerInflight[key] = job;
 
     var labels = {
-        send: '🧡 Sent!',
+        send: 'Sending…',
         accept: '🧡 Accepted!',
         decline: 'Declined',
+        cancel: 'Unsending…',
+        remove: 'Removed'
+    };
+    var doneLabels = {
+        send: 'Request sent ✓',
+        accept: '🧡 Accepted!',
+        decline: 'Declined',
+        cancel: 'Unsent',
         remove: 'Removed'
     };
     var toasts = {
-        send: 'Peer request sent! 🧡',
+        send: 'Request sent ✓',
         accept: 'Peer accepted! 🧡',
         decline: 'Request declined',
+        cancel: 'Request unsent',
         remove: 'Peer removed'
     };
     var row = [];
@@ -14489,7 +14514,6 @@ window.managePeer = async function(action, targetUid, btnEl) {
         btnEl.style.cursor = 'default';
         btnEl.style.opacity = '1';
     }
-    if (toasts[action] && typeof showToast === 'function') showToast(toasts[action]);
 
     var hadPeers = window._myPeers && typeof window._myPeers.has === 'function';
     var wasPeer = !!(hadPeers && window._myPeers.has(targetUid));
@@ -14509,11 +14533,15 @@ window.managePeer = async function(action, targetUid, btnEl) {
                 failed.code = 'internal';
                 throw failed;
             }
+            if (btnEl && doneLabels[action]) btnEl.textContent = doneLabels[action];
+            if (toasts[action] && typeof showToast === 'function') showToast(toasts[action]);
             if (action === 'accept' && typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
         } catch(e) {
             var code = (e && e.code) ? String(e.code) : '';
             var msg = (e && e.message) ? String(e.message) : 'Error';
             if (code.indexOf('already-exists') !== -1 || msg.indexOf('already-exists') !== -1) {
+                if (btnEl && doneLabels[action]) btnEl.textContent = doneLabels[action];
+                if (toasts[action] && typeof showToast === 'function') showToast(toasts[action]);
                 if (action === 'accept' && typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
                 return;
             }

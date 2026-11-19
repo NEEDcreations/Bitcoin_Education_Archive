@@ -115,6 +115,58 @@ function presentBadgeCollection() {
 }
 
 // Start listening for notifications
+
+window._pendingPeerRequestItems = async function(uid) {
+    if (!uid || typeof db === 'undefined') return [];
+    var snap = await db.collection('peer_requests')
+        .where('to', '==', uid)
+        .where('status', '==', 'pending')
+        .limit(20)
+        .get();
+    var items = [];
+    snap.forEach(function(doc) {
+        var d = doc.data() || {};
+        items.push({
+            id: 'peerreq_' + String(doc.id || '').replace(/[^A-Za-z0-9_-]/g, '_'),
+            data: {
+                type: 'peer_request',
+                message: (d.fromUsername || 'Someone') + ' sent you a peer request ⚡',
+                fromUid: d.from,
+                senderName: d.fromUsername || 'Someone',
+                targetType: 'peer_request',
+                targetId: doc.id,
+                read: false,
+                createdAt: d.createdAt
+            }
+        });
+    });
+    window._pendingPeerReqCount = items.length;
+    return items;
+};
+
+function _mergePeerRequestNotifs(html, seenFrom, items, variant) {
+    items = items || [];
+    var extra = '';
+    items.forEach(function(item) {
+        var from = item.data && item.data.fromUid;
+        if (from && seenFrom[from]) return;
+        if (from) seenFrom[from] = true;
+        extra += notifCardHtml(item.id, item.data, variant);
+    });
+    return extra + html;
+}
+
+function _seenPeerFromSnap(snap) {
+    var seen = {};
+    if (snap && snap.forEach) {
+        snap.forEach(function(doc) {
+            var d = doc.data() || {};
+            if (d.type === 'peer_request' && d.fromUid) seen[d.fromUid] = true;
+        });
+    }
+    return seen;
+}
+
 window.initNotifications = function() {
     if (!auth || !auth.currentUser || typeof db === 'undefined') return;
     var uid = auth.currentUser.uid;
@@ -183,6 +235,22 @@ window.initNotifications = function() {
                 }
             });
             window._pushSnapReady = true;
+            if (typeof window._pendingPeerRequestItems === 'function') {
+                var seenPeer = {};
+                snap.forEach(function(doc) {
+                    var d = doc.data() || {};
+                    if (d.type === 'peer_request' && d.fromUid) seenPeer[d.fromUid] = true;
+                });
+                window._pendingPeerRequestItems(uid).then(function(items) {
+                    var hidden = 0;
+                    (items || []).forEach(function(it) {
+                        var from = it.data && it.data.fromUid;
+                        if (from && !seenPeer[from]) hidden++;
+                    });
+                    window._peerReqInboxHidden = hidden;
+                    if (typeof updateNotifBadge === 'function') updateNotifBadge();
+                }).catch(function() {});
+            }
         }, function(err) { console.warn('[notif] Listener error:', err); });
 
     // Listen for unread DMs via onSnapshot (replaces 30s polling — saves ~2800 reads/user/day)
@@ -243,7 +311,7 @@ function checkUnreadDMsOnce() {
 
 // Update the red notification dot on username display
 function updateNotifBadge() {
-    var count = window._notifCount || 0;
+    var count = (window._notifCount || 0) + (window._peerReqInboxHidden || 0);
     // Add/update badge on userDisplay
     var ud = document.getElementById('userDisplay');
     if (!ud) return;
@@ -303,16 +371,17 @@ var NOTIF_TARGET_TYPES = {
 };
 
 function notifSafeId(value, max) {
-    max = max || 64;
-    return typeof value === 'string' && value.length >= 1 && value.length <= max && /^[A-Za-z0-9_-]+$/.test(value);
+    max = max || 128;
+    return typeof value === 'string' && value.length >= 1 && value.length <= max && /^[A-Za-z0-9_.:-]+$/.test(value);
 }
 
 function notifSafeTarget(targetType, targetId) {
     if (!targetType || !NOTIF_TARGET_TYPES[targetType]) return { type: '', id: '' };
     if (targetType === 'peer_request' || targetType === 'chat') {
-        return { type: targetType, id: notifSafeId(targetId, 64) ? targetId : '' };
+        var maxId = targetType === 'peer_request' ? 257 : 128;
+        return { type: targetType, id: notifSafeId(targetId, maxId) ? targetId : '' };
     }
-    if (!notifSafeId(targetId, 64)) return { type: '', id: '' };
+    if (!notifSafeId(targetId, 128)) return { type: '', id: '' };
     return { type: targetType, id: targetId };
 }
 
@@ -331,6 +400,7 @@ function notifListedInMode(n) {
     if (notifMode !== 'lite' && notifMode !== 'beginner' && notifMode !== 'intermediate' && notifMode !== 'advanced') notifMode = 'advanced';
     if (notifMode !== 'lite' && notifMode !== 'beginner') return true;
     var notifType = String((n && n.type) || '');
+    if (notifType === 'peer_request' || notifType === 'peer_accepted') return true;
     return notifType === 'reward' || notifType === 'reply' || notifType === 'sats' || notifType.indexOf('reply') !== -1;
 }
 
@@ -339,7 +409,7 @@ function notifCardHtml(docId, n, variant) {
     var safeDoc = notifSafeId(docId, 128) ? docId : '';
     var target = notifSafeTarget(n.targetType, n.targetId);
     var giftId = (n.type === 'gift_received' && notifSafeId(n.giftId, 64)) ? n.giftId : '';
-    var fromUid = (n.type === 'peer_request' && notifSafeId(n.fromUid, 64)) ? n.fromUid : '';
+    var fromUid = (n.type === 'peer_request' && notifSafeId(n.fromUid, 128)) ? n.fromUid : '';
     var isUnread = !n.read;
     var sheet = variant === 'sheet';
     var timeStr = '';
@@ -353,8 +423,8 @@ function notifCardHtml(docId, n, variant) {
     var extra = '';
     if (!completed && fromUid && safeDoc) {
         extra = '<div style="display:flex;gap:6px;margin-top:6px;">' +
-            '<button type="button" class="notif-peer-btn" data-peer-action="accept" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
-            '<button type="button" class="notif-peer-btn" data-peer-action="decline" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+            '<button type="button" class="notif-peer-btn" data-peer-action="accept" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;min-height:44px;padding:8px 10px;background:#c2410c;border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Accept</button>' +
+            '<button type="button" class="notif-peer-btn" data-peer-action="decline" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;min-height:44px;padding:8px 10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--heading,#111827);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Decline</button>' +
             '</div>';
     }
     if (!completed && n.type === 'keys_received') {
@@ -557,11 +627,16 @@ window.showNotifications = async function() {
         snap.forEach(function(doc) {
             html += notifCardHtml(doc.id, doc.data(), 'panel');
         });
+        var seen = _seenPeerFromSnap(snap);
+        var pending = (typeof window._pendingPeerRequestItems === 'function')
+            ? await window._pendingPeerRequestItems(uid)
+            : [];
+        html = _mergePeerRequestNotifs(html, seen, pending, 'panel');
         list.innerHTML = html;
         bindNotifCards(list, false);
     } catch(e) {
         var list = document.getElementById('notifList');
-        if (list) list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.82rem;">Could not load notifications</div>';
+        if (list) list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.82rem;">Could not load notifications. Try again.</div>';
     }
 };
 
@@ -618,7 +693,11 @@ window.handleNotifClick = async function(notifId, targetType, targetId) {
         }
     }
     else if (safe.type === 'peer_request') {
-        if (typeof showSettingsPage === 'function') showSettingsPage('peers');
+        window._openPeersOnce = true;
+        if (typeof showSettings === 'function') showSettings();
+        setTimeout(function() {
+            if (typeof showSettingsPage === 'function') showSettingsPage('peers');
+        }, 50);
         return;
     }
     else if (safe.type === 'badges') {
@@ -819,11 +898,16 @@ window.renderNotifList = async function() {
         snap.forEach(function(doc) {
             html += notifCardHtml(doc.id, doc.data(), 'sheet');
         });
+        var seen = _seenPeerFromSnap(snap);
+        var pending = (typeof window._pendingPeerRequestItems === 'function')
+            ? await window._pendingPeerRequestItems(auth.currentUser.uid)
+            : [];
+        html = _mergePeerRequestNotifs(html, seen, pending, 'sheet');
         body.innerHTML = html;
         bindNotifCards(body, true);
     } catch(e) {
         console.warn('[notif] renderNotifList error:', e);
-        body.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:1.5rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.82rem;">No notifications yet</div></div>';
+        body.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:1.5rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.82rem;">Could not load notifications. Try again.</div></div>';
     }
 };
 

@@ -2836,6 +2836,45 @@ async function _listAdminClaimUids() {
 // ===== PEER SYSTEM =====
 // managePeer: send/accept/decline/cancel/remove peer connections.
 // All mutations are CF-only; peer arrays on user docs are in the Firestore rules denylist.
+
+function peerRequestNotifId(reqId) {
+    return ('pr_' + String(reqId || '').replace(/[^A-Za-z0-9_-]/g, '_')).slice(0, 1400);
+}
+
+async function deletePeerRequestNotifications(reqId, recipientId, fromUid, storedNotifId) {
+    const seen = new Set();
+    const refs = [];
+    const add = (ref) => {
+        if (ref && !seen.has(ref.path)) {
+            seen.add(ref.path);
+            refs.push(ref);
+        }
+    };
+    if (storedNotifId) add(db.collection('notifications').doc(storedNotifId));
+    if (reqId) add(db.collection('notifications').doc(peerRequestNotifId(reqId)));
+    if (fromUid) {
+        try {
+            const snap = await db.collection('notifications')
+                .where('senderId', '==', fromUid)
+                .where('type', '==', 'peer_request')
+                .limit(30)
+                .get();
+            snap.forEach((doc) => {
+                const d = doc.data() || {};
+                if ((reqId && d.targetId === reqId) || (recipientId && d.recipientId === recipientId)) {
+                    add(doc.ref);
+                }
+            });
+        } catch (e) {
+            console.warn('[managePeer] notif cleanup query', e && e.message);
+        }
+    }
+    if (!refs.length) return;
+    const batch = db.batch();
+    refs.forEach((ref) => batch.delete(ref));
+    await batch.commit();
+}
+
 exports.managePeer = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
@@ -2899,16 +2938,17 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
                 'This user already sent you a request — check your notifications');
         }
 
+        const notifId = peerRequestNotifId(reqId);
         const batch = db.batch();
         batch.set(reqRef, {
             from: uid, to: targetUid,
             fromUsername: ud.username || 'Bitcoiner',
             toUsername:   td.username || 'Bitcoiner',
             status: 'pending',
+            notifId: notifId,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        // Same fields as the previous notifications.add(); the id is still random.
-        batch.set(db.collection('notifications').doc(), {
+        batch.set(db.collection('notifications').doc(notifId), {
             recipientId: targetUid,
             senderId: uid,
             senderName: ud.username || 'Bitcoiner',
@@ -3010,7 +3050,11 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
         const revDoc = await revReqRef.get();
         if (!revDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Peer request not found');
         if (revDoc.data().to !== uid) throw new functionsV1.https.HttpsError('permission-denied', 'Not your request to decline');
+        const rd = revDoc.data() || {};
         await revReqRef.delete();
+        try {
+            await deletePeerRequestNotifications(revReqId, uid, rd.from || targetUid, rd.notifId);
+        } catch (e) { console.warn('[managePeer] decline notif cleanup', e && e.message); }
         return { success: true };
     }
 
@@ -3019,7 +3063,11 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
         const reqDoc = await reqRef.get();
         if (!reqDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Peer request not found');
         if (reqDoc.data().from !== uid) throw new functionsV1.https.HttpsError('permission-denied', 'Not your request to cancel');
+        const rd = reqDoc.data() || {};
         await reqRef.delete();
+        try {
+            await deletePeerRequestNotifications(reqId, rd.to || targetUid, uid, rd.notifId);
+        } catch (e) { console.warn('[managePeer] cancel notif cleanup', e && e.message); }
         return { success: true };
     }
 

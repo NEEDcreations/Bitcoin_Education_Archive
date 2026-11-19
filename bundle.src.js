@@ -13646,10 +13646,14 @@ window.showUserProfile = function(uid) {
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
         var dmEligibility = canMessage ? _canAccountDM(uid) : { ok: false };
         var _isPeer = window._myPeers && window._myPeers.has(uid);
-        var _peerBtnId = 'peerActionBtn_' + uid;
-        var _peerBtn = _isPeer
-            ? '<button id="' + _peerBtnId + '" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;opacity:0.8;">🧡 Peers</button>'
-            : '<button id="' + _peerBtnId + '" onclick="window._sendPeerRequest(this,\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;transition:opacity 0.2s;">🧡 Add Peer</button>';
+        var _peerSafeId = (typeof window._peerActionSafeId === 'function') ? window._peerActionSafeId(uid) : String(uid || '').replace(/[^A-Za-z0-9_-]/g, '_');
+        var _peerBtnId = 'peerActionBtn_' + _peerSafeId;
+        var _peerWrapId = 'peerActionWrap_' + _peerSafeId;
+        var _peerEscUid = String(uid || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        var _peerBtnCore = _isPeer
+            ? '<button id="' + _peerBtnId + '" type="button" class="peer-add-btn" disabled style="width:100%;min-height:44px;padding:10px 12px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.45);border-radius:8px;color:#c2410c;font-size:0.85rem;font-weight:700;cursor:default;font-family:inherit;opacity:0.85;">🧡 Peers</button>'
+            : '<button id="' + _peerBtnId + '" type="button" class="peer-add-btn" onclick="window._sendPeerRequest(this,\'' + _peerEscUid + '\')" style="width:100%;min-height:44px;padding:10px 12px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.45);border-radius:8px;color:#c2410c;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">🧡 Add Peer</button>';
+        var _peerBtn = '<div id="' + _peerWrapId + '" style="flex:1;display:flex;flex-direction:column;gap:8px;">' + _peerBtnCore + '</div>';
 
         // Profile frame cosmetic — orange glow border if owned
         var _profileOwnedCosmetics = u.ownedCosmetics || [];
@@ -13783,6 +13787,10 @@ window.showUserProfile = function(uid) {
         var div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstChild);
+        if (typeof window._ensurePeerActionStyles === 'function') window._ensurePeerActionStyles();
+        if (auth && auth.currentUser && auth.currentUser.uid !== uid && typeof window._refreshPeerActionBtn === 'function') {
+            window._refreshPeerActionBtn(uid);
+        }
         if (auth && auth.currentUser && auth.currentUser.uid === uid && typeof window._loadMyPredictionStats === 'function') {
             window._loadMyPredictionStats(function(stats) {
                 var node = document.getElementById('profilePredStats');
@@ -13834,37 +13842,260 @@ window._tipFromProfile = function() {
     }
 };
 
+window._peerActionSafeId = function(uid) {
+    return String(uid || '').replace(/[^A-Za-z0-9_-]/g, '_');
+};
+
+window._ensurePeerActionStyles = function() {
+    if (typeof document === 'undefined' || !document.getElementById) return;
+    if (document.getElementById('peerActionStyles')) return;
+    var s = document.createElement('style');
+    s.id = 'peerActionStyles';
+    s.textContent = '.peer-add-btn,.peer-sent-btn{color:#c2410c;}' +
+        '[data-theme="dark"] .peer-add-btn,[data-theme="dark"] .peer-sent-btn{color:#fb923c;}' +
+        '@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .peer-add-btn,:root:not([data-theme="light"]) .peer-sent-btn{color:#fb923c;}}' +
+        '.peer-unsend-btn{color:var(--heading,#111827);}';
+    (document.head || document.body || document.documentElement).appendChild(s);
+};
+
+window._peerBtnCss = function(kind) {
+    var base = 'width:100%;min-height:44px;padding:10px 12px;border-radius:8px;font-size:0.85rem;font-weight:700;font-family:inherit;';
+    if (kind === 'unsend') {
+        return base + 'background:transparent;border:1px solid var(--border,#777);color:var(--heading,#111827);cursor:pointer;';
+    }
+    if (kind === 'accept') {
+        return base + 'background:#c2410c;border:none;color:#fff;cursor:pointer;';
+    }
+    if (kind === 'sent' || kind === 'peers' || kind === 'sending') {
+        return base + 'background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.45);color:#c2410c;cursor:default;';
+    }
+    return base + 'background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.45);color:#c2410c;cursor:pointer;';
+};
+
+window._paintPeerAction = function(targetUid, state, btnEl) {
+    if (typeof window._ensurePeerActionStyles === 'function') window._ensurePeerActionStyles();
+    var safeId = window._peerActionSafeId(targetUid);
+    var wrap = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('peerActionWrap_' + safeId) : null;
+    var btn = btnEl || ((typeof document !== 'undefined' && document.getElementById) ? document.getElementById('peerActionBtn_' + safeId) : null);
+    var esc = String(targetUid || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+    if (wrap && typeof document !== 'undefined' && document.createElement) {
+        var html = '';
+        if (state === 'sending') {
+            html = '<button id="peerActionBtn_' + safeId + '" type="button" class="peer-sent-btn" disabled data-peer-busy="1" data-peer-state="sending" style="' + window._peerBtnCss('sending') + '">Sending…</button>';
+        } else if (state === 'sent') {
+            html = '<button id="peerActionBtn_' + safeId + '" type="button" class="peer-sent-btn" disabled data-peer-busy="1" data-peer-state="sent" style="' + window._peerBtnCss('sent') + '">Request sent ✓</button>' +
+                '<button type="button" class="peer-unsend-btn" onclick="window._unsendPeerRequest(\'' + esc + '\',this)" style="' + window._peerBtnCss('unsend') + '">Unsend request</button>';
+        } else if (state === 'incoming') {
+            html = '<button id="peerActionBtn_' + safeId + '" type="button" class="peer-add-btn" data-peer-state="incoming" onclick="window.managePeer(\'accept\',\'' + esc + '\',this)" style="' + window._peerBtnCss('accept') + '">Accept</button>';
+        } else if (state === 'peers') {
+            html = '<button id="peerActionBtn_' + safeId + '" type="button" class="peer-add-btn" disabled data-peer-state="peers" style="' + window._peerBtnCss('peers') + '">🧡 Peers</button>';
+        } else {
+            html = '<button id="peerActionBtn_' + safeId + '" type="button" class="peer-add-btn" data-peer-state="idle" onclick="window._sendPeerRequest(this,\'' + esc + '\')" style="' + window._peerBtnCss('idle') + '">🧡 Add Peer</button>';
+        }
+        wrap.innerHTML = html;
+        return;
+    }
+
+    if (!btn) return;
+    if (state === 'sending') {
+        btn.disabled = true;
+        btn.setAttribute('data-peer-busy', '1');
+        btn.setAttribute('data-peer-state', 'sending');
+        btn.textContent = 'Sending…';
+        btn.style.cursor = 'default';
+        if (btn.style) btn.style.opacity = '1';
+    } else if (state === 'sent') {
+        btn.disabled = true;
+        btn.setAttribute('data-peer-busy', '1');
+        btn.setAttribute('data-peer-state', 'sent');
+        btn.textContent = 'Request sent ✓';
+        btn.style.cursor = 'default';
+        if (btn.style) btn.style.opacity = '1';
+    } else if (state === 'incoming') {
+        btn.disabled = false;
+        btn.removeAttribute('data-peer-busy');
+        btn.setAttribute('data-peer-state', 'incoming');
+        btn.textContent = 'Accept';
+        btn.style.cursor = 'pointer';
+        btn.onclick = function() {
+            if (typeof window.managePeer === 'function') window.managePeer('accept', targetUid, btn);
+        };
+    } else if (state === 'peers') {
+        btn.disabled = true;
+        btn.removeAttribute('data-peer-busy');
+        btn.setAttribute('data-peer-state', 'peers');
+        btn.textContent = '🧡 Peers';
+        btn.style.cursor = 'default';
+        btn.onclick = null;
+    } else {
+        btn.disabled = false;
+        btn.removeAttribute('data-peer-busy');
+        btn.setAttribute('data-peer-state', 'idle');
+        btn.textContent = '🧡 Add Peer';
+        btn.style.cursor = 'pointer';
+    }
+};
+
+window._refreshPeerActionBtn = async function(targetUid) {
+    if (!targetUid || typeof auth === 'undefined' || !auth || !auth.currentUser) return;
+    if (auth.currentUser.uid === targetUid) return;
+    if (window._myPeers && window._myPeers.has(targetUid)) {
+        window._paintPeerAction(targetUid, 'peers');
+        return;
+    }
+    if (typeof db === 'undefined' || !db) return;
+    try {
+        var me = auth.currentUser.uid;
+        var snaps = await Promise.all([
+            db.collection('peer_requests').doc(me + '_' + targetUid).get(),
+            db.collection('peer_requests').doc(targetUid + '_' + me).get()
+        ]);
+        var outDoc = snaps[0];
+        var inDoc = snaps[1];
+        if (outDoc && outDoc.exists && outDoc.data() && outDoc.data().status === 'pending') {
+            window._paintPeerAction(targetUid, 'sent');
+            return;
+        }
+        if (inDoc && inDoc.exists && inDoc.data() && inDoc.data().status === 'pending') {
+            window._paintPeerAction(targetUid, 'incoming');
+            return;
+        }
+        window._paintPeerAction(targetUid, 'idle');
+    } catch (e) { /* leave the button as rendered */ }
+};
+
 window._sendPeerRequest = async function(btnEl, targetUid) {
     if (!btnEl || btnEl.disabled || btnEl.getAttribute('data-peer-busy') === '1') return;
-    var prev = {
-        text: btnEl.textContent,
-        opacity: btnEl.style.opacity,
-        cursor: btnEl.style.cursor,
-        background: btnEl.style.background
-    };
-    btnEl.setAttribute('data-peer-busy', '1');
-    btnEl.disabled = true;
-    btnEl.textContent = '🧡 Sent!';
-    btnEl.style.background = 'rgba(249,115,22,0.2)';
-    btnEl.style.opacity = '1';
-    btnEl.style.cursor = 'default';
-    if (typeof showToast === 'function') showToast('Peer request sent! 🧡');
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser) {
+        if (typeof showToast === 'function') showToast('Sign in first');
+        return;
+    }
+    if (typeof window._paintPeerAction === 'function') window._paintPeerAction(targetUid, 'sending', btnEl);
+    else {
+        btnEl.setAttribute('data-peer-busy', '1');
+        btnEl.disabled = true;
+        btnEl.textContent = 'Sending…';
+    }
     try {
         var fn = firebase.functions().httpsCallable('managePeer');
         await fn({ action: 'send', targetUid: targetUid });
-    } catch(e) {
+        if (typeof window._paintPeerAction === 'function') window._paintPeerAction(targetUid, 'sent', btnEl);
+        else {
+            btnEl.textContent = 'Request sent ✓';
+            btnEl.disabled = true;
+        }
+        if (typeof showToast === 'function') showToast('Request sent ✓');
+    } catch (e) {
         var code = (e && e.code) ? String(e.code) : '';
-        var msg = (e && e.message) ? String(e.message) : 'Error';
-        if (code.indexOf('already-exists') !== -1 || msg.indexOf('already-exists') !== -1) return;
-        btnEl.disabled = false;
-        btnEl.removeAttribute('data-peer-busy');
-        btnEl.textContent = prev.text || '🧡 Add Peer';
-        btnEl.style.opacity = prev.opacity || '1';
-        btnEl.style.cursor = prev.cursor || 'pointer';
-        btnEl.style.background = prev.background || '';
-        if (typeof showToast === 'function') showToast(msg);
+        var msg = (e && e.message) ? String(e.message) : '';
+        var already = code.indexOf('already-exists') !== -1 || msg.indexOf('already-exists') !== -1;
+        if (already && /already sent you a request/i.test(msg)) {
+            if (typeof window._paintPeerAction === 'function') window._paintPeerAction(targetUid, 'incoming', btnEl);
+            if (typeof showToast === 'function') showToast('They already sent you a request. You can accept it here.');
+            return;
+        }
+        if (already && /Already peers/i.test(msg)) {
+            if (typeof window._paintPeerAction === 'function') window._paintPeerAction(targetUid, 'peers', btnEl);
+            if (window._myPeers && typeof window._myPeers.add === 'function') window._myPeers.add(targetUid);
+            return;
+        }
+        if (already) {
+            if (typeof window._paintPeerAction === 'function') window._paintPeerAction(targetUid, 'sent', btnEl);
+            if (typeof showToast === 'function') showToast('Request already sent');
+            return;
+        }
+        if (typeof window._paintPeerAction === 'function') window._paintPeerAction(targetUid, 'idle', btnEl);
+        else {
+            btnEl.disabled = false;
+            btnEl.removeAttribute('data-peer-busy');
+            btnEl.textContent = '🧡 Add Peer';
+        }
+        var friendly = 'Couldn\'t send. Try again';
+        if (/Too many pending/i.test(msg)) friendly = 'Too many pending requests. Unsend some first.';
+        else if (/Must be signed in|real account/i.test(msg)) friendly = 'Sign in with a real account to add peers.';
+        else if (/Cannot peer with yourself/i.test(msg)) friendly = 'You can\'t add yourself.';
+        else if (/Target user not found|Your account not found/i.test(msg)) friendly = 'That user could not be found.';
+        if (typeof showToast === 'function') showToast(friendly);
     }
 };
+
+window._unsendPeerRequest = function(targetUid, btnEl) {
+    if (btnEl && (btnEl.disabled || btnEl.getAttribute('data-peer-busy') === '1')) return;
+    if (typeof window._confirmUnsendPeer === 'function') {
+        window._confirmUnsendPeer(targetUid, btnEl);
+        return;
+    }
+    window._doUnsendPeerRequest(targetUid, btnEl);
+};
+
+window._confirmUnsendPeer = function(targetUid, btnEl) {
+    if (typeof document === 'undefined' || !document.createElement) {
+        window._doUnsendPeerRequest(targetUid, btnEl);
+        return;
+    }
+    var old = document.getElementById('peerUnsendConfirm');
+    if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'peerUnsendConfirm';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:540000;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:16px;';
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:18px;width:100%;max-width:400px;box-shadow:0 12px 40px rgba(0,0,0,0.45);';
+    var title = document.createElement('div');
+    title.style.cssText = 'font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:6px;';
+    title.textContent = 'Unsend this request?';
+    var body = document.createElement('div');
+    body.style.cssText = 'font-size:0.85rem;color:var(--text-muted);line-height:1.45;margin-bottom:14px;';
+    body.textContent = 'The other person will no longer see this peer request, and you can send a new one later.';
+    var yes = document.createElement('button');
+    yes.type = 'button';
+    yes.textContent = 'Unsend request';
+    yes.style.cssText = 'width:100%;min-height:44px;padding:10px;border:none;border-radius:10px;background:#c2410c;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;';
+    yes.onclick = function() {
+        overlay.remove();
+        window._doUnsendPeerRequest(targetUid, btnEl);
+    };
+    var no = document.createElement('button');
+    no.type = 'button';
+    no.textContent = 'Keep request';
+    no.style.cssText = 'width:100%;min-height:44px;margin-top:8px;padding:10px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;';
+    no.onclick = function() { overlay.remove(); };
+    card.appendChild(title);
+    card.appendChild(body);
+    card.appendChild(yes);
+    card.appendChild(no);
+    overlay.appendChild(card);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+};
+
+window._doUnsendPeerRequest = async function(targetUid, btnEl) {
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.setAttribute('data-peer-busy', '1');
+        btnEl.textContent = 'Unsending…';
+    }
+    try {
+        var fn = firebase.functions().httpsCallable('managePeer');
+        await fn({ action: 'cancel', targetUid: targetUid });
+        if (typeof window._paintPeerAction === 'function') window._paintPeerAction(targetUid, 'idle', btnEl);
+        if (typeof showToast === 'function') showToast('Request unsent');
+    } catch (e) {
+        var msg = (e && e.message) ? String(e.message) : '';
+        if (/not-found|not found/i.test(msg)) {
+            if (typeof window._paintPeerAction === 'function') window._paintPeerAction(targetUid, 'idle', btnEl);
+            if (typeof showToast === 'function') showToast('Request was already removed');
+            return;
+        }
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.removeAttribute('data-peer-busy');
+            btnEl.textContent = 'Unsend request';
+        }
+        if (typeof showToast === 'function') showToast('Couldn\'t unsend. Try again');
+    }
+};
+
 
 function profileStat(emoji, value, label) {
     return '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:8px 4px;text-align:center;">' +

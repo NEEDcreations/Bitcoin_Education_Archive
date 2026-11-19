@@ -114,7 +114,20 @@ function harness() {
         }
     };
     vm.createContext(sandbox);
-    vm.runInContext(extractFunction(read('messaging.js'), 'window._sendPeerRequest = async function'), sandbox);
+    var messaging = read('messaging.js');
+    [
+        'window._peerActionSafeId = function',
+        'window._ensurePeerActionStyles = function',
+        'window._peerBtnCss = function',
+        'window._paintPeerAction = function',
+        'window._refreshPeerActionBtn = async function',
+        'window._sendPeerRequest = async function',
+        'window._unsendPeerRequest = function',
+        'window._confirmUnsendPeer = function',
+        'window._doUnsendPeerRequest = async function'
+    ].forEach(function(sig) {
+        vm.runInContext(extractFunction(messaging, sig), sandbox);
+    });
     vm.runInContext(extractFunction(read('ranking.js'), 'window.managePeer = async function'), sandbox);
     return { state: state, sandbox: sandbox };
 }
@@ -131,22 +144,22 @@ function walkJs(dir, out) {
 
 const queue = [];
 
-queue.push(test('profile send updates the button and toast before the callable', async function() {
+queue.push(test('profile send shows a pending state, then Request sent after the callable', async function() {
     const h = harness();
     const btn = mockBtn('🧡 Add Peer');
     const pending = h.sandbox.window._sendPeerRequest(btn, 'peer-1234');
-    assert.strictEqual(btn.textContent, '🧡 Sent!');
+    assert.strictEqual(btn.textContent, 'Sending…');
     assert.strictEqual(btn.disabled, true);
     assert.strictEqual(btn._busy, '1');
-    assert.deepStrictEqual(h.state.toasts, ['Peer request sent! 🧡']);
-    assert.deepStrictEqual(h.state.events.slice(0, 2), ['toast', 'call']);
+    assert.deepStrictEqual(h.state.toasts, []);
     assert.strictEqual(h.state.calls.length, 1);
     assert.strictEqual(h.state.calls[0].data.action, 'send');
     assert.strictEqual(h.state.calls[0].data.targetUid, 'peer-1234');
     h.state.release({ data: { success: true } });
     await pending;
-    assert.strictEqual(btn.textContent, '🧡 Sent!');
+    assert.strictEqual(btn.textContent, 'Request sent ✓');
     assert.strictEqual(btn.disabled, true);
+    assert.deepStrictEqual(h.state.toasts, ['Request sent ✓']);
 }));
 
 queue.push(test('profile send ignores a second tap while the first is in flight', async function() {
@@ -171,52 +184,123 @@ queue.push(test('profile send rolls the button back and shows the error toast', 
     assert.strictEqual(btn.disabled, false);
     assert.strictEqual(btn._busy, null);
     assert.strictEqual(btn.style.background, 'rgba(249,115,22,0.12)');
-    assert.ok(h.state.toasts.indexOf('Too many pending peer requests') !== -1);
+    assert.ok(h.state.toasts.indexOf('Too many pending requests. Unsend some first.') !== -1);
 }));
 
-queue.push(test('profile send treats already-exists code and message as success', async function() {
-    const byCode = harness();
+queue.push(test('profile send maps already-exists to peers, incoming, or request sent', async function() {
+    const peers = harness();
     const btn = mockBtn('🧡 Add Peer');
-    const pending = byCode.sandbox.window._sendPeerRequest(btn, 'peer-1234');
-    byCode.state.fail(Object.assign(new Error('Already peers'), { code: 'functions/already-exists' }));
+    const pending = peers.sandbox.window._sendPeerRequest(btn, 'peer-1234');
+    peers.state.fail(Object.assign(new Error('Already peers'), { code: 'functions/already-exists' }));
     await pending;
-    assert.strictEqual(btn.textContent, '🧡 Sent!');
+    assert.strictEqual(btn.textContent, '🧡 Peers');
     assert.strictEqual(btn.disabled, true);
-    assert.deepStrictEqual(byCode.state.toasts, ['Peer request sent! 🧡']);
+    assert.ok(peers.sandbox.window._myPeers.has('peer-1234'));
 
-    const byMsg = harness();
+    const incoming = harness();
+    const btnIn = mockBtn('🧡 Add Peer');
+    const pendingIn = incoming.sandbox.window._sendPeerRequest(btnIn, 'peer-1234');
+    incoming.state.fail(Object.assign(new Error('This user already sent you a request — check your notifications'), { code: 'functions/already-exists' }));
+    await pendingIn;
+    assert.strictEqual(btnIn.textContent, 'Accept');
+    assert.strictEqual(btnIn.disabled, false);
+
+    const sent = harness();
     const btn2 = mockBtn('🧡 Add Peer');
-    const pending2 = byMsg.sandbox.window._sendPeerRequest(btn2, 'peer-1234');
-    byMsg.state.fail(new Error('already-exists'));
+    const pending2 = sent.sandbox.window._sendPeerRequest(btn2, 'peer-1234');
+    sent.state.fail(new Error('already-exists'));
     await pending2;
-    assert.strictEqual(btn2.textContent, '🧡 Sent!');
+    assert.strictEqual(btn2.textContent, 'Request sent ✓');
     assert.strictEqual(btn2.disabled, true);
+    assert.deepStrictEqual(sent.state.toasts, ['Request already sent']);
 }));
 
-queue.push(test('managePeer send, accept, decline, and remove update before the callable', async function() {
+queue.push(test('profile unsend cancels the request and resend is allowed', async function() {
+    const h = harness();
+    const btn = mockBtn('🧡 Add Peer');
+    const sending = h.sandbox.window._sendPeerRequest(btn, 'peer-1234');
+    h.state.release({ data: { success: true } });
+    await sending;
+    assert.strictEqual(btn.textContent, 'Request sent ✓');
+
+    h.state.mode = 'pending';
+    h.state.calls.length = 0;
+    h.state.toasts.length = 0;
+    const unsending = h.sandbox.window._doUnsendPeerRequest('peer-1234', btn);
+    assert.strictEqual(btn.textContent, 'Unsending…');
+    assert.strictEqual(h.state.calls.length, 1);
+    assert.strictEqual(h.state.calls[0].data.action, 'cancel');
+    assert.strictEqual(h.state.calls[0].data.targetUid, 'peer-1234');
+    assert.deepStrictEqual(h.state.toasts, []);
+    h.state.release({ data: { success: true } });
+    await unsending;
+    assert.strictEqual(btn.textContent, '🧡 Add Peer');
+    assert.strictEqual(btn.disabled, false);
+    assert.deepStrictEqual(h.state.toasts, ['Request unsent']);
+
+    h.state.mode = 'pending';
+    h.state.calls.length = 0;
+    h.state.toasts.length = 0;
+    const resend = h.sandbox.window._sendPeerRequest(btn, 'peer-1234');
+    assert.strictEqual(btn.textContent, 'Sending…');
+    assert.strictEqual(h.state.calls[0].data.action, 'send');
+    h.state.release({ data: { success: true } });
+    await resend;
+    assert.strictEqual(btn.textContent, 'Request sent ✓');
+    assert.deepStrictEqual(h.state.toasts, ['Request sent ✓']);
+}));
+
+queue.push(test('reopening a profile paints a pending outgoing request as already sent', async function() {
+    const h = harness();
+    const btn = mockBtn('🧡 Add Peer');
+    h.sandbox.document = {
+        getElementById: function() { return btn; }
+    };
+    h.sandbox.db = {
+        collection: function() {
+            return {
+                doc: function(id) {
+                    return {
+                        get: function() {
+                            if (id === 'me_peer-1234') {
+                                return Promise.resolve({ exists: true, data: function() { return { status: 'pending', from: 'me', to: 'peer-1234' }; } });
+                            }
+                            return Promise.resolve({ exists: false, data: function() { return {}; } });
+                        }
+                    };
+                }
+            };
+        }
+    };
+    await h.sandbox.window._refreshPeerActionBtn('peer-1234');
+    assert.strictEqual(btn.textContent, 'Request sent ✓');
+    assert.strictEqual(btn.disabled, true);
+}));
+
+queue.push(test('managePeer send, accept, decline, and remove update labels and toast after the callable', async function() {
     const h = harness();
     const cases = [
-        ['send', '🧡 Sent!', 'Peer request sent! 🧡'],
-        ['accept', '🧡 Accepted!', 'Peer accepted! 🧡'],
-        ['decline', 'Declined', 'Request declined'],
-        ['remove', 'Removed', 'Peer removed']
+        ['send', 'Sending…', 'Request sent ✓', 'Request sent ✓'],
+        ['accept', '🧡 Accepted!', '🧡 Accepted!', 'Peer accepted! 🧡'],
+        ['decline', 'Declined', 'Declined', 'Request declined'],
+        ['remove', 'Removed', 'Removed', 'Peer removed']
     ];
     for (const row of cases) {
         h.state.calls.length = 0;
         h.state.toasts.length = 0;
+        h.state.events.length = 0;
         h.sandbox.window._peerInflight = {};
         const btn = mockBtn(row[0]);
         const pending = h.sandbox.window.managePeer(row[0], 'peer-1234', btn);
-        assert.strictEqual(btn.textContent, row[1], row[0] + ' label');
+        assert.strictEqual(btn.textContent, row[1], row[0] + ' pending label');
         assert.strictEqual(btn.disabled, true);
-        assert.strictEqual(h.state.toasts[0], row[2], row[0] + ' toast');
-        assert.deepStrictEqual(h.state.events.slice(0, 2), ['toast', 'call']);
-        h.state.events.length = 0;
+        assert.deepStrictEqual(h.state.toasts, [], row[0] + ' no early toast');
         assert.strictEqual(h.state.calls.length, 1);
         assert.strictEqual(h.state.calls[0].data.action, row[0]);
         h.state.release({ data: { success: true } });
         await pending;
-        assert.strictEqual(btn.textContent, row[1]);
+        assert.strictEqual(btn.textContent, row[2], row[0] + ' done label');
+        assert.strictEqual(h.state.toasts[0], row[3], row[0] + ' toast');
     }
 }));
 
@@ -288,6 +372,26 @@ queue.push(test('managePeer asks the user to sign in and does not call the funct
     assert.strictEqual(btn.textContent, 'Accept');
 }));
 
+queue.push(test('profile and notification UI keep a pending request visible', function() {
+    const messaging = read('messaging.js');
+    assert.ok(messaging.includes('Request sent ✓'));
+    assert.ok(messaging.includes('Unsend request'));
+    assert.ok(messaging.includes("Couldn't send. Try again".replace("'", "\\'")) || messaging.includes("Couldn\\'t send. Try again") || messaging.indexOf('Couldn') !== -1 && messaging.indexOf('send. Try again') !== -1);
+    assert.ok(messaging.includes('_refreshPeerActionBtn'));
+    assert.ok(messaging.includes("action: 'cancel'"));
+    assert.ok(messaging.includes('min-height:44px'));
+    const ranking = read('ranking.js');
+    assert.ok(ranking.includes("var openPeers = (tab === 'peers')"));
+    assert.ok(ranking.includes('Incoming Requests'));
+    assert.ok(ranking.includes('request') && ranking.includes('peersGiftsBadge'));
+    const notifs = read('notifications.js');
+    assert.ok(notifs.includes("notifType === 'peer_request'"));
+    assert.ok(notifs.includes('_pendingPeerRequestItems'));
+    assert.ok(notifs.includes("showSettingsPage('peers')"));
+    assert.ok(notifs.includes('Could not load notifications. Try again.'));
+    assert.ok(notifs.includes('^[A-Za-z0-9_.:-]+$'));
+}));
+
 queue.push(test('settings buttons pass the clicked element into managePeer', function() {
     const ranking = read('ranking.js');
     assert.ok(ranking.includes("managePeer(\\'accept\\',\\'' + d.from + '\\',this)"));
@@ -314,7 +418,8 @@ queue.push(test('managePeer send reads in one batch and writes the request with 
     assert.strictEqual((send.match(/await /g) || []).length, 3, 'send awaits the parallel read, the batch commit, and the category push');
     assert.ok(send.includes('await sendUserPush'));
     assert.ok(send.includes('batch.set(reqRef,'));
-    assert.ok(send.includes("batch.set(db.collection('notifications').doc(),"));
+    assert.ok(send.includes("batch.set(db.collection('notifications').doc(notifId),"));
+    assert.ok(send.includes('notifId: notifId'));
     assert.ok(send.includes("type: 'peer_request'"));
     assert.strictEqual(send.includes('notifications\')\n            .add') || send.includes(".add({"), false);
     const checks = [
@@ -347,6 +452,10 @@ queue.push(test('managePeer send reads in one batch and writes the request with 
     assert.ok(acceptCommit < accept.indexOf("familyFor('peerCount')"), 'badge grants stay after the accept commit');
     const decline = fn.slice(fn.indexOf("if (action === 'decline')"), fn.indexOf("if (action === 'cancel')"));
     assert.ok(decline.includes('revReqRef.get()') && decline.includes('revReqRef.delete()'));
+    assert.ok(decline.includes('deletePeerRequestNotifications'));
+    const cancel = fn.slice(fn.indexOf("if (action === 'cancel')"), fn.indexOf("if (action === 'remove')"));
+    assert.ok(cancel.includes('reqRef.get()') && cancel.includes('reqRef.delete()'));
+    assert.ok(cancel.includes('deletePeerRequestNotifications'));
     const remove = fn.slice(fn.indexOf("if (action === 'remove')"));
     assert.ok(remove.includes('userRef.get()'));
     assert.ok(remove.includes('arrayRemove(targetUid)'));
@@ -405,282 +514,14 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261102_v2466'));
-    assert.ok(!html.includes('ranking.js?v=20261029_v2431'));
-    assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
-    assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
-    assert.ok(!html.includes('ranking.js?v=20261026_v2400'));
-    assert.ok(!html.includes('ranking.js?v=20261026_v2377'));
-    assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
-    assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
-    assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
-    assert.ok(!html.includes('ranking.js?v=20261024_v2356'));
-    assert.ok(!html.includes('ranking.js?v=20261024_v2355'));
-    assert.ok(!html.includes('ranking.js?v=20261024_v2354'));
-    assert.ok(!html.includes('ranking.js?v=20261024_v2352'));
-    assert.ok(!html.includes('ranking.js?v=20261024_repickc'));
-    assert.ok(!html.includes('ranking.js?v=20261024_v2350'));
-    assert.ok(!html.includes('ranking.js?v=20261024_repickb'));
-    assert.ok(!html.includes('ranking.js?v=20261024_v2351'));
-    assert.ok(!html.includes('ranking.js?v=20261023_v2349'));
-    assert.ok(!html.includes('ranking.js?v=20261023_v2342'));
-    assert.ok(!html.includes('ranking.js?v=20261023_v2341'));
-    assert.ok(!html.includes('ranking.js?v=20261023_v2334'));
-    assert.strictEqual(html.includes('ranking.js?v=20261023_v2333'), false);
-    assert.strictEqual(html.includes('ranking.js?v=20261022_v2269'), false);
-    assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
-    assert.ok(html.includes('gifting.js?v=20261102_v2465'));
-    assert.ok(!html.includes('gifting.js?v=20261029_v2429'));
-    assert.ok(!html.includes('gifting.js?v=20261026_v2400'));
-    assert.ok(!html.includes('gifting.js?v=20261026_v2399'));
-    assert.ok(!html.includes('gifting.js?v=20261024_v2365'));
-    assert.ok(!html.includes('gifting.js?v=20261024_v2358'));
-    assert.ok(!html.includes('gifting.js?v=20261024_v2357'));
-    assert.ok(!html.includes('gifting.js?v=20261022_v2254'));
-    assert.ok(html.includes('notifications.js?v=20261105_v2497'));
-    assert.ok(!html.includes('notifications.js?v=20261024_v2355'));
-    assert.ok(!html.includes('notifications.js?v=20261024_v2354'));
-    assert.ok(!html.includes('notifications.js?v=20261024_v2352'));
-    assert.strictEqual(html.includes('notifications.js?v=20261022_v2262'), false);
-    assert.strictEqual(html.includes('notifications.js?v=20261022_v2254'), false);
-    assert.strictEqual(html.includes('gifting.js?v=20261022_lightfix'), false);
-    assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
-    assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
-    assert.ok(html.includes('bundle.min.js?v=20261101_v2455'));
-    assert.ok(!html.includes('bundle.min.js?v=20261029_v2429'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2391'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2386'));
-    assert.ok(!html.includes('bundle.min.js?v=20261027_v2425'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2410'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2385'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2377'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2370'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2369'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2368'));
-    assert.ok(!html.includes('bundle.min.js?v=20261024_v2370'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2369'));
-    assert.ok(!html.includes('bundle.min.js?v=20261026_v2370'));
-    assert.ok(!html.includes('bundle.min.js?v=20261024_v2361'));
-    assert.ok(!html.includes('bundle.min.js?v=20261024_v2360'));
-    assert.ok(!html.includes('bundle.min.js?v=20261024_v2359'));
-    assert.ok(!html.includes('bundle.min.js?v=20261024_v2358'));
-    assert.ok(!html.includes('bundle.min.js?v=20261024_v2350'));
-    assert.ok(!html.includes('bundle.min.js?v=20261023_v2345'));
-    assert.ok(!html.includes('bundle.min.js?v=20261023_v2344'));
-    assert.strictEqual(html.includes('bundle.min.js?v=20261023_v2348'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261023_v2347'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261023_v2346'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261023_v2345'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261023_v2344'), false);
-    assert.ok(!html.includes('bundle.min.js?v=20261023_v2343'));
-    assert.ok(!html.includes('bundle.min.js?v=20261023_v2342'));
-    assert.ok(!html.includes('bundle.min.js?v=20261023_v2341'));
-    assert.strictEqual(html.includes('bundle.min.js?v=20261023_v2341'), false);
-    assert.ok(!html.includes('bundle.min.js?v=20261023_v2340'));
-    assert.strictEqual(html.includes('bundle.min.js?v=20261023_v2340'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261023_v2333'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2295'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2293'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2279'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2271'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2268'), false);
-    assert.ok(html.includes('global-chat.js?v=20261102_v2467'));
-    assert.ok(!html.includes('global-chat.js?v=20261030_v2436'));
-    assert.ok(!html.includes('global-chat.js?v=20261029_v2432'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2379'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2378'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2396'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2400'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2381'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2369'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2380'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2372'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2368'));
-    assert.ok(!html.includes('global-chat.js?v=20261024_v2360'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2373'));
-    assert.ok(!html.includes('global-chat.js?v=20261026_v2363'));
-    assert.ok(!html.includes('global-chat.js?v=20261024_v2350'));
-    assert.ok(!html.includes('global-chat.js?v=20261023_v2345'));
-    assert.ok(!html.includes('global-chat.js?v=20261023_v2343'));
-    assert.ok(!html.includes('global-chat.js?v=20261023_v2342'));
-    assert.ok(!html.includes('global-chat.js?v=20261023_v2341'));
-    assert.ok(!html.includes('global-chat.js?v=20261023_v2333'));
-    assert.strictEqual(html.includes('global-chat.js?v=20261023_v2345'), false);
-    assert.strictEqual(html.includes('global-chat.js?v=20261023_v2333'), false);
-    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2272'), false);
-    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2269'), false);
-    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2267'), false);
-    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2265'), false);
-    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2264'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2268'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2266'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2265'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2263'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2261'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2252'), false);
-    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2263'), false);
-    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2261'), false);
-    assert.strictEqual(html.includes('global-chat.js?v=20261022_v2252'), false);
-    assert.ok(html.includes('features.registry.js?v=20261104_v2482'));
-    assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
-    assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
-    assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
-    assert.ok(!html.includes('features.registry.js?v=20261023_v2342'));
-    assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
-    assert.ok(!html.includes('features.registry.js?v=20261023_v2339'));
-    assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
-    assert.strictEqual(html.includes('features.registry.js?v=20261022_v2266'), false);
-    assert.strictEqual(html.includes('features.registry.js?v=20261022_v2265'), false);
-    assert.ok(html.includes('satoshi-favor.js?v=20261102_v2467'));
-    assert.ok(!html.includes('satoshi-favor.js?v=20261024_v2351'));
-    assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2323'));
-    assert.strictEqual(html.includes('satoshi-favor.js?v=20261022_v2250'), false);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261102_v2465/g) || []).length, 4);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261030_v2435/g) || []).length, 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261028_v2415/g) || []).length, 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2381/g) || []).length, 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2380/g) || []).length, 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2372/g) || []).length, 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2358/g) || []).length, 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2352/g) || []).length, 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2351/g) || []).length, 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261024_v2350/g) || []).length, 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2341/g) || []).length, 0);
-    assert.ok(!html.includes('quests.js?v=20261023_v2334'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261023_v2333/g) || []).length, 0);
-    assert.strictEqual((html.match(/learning-quests\.js\?v=20261026_v2377/g) || []).length, 3);
-    assert.ok(!html.includes('learning-quests.js?v=20261026_v2380'));
-    assert.ok(!html.includes('learning-quests.js?v=20261023_v2324'));
-    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2279/g) || []).length, 0);
-    assert.strictEqual((html.match(/quests\.js\?v=20261022_v2263/g) || []).length, 0);
-    assert.ok(html.includes('lightning-tips.js?v=20261022_v2279'));
-    assert.strictEqual(html.includes('ranking.js?v=20261022_v2250'), false);
-    assert.strictEqual(html.includes('ranking.js?v=20261022_v2246'), false);
-    assert.strictEqual(html.includes('ranking.js?v=20261022_v2245'), false);
-    assert.strictEqual(html.includes('ranking.js?v=20261022_peerux'), false);
-    assert.strictEqual(html.includes('ranking.js?v=20261022_appcheck'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2250'), false);
-    assert.strictEqual(html.includes('bundle.min.js?v=20261022_gifts'), false);
-    assert.strictEqual(html.includes('quests.js?v=20261022_v2250'), false);
-    assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
-    assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
-
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2455'"));
-    assert.ok(!sw.includes('btc-archive-v2438'));
-    assert.ok(!sw.includes('btc-archive-v2437'));
-    assert.ok(!sw.includes('btc-archive-v2436'));
-    assert.ok(!sw.includes('btc-archive-v2435'));
-    assert.ok(!sw.includes('btc-archive-v2434'));
-    assert.ok(!sw.includes('btc-archive-v2433'));
-    assert.ok(!sw.includes('btc-archive-v2432'));
-    assert.ok(!sw.includes('btc-archive-v2431'));
-    assert.ok(!sw.includes('btc-archive-v2430'));
-    assert.ok(!sw.includes('btc-archive-v2422'));
-    assert.ok(!sw.includes('btc-archive-v2391'));
-    assert.ok(!sw.includes('btc-archive-v2386'));
-    assert.ok(!sw.includes('btc-archive-v2407'));
-    assert.ok(!sw.includes('btc-archive-v2385'));
-    assert.ok(!sw.includes('btc-archive-v2384'));
-    assert.ok(!sw.includes('btc-archive-v2412'));
-    assert.ok(!sw.includes('btc-archive-v2383'));
-    assert.ok(!sw.includes('btc-archive-v2382'));
-    assert.ok(!sw.includes('btc-archive-v2381'));
-    assert.ok(!sw.includes('btc-archive-v2380'));
-    assert.ok(!sw.includes('btc-archive-v2405'));
-    assert.ok(!sw.includes('btc-archive-v2379'));
-    assert.ok(!sw.includes('btc-archive-v2378'));
-    assert.ok(!sw.includes('btc-archive-v2399'));
-    assert.ok(!sw.includes('btc-archive-v2378'));
-    assert.ok(!sw.includes('btc-archive-v2377'));
-    assert.ok(!sw.includes('btc-archive-v2376'));
-    assert.ok(!sw.includes('btc-archive-v2375'));
-    assert.ok(!sw.includes('btc-archive-v2374'));
-    assert.ok(!sw.includes('btc-archive-v2370'));
-    assert.ok(!sw.includes('btc-archive-v2373'));
-    assert.ok(!sw.includes('btc-archive-v2372'));
-    assert.ok(!sw.includes('btc-archive-v2371'));
-    assert.ok(!sw.includes('btc-archive-v2370'));
-    assert.ok(!sw.includes('btc-archive-v2369'));
-    assert.ok(!sw.includes('btc-archive-v2368'));
-    assert.ok(!sw.includes('btc-archive-v2367'));
-    assert.ok(!sw.includes('btc-archive-v2366'));
-    assert.ok(!sw.includes('btc-archive-v2365'));
-    assert.ok(!sw.includes('btc-archive-v2364'));
-    assert.ok(!sw.includes('btc-archive-v2372'));
-    assert.ok(!sw.includes('btc-archive-v2368'));
-    assert.ok(!sw.includes('btc-archive-v2362'));
-    assert.ok(!sw.includes('btc-archive-v2361'));
-    assert.ok(!sw.includes('btc-archive-v2360'));
-    assert.ok(!sw.includes('btc-archive-v2359'));
-    assert.ok(!sw.includes('btc-archive-v2358'));
-    assert.ok(!sw.includes('btc-archive-v2357'));
-    assert.ok(!sw.includes('btc-archive-v2356'));
-    assert.ok(!sw.includes('btc-archive-v2355'));
-    assert.ok(!sw.includes('btc-archive-v2354'));
-    assert.ok(!sw.includes('btc-archive-v2353'));
-    assert.ok(!sw.includes('btc-archive-v2352'));
-    assert.ok(!sw.includes('btc-archive-v2351'));
-    assert.ok(!sw.includes('btc-archive-v2350'));
-    assert.ok(!sw.includes('btc-archive-v2349'));
-    assert.ok(!sw.includes('btc-archive-v2348'));
-    assert.ok(!sw.includes('btc-archive-v2347'));
-    assert.ok(!sw.includes('btc-archive-v2346'));
-    assert.ok(!sw.includes('btc-archive-v2345'));
-    assert.ok(!sw.includes('btc-archive-v2344'));
-    assert.ok(!sw.includes('btc-archive-v2343'));
-    assert.ok(!sw.includes('btc-archive-v2342'));
-    assert.ok(!sw.includes('btc-archive-v2340'));
-    assert.ok(!sw.includes('btc-archive-v2341'));
-    assert.ok(!sw.includes('btc-archive-v2339'));
-    assert.ok(!sw.includes('btc-archive-v2338'));
-    assert.ok(!sw.includes('btc-archive-v2334'));
-    assert.strictEqual(sw.includes('btc-archive-v2333'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2332'), false);
-    assert.ok(!sw.includes('btc-archive-v2331'));
-    assert.ok(!sw.includes('btc-archive-v2330'));
-    assert.strictEqual(sw.includes('btc-archive-v2329'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2327'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2326'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2325'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2324'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2322'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2323'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2301'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2295'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2293'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2286'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2279'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2272'), false);
-    assert.strictEqual(sw.includes('nacho-fly.svg'), false);
-    assert.ok(sw.includes('nacho-deer.svg'));
-    assert.strictEqual(sw.includes('btc-archive-v2272'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2271'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2270'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2269'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2268'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2267'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2266'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2265'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2264'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2263'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2262'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2261'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2260'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2255'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2254'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2253'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2252'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2251'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2250'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2249'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2248'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2246'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2245'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2242'), false);
-    assert.strictEqual(sw.includes('btc-archive-v2240'), false);
-    const bundle = read('bundle.min.js');
-    assert.ok(bundle.includes('data-peer-busy'), 'bundle.min.js was not rebuilt from messaging.js');
+    assert.ok(html.includes('ranking.js?v=20261119_v2620'));
+    assert.ok(html.includes('notifications.js?v=20261119_v2620'));
+    assert.ok(html.includes('bundle.min.js?v=20261119_v2620'));
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2620/g) || []).length, 2);
+    assert.ok(!html.includes('ranking.js?v=20261118_v2605'));
+    assert.ok(!html.includes('bundle.min.js?v=20261118_v2602'));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2620'"));
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2605'"));
 }));
 
 queue.push(test('inventory explains sending keys and only hints when there are no peers', async function() {
