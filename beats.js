@@ -3857,42 +3857,34 @@ window.beatsQuickCreateAndAdd = function(trackId) {
 // ================================================================
 // FEATURE 6: Nacho DJ tips go to track artist (not generic donate)
 // ================================================================
-// This patches the DJ bar "Donate" button to tip the current artist
+// Registers through the global-chat DJ bar hook, in either load order.
 (function() {
-    var _origShowDJBar = window.showDJBar;
-    if (!_origShowDJBar) return;
-    window.showDJBar = function(d) {
-        _origShowDJBar(d);
-        // After DJ bar renders, patch the donate button
-        setTimeout(function() {
-            var bar = document.getElementById('djNowPlaying');
-            if (!bar) return;
-            var donateBtn = bar.querySelector('[onclick*="showDonateModal"]');
-            if (donateBtn && d && d.trackAuthorId) {
-                donateBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    if (typeof showTipOverlay === 'function') {
-                        var tipArtist = (typeof d.trackArtist === 'string' ? d.trackArtist : '') || (typeof d.djName === 'string' ? d.djName : '') || 'Artist';
-                        var tipTitle = (typeof d.trackTitle === 'string' ? d.trackTitle : '') || 'Unknown';
-                        if (typeof beatsCensor === 'function') {
-                            tipArtist = beatsCensor(tipArtist);
-                            tipTitle = beatsCensor(tipTitle);
-                        }
-                        showTipOverlay({
-                            recipientName: tipArtist,
-                            recipientUid: d.trackAuthorId,
-                            context: 'DJ tip for: ' + tipTitle,
-                            label: 'Tip Artist'
-                        });
-                    } else {
-                        showDonateModal();
-                    }
-                };
-                donateBtn.textContent = '⚡ Tip Artist';
-                donateBtn.title = 'Tip the artist of this track';
+    function djTipHook(bar, d) {
+        var btn = bar && bar.querySelector ? bar.querySelector('[data-dj-tip]') : null;
+        if (!btn || !d) return;
+        var uid = typeof d.artistUid === 'string' ? d.artistUid : '';
+        if (!uid) return;
+        btn.onclick = function(e) {
+            // Without the tips script the click falls through to the profile.
+            if (typeof showTipOverlay !== 'function') return;
+            e.stopPropagation();
+            var tipArtist = (typeof d.trackArtist === 'string' ? d.trackArtist : '') || (typeof d.djName === 'string' ? d.djName : '') || 'Artist';
+            var tipTitle = (typeof d.trackTitle === 'string' ? d.trackTitle : '') || 'Unknown';
+            if (typeof beatsCensor === 'function') {
+                tipArtist = beatsCensor(tipArtist);
+                tipTitle = beatsCensor(tipTitle);
             }
-        }, 100);
-    };
+            showTipOverlay({
+                recipientName: tipArtist,
+                recipientUid: uid,
+                context: 'DJ tip for: ' + tipTitle,
+                label: 'Tip Artist'
+            });
+        };
+        btn.title = 'Tip the artist of this track';
+    }
+    if (typeof window.bqDJBarTipHook === 'function') window.bqDJBarTipHook(djTipHook);
+    else window._bqDJBarTipPending = djTipHook;
 })();
 
 // ================================================================

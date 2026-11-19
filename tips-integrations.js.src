@@ -181,49 +181,29 @@ function injectBeatsTips() {
 // 3. LIGHTNING MART — Pay for Listings
 // =============================================
 
+var MKT_MAX_SATS = 10000000;
+function mktSats(v) {
+    return (typeof v === 'number' && Number.isSafeInteger(v) && v > 0 && v <= MKT_MAX_SATS) ? v : 0;
+}
+
 function injectMarketplaceTips() {
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
 
-    // Find "Contact Seller" buttons
-    var contactBtns = fc.querySelectorAll('button[onclick*="contactSeller"]');
+    // Pay button next to each listing's Contact Seller button. Seller and
+    // price come from the listing data marketplace.js loaded, never from markup.
+    var contactBtns = fc.querySelectorAll('button[data-mkt-action="contact"]');
     contactBtns.forEach(function(btn) {
-        if (btn.parentElement && btn.parentElement.querySelector('[data-tip-action]')) return;
-
-        // Extract listing info from the onclick
-        var onclickStr = btn.getAttribute('onclick') || '';
-        var idMatch = onclickStr.match(/contactSeller\('([^']+)','([^']*)'\)/);
-        var listingId = idMatch ? idMatch[1] : '';
-        var sellerName = idMatch ? idMatch[2] : '';
-
-        // Try to get price from nearby elements
-        var priceEl = btn.closest('div[style*="max-width"]');
-        var price = 0;
-        if (priceEl) {
-            var priceText = priceEl.querySelector('div[style*="color:var(--accent)"][style*="font-weight:900"]');
-            if (priceText) {
-                var pMatch = priceText.textContent.match(/([\d,]+)\s*sats/i);
-                if (pMatch) price = parseInt(pMatch[1].replace(/,/g, ''));
-                var mMatch = priceText.textContent.match(/([\d.]+)M\s*sats/i);
-                if (mMatch) price = Math.round(parseFloat(mMatch[1]) * 1000000);
-                var kMatch = priceText.textContent.match(/([\d.]+)K\s*sats/i);
-                if (kMatch) price = Math.round(parseFloat(kMatch[1]) * 1000);
-            }
-        }
-
-        // Get seller UID from profile link if available
-        var sellerUid = '';
-        if (priceEl) {
-            var profileEl = priceEl.querySelector('[onclick*="showUserProfile"]');
-            if (profileEl) {
-                var uidMatch = (profileEl.getAttribute('onclick') || '').match(/showUserProfile\('([^']+)'\)/);
-                if (uidMatch) sellerUid = uidMatch[1];
-            }
-        }
+        var row = btn.parentElement;
+        if (!row || row.querySelector('[data-mkt-pay]')) return;
+        var listingId = btn.getAttribute('data-listing-id') || '';
+        var info = typeof window._mktListingPay === 'function' ? window._mktListingPay(listingId) : null;
+        if (!info || typeof info.sellerUid !== 'string' || !info.sellerUid) return;
+        var price = mktSats(info.priceSats);
 
         var tipOpts = {
-            recipientName: (typeof sellerName === 'string' ? sellerName : '') || 'Seller',
-            recipientUid: sellerUid,
+            recipientName: (typeof info.sellerName === 'string' ? info.sellerName : '') || 'Seller',
+            recipientUid: info.sellerUid,
             context: 'marketplace',
             contextId: listingId,
             suggestedAmount: price || null,
@@ -231,14 +211,14 @@ function injectMarketplaceTips() {
             label: 'Pay with Lightning',
         };
 
-        // Create pay button next to contact button
         var payBtn = document.createElement('button');
-        payBtn.setAttribute('data-tip-action', JSON.stringify(tipOpts));
+        payBtn.type = 'button';
+        payBtn.setAttribute('data-mkt-pay', '1');
         payBtn.style.cssText = 'flex:1;padding:14px;background:rgba(234,179,8,0.1);border:1px solid #eab308;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;color:#eab308;touch-action:manipulation;';
         payBtn.textContent = '⚡ Pay ' + (price ? (price >= 1000 ? Math.round(price / 1000) + 'K' : price) + ' sats' : 'with Lightning');
-        (function(o) { payBtn.onclick = function(e) { e.stopPropagation(); if (typeof showTipOverlay === 'function') showTipOverlay(o); }; })(tipOpts);
+        payBtn.onclick = function(e) { e.stopPropagation(); if (typeof showTipOverlay === 'function') showTipOverlay(tipOpts); };
 
-        btn.parentElement.insertBefore(payBtn, btn);
+        row.insertBefore(payBtn, btn);
     });
 
     // Also inject quick-pay on listing cards in the grid

@@ -3678,15 +3678,37 @@ function showDJBar(d) {
         // Row 3: Action buttons
         '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
             djActionBtn +
-            (_artistUidOk ? '<button data-gc-action="profile" data-id="' + esc(String(d.artistUid)) + '" style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
+            (_artistUidOk ? '<button data-gc-action="profile" data-dj-tip="1" data-id="' + esc(String(d.artistUid)) + '" style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
             tipBtn +
             (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:5px 10px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.7rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
         '</div>';
+    _djBarLast = d;
+    djRunTipHook(bar, d);
+}
+
+// One tip hook for the DJ bar. beats.js registers it; the first one wins.
+var _djTipHook = null;
+var _djBarLast = null;
+function djRunTipHook(bar, d) {
+    if (!_djTipHook) return;
+    try { _djTipHook(bar, d); } catch (e) {}
+}
+window.bqDJBarTipHook = function(fn) {
+    if (typeof fn !== 'function' || _djTipHook) return false;
+    _djTipHook = fn;
+    var bar = document.getElementById('djNowPlaying');
+    if (bar && _djBarLast) djRunTipHook(bar, _djBarLast);
+    return true;
+};
+if (typeof window._bqDJBarTipPending === 'function') {
+    window.bqDJBarTipHook(window._bqDJBarTipPending);
+    window._bqDJBarTipPending = null;
 }
 
 function hideDJBar() {
     var bar = document.getElementById('djNowPlaying');
     if (bar) { bar.remove(); }
+    _djBarLast = null;
 }
 
 // Hook into chat listener to also start DJ listener

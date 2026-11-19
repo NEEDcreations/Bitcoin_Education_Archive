@@ -12140,6 +12140,18 @@ function loadMarketListings(category, search, sort, section) {
 // [AUDIT FIX] escapeHtml moved to utils.js
 
 // ---- Single Listing Detail ----
+// Pay data for the open listing, taken from the loaded doc (not the page markup).
+var _mktPayCur = null;
+window._mktListingPay = function(id) {
+    var c = _mktPayCur;
+    if (!c || typeof id !== 'string' || id !== c.id) return null;
+    return {
+        sellerUid: typeof c.sellerUid === 'string' ? c.sellerUid : '',
+        sellerName: typeof c.sellerName === 'string' ? c.sellerName : '',
+        priceSats: c.priceSats,
+    };
+};
+
 function renderListingDetail(container, listingId) {
     container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:16px;"><div style="text-align:center;padding:40px;color:var(--text-faint);">Loading...</div></div>';
 
@@ -12158,6 +12170,7 @@ function renderListingDetail(container, listingId) {
         var isSaved = savedItems.indexOf(l.id) !== -1;
         var isOwner = (typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.uid === l.sellerUid);
         var isAdmin = isMarketAdmin();
+        _mktPayCur = isOwner ? null : { id: l.id, sellerUid: l.sellerUid, sellerName: l.sellerName, priceSats: l.priceSats };
 
         // Format price
         var priceDisplay = l.priceSats >= 1000000 ? (l.priceSats / 1000000).toFixed(2) + 'M sats' :

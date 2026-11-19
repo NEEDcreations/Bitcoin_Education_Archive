@@ -56,6 +56,7 @@ function load() {
         H.sliceBetween(SRC, 'var GC_ID_RE =', 'window._gcBindActions = gcBindActions;'),
         H.sliceFunction(SRC, 'function renderChatMessages('),
         H.sliceFunction(SRC, 'function showDJBar('),
+        H.sliceBetween(SRC, '// One tip hook for the DJ bar.', 'window._bqDJBarTipPending = null;\n}'),
     ].join('\n');
     vm.runInContext(code, sandbox, { filename: 'global-chat.js' });
     return { win: sandbox, els: els, calls: calls };
