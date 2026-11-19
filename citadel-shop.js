@@ -43,6 +43,9 @@
     // shop costs one call and no direct Firestore read. Errors keep defaults.
     var DEFAULT_FLAGS = { referralWeekPremiumBuy: false };
     var flags = { referralWeekPremiumBuy: false };
+    // Open state from getCitadelShopStatus (server clock, Jan 3, 2027 12:00 AM
+    // ET on live). null until the server answers; the server refuses anyway.
+    var shopOpen = null;
 
     // Draft catalog (Rewards draft, Nov 19, 2026). Server owns the real prices.
     var PARTS = [
@@ -96,6 +99,7 @@
     function computeView(user, opt) {
         var u = user || {};
         var f = (opt && opt.flags) || flags;
+        var open = (opt && typeof opt.open === 'boolean') ? opt.open : shopOpen !== false;
         var now = (opt && opt.now) || Date.now();
         var c = u.citadel || {};
         var premium = !!(u.premium && u.premium.active === true);
@@ -126,7 +130,8 @@
             var action = 'locked';
             var reason = '';
             if (premium && !done) {
-                if (tooNew) { action = 'disabled'; reason = 'account_age'; }
+                if (!open) { action = 'disabled'; reason = 'not_open'; }
+                else if (tooNew) { action = 'disabled'; reason = 'account_age'; }
                 else if (p.price > remaining) { action = 'disabled'; reason = 'weekly_cap'; }
                 else if (p.price > balance) { action = 'disabled'; reason = 'balance'; }
                 else action = 'buy';
@@ -136,11 +141,11 @@
         var lessons = LESSON_PARTS.map(function (lp) {
             var has = lessonOwned[lp.id] === true;
             var isBuilt = lessonBuilt[lp.id] === true;
-            var action = !has ? 'not_earned' : (isBuilt ? 'built' : (premium ? 'build' : 'locked'));
+            var action = !has ? 'not_earned' : (isBuilt ? 'built' : (!premium ? 'locked' : (open ? 'build' : 'soon')));
             return { id: lp.id, name: lp.name, part: lp.part, lesson: lp.lesson, title: lp.title, owned: has, built: isBuilt, action: action };
         });
         return {
-            premium: premium, lapsed: lapsed, signedIn: signedIn,
+            premium: premium, lapsed: lapsed, signedIn: signedIn, open: open,
             showGetPremium: !premium,
             referralWeek: f.referralWeekPremiumBuy === true,
             built: built, partsDone: partsDone,
@@ -163,7 +168,7 @@
         } else if (p.action === 'complete') {
             btn = '<div class="cs-btn cs-owned">' + icon('check', 18) + ' Complete</div>';
         } else if (p.action === 'disabled') {
-            var why = p.reason === 'weekly_cap' ? 'Weekly limit reached' : p.reason === 'account_age' ? 'Account too new' : 'Not enough OrangeTix';
+            var why = p.reason === 'not_open' ? 'Opens Jan 3, 2027' : p.reason === 'weekly_cap' ? 'Weekly limit reached' : p.reason === 'account_age' ? 'Account too new' : 'Not enough OrangeTix';
             btn = '<button class="cs-btn cs-locked" type="button" disabled aria-disabled="true" data-reason="' + p.reason + '">' + why + '</button>';
         } else {
             btn = '<button class="cs-btn cs-buy" type="button" data-cs-buy="' + p.id + '" data-stage="' + (p.have + 1) + '">' + icon('ticket', 18) + ' Buy \u00b7 ' + p.price + ' OrangeTix</button>';
@@ -176,6 +181,7 @@
         var right;
         if (!l.owned) right = '<span class="cs-dim">Pass \u201c' + l.title + '\u201d to earn it</span>';
         else if (l.action === 'built') right = '<div class="cs-btn cs-owned cs-small">' + icon('check', 16) + ' Built</div>';
+        else if (l.action === 'soon') right = '<button class="cs-btn cs-locked cs-small" type="button" disabled aria-disabled="true" data-reason="not_open">Opens Jan 3</button>';
         else if (l.action === 'build') right = '<button class="cs-btn cs-buy cs-small" type="button" data-cs-build="' + l.id + '">Build</button>';
         else right = '<button class="cs-btn cs-locked cs-small" type="button" disabled aria-disabled="true">' + icon('lock', 16) + ' Premium only</button>';
         return '<div class="cs-row" data-lesson="' + l.id + '"><div class="cs-part-icon cs-sm">' + icon('book', 18) + '</div>' +
@@ -197,6 +203,7 @@
             h += '<p class="cs-note" data-cs-remaining="' + v.remaining + '">' + (v.atCap
                 ? 'You\u2019ve used this week\u2019s ' + v.cap + ' OrangeTix for parts. Buying opens again next week.'
                 : v.remaining + ' OrangeTix left for parts this week.') + '</p>';
+            if (!v.open) h += '<p class="cs-note" data-cs-closed="1">The Citadel opens January 3, 2027 at 12:00 AM ET.</p>';
             if (v.tooNew) h += '<p class="cs-note">Parts buying opens when your account is ' + CONFIG.MIN_ACCOUNT_AGE_DAYS + ' days old.</p>';
         }
         if (v.lapsed && CONFIG.LAPSED_PARTS_MODE === 'keep_paused') h += '<p class="cs-note">Your parts are kept. Buying and building pause until Premium is renewed.</p>';
@@ -308,6 +315,7 @@
             u.premium.active = d.premiumActive;
         }
         if (d.flags) flags = { referralWeekPremiumBuy: d.flags.referralWeekPremiumBuy === true };
+        if (typeof d.open === 'boolean') shopOpen = d.open;
     }
 
     function openPremium() {

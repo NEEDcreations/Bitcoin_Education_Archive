@@ -128,6 +128,17 @@ test('TODO(phil) toggles are present with spec defaults', () => {
     assert.strictEqual(CS.CONFIG.COSMETICS_TAB, false);
 });
 
+test('closed shop (server open=false) disables buy and build with no buttons', () => {
+    const fresh = JSON.parse(JSON.stringify(prem)); fresh.citadel.weekSpent = 0;
+    const v = CS.computeView(fresh, { now: NOW, signedIn: true, flags: CS.DEFAULT_FLAGS, open: false });
+    v.parts.filter(p => !p.done).forEach(p => { assert.strictEqual(p.action, 'disabled'); assert.strictEqual(p.reason, 'not_open'); });
+    v.lessons.forEach(l => assert.strictEqual(l.action, 'soon'));
+    const h = CS.renderHtml(v);
+    assert.ok(!h.includes('data-cs-buy=') && !h.includes('data-cs-build='));
+    assert.ok(h.includes('data-cs-closed="1"') && h.includes('Opens Jan 3, 2027'));
+    assert.ok(src.includes("if (typeof d.open === 'boolean') shopOpen = d.open;"), 'open comes from the server status');
+});
+
 test('new account cannot buy before the minimum age', () => {
     const young = JSON.parse(JSON.stringify(prem)); young.created = NOW - 2 * 86400000;
     view(young).parts.filter(p => !p.done).forEach(p => assert.strictEqual(p.reason, 'account_age'));
