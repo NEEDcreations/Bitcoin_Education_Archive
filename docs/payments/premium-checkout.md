@@ -313,3 +313,21 @@ masks Founders holds keyed by either, and clears the `orderId` link on any
 cooldown row (the per-network cooldown itself stays: keyed hash, anti-abuse).
 Orders keep the masked uid with every email field and email hash cleared; the
 entitlement, allowance and per-account rate docs are deleted, as before.
+
+## Round 7
+
+- **Manage billing in Settings:** Settings > Account shows a Premium card with a
+  Manage billing button only to active card subscribers (`active`, not Founders,
+  `autoRenew: true` from `getPremiumStatus`). It opens `createPremiumPortal` and
+  follows only `billing.stripe.com`. Founders, bitcoin prepay, non-Premium,
+  signed-out and guest users see nothing, and any error leaves it hidden. The
+  buy dialog's Manage billing button uses the same check.
+- **Final-sale box (in-app):** the buy dialog already refuses the click on the
+  client with "Please tick the box to confirm that all sales are final." before
+  any server call; the server still refuses without `acceptNoRefunds`.
+- **Refund amount:** a full refund now records `refundedCents` too, so a partial
+  refund followed by a full refund shows the final amount.
+- **Sign-in return:** email sign-in links return to the page path without
+  `?premium=buy`; the buy dialog reopens only in the same tab (session storage).
+- Staging: `premiumStripeWebhook` redeployed; preview `premium-322` rebuilt with
+  `btc-archive-v2610` (ranking.js and premium-buy.js `20261118_v2610`).
