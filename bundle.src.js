@@ -5753,6 +5753,9 @@ function createNacho() {
             flex-direction: column;
             gap: 8px;
             width: min(260px, calc(100vw - 84px));
+            max-height: 35vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             padding: 10px;
             border-radius: 16px;
             background: var(--bg-side, #0f172a);
@@ -5760,8 +5763,13 @@ function createNacho() {
             box-shadow: 0 16px 40px rgba(0,0,0,0.45);
             box-sizing: border-box;
         }
+        [data-theme="light"] #nachoActionSheet {
+            background: var(--bg-side, #f8fafc);
+            border-color: var(--border, #64748b);
+        }
         #nachoActionSheet[hidden] { display: none !important; }
         #nachoActionSheet button {
+            box-sizing: border-box;
             min-height: 48px;
             width: 100%;
             border-radius: 12px;
@@ -5772,6 +5780,13 @@ function createNacho() {
             touch-action: manipulation;
             padding: 10px 12px;
         }
+        #nachoActionSheet .nacho-x {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            min-height: 44px;
+            padding: 0;
+        }
         #nachoActionSheet button:focus-visible {
             outline: 2px solid #f7931a;
             outline-offset: 2px;
@@ -5781,7 +5796,7 @@ function createNacho() {
             color: #1a1208;
             border: none;
         }
-        #nachoSheetStory, #nachoSheetCloset, #nachoSheetClose {
+        #nachoSheetStory, #nachoSheetCloset {
             background: transparent;
             color: var(--text, #e2e8f0);
             border: 1px solid var(--border, #334155);
@@ -6898,10 +6913,13 @@ function mountNachoActionSheet() {
     sheet.setAttribute('aria-label', 'Nacho');
     sheet.hidden = true;
     sheet.innerHTML =
+        '<div class="nacho-header">' +
+            '<span class="nacho-label">Nacho</span>' +
+            '<button type="button" class="nacho-x" id="nachoSheetClose" aria-label="Close">✕</button>' +
+        '</div>' +
         '<button type="button" id="nachoSheetAsk">Ask Nacho a question</button>' +
         '<button type="button" id="nachoSheetStory">Nacho\'s story<span id="nachoSheetStoryDot" hidden></span></button>' +
-        '<button type="button" id="nachoSheetCloset">Closet</button>' +
-        '<button type="button" id="nachoSheetClose">Close</button>';
+        '<button type="button" id="nachoSheetCloset">Closet</button>';
     document.body.appendChild(sheet);
     document.getElementById('nachoSheetAsk').addEventListener('click', function(e) {
         e.preventDefault();
@@ -23586,7 +23604,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (fc) fc.style.display = 'none';
         if (typeof window._hideMarketIframes === 'function') window._hideMarketIframes();
         var msgs = document.getElementById('msgs');
-        if (msgs) msgs.style.display = 'none';
+        if (msgs) { msgs.style.display = 'none'; msgs.removeAttribute('data-channel'); }
         var hero = document.getElementById('hero');
         if (hero) hero.style.display = 'none';
 
@@ -23617,7 +23635,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var hdiv = document.getElementById('hero');
         if (hdiv) { hdiv.style.display = 'none'; hdiv.innerHTML = ''; }
         var mdiv = document.getElementById('msgs');
-        if (mdiv) { mdiv.style.display = 'none'; mdiv.innerHTML = ''; }
+        if (mdiv) { mdiv.style.display = 'none'; mdiv.innerHTML = ''; mdiv.removeAttribute('data-channel'); }
         var _homeShowEl = document.getElementById('home');
         _homeShowEl.classList.remove('hidden');
         if (_homeShowEl.style.visibility) _homeShowEl.style.visibility = ''; // clear direct-link preload hide
@@ -24826,6 +24844,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof window._hideMarketIframes === 'function') window._hideMarketIframes();
         document.getElementById('hero').style.display = '';
         document.getElementById('msgs').style.display = '';
+        document.getElementById('msgs').setAttribute('data-channel', id);
         // Hide floating random button when navigating to a different channel
         if (!window._keepFloatingBtn) {
             var fb = document.getElementById('floatingRandomBtn');
@@ -24870,9 +24889,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             '</div>' +
             (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\''+ id + '\')">🖼️ Gallery View</button>' : '');
         document.getElementById('hero').classList.remove('fade-in');
-        document.getElementById('msgs').innerHTML = '<div style="padding:40px;text-align:center;">' +
-            '<div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;"></div>' +
-            '<div style="color:var(--text-faint);font-size:0.85rem;">Loading channel...</div></div>';
+        // Keep the skeleton already painted in #msgs. A short spinner would
+        // collapse the reserved min-height and cause a layout jump.
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: id }, '', _cleanUrl(id));
 

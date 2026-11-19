@@ -64,9 +64,10 @@ test('More Quests toggle is a 44px high-contrast secondary button in both themes
     assert.ok(light >= 4.5, 'light More Quests contrast ' + light.toFixed(2));
 });
 
-test('service worker cache pin is v2622', function () {
+test('service worker cache pin is v2628', function () {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2622'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2628'"));
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2622'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2615'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2605'"));
 });
@@ -89,12 +90,35 @@ test('Nacho mobile sheet is capped at 35vh with a 44px high-contrast close', fun
     assert.ok(src.includes('width: 44px;') && src.includes('min-height: 44px;') && src.includes('color: #f8fafc;'));
     assert.ok(src.includes('[data-theme="light"] .nacho-x {') && src.includes('color: #0f172a;'));
     assert.ok(!src.includes('opacity: 0.4;'));
-    assert.strictEqual((src.match(/max-height: 35vh;/g) || []).length, 2);
+    assert.strictEqual((src.match(/max-height: 35vh;/g) || []).length, 3);
     assert.ok(!src.includes('max-height: 45vh;') || src.indexOf('max-height: 45vh;') < src.indexOf('@media (max-width: 900px)'));
     const dark = contrast('f8fafc', '111827');
     const light = contrast('0f172a', 'f8fafc');
     assert.ok(dark >= 4.5, 'dark Nacho close contrast ' + dark.toFixed(2));
     assert.ok(light >= 4.5, 'light Nacho close contrast ' + light.toFixed(2));
+});
+
+test('Mining and Whitepaper message areas reserve first-batch height', function () {
+    const html = read('index.html');
+    assert.strictEqual(html, read('404.html'));
+    assert.ok(html.includes('#msgs[data-channel="mining"] { min-height: 15486px; }'));
+    assert.ok(html.includes('#msgs[data-channel="whitepaper"] { min-height: 2916px; }'));
+    assert.ok(html.includes('#msgs[data-channel="mining"] { min-height: 9559px; }'));
+    assert.ok(html.includes('#msgs[data-channel="whitepaper"] { min-height: 3398px; }'));
+    const app = read('app.js');
+    assert.ok(app.includes("document.getElementById('msgs').setAttribute('data-channel', id);"));
+    assert.ok(app.includes("removeAttribute('data-channel')"));
+    assert.ok(!app.includes('Loading channel...'));
+});
+
+test('Nacho mascot menu is capped at 35vh with a 44px high-contrast close', function () {
+    const src = read('nacho.js');
+    assert.ok(src.includes('#nachoActionSheet {') && src.includes('max-height: 35vh;') && src.includes('overflow-y: auto;'));
+    assert.ok(src.includes("class=\"nacho-x\" id=\"nachoSheetClose\" aria-label=\"Close\""));
+    assert.ok(src.includes('#nachoActionSheet .nacho-x {') && src.includes('min-height: 44px;'));
+    assert.ok(src.includes('[data-theme="light"] #nachoActionSheet {'));
+    assert.ok(src.includes('[data-theme="light"] .nacho-x {') && src.includes('color: #0f172a;'));
+    assert.ok(!src.includes('<button type="button" id="nachoSheetClose">Close</button>'));
 });
 
 if (failed) {

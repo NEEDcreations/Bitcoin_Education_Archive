@@ -1025,6 +1025,9 @@ function createNacho() {
             flex-direction: column;
             gap: 8px;
             width: min(260px, calc(100vw - 84px));
+            max-height: 35vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             padding: 10px;
             border-radius: 16px;
             background: var(--bg-side, #0f172a);
@@ -1032,8 +1035,13 @@ function createNacho() {
             box-shadow: 0 16px 40px rgba(0,0,0,0.45);
             box-sizing: border-box;
         }
+        [data-theme="light"] #nachoActionSheet {
+            background: var(--bg-side, #f8fafc);
+            border-color: var(--border, #64748b);
+        }
         #nachoActionSheet[hidden] { display: none !important; }
         #nachoActionSheet button {
+            box-sizing: border-box;
             min-height: 48px;
             width: 100%;
             border-radius: 12px;
@@ -1044,6 +1052,13 @@ function createNacho() {
             touch-action: manipulation;
             padding: 10px 12px;
         }
+        #nachoActionSheet .nacho-x {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            min-height: 44px;
+            padding: 0;
+        }
         #nachoActionSheet button:focus-visible {
             outline: 2px solid #f7931a;
             outline-offset: 2px;
@@ -1053,7 +1068,7 @@ function createNacho() {
             color: #1a1208;
             border: none;
         }
-        #nachoSheetStory, #nachoSheetCloset, #nachoSheetClose {
+        #nachoSheetStory, #nachoSheetCloset {
             background: transparent;
             color: var(--text, #e2e8f0);
             border: 1px solid var(--border, #334155);
@@ -2170,10 +2185,13 @@ function mountNachoActionSheet() {
     sheet.setAttribute('aria-label', 'Nacho');
     sheet.hidden = true;
     sheet.innerHTML =
+        '<div class="nacho-header">' +
+            '<span class="nacho-label">Nacho</span>' +
+            '<button type="button" class="nacho-x" id="nachoSheetClose" aria-label="Close">✕</button>' +
+        '</div>' +
         '<button type="button" id="nachoSheetAsk">Ask Nacho a question</button>' +
         '<button type="button" id="nachoSheetStory">Nacho\'s story<span id="nachoSheetStoryDot" hidden></span></button>' +
-        '<button type="button" id="nachoSheetCloset">Closet</button>' +
-        '<button type="button" id="nachoSheetClose">Close</button>';
+        '<button type="button" id="nachoSheetCloset">Closet</button>';
     document.body.appendChild(sheet);
     document.getElementById('nachoSheetAsk').addEventListener('click', function(e) {
         e.preventDefault();

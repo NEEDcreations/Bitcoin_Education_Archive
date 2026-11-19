@@ -3721,7 +3721,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (fc) fc.style.display = 'none';
         if (typeof window._hideMarketIframes === 'function') window._hideMarketIframes();
         var msgs = document.getElementById('msgs');
-        if (msgs) msgs.style.display = 'none';
+        if (msgs) { msgs.style.display = 'none'; msgs.removeAttribute('data-channel'); }
         var hero = document.getElementById('hero');
         if (hero) hero.style.display = 'none';
 
@@ -3752,7 +3752,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var hdiv = document.getElementById('hero');
         if (hdiv) { hdiv.style.display = 'none'; hdiv.innerHTML = ''; }
         var mdiv = document.getElementById('msgs');
-        if (mdiv) { mdiv.style.display = 'none'; mdiv.innerHTML = ''; }
+        if (mdiv) { mdiv.style.display = 'none'; mdiv.innerHTML = ''; mdiv.removeAttribute('data-channel'); }
         var _homeShowEl = document.getElementById('home');
         _homeShowEl.classList.remove('hidden');
         if (_homeShowEl.style.visibility) _homeShowEl.style.visibility = ''; // clear direct-link preload hide
@@ -4961,6 +4961,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof window._hideMarketIframes === 'function') window._hideMarketIframes();
         document.getElementById('hero').style.display = '';
         document.getElementById('msgs').style.display = '';
+        document.getElementById('msgs').setAttribute('data-channel', id);
         // Hide floating random button when navigating to a different channel
         if (!window._keepFloatingBtn) {
             var fb = document.getElementById('floatingRandomBtn');
@@ -5005,9 +5006,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             '</div>' +
             (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\''+ id + '\')">🖼️ Gallery View</button>' : '');
         document.getElementById('hero').classList.remove('fade-in');
-        document.getElementById('msgs').innerHTML = '<div style="padding:40px;text-align:center;">' +
-            '<div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;"></div>' +
-            '<div style="color:var(--text-faint);font-size:0.85rem;">Loading channel...</div></div>';
+        // Keep the skeleton already painted in #msgs. A short spinner would
+        // collapse the reserved min-height and cause a layout jump.
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: id }, '', _cleanUrl(id));
 
