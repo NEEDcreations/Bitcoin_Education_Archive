@@ -1272,7 +1272,7 @@ test('block status: released, rejected and fee_halt are reported; epochNumbers f
 test('release all: releases every manual-review block of the epoch through resolveReview; winners then claim normally', async function () {
     const h = twoReviewHarness();
     await freeze(h, 1);
-    const r = await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'checked both addresses', block: 0, uid: MALLORY, frozenLn: 'evil@evil.example', amount: 99999 });
+    const r = await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'checked both addresses', expectedBlocks: [3, 4], block: 0, uid: MALLORY, frozenLn: 'evil@evil.example', amount: 99999 });
     assert.ok(r.ok, JSON.stringify(r));
     assert.strictEqual(r.released, 2);
     assert.deepStrictEqual(r.results.map(function (x) { return [x.block, x.code]; }), [[3, 'released'], [4, 'released']]);
@@ -1288,21 +1288,25 @@ test('release all: releases every manual-review block of the epoch through resol
     assert.strictEqual((await h.svc.claim(ctx(MALLORY), { epoch: 1, block: 3 })).code, 'not_winner');
     assert.ok((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).success);
     assert.strictEqual(h.lastResolve.ln, 'bob@wallet.example');
-    const again = await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'again' });
+    const again = await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'again', expectedBlocks: [3, 4] });
     assert.strictEqual(again.released, 0); assert.strictEqual(again.tried, 0, 'nothing left in review');
 });
 
 test('release all: refuses bad epoch, missing note, unfrozen epoch; skips paying/unknown; leaves rejected and paid alone', async function () {
     const h = twoReviewHarness();
-    assert.strictEqual((await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'ok ok' })).code, 'epoch_not_ready');
+    assert.strictEqual((await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'ok ok', expectedBlocks: [3, 4] })).code, 'epoch_not_ready');
     await freeze(h, 1);
     assert.strictEqual((await h.svc.releaseAllReview(ADMIN, { epoch: '01', note: 'ok ok' })).code, 'bad_id');
     assert.strictEqual((await h.svc.releaseAllReview(ADMIN, { epoch: 0, note: 'ok ok' })).code, 'bad_id');
     assert.strictEqual((await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: ' x ' })).code, 'note_required');
     assert.strictEqual((await h.svc.releaseAllReview(ADMIN, { epoch: 1 })).code, 'note_required');
+    assert.strictEqual((await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'ok ok' })).code, 'expected_blocks_required');
+    assert.strictEqual((await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'ok ok', expectedBlocks: [] })).code, 'expected_blocks_required');
+    assert.strictEqual((await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'ok ok', expectedBlocks: [99] })).code, 'expected_blocks_required');
+    assert.strictEqual((await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'ok ok', expectedBlocks: [3, '01'] })).code, 'expected_blocks_required');
     await h.svc.resolveReview(ADMIN, { epoch: 1, block: 4, action: 'reject', note: 'shared' });
     h.db.store.set('sf_block_claims/e1_b3', { epoch: 1, block: 3, uid: BOB, amount: 4200, frozenLn: 'bob@wallet.example', status: 'unknown', paymentHash: 'ab'.repeat(32), attempts: 1 });
-    const r = await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'checked' });
+    const r = await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'checked', expectedBlocks: [3, 4] });
     assert.ok(r.ok);
     assert.strictEqual(r.released, 0);
     assert.deepStrictEqual(JSON.parse(JSON.stringify(r.skipped)), [{ block: 3, status: 'unknown' }]);
@@ -1311,11 +1315,95 @@ test('release all: refuses bad epoch, missing note, unfrozen epoch; skips paying
     assert.ok(audits(h).filter(function (a) { return a.type === 'admin_review_all'; }).length >= 5, 'refusals are audited too');
 });
 
+test('release all: releases only the overlap with expectedBlocks; leftover review blocks are skipped', async function () {
+    const h = twoReviewHarness();
+    await freeze(h, 1);
+    const r = await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'checked block 3 only', expectedBlocks: [3] });
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.strictEqual(r.released, 1);
+    assert.deepStrictEqual(r.results.map(function (x) { return [x.block, x.code]; }), [[3, 'released']]);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(r.skipped)), [{ block: 4, status: 'manual_review', reason: 'not_requested' }]);
+    assert.strictEqual(claimDoc(h, 'e1_b3').status, 'claimable');
+    assert.strictEqual(claimDoc(h, 'e1_b4'), undefined, 'block 4 was not released');
+    assert.strictEqual((await h.svc.claim(ctx(CARA), { epoch: 1, block: 4 })).code, 'manual_review');
+    const rest = await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'now the rest', expectedBlocks: [3, 4] });
+    assert.strictEqual(rest.released, 1);
+    assert.deepStrictEqual(rest.results.map(function (x) { return [x.block, x.code]; }), [[4, 'released']]);
+    assert.deepStrictEqual(rest.skipped, []);
+    assert.ok((await h.svc.claim(ctx(CARA), { epoch: 1, block: 4 })).success);
+    assert.strictEqual(h.pays.length, 1, 'only the later winner claim paid');
+});
+
+test('release all: open abuse or alt holds are refused even when they are in expectedBlocks', async function () {
+    const h = twoReviewHarness();
+    await freeze(h, 1);
+    const res = h.db.store.get('sf_payout_results/epoch_1');
+    res.blocks[4].sharedLn = true;
+    res.blocks[4].manualReview = 'shared_address';
+    h.db.store.set('sf_payout_results/epoch_1', res);
+    const r = await h.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'checked both', expectedBlocks: [3, 4] });
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.strictEqual(r.released, 1);
+    assert.deepStrictEqual(r.results.map(function (x) { return [x.block, x.code]; }), [[3, 'released']]);
+    assert.strictEqual(r.skipped.length, 1);
+    assert.strictEqual(r.skipped[0].block, 4);
+    assert.strictEqual(r.skipped[0].reason, 'open_hold');
+    assert.ok(/alt hold/.test(r.skipped[0].hold), r.skipped[0].hold);
+    assert.strictEqual(claimDoc(h, 'e1_b4'), undefined, 'held block was not released');
+
+    const h2 = twoReviewHarness();
+    await freeze(h2, 1);
+    const bob = h2.db.store.get('users/' + BOB);
+    bob.satsHold = h2.clock + 60000;
+    h2.db.store.set('users/' + BOB, bob);
+    const r2 = await h2.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'checked both', expectedBlocks: [3, 4] });
+    assert.strictEqual(r2.released, 1);
+    assert.deepStrictEqual(r2.results.map(function (x) { return [x.block, x.code]; }), [[4, 'released']]);
+    assert.strictEqual(r2.skipped[0].block, 3);
+    assert.strictEqual(r2.skipped[0].reason, 'open_hold');
+    assert.ok(/sats hold/.test(r2.skipped[0].hold), r2.skipped[0].hold);
+
+    const h3 = twoReviewHarness();
+    await freeze(h3, 1);
+    h3.db.store.set('sf_block_claims/e1_b3', { epoch: 1, block: 3, uid: BOB, amount: 4200, frozenLn: 'bob@wallet.example', status: 'manual_review', abuseHold: true });
+    const r3 = await h3.svc.releaseAllReview(ADMIN, { epoch: 1, note: 'checked both', expectedBlocks: [3, 4] });
+    assert.strictEqual(r3.released, 1);
+    assert.deepStrictEqual(r3.results.map(function (x) { return [x.block, x.code]; }), [[4, 'released']]);
+    assert.strictEqual(r3.skipped[0].block, 3);
+    assert.strictEqual(r3.skipped[0].reason, 'open_hold');
+    assert.ok(/abuse hold/.test(r3.skipped[0].hold), r3.skipped[0].hold);
+    assert.strictEqual(claimDoc(h3, 'e1_b3').status, 'manual_review');
+    assert.strictEqual(claimDoc(h3, 'e1_b3').abuseHold, true);
+});
+
+test('block status: open holds are flagged on manual-review rows and omitted once released', async function () {
+    const h = twoReviewHarness();
+    await freeze(h, 1);
+    const res = h.db.store.get('sf_payout_results/epoch_1');
+    res.blocks[3].sharedLn = true;
+    res.blocks[3].manualReview = 'shared_address';
+    h.db.store.set('sf_payout_results/epoch_1', res);
+    const st = await h.svc.adminBlockStatus({ epochNumbers: [1] });
+    const b3 = st.epochs[0].blocks[3];
+    const b4 = st.epochs[0].blocks[4];
+    assert.strictEqual(b3.held, true);
+    assert.ok(/alt hold/.test(b3.holdReason), b3.holdReason);
+    assert.strictEqual(b4.held, false);
+    assert.strictEqual(b4.holdReason, '');
+    // A cleared or expired sats hold is not open.
+    const cara = h.db.store.get('users/' + CARA);
+    cara.satsHold = h.clock - 1;
+    h.db.store.set('users/' + CARA, cara);
+    const st2 = await h.svc.adminBlockStatus({ epochNumbers: [1] });
+    assert.strictEqual(st2.epochs[0].blocks[4].held, false);
+});
+
+
 test('wiring: adminReleaseAllFavorReview needs admin + fresh step-up, App Check, kill-switch gate, no wallet secret; adminFavorBlockStatus is admin-only and read-only', function () {
     const fns = fs.readFileSync(path.join(root, 'functions/src/favorBlockClaimsFns.js'), 'utf8');
     assert.ok(/const adminReleaseAllFavorReview = functionsV1\.runWith\(\{\s*enforceAppCheck: true,/.test(fns));
     assert.ok(/requireAdmin\(context\);\s*const secondFactor = require\('\.\/secondFactor'\);\s*await secondFactor\.requireAdminStepUp\(secondFactor\.stamp\(data, context\), 'adminReleaseAllFavorReview'\);/.test(fns));
-    assert.ok(/releaseAllReview\(context\.auth\.uid, \{ epoch: d\.epoch, note: d\.note \}\)/.test(fns), 'only epoch and note reach the service');
+    assert.ok(/releaseAllReview\(context\.auth\.uid, \{ epoch: d\.epoch, note: d\.note, expectedBlocks: d\.expectedBlocks \}\)/.test(fns), 'only epoch, note, and expectedBlocks reach the service');
     const decl = fns.slice(fns.indexOf('const adminReleaseAllFavorReview'), fns.indexOf('.https.onCall', fns.indexOf('const adminReleaseAllFavorReview')));
     assert.ok(decl.indexOf('secrets') === -1 && decl.indexOf('nwcUrlSecret') === -1, 'never binds the wallet secret');
     assert.ok(/const adminFavorBlockStatus = functionsV1\.runWith\(\{ enforceAppCheck: true \}\)\.https\.onCall\(async function \(data, context\) \{\s*requireAdmin\(context\);/.test(fns));
@@ -1333,7 +1421,7 @@ test('wiring: adminReleaseAllFavorReview needs admin + fresh step-up, App Check,
     const allBody = core2.slice(core2.indexOf('async function releaseAllReview'), core2.indexOf('return { claim: claim'));
     assert.ok(allBody.indexOf('payInvoice') === -1 && allBody.indexOf('resolveInvoice') === -1, 'release all never pays');
     assert.ok(!/\.(set|update|create|delete)\(/.test(allBody), 'release all writes only through resolveReview and audit');
-    assert.ok(/resolveReview\(adminUid, \{ epoch: epoch, block: x\.row\.block, action: 'release'/.test(allBody));
+    assert.ok(/resolveReview\(adminUid, \{ epoch: epoch, block: block, action: 'release'/.test(allBody));
 });
 
 // ---------- static guards over the repo ----------

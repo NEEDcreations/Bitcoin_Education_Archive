@@ -294,10 +294,11 @@ function factory(functionsV1, deps) {
         return service().adminBlockStatus({ epochNumbers: Array.isArray(d.epochNumbers) ? d.epochNumbers : undefined });
     });
 
-    // Admin: release every manual-review block of one epoch to its frozen
-    // winner. Input { epoch, note } only. Each block goes through the same
-    // service().resolveReview as adminResolveFavorReview. Never pays; binds no
-    // wallet secret; fresh admin step-up; App Check; kill-switch gated.
+    // Admin: release the confirmed manual-review blocks of one epoch to their
+    // frozen winners. Input { epoch, note, expectedBlocks }. Each requested
+    // block still in review goes through the same service().resolveReview as
+    // adminResolveFavorReview. Never pays; binds no wallet secret; fresh
+    // admin step-up; App Check; kill-switch gated.
     const adminReleaseAllFavorReview = functionsV1.runWith({
         enforceAppCheck: true,
         timeoutSeconds: 120,
@@ -306,7 +307,7 @@ function factory(functionsV1, deps) {
         const secondFactor = require('./secondFactor');
         await secondFactor.requireAdminStepUp(secondFactor.stamp(data, context), 'adminReleaseAllFavorReview');
         const d = data || {};
-        return service().releaseAllReview(context.auth.uid, { epoch: d.epoch, note: d.note });
+        return service().releaseAllReview(context.auth.uid, { epoch: d.epoch, note: d.note, expectedBlocks: d.expectedBlocks });
     });
 
     return {

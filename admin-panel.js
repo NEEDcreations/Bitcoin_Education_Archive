@@ -570,7 +570,9 @@
                     uid: String(b.uid || '').slice(0, 8), payTo: String(b.payTo || '').slice(0, 80),
                     reviewReason: String(b.reviewReason || '').slice(0, 60), released: b.released === true,
                     attempts: Math.max(0, Math.floor(Number(b.attempts) || 0)),
-                    paidAtMs: typeof b.paidAtMs === 'number' ? b.paidAtMs : null
+                    paidAtMs: typeof b.paidAtMs === 'number' ? b.paidAtMs : null,
+                    held: b.held === true,
+                    holdReason: String(b.holdReason || '').slice(0, 160)
                 });
             });
             out.push({ epochNumber: n, blocks: blocks, counts: counts, sats: sats });
@@ -647,6 +649,8 @@
         '#bqFavorUi .sfu-go:disabled{opacity:0.55;cursor:default;}' +
         '#bqFavorUi .sfu-chk{display:flex;align-items:center;gap:8px;font-size:0.9rem;font-weight:700;margin:8px 0 0;}' +
         '#bqFavorUi .sfu-chk input{width:auto;}' +
+        '#bqFavorUi .sfu-hold{color:#b45309;font-weight:800;font-size:0.84rem;margin:2px 0 8px 24px;}' +
+        '#bqFavorUi .sfu-pick{margin:8px 0;padding:8px 10px;border:1px solid var(--border,#334155);border-radius:8px;}' +
         '#bqFavorUi ul{padding-left:18px;margin:4px 0 8px;}';
 
     function closeFavorUi() {
@@ -777,7 +781,7 @@
 
         // 6. Blocks by epoch (live status from the server, read only)
         sheet.appendChild(el('h3', null, 'Blocks by epoch'));
-        sheet.appendChild(el('p', null, 'Every frozen block and where it stands: unclaimed, manual review, paid. Release all sends every manual-review block in an epoch back to its frozen winner, one at a time, with the same checks as the single Release button. It never pays by itself.'));
+        sheet.appendChild(el('p', null, 'Every frozen block and where it stands: unclaimed, manual review, paid. Release all lets you pick which of the manual-review blocks you just saw go back to their frozen winners, one at a time, with the same checks as the single Release button. Every box starts unchecked, so nothing is released unless you pick it. Blocks with an open abuse or alt hold cannot be selected. It never pays by itself.'));
         var bBox = el('div');
         bBox.id = 'sfuBlocks';
         bBox.appendChild(el('p', null, 'Loading\u2026'));
@@ -1079,7 +1083,7 @@
                 }
                 if (e.counts.manual_review > 0) {
                     var noteId = 'sfuAllNote_' + e.epochNumber;
-                    var note = sfInput(noteId, 'Note for Release all (required, admins only)', card, { maxlength: '280', placeholder: 'Why every review block in this epoch is safe to release' });
+                    var note = sfInput(noteId, 'Note for Release all (required, admins only)', card, { maxlength: '280', placeholder: 'Why the blocks you pick are safe to release' });
                     var row = el('div', 'sfu-row');
                     var all = sfButton('Release all ' + e.counts.manual_review + ' in epoch ' + e.epochNumber, 'sfu-go warn');
                     all.id = 'sfuReleaseAll_' + e.epochNumber;
@@ -1093,27 +1097,83 @@
                         var n = (note.value || '').trim();
                         stl.className = 'sfu-status';
                         if (n.length < 3) { stl.textContent = 'Add a short note first.'; return; }
-                        if (!sfConfirm('Release all ' + e.counts.manual_review + ' manual-review blocks in epoch ' + e.epochNumber + ' (' + sfSats(e.sats.manual_review) + ' sats) to their frozen winners? Each winner can then claim with every normal check.')) return;
+                        var existing = document.getElementById('sfuReleasePick_' + e.epochNumber);
+                        if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+                        var reviewBlocks = [];
+                        e.blocks.forEach(function (b) { if (b.status === 'manual_review') reviewBlocks.push(b); });
+                        if (!reviewBlocks.length) { stl.textContent = 'Nothing in review to release.'; return; }
+                        var pick = el('div', 'sfu-pick');
+                        pick.id = 'sfuReleasePick_' + e.epochNumber;
+                        pick.appendChild(el('p', null, 'Pick the blocks to release. Every box starts unchecked, so nothing is released unless you pick it. Blocks with an open abuse or alt hold cannot be selected.'));
+                        var boxes = [];
+                        reviewBlocks.forEach(function (b) {
+                            var lab = el('label', 'sfu-chk');
+                            var box = el('input');
+                            box.type = 'checkbox';
+                            box.id = 'sfuReleasePick_' + e.epochNumber + '_' + b.block;
+                            box.checked = false;
+                            box.disabled = !!b.held;
+                            lab.appendChild(box);
+                            lab.appendChild(el('span', null, 'Block ' + b.block + ', ' + sfSats(b.amount) + ' sats' +
+                                (b.reviewReason ? ' \u2014 ' + (SF_REVIEW_COPY[b.reviewReason] || b.reviewReason) : '')));
+                            pick.appendChild(lab);
+                            if (b.held) pick.appendChild(el('p', 'sfu-hold', 'Cannot be selected: ' + (b.holdReason || 'open hold or flag.')));
+                            boxes.push({ block: b.block, box: box, held: !!b.held });
+                        });
+                        var prow = el('div', 'sfu-row');
+                        var go = sfButton('Release selected', 'sfu-go warn', 'sfuReleasePicked_' + e.epochNumber);
+                        var cancel = sfButton('Cancel', 'sfu-go alt', 'sfuReleasePickCancel_' + e.epochNumber);
+                        prow.appendChild(go);
+                        prow.appendChild(cancel);
+                        pick.appendChild(prow);
+                        if (stl.parentNode) stl.parentNode.insertBefore(pick, stl);
                         all.disabled = true;
-                        stl.textContent = 'Checking your sign-in\u2026';
-                        sfGuarded('adminReleaseAllFavorReview', 'adminReleaseAllFavorReview', { epoch: e.epochNumber, note: n }).then(function (d) {
+                        stl.textContent = '';
+                        function closePick() {
+                            if (pick.parentNode) pick.parentNode.removeChild(pick);
                             all.disabled = false;
-                            if (d.cancelled) { stl.textContent = 'Enter a fresh authenticator code to continue.'; return; }
-                            if (!d.ok) { stl.textContent = 'Not released: ' + String(d.code || 'refused') + '.'; stl.className = 'sfu-status bad'; return; }
-                            var res = Array.isArray(d.results) ? d.results : [];
-                            var bad = res.filter(function (x) { return x && x.code !== 'released' && x.code !== 'noop'; });
-                            var skipped = Array.isArray(d.skipped) ? d.skipped.length : 0;
-                            stl.textContent = 'Released ' + (Number(d.released) || 0) + ' of ' + res.length + '.' +
-                                (bad.length ? ' Refused: ' + bad.map(function (x) { return 'block ' + Number(x.block) + ' (' + String(x.code) + ')'; }).join(', ') + '.' : '') +
-                                (skipped ? ' Skipped ' + skipped + ' in flight; use the single Release button after checking the wallet.' : '');
-                            stl.className = 'sfu-status ' + (bad.length ? 'warn' : 'ok');
-                            // Keep the result visible after the status repaint.
-                            state.allMsg[e.epochNumber] = { text: stl.textContent, cls: stl.className };
-                            loadStatus().then(loadReview);
-                        }).catch(function (err) {
-                            all.disabled = false;
-                            stl.textContent = sfErr(err);
-                            stl.className = 'sfu-status bad';
+                        }
+                        cancel.addEventListener('click', function () {
+                            closePick();
+                            stl.textContent = 'Cancelled.';
+                        });
+                        go.addEventListener('click', function () {
+                            var expectedBlocks = [];
+                            boxes.forEach(function (x) {
+                                if (!x.held && x.box.checked) expectedBlocks.push(x.block);
+                            });
+                            if (!expectedBlocks.length) { stl.textContent = 'Pick at least one block to release.'; return; }
+                            go.disabled = true;
+                            cancel.disabled = true;
+                            stl.textContent = 'Checking your sign-in\u2026';
+                            sfGuarded('adminReleaseAllFavorReview', 'adminReleaseAllFavorReview', { epoch: e.epochNumber, note: n, expectedBlocks: expectedBlocks }).then(function (d) {
+                                go.disabled = false;
+                                cancel.disabled = false;
+                                all.disabled = false;
+                                if (d.cancelled) { stl.textContent = 'Enter a fresh authenticator code to continue.'; return; }
+                                closePick();
+                                if (!d.ok) { stl.textContent = 'Not released: ' + String(d.code || 'refused') + '.'; stl.className = 'sfu-status bad'; return; }
+                                var res = Array.isArray(d.results) ? d.results : [];
+                                var bad = res.filter(function (x) { return x && x.code !== 'released' && x.code !== 'noop'; });
+                                var skipped = Array.isArray(d.skipped) ? d.skipped : [];
+                                var inFlight = skipped.filter(function (x) { return x && (x.status === 'paying' || x.status === 'unknown'); }).length;
+                                var notReq = skipped.filter(function (x) { return x && x.reason === 'not_requested'; });
+                                var heldSkip = skipped.filter(function (x) { return x && x.reason === 'open_hold'; });
+                                stl.textContent = 'Released ' + (Number(d.released) || 0) + ' of ' + res.length + '.' +
+                                    (bad.length ? ' Refused: ' + bad.map(function (x) { return 'block ' + Number(x.block) + ' (' + String(x.code) + ')'; }).join(', ') + '.' : '') +
+                                    (inFlight ? ' Skipped ' + inFlight + ' in flight; use the single Release button after checking the wallet.' : '') +
+                                    (notReq.length ? ' Left ' + notReq.map(function (x) { return 'block ' + Number(x.block); }).join(', ') + ' in review (not on the list you confirmed).' : '') +
+                                    (heldSkip.length ? ' Left ' + heldSkip.map(function (x) { return 'block ' + Number(x.block); }).join(', ') + ' in review (open hold or flag).' : '');
+                                stl.className = 'sfu-status ' + (bad.length || heldSkip.length ? 'warn' : 'ok');
+                                state.allMsg[e.epochNumber] = { text: stl.textContent, cls: stl.className };
+                                loadStatus().then(loadReview);
+                            }).catch(function (err) {
+                                go.disabled = false;
+                                cancel.disabled = false;
+                                all.disabled = false;
+                                stl.textContent = sfErr(err);
+                                stl.className = 'sfu-status bad';
+                            });
                         });
                     });
                 }

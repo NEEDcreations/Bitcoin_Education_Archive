@@ -151,6 +151,86 @@ function intStrict(v, lo, hi) {
     return null;
 }
 
+
+function parseExpectedBlocks(v) {
+    if (!Array.isArray(v) || v.length === 0 || v.length > BLOCKS_PER_EPOCH) return null;
+    const out = [];
+    const seen = Object.create(null);
+    for (let i = 0; i < v.length; i++) {
+        const b = intStrict(v[i], 0, BLOCKS_PER_EPOCH - 1);
+        if (b == null) return null;
+        if (seen[b]) continue;
+        seen[b] = true;
+        out.push(b);
+    }
+    return out.length ? out : null;
+}
+
+// Open abuse, alt, or account holds that the review data (frozen result,
+// claim doc, or winner user doc) may carry. shared_address / sharedLn is the
+// frozen alt flag. Ordinary review reasons (address_changed_after_close,
+// no_address, route fees) are not holds.
+const OPEN_HOLD_FIELDS = ['abuseHold', 'altHold', 'hold', 'holds', 'abuseFlag', 'altFlag',
+    'flagged', 'abuse', 'alt', 'satsHold', 'banned', 'isBanned'];
+
+function isOpenHoldValue(field, value, nowMs) {
+    if (value == null || value === false || value === '' || value === 0) return false;
+    if (field === 'satsHold') return Number(value) > nowMs;
+    if (field === 'banned' || field === 'isBanned' || field === 'flagged') return value === true;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') {
+        if (value.cleared === true || value.open === false) return false;
+        if (typeof value.until === 'number') return value.until > nowMs;
+        if (value.open === true) return true;
+        return Object.keys(value).length > 0;
+    }
+    if (typeof value === 'string') return value.trim().length > 0;
+    return value === true;
+}
+
+function listOpenHolds(row, cd, user, nowMs) {
+    const out = [];
+    const seen = Object.create(null);
+    function add(field, source) {
+        if (seen[field]) return;
+        seen[field] = true;
+        out.push({ field: field, source: source });
+    }
+    function scan(src, source) {
+        if (!src || typeof src !== 'object') return;
+        for (let i = 0; i < OPEN_HOLD_FIELDS.length; i++) {
+            const f = OPEN_HOLD_FIELDS[i];
+            if (isOpenHoldValue(f, src[f], nowMs)) add(f, source);
+        }
+    }
+    scan(row, 'result');
+    scan(cd, 'claim');
+    scan(user, 'user');
+    if (row && row.sharedLn === true) add('sharedLn', 'result');
+    if (row && String(row.manualReview || '') === 'shared_address') add('shared_address', 'result');
+    if (cd && String(cd.reviewReason || '') === 'shared_address') add('shared_address', 'claim');
+    return out;
+}
+
+function holdCopy(holds) {
+    if (!holds || !holds.length) return '';
+    const fields = holds.map(function (h) { return h.field; });
+    function has(n) { return fields.indexOf(n) !== -1; }
+    if (has('sharedLn') || has('shared_address') || has('altHold') || has('alt') || has('altFlag')) {
+        return 'Open alt hold. Use the single Release button after this is resolved.';
+    }
+    if (has('abuseHold') || has('abuse') || has('abuseFlag') || has('flagged')) {
+        return 'Open abuse hold. This block cannot be released in a batch.';
+    }
+    if (has('banned') || has('isBanned')) {
+        return 'This winner is banned. This block cannot be released in a batch.';
+    }
+    if (has('satsHold')) {
+        return 'This winner has an open sats hold. This block cannot be released in a batch.';
+    }
+    return 'Open hold or flag. This block cannot be released in a batch.';
+}
+
 // Client input is { epoch, block } only. Anything else is ignored.
 function parseClaimIds(data) {
     const d = data && typeof data === 'object' && !Array.isArray(data) ? data : null;
@@ -1098,11 +1178,21 @@ function createBlockClaimService(deps) {
             if (!rows) continue;
             const counts = { unclaimed: 0, manual_review: 0, paying: 0, unknown: 0, paid: 0, rejected: 0 };
             const sats = { unclaimed: 0, manual_review: 0, paying: 0, unknown: 0, paid: 0, rejected: 0 };
-            const blocks = rows.map(function (x) {
+            const usersByUid = {};
+            const blocks = [];
+            for (let j = 0; j < rows.length; j++) {
+                const x = rows[j];
                 counts[x.status] += 1;
                 sats[x.status] += Number(x.row.amount) || 0;
                 const cd = x.cd || {};
-                return {
+                const uid = x.row.uid ? String(x.row.uid) : '';
+                if (uid && !Object.prototype.hasOwnProperty.call(usersByUid, uid)) {
+                    const us = await db.collection('users').doc(uid).get();
+                    usersByUid[uid] = us.exists ? (us.data() || {}) : null;
+                }
+                const holds = listOpenHolds(x.row, cd, uid ? usersByUid[uid] : null, now());
+                const held = x.status === 'manual_review' && holds.length > 0;
+                blocks.push({
                     block: x.row.block, amount: Number(x.row.amount) || 0, status: x.status,
                     uid: maskUid(x.row.uid), payTo: maskLn(x.row.frozenLn),
                     reviewReason: x.row.manualReview ? String(x.row.manualReview).slice(0, 60) : '',
@@ -1110,8 +1200,10 @@ function createBlockClaimService(deps) {
                     attempts: Number(cd.attempts) || 0,
                     paidAtMs: typeof cd.paidAtMs === 'number' ? cd.paidAtMs : null,
                     lastAttemptMs: typeof cd.lastAttemptMs === 'number' ? cd.lastAttemptMs : null,
-                };
-            });
+                    held: held,
+                    holdReason: held ? holdCopy(holds) : '',
+                });
+            }
             out.push({ epochNumber: epochs[i], blocks: blocks, counts: counts, sats: sats });
         }
         const haltSnap = await db.collection('sf_claim_counters').doc(FEE_HALT_DOC_ID).get();
@@ -1131,11 +1223,13 @@ function createBlockClaimService(deps) {
         return { ok: true, epochs: out, feeHalt: feeHalt, claimsEnabled: cfg.claimsEnabled === true, enabledEpochs: cfg.enabledEpochs };
     }
 
-    // Admin: release every manual-review block of one epoch, one at a time,
-    // through resolveReview (the same path as the single Release button).
-    // Input { epoch, note } only. Never pays. Blocks that are paying or
-    // unknown are skipped: they need the single-block path and a person.
-    // Every block's own resolveReview call is audited, plus one summary row.
+    // Admin: release the manual-review blocks the admin confirmed, one at a
+    // time, through resolveReview (the same path as the single Release button).
+    // Input { epoch, note, expectedBlocks }. Never pays. Only the overlap
+    // between expectedBlocks and what is in review now is released. Paying or
+    // unknown blocks, and review blocks that were not on the list, are
+    // skipped. Every block's own resolveReview call is audited, plus one
+    // summary row.
     async function releaseAllReview(adminUid, data) {
         const d = data && typeof data === 'object' ? data : {};
         const epoch = intStrict(d.epoch, 1, MAX_EPOCH_NUMBER);
@@ -1149,6 +1243,13 @@ function createBlockClaimService(deps) {
             await audit({ type: 'admin_review_all', by: by, epoch: epoch, code: 'note_required', note: note });
             return { ok: false, code: 'note_required' };
         }
+        const expected = parseExpectedBlocks(d.expectedBlocks);
+        if (!expected) {
+            await audit({ type: 'admin_review_all', by: by, epoch: epoch, code: 'expected_blocks_required', note: note });
+            return { ok: false, code: 'expected_blocks_required' };
+        }
+        const want = {};
+        expected.forEach(function (b) { want[b] = true; });
         const rows = await readEpochBlocks(epoch);
         if (!rows) {
             await audit({ type: 'admin_review_all', by: by, epoch: epoch, code: 'epoch_not_ready', note: note });
@@ -1158,16 +1259,31 @@ function createBlockClaimService(deps) {
         const skipped = [];
         for (let i = 0; i < rows.length; i++) {
             const x = rows[i];
+            const block = x.row.block;
             if (x.status !== 'manual_review') {
-                if (x.status === 'paying' || x.status === 'unknown') skipped.push({ block: x.row.block, status: x.status });
+                if (x.status === 'paying' || x.status === 'unknown') skipped.push({ block: block, status: x.status });
                 continue;
             }
-            const r = await resolveReview(adminUid, { epoch: epoch, block: x.row.block, action: 'release', note: 'release all: ' + note });
-            results.push({ block: x.row.block, code: r.code, ok: r.ok === true });
+            if (!want[block]) {
+                skipped.push({ block: block, status: 'manual_review', reason: 'not_requested' });
+                continue;
+            }
+            let user = null;
+            if (x.row.uid) {
+                const us = await db.collection('users').doc(String(x.row.uid)).get();
+                user = us.exists ? (us.data() || {}) : null;
+            }
+            const holds = listOpenHolds(x.row, x.cd, user, now());
+            if (holds.length) {
+                skipped.push({ block: block, status: 'manual_review', reason: 'open_hold', hold: holdCopy(holds) });
+                continue;
+            }
+            const r = await resolveReview(adminUid, { epoch: epoch, block: block, action: 'release', note: 'release all: ' + note });
+            results.push({ block: block, code: r.code, ok: r.ok === true });
         }
         const released = results.filter(function (r) { return r.code === 'released'; }).length;
         await audit({ type: 'admin_review_all', by: by, epoch: epoch, code: 'done', note: note, released: released,
-            tried: results.length, results: results, skipped: skipped });
+            tried: results.length, results: results, skipped: skipped, expectedBlocks: expected });
         return { ok: true, code: 'done', epoch: epoch, released: released, tried: results.length, results: results, skipped: skipped };
     }
 
@@ -1200,6 +1316,9 @@ module.exports = {
     DEFAULTS,
     MESSAGES,
     parseClaimIds,
+    parseExpectedBlocks,
+    listOpenHolds,
+    holdCopy,
     claimId,
     resultId,
     readConfig,

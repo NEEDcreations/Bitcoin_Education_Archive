@@ -33,6 +33,12 @@ function makeDoc() {
             set innerHTML(v) { innerHtmlWrites++; this._text = String(v); },
             get firstChild() { return this.children[0] || null; },
             appendChild(c) { c.parentNode = this; this.children.push(c); return c; },
+            insertBefore(c, ref) {
+                c.parentNode = this;
+                const i = this.children.indexOf(ref);
+                if (i < 0) this.children.push(c); else this.children.splice(i, 0, c);
+                return c;
+            },
             removeChild(c) { this.children = this.children.filter((x) => x !== c); c.parentNode = null; return c; },
             setAttribute(k, v) { this.attributes[k] = String(v); },
             getAttribute(k) { return this.attributes[k]; },
@@ -332,7 +338,7 @@ const EPOCH1 = {
         assert.strictEqual(h.normalizeStatus({ ok: true, epochs: [{ epochNumber: 'x' }, { epochNumber: 0 }] }).epochs.length, 0);
     });
 
-    await test('release all: note required, confirm, one fresh step-up, then adminReleaseAllFavorReview { epoch, note } only', async function () {
+    await test('release all: note required, boxes start unchecked, only picked blocks are sent', async function () {
         let n = 0;
         const { sb, doc, calls, stepUps, confirms, statusCalls } = sandbox({ results: [EPOCH1], responses: {
             adminFavorBlockStatus: function () { n++; return STATUS; },
@@ -346,12 +352,25 @@ const EPOCH1 = {
         assert.ok(byId(doc, 'sfuReleaseAllStatus_1').textContent.includes('note'));
         byId(doc, 'sfuAllNote_1').value = 'Both checked with the winners';
         btn.click(); await settle();
-        assert.strictEqual(confirms.length, 1);
-        assert.ok(/Release all 2 manual-review blocks in epoch 1 \(8,400 sats\)/.test(confirms[0]));
+        assert.strictEqual(confirms.length, 0, 'picker is in-panel, not window.confirm');
+        assert.strictEqual(calls.length, 0, 'nothing is released until a box is checked');
+        const box1 = byId(doc, 'sfuReleasePick_1_1');
+        const box3 = byId(doc, 'sfuReleasePick_1_3');
+        assert.ok(box1 && box3);
+        assert.strictEqual(box1.checked, false);
+        assert.strictEqual(box3.checked, false);
+        assert.strictEqual(box1.disabled, false);
+        assert.strictEqual(box3.disabled, false);
+        byId(doc, 'sfuReleasePicked_1').click(); await settle();
+        assert.strictEqual(calls.length, 0, 'Release selected with nothing checked sends nothing');
+        assert.ok(byId(doc, 'sfuReleaseAllStatus_1').textContent.includes('Pick at least one'));
+        box1.checked = true;
+        box3.checked = true;
+        byId(doc, 'sfuReleasePicked_1').click(); await settle();
         assert.deepStrictEqual(stepUps, ['adminReleaseAllFavorReview']);
         assert.strictEqual(calls.length, 1);
         assert.strictEqual(calls[0].fn, 'adminReleaseAllFavorReview');
-        assert.deepStrictEqual(JSON.parse(JSON.stringify(calls[0].payload)), { epoch: 1, note: 'Both checked with the winners', freshProofId: 'proof-1' });
+        assert.deepStrictEqual(JSON.parse(JSON.stringify(calls[0].payload)), { epoch: 1, note: 'Both checked with the winners', expectedBlocks: [1, 3], freshProofId: 'proof-1' });
         await settle();
         assert.ok(n >= 2, 'status reloads after release all');
         assert.ok(statusCalls.length >= 2);
@@ -359,16 +378,56 @@ const EPOCH1 = {
         assert.ok(/Released 1 of 2\. Refused: block 3 \(no_frozen_address\)/.test(out.textContent), out.textContent);
     });
 
-    await test('release all: a declined confirm or cancelled step-up sends nothing; no button when nothing is in review', async function () {
-        const a = sandbox({ results: [EPOCH1], confirm: false, responses: { adminFavorBlockStatus: STATUS } });
+    await test('release all: skipped not-requested and open-hold blocks are shown after the picked list is sent', async function () {
+        const { sb, doc } = sandbox({ results: [EPOCH1], responses: {
+            adminFavorBlockStatus: STATUS,
+            adminReleaseAllFavorReview: { ok: true, code: 'done', released: 1, tried: 1, results: [{ block: 1, code: 'released', ok: true }], skipped: [{ block: 3, status: 'manual_review', reason: 'not_requested' }, { block: 4, status: 'manual_review', reason: 'open_hold', hold: 'Open alt hold.' }] },
+        } });
+        sb.bqOpenFavorClaims(); await settle();
+        byId(doc, 'sfuAllNote_1').value = 'checked block 1';
+        byId(doc, 'sfuReleaseAll_1').click(); await settle();
+        byId(doc, 'sfuReleasePick_1_1').checked = true;
+        byId(doc, 'sfuReleasePicked_1').click(); await settle();
+        await settle();
+        const out = byId(doc, 'sfuReleaseAllStatus_1');
+        assert.ok(/Released 1 of 1/.test(out.textContent), out.textContent);
+        assert.ok(/Left block 3 in review \(not on the list you confirmed\)/.test(out.textContent), out.textContent);
+        assert.ok(/Left block 4 in review \(open hold or flag\)/.test(out.textContent), out.textContent);
+    });
+
+    await test('release all: held blocks cannot be selected and a warning is shown; Cancel and no-review still send nothing', async function () {
+        const heldStatus = JSON.parse(JSON.stringify(STATUS));
+        heldStatus.epochs[0].blocks.forEach(function (x) {
+            if (x.block === 3) { x.held = true; x.holdReason = 'Open alt hold. Use the single Release button after this is resolved.'; }
+        });
+        const a = sandbox({ results: [EPOCH1], responses: { adminFavorBlockStatus: heldStatus } });
         a.sb.bqOpenFavorClaims(); await settle();
         byId(a.doc, 'sfuAllNote_1').value = 'checked';
         byId(a.doc, 'sfuReleaseAll_1').click(); await settle();
-        assert.strictEqual(a.calls.length, 0); assert.strictEqual(a.stepUps.length, 0);
+        const free = byId(a.doc, 'sfuReleasePick_1_1');
+        const held = byId(a.doc, 'sfuReleasePick_1_3');
+        assert.ok(free && held);
+        assert.strictEqual(free.checked, false);
+        assert.strictEqual(held.checked, false);
+        assert.strictEqual(free.disabled, false);
+        assert.strictEqual(held.disabled, true);
+        const pick = byId(a.doc, 'sfuReleasePick_1');
+        assert.ok(/Cannot be selected: Open alt hold/.test(pick.textContent), pick.textContent);
+        held.checked = true; // forced, still ignored
+        byId(a.doc, 'sfuReleasePicked_1').click(); await settle();
+        assert.strictEqual(a.calls.length, 0, 'a held box is not sent even if checked');
+        assert.ok(byId(a.doc, 'sfuReleaseAllStatus_1').textContent.includes('Pick at least one'));
+        byId(a.doc, 'sfuReleasePickCancel_1').click(); await settle();
+        assert.strictEqual(a.calls.length, 0);
+        assert.strictEqual(byId(a.doc, 'sfuReleasePick_1'), null);
+        assert.ok(byId(a.doc, 'sfuReleaseAllStatus_1').textContent.includes('Cancelled'));
+
         const b = sandbox({ results: [EPOCH1], cancel: true, responses: { adminFavorBlockStatus: STATUS } });
         b.sb.bqOpenFavorClaims(); await settle();
         byId(b.doc, 'sfuAllNote_1').value = 'checked';
         byId(b.doc, 'sfuReleaseAll_1').click(); await settle();
+        byId(b.doc, 'sfuReleasePick_1_1').checked = true;
+        byId(b.doc, 'sfuReleasePicked_1').click(); await settle();
         assert.strictEqual(b.calls.length, 0);
         assert.ok(byId(b.doc, 'sfuReleaseAllStatus_1').textContent.includes('fresh authenticator code'));
         const none = JSON.parse(JSON.stringify(STATUS));
@@ -376,7 +435,6 @@ const EPOCH1 = {
         const c = sandbox({ results: [EPOCH1], responses: { adminFavorBlockStatus: none } });
         c.sb.bqOpenFavorClaims(); await settle();
         assert.strictEqual(byId(c.doc, 'sfuReleaseAll_1'), null);
-        // Live status shows block 1 already left review, so its single Release card is gone too.
         assert.ok(byId(c.doc, 'sfuReview').textContent.includes('No blocks waiting for review'));
     });
 
