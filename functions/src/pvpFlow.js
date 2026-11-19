@@ -19,6 +19,9 @@ const SUMMARY_HEARTBEAT_MS = 20 * 1000;
 const WIN_POINTS = 50;
 const DRAW_POINTS = 5;
 const CONSOLATION_POINTS = 25;
+const PAIR_XP_CAP = 3;
+const MIN_MATCH_MS = 30 * 1000;
+const MIN_ACCOUNT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function safeDisplayName(name) {
     const cleaned = String(name || '')
@@ -112,6 +115,27 @@ function lastSeenMs(value) {
     if (seconds == null) return 0;
     return seconds * 1000;
 }
+
+// Finish time is the match's finishedAt, or the snapshot updateTime from the
+// status write that ended it. Never Date.now() at settle, or a delayed retry
+// can let a match under 30 seconds pay.
+function matchFinishMs(after, updateTimeMs) {
+    const fromField = lastSeenMs(after && after.finishedAt);
+    if (fromField) return fromField;
+    if (typeof updateTimeMs === 'number' && isFinite(updateTimeMs) && updateTimeMs > 0) return updateTimeMs;
+    const fromUpdate = lastSeenMs(updateTimeMs);
+    if (fromUpdate) return fromUpdate;
+    return 0;
+}
+
+// null means the duration could not be measured and the planner must fail closed.
+function matchDurationMs(createdMs, finishMs) {
+    const created = typeof createdMs === 'number' && createdMs > 0 ? createdMs : 0;
+    const finish = typeof finishMs === 'number' && finishMs > 0 ? finishMs : 0;
+    if (!created || !finish) return null;
+    return Math.max(0, finish - created);
+}
+
 
 function mergeLobbyEntry(entries, docId, data, nowMs) {
     const out = {};
@@ -244,6 +268,79 @@ function shuffleQuestion(q, rng) {
     };
 }
 
+
+function farmDayKey(nowMs) {
+    const when = new Date(Number(nowMs) || Date.now());
+    if (Number.isNaN(when.getTime())) return '';
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(when);
+    const get = function (type) {
+        for (let i = 0; i < parts.length; i++) {
+            if (parts[i].type === type) return parts[i].value;
+        }
+        return '';
+    };
+    const y = get('year'), m = get('month'), d = get('day');
+    return y && m && d ? y + '-' + m + '-' + d : '';
+}
+
+function pad2(n) {
+    return String(n).padStart(2, '0');
+}
+
+// Midnight at the start of an ET calendar day (YYYY-MM-DD). Returns 0 if the
+// day string is not a real ET date.
+function etStartOfDayMs(day) {
+    const parts = String(day || '').split('-');
+    if (parts.length !== 3) return 0;
+    const y = Number(parts[0]), m = Number(parts[1]), d = Number(parts[2]);
+    if (!y || !m || !d) return 0;
+    const ymd = y + '-' + pad2(m) + '-' + pad2(d);
+    const candidates = [
+        Date.parse(ymd + 'T00:00:00-04:00'),
+        Date.parse(ymd + 'T00:00:00-05:00'),
+    ];
+    for (let i = 0; i < candidates.length; i++) {
+        const ms = candidates[i];
+        if (!Number.isFinite(ms)) continue;
+        if (farmDayKey(ms) === ymd && farmDayKey(ms - 1) !== ymd) return ms;
+    }
+    return 0;
+}
+
+// expireAt for pvp_pair_daily: end of the ET day plus 2 days (start of day+3).
+// The Timestamp is written on the doc so a TTL policy can use it later; this
+// code does not create the policy (needs Phil).
+function pairDailyExpireAtMs(day) {
+    const start = etStartOfDayMs(day);
+    if (!start) return 0;
+    const later = start + (3 * 24 * 60 * 60 * 1000) + (12 * 60 * 60 * 1000);
+    return etStartOfDayMs(farmDayKey(later));
+}
+
+function pairDailyId(day, uidA, uidB) {
+    const a = String(uidA || '');
+    const b = String(uidB || '');
+    if (!day || !a || !b || a === b) return '';
+    const ids = [a, b].sort();
+    return day + '_' + ids[0] + '_' + ids[1];
+}
+
+// A disconnect is still void (no win, loss, or played credit), but it counts
+// toward the same-pair daily cap so dropping mid-match cannot dodge it.
+// A tied forfeit (forfeit_void) stays uncounted. Guest matches never count.
+function shouldIncrementPairDaily(plan, stamp) {
+    if (!plan) return false;
+    const guest = !stamp || stamp.guestMatch !== false || plan.guestMatch === true;
+    if (guest) return false;
+    if (plan.reason === 'disconnect') return true;
+    return plan.grant === true && plan.voided !== true;
+}
+
 function sideReward(key, player, winner, draw) {
     const p = player || {};
     const blocked = p.banned === true || p.anonymous === true;
@@ -260,7 +357,10 @@ function sideReward(key, player, winner, draw) {
         pvpWins = 1;
     } else if (winner) {
         outcome = 'loss';
-        points = (Number(p.score) || 0) > 0 ? CONSOLATION_POINTS : 0;
+        const wonRound = p.roundWins != null
+            ? (Number(p.roundWins) || 0) > 0
+            : (Number(p.score) || 0) > 0;
+        points = wonRound ? CONSOLATION_POINTS : 0;
         pvpLosses = 1;
     }
     if (blocked) {
@@ -361,6 +461,33 @@ function planPvpReward(input) {
     }
 
     const players = [sideReward('player1', p1, winner, draw), sideReward('player2', p2, winner, draw)];
+    let xpReason = draw ? 'draw' : 'win';
+    function clearCappedStats(p) {
+        p.points = 0;
+        p.pvpWins = 0;
+        p.pvpLosses = 0;
+        p.statsCapped = true;
+    }
+    // null duration (could not measure finish time) fails closed, same as too short.
+    // undefined duration is left alone so unit tests that omit it still pay.
+    if (src.durationMs === null || (typeof src.durationMs === 'number' && src.durationMs < (src.minDurationMs || MIN_MATCH_MS))) {
+        players.forEach(clearCappedStats);
+        xpReason = 'too_short';
+    } else if (typeof src.pairMatchesToday === 'number' && src.pairMatchesToday >= (src.pairXpCap || PAIR_XP_CAP)) {
+        players.forEach(clearCappedStats);
+        xpReason = 'pair_cap';
+    } else {
+        const minAge = src.minAccountAgeMs || MIN_ACCOUNT_AGE_MS;
+        const ages = src.accountAgeMs || {};
+        ['player1', 'player2'].forEach(function (key, i) {
+            // A present but missing/non-numeric age fails closed.
+            if (!Object.prototype.hasOwnProperty.call(ages, key)) return;
+            if (typeof ages[key] !== 'number' || ages[key] < minAge) {
+                clearCappedStats(players[i]);
+                if (xpReason === 'draw' || xpReason === 'win') xpReason = 'young_account';
+            }
+        });
+    }
     let shout = null;
     if (winner) {
         const w = winner === 'player1' ? p1 : p2;
@@ -385,9 +512,11 @@ function planPvpReward(input) {
             docId: resultShoutDocId(src.matchId),
         };
     }
+    // Capped and too-short matches must not post a lobby result shout.
+    if (players.some(function (p) { return p && p.statsCapped === true; })) shout = null;
     return {
         grant: true,
-        reason: draw ? 'draw' : 'win',
+        reason: xpReason,
         claimId: claimId,
         players: players,
         shout: shout,
@@ -671,6 +800,12 @@ function settleRewardPlan(input) {
         alreadyGranted: false,
         forfeitedBy: after.forfeitedBy || '',
         forfeitReason: after.forfeitReason || '',
+        durationMs: src.durationMs,
+        pairMatchesToday: src.pairMatchesToday,
+        accountAgeMs: src.accountAgeMs,
+        minDurationMs: src.minDurationMs,
+        pairXpCap: src.pairXpCap,
+        minAccountAgeMs: src.minAccountAgeMs,
         player1: {
             uid: ids.player1, name: keyData.player1Name || '', score: p1.score || 0,
             roundWins: countWins(p1.answers), banned: f1.banned === true, anonymous: stamp.player1,
@@ -691,11 +826,32 @@ function settleRewardPlan(input) {
 // Server-counted PvP badge families granted after a match settles. A guest
 // match (or a missing stamp, which reads as a guest match) grants none.
 const PVP_BADGE_FIELDS = ['pvpWins', 'pvpPlayed', 'pvpBestStreak'];
-function planPvpBadgeGrants(sideUids, stamp) {
+// Only a finished win or draw counts as played. Farm-capped wins and draws
+// (too_short, pair_cap, young_account) still use the normal path so a
+// young-account cap skips only that side. A null plan (thrown or incomplete
+// settle), forfeit_void, disconnect, and any other reason skip every uid.
+const PVP_PLAYED_REASONS = {
+    win: true,
+    draw: true,
+    too_short: true,
+    pair_cap: true,
+    young_account: true,
+};
+function planPvpBadgeGrants(sideUids, stamp, plan) {
     const uids = (sideUids || []).filter(function (u) { return typeof u === 'string' && u; });
     const guest = !stamp || stamp.guestMatch !== false;
-    if (guest) return { rewardUids: [], skipUids: uids, fields: [] };
-    return { rewardUids: uids, skipUids: [], fields: PVP_BADGE_FIELDS.slice() };
+    if (guest) return { rewardUids: [], skipUids: uids, winGrantUids: [], fields: [] };
+    const reason = plan && plan.reason;
+    if (!reason || !PVP_PLAYED_REASONS[reason]) {
+        return { rewardUids: uids, skipUids: uids.slice(), winGrantUids: [], fields: PVP_BADGE_FIELDS.slice() };
+    }
+    const capped = {};
+    (plan.players || []).forEach(function (p) {
+        if (p && p.uid && p.statsCapped === true) capped[p.uid] = true;
+    });
+    const winGrantUids = uids.filter(function (u) { return !capped[u]; });
+    const skipUids = uids.filter(function (u) { return !!capped[u]; });
+    return { rewardUids: uids, skipUids: skipUids, winGrantUids: winGrantUids, fields: PVP_BADGE_FIELDS.slice() };
 }
 
 // ---- Lobby summary work cap ----
@@ -728,6 +884,9 @@ module.exports = {
     WIN_POINTS: WIN_POINTS,
     DRAW_POINTS: DRAW_POINTS,
     CONSOLATION_POINTS: CONSOLATION_POINTS,
+    PAIR_XP_CAP: PAIR_XP_CAP,
+    MIN_MATCH_MS: MIN_MATCH_MS,
+    MIN_ACCOUNT_AGE_MS: MIN_ACCOUNT_AGE_MS,
     safeDisplayName: safeDisplayName,
     lobbyShoutText: lobbyShoutText,
     resultShoutText: resultShoutText,
@@ -736,6 +895,8 @@ module.exports = {
     rewardClaimId: rewardClaimId,
     shouldPostLobbyShout: shouldPostLobbyShout,
     lastSeenMs: lastSeenMs,
+    matchFinishMs: matchFinishMs,
+    matchDurationMs: matchDurationMs,
     mergeLobbyEntry: mergeLobbyEntry,
     decideLobbyAlert: decideLobbyAlert,
     decidePvpPush: decidePvpPush,
@@ -751,6 +912,10 @@ module.exports = {
     trustedLobbyKeep: trustedLobbyKeep,
     planWinTicket: planWinTicket,
     planXpWrite: planXpWrite,
+    farmDayKey: farmDayKey,
+    pairDailyExpireAtMs: pairDailyExpireAtMs,
+    pairDailyId: pairDailyId,
+    shouldIncrementPairDaily: shouldIncrementPairDaily,
     playerKeyForUid: playerKeyForUid,
     pushShardOrder: pushShardOrder,
     pvpPicAllowed: pvpPicAllowed,
@@ -768,6 +933,7 @@ module.exports = {
     GUEST_STAMP_VERSION: GUEST_STAMP_VERSION,
     planMatchCharges: planMatchCharges,
     PVP_BADGE_FIELDS: PVP_BADGE_FIELDS,
+    PVP_PLAYED_REASONS: PVP_PLAYED_REASONS,
     planPvpBadgeGrants: planPvpBadgeGrants,
     PVP_LOBBY_EVENTS_PER_MIN: PVP_LOBBY_EVENTS_PER_MIN,
     PVP_LOBBY_EVENTS_WINDOW_MS: PVP_LOBBY_EVENTS_WINDOW_MS,

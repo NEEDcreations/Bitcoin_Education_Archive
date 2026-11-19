@@ -117,7 +117,7 @@ test('index.js: create stamps the key doc and match doc; settle and badges read 
     assert.ok(/guestStamp: guestStamp/.test(c), 'key doc stamp');
     assert.ok(/guestMatch: guestStamp\.guestMatch/.test(c), 'match doc stamp');
     assert.ok(/guest: guestStamp\.player1/.test(c) && /guest: guestStamp\.player2/.test(c));
-    const st = src.slice(src.indexOf('async function settlePvpMatch'), src.indexOf('async function settlePvpMatch') + 2000);
+    const st = src.slice(src.indexOf('async function settlePvpMatch'), src.indexOf('async function settlePvpMatch') + 12000);
     assert.ok(/pvpFlow\.settleRewardPlan\(/.test(st));
     const fin = src.slice(src.indexOf('exports.onPvpMatchFinished'), src.indexOf('exports.onPvpMatchFinished') + 3000);
     assert.ok(/readGuestStamp/.test(fin));

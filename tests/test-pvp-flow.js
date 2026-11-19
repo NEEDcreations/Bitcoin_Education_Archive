@@ -2,6 +2,10 @@
 // PvP lobby alerts, shout rate limits, and reward idempotency. No Firebase.
 const assert = require('assert');
 const flow = require('../functions/src/pvpFlow');
+const awardActions = require('../functions/src/awardActions');
+const { nyDateKey, offsetDateKey } = require('../functions/src/offsetDay');
+const fs = require('fs');
+const path = require('path');
 
 let passed = 0;
 let failed = 0;
@@ -251,10 +255,80 @@ test('a win ticket is once per win and daily-capped, and XP writes weekly fields
 });
 
 
-const awardActions = require('../functions/src/awardActions');
-const { nyDateKey, offsetDateKey } = require('../functions/src/offsetDay');
-const fs = require('fs');
-const path = require('path');
+test('short matches and a fourth same-pair match pay no XP', function () {
+    const base = {
+        matchId: 'm2',
+        status: 'finished',
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    };
+    const short = flow.planPvpReward(Object.assign({}, base, { durationMs: 5000 }));
+    assert.strictEqual(short.grant, true);
+    assert.strictEqual(short.reason, 'too_short');
+    assert.strictEqual(short.players[0].points, 0);
+    assert.strictEqual(short.players[1].points, 0);
+    assert.strictEqual(short.players[0].pvpWins, 0);
+    assert.strictEqual(short.players[0].pvpLosses, 0);
+    assert.strictEqual(short.players[1].pvpWins, 0);
+    assert.strictEqual(short.players[1].pvpLosses, 0);
+    assert.strictEqual(short.players[0].statsCapped, true);
+    assert.strictEqual(short.shout, null);
+
+    const capped = flow.planPvpReward(Object.assign({}, base, { durationMs: 60000, pairMatchesToday: 3 }));
+    assert.strictEqual(capped.reason, 'pair_cap');
+    assert.strictEqual(capped.players[0].points, 0);
+    assert.strictEqual(capped.players[1].points, 0);
+    assert.strictEqual(capped.players[0].pvpWins, 0);
+    assert.strictEqual(capped.players[0].pvpLosses, 0);
+    assert.strictEqual(capped.players[1].pvpWins, 0);
+    assert.strictEqual(capped.players[1].pvpLosses, 0);
+    assert.strictEqual(capped.shout, null);
+
+    const third = flow.planPvpReward(Object.assign({}, base, { durationMs: 60000, pairMatchesToday: 2 }));
+    assert.strictEqual(third.reason, 'win');
+    assert.strictEqual(third.players[0].points, 50);
+    assert.strictEqual(third.players[1].points, 25);
+    assert.ok(third.shout && third.shout.post === true);
+});
+
+test('consolation needs a won round, and young accounts earn no PvP XP', function () {
+    const noRound = flow.planPvpReward({
+        matchId: 'm3',
+        status: 'finished',
+        durationMs: 60000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 0, roundWins: 0 },
+    });
+    assert.strictEqual(noRound.players[0].points, 50);
+    assert.strictEqual(noRound.players[1].points, 0);
+
+    const young = flow.planPvpReward({
+        matchId: 'm4',
+        status: 'finished',
+        durationMs: 60000,
+        pairMatchesToday: 0,
+        accountAgeMs: { player1: 2 * 24 * 3600 * 1000, player2: 30 * 24 * 3600 * 1000 },
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(young.reason, 'young_account');
+    assert.strictEqual(young.players[0].points, 0);
+    assert.strictEqual(young.players[0].pvpWins, 0);
+    assert.strictEqual(young.players[0].statsCapped, true);
+    assert.strictEqual(young.players[1].points, 25);
+    assert.strictEqual(young.players[1].pvpLosses, 1);
+    assert.ok(!young.players[1].statsCapped);
+    assert.strictEqual(young.shout, null);
+
+    assert.ok(flow.pairDailyId('2026-11-18', 'b', 'a').indexOf('2026-11-18_a_b') === 0);
+    assert.strictEqual(flow.farmDayKey(Date.parse('2026-06-01T04:30:00Z')), '2026-06-01');
+    // 2026-11-18 is EST. End of day + 2 days = 2026-11-21 00:00 ET.
+    assert.strictEqual(flow.pairDailyExpireAtMs('2026-11-18'), Date.parse('2026-11-21T00:00:00-05:00'));
+    // DST fall-back weekend: 2026-10-31 is EDT, expire lands on EST midnight Nov 3.
+    assert.strictEqual(flow.pairDailyExpireAtMs('2026-10-31'), Date.parse('2026-11-03T00:00:00-05:00'));
+    assert.strictEqual(flow.pairDailyExpireAtMs(''), 0);
+});
 
 test('pvp win badges need server-counted wins', function () {
     assert.deepStrictEqual(awardActions.pvpBadgeNeed('pvp_first'), { field: 'pvpWins', need: 1 });
@@ -279,6 +353,7 @@ test('awardBadge checks pvp badge counters and finished path grants played badge
     const finish = src.slice(src.indexOf('exports.onPvpMatchFinished'), src.indexOf('exports.onUserDocCreated'));
     assert.ok(finish.includes("familyFor('pvpPlayed')"), 'finished matches must grant played badges');
     assert.ok(finish.includes('skipUids'), 'played grants must skip anonymous and guest-match uids');
+    assert.ok(finish.includes('skipUids.indexOf(rewardUids[ri])'), 'played family is not granted for capped, void, or disconnect uids');
     assert.ok(!src.includes('pvp badge rejected'), 'awardPoints must not log pvp badge rejections with a uid');
 });
 
@@ -312,11 +387,14 @@ test('a guest match pays no XP, wins, or tickets to either side', function () {
     });
     const settle = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
     const settleAt = settle.indexOf('async function settlePvpMatch');
-    const settleFn = settle.slice(settleAt, settleAt + 4000);
+    const settleFn = settle.slice(settleAt, settleAt + 12000);
     assert.ok(settleFn.indexOf("plan.reason === 'guest_match'") !== -1);
-    const guestReturn = settleFn.slice(settleFn.indexOf('if (!plan.grant)'), settleFn.indexOf('const rewardRef'));
+    const grantAt = settleFn.indexOf('if (!plan.grant)');
+    const guestReturn = settleFn.slice(grantAt, grantAt + 600);
+    assert.ok(grantAt !== -1 && grantAt > settleFn.indexOf('db.runTransaction'), 'guest no-grant path is inside the transaction');
     assert.ok(guestReturn.indexOf("pvp_rewards") === -1);
     assert.ok(guestReturn.indexOf('rewardsGranted: true') !== -1);
+    assert.strictEqual(flow.shouldIncrementPairDaily(plan, { guestMatch: true, player1: false, player2: true }), false);
     const signedOnly = flow.planPvpReward({
         matchId: 'm-live',
         status: 'finished',
@@ -397,6 +475,362 @@ test('practice day key is midnight America/New_York, not 5 AM UTC', function () 
     // During Eastern Daylight Time, midnight ET and the 5 AM UTC reward day diverge.
     assert.strictEqual(nyDateKey(Date.parse('2026-06-01T04:30:00Z')), '2026-06-01');
     assert.strictEqual(offsetDateKey(Date.parse('2026-06-01T04:30:00Z')), '2026-05-31');
+});
+
+test('a missing finish time fails closed, and duration uses finish minus created', function () {
+    assert.strictEqual(flow.matchFinishMs({ finishedAt: 1700000030000 }, 99), 1700000030000);
+    assert.strictEqual(flow.matchFinishMs({}, 1700000030000), 1700000030000);
+    assert.strictEqual(flow.matchFinishMs({}, { toMillis: function () { return 1700000030000; } }), 1700000030000);
+    assert.strictEqual(flow.matchDurationMs(1700000000000, 1700000040000), 40000);
+    assert.strictEqual(flow.matchDurationMs(1700000000000, 0), null);
+    assert.strictEqual(flow.matchDurationMs(0, 1700000040000), null);
+
+    const unknown = flow.planPvpReward({
+        matchId: 'm-dur',
+        status: 'finished',
+        durationMs: null,
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(unknown.reason, 'too_short');
+    assert.strictEqual(unknown.players[0].points, 0);
+    assert.strictEqual(unknown.players[0].pvpWins, 0);
+
+    const byFinish = flow.planPvpReward({
+        matchId: 'm-delay',
+        status: 'finished',
+        durationMs: flow.matchDurationMs(1700000000000, 1700000005000),
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(byFinish.reason, 'too_short');
+    assert.strictEqual(byFinish.players[0].pvpWins, 0);
+});
+
+test('a missing creationTime fails the young-account cap closed', function () {
+    const missing = flow.planPvpReward({
+        matchId: 'm-age',
+        status: 'finished',
+        durationMs: 60000,
+        pairMatchesToday: 0,
+        accountAgeMs: { player1: null, player2: 30 * 24 * 3600 * 1000 },
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(missing.reason, 'young_account');
+    assert.strictEqual(missing.players[0].points, 0);
+    assert.strictEqual(missing.players[0].pvpWins, 0);
+    assert.strictEqual(missing.players[0].statsCapped, true);
+    assert.strictEqual(missing.players[1].points, 25);
+});
+
+test('farm caps skip win-badge grants for the capped player', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+    const capped = flow.planPvpReward({
+        matchId: 'm-badge',
+        status: 'finished',
+        durationMs: 60000,
+        pairMatchesToday: 3,
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    const badges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, capped);
+    assert.deepStrictEqual(badges.rewardUids, ['p1', 'p2']);
+    assert.deepStrictEqual(badges.winGrantUids, []);
+    assert.deepStrictEqual(badges.skipUids, ['p1', 'p2']);
+
+    const short = flow.planPvpReward({
+        matchId: 'm-badge-short',
+        status: 'finished',
+        durationMs: 5000,
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    const shortBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, short);
+    assert.deepStrictEqual(shortBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(shortBadges.winGrantUids, []);
+
+    const young = flow.planPvpReward({
+        matchId: 'm-badge2',
+        status: 'finished',
+        durationMs: 60000,
+        accountAgeMs: { player1: 1000, player2: 30 * 24 * 3600 * 1000 },
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    const youngBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, young);
+    assert.deepStrictEqual(youngBadges.winGrantUids, ['p2']);
+    assert.deepStrictEqual(youngBadges.skipUids, ['p1']);
+});
+
+test('an instant tied forfeit does not count as played', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+    const voided = flow.planPvpReward({
+        matchId: 'm-void',
+        status: 'forfeit',
+        forfeitReason: 'manual_leave',
+        forfeitedBy: 'p1',
+        durationMs: 1000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 10, roundWins: 1 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(voided.reason, 'forfeit_void');
+    const badges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, voided);
+    assert.deepStrictEqual(badges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(badges.winGrantUids, []);
+});
+
+test('a disconnect does not count as played', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+    const disc = flow.planPvpReward({
+        matchId: 'm-disc',
+        status: 'forfeit',
+        forfeitReason: 'disconnect',
+        forfeitedBy: 'p1',
+        durationMs: 60000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 2 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(disc.reason, 'disconnect');
+    assert.strictEqual(disc.grant, false);
+    assert.strictEqual(disc.voided, true);
+    assert.strictEqual(disc.players.length, 0, 'a disconnect stays void: no win or loss');
+    const badges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, disc);
+    assert.deepStrictEqual(badges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(badges.winGrantUids, []);
+    assert.strictEqual(flow.shouldIncrementPairDaily(disc, stamp), true, 'a disconnect still counts toward the pair cap');
+});
+
+test('repeated disconnects between the same pair reach the pair cap', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+    const discInput = {
+        matchId: 'm-disc-cap',
+        status: 'forfeit',
+        forfeitReason: 'disconnect',
+        forfeitedBy: 'p1',
+        durationMs: 60000,
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 2 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    };
+    let pairMatchesToday = 0;
+    for (let i = 0; i < flow.PAIR_XP_CAP; i++) {
+        const disc = flow.planPvpReward(Object.assign({}, discInput, {
+            matchId: 'm-disc-cap-' + i,
+            pairMatchesToday: pairMatchesToday,
+        }));
+        assert.strictEqual(disc.reason, 'disconnect');
+        assert.strictEqual(disc.grant, false);
+        assert.strictEqual(disc.voided, true);
+        assert.strictEqual(flow.shouldIncrementPairDaily(disc, stamp), true);
+        const badges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, disc);
+        assert.deepStrictEqual(badges.skipUids, ['p1', 'p2']);
+        assert.deepStrictEqual(badges.winGrantUids, []);
+        pairMatchesToday += 1;
+    }
+    assert.strictEqual(pairMatchesToday, flow.PAIR_XP_CAP);
+
+    const nextWin = flow.planPvpReward({
+        matchId: 'm-after-disconnects',
+        status: 'finished',
+        durationMs: 60000,
+        pairMatchesToday: pairMatchesToday,
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(nextWin.reason, 'pair_cap');
+    assert.strictEqual(nextWin.players[0].points, 0);
+    assert.strictEqual(nextWin.players[0].pvpWins, 0);
+    assert.strictEqual(nextWin.players[1].points, 0);
+    const nextBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, nextWin);
+    assert.deepStrictEqual(nextBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(nextBadges.winGrantUids, []);
+    assert.strictEqual(flow.shouldIncrementPairDaily(nextWin, stamp), true);
+
+    // A tied forfeit still does not increment the cap.
+    const tied = flow.planPvpReward({
+        matchId: 'm-tied-after',
+        status: 'forfeit',
+        forfeitReason: 'manual_leave',
+        forfeitedBy: 'p1',
+        durationMs: 1000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 10, roundWins: 1 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(tied.reason, 'forfeit_void');
+    assert.strictEqual(flow.shouldIncrementPairDaily(tied, stamp), false);
+    assert.strictEqual(flow.shouldIncrementPairDaily(tied, { guestMatch: true }), false);
+});
+
+test('a normal 30s+ finished match still counts as played', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+    const ok = flow.planPvpReward({
+        matchId: 'm-ok',
+        status: 'finished',
+        durationMs: 30000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(ok.reason, 'win');
+    const badges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, ok);
+    assert.deepStrictEqual(badges.rewardUids, ['p1', 'p2']);
+    assert.deepStrictEqual(badges.skipUids, []);
+    assert.deepStrictEqual(badges.winGrantUids, ['p1', 'p2']);
+});
+
+test('a null plan, unexpected reason, or failed settle does not count as played', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+
+    const noPlan = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, null);
+    assert.deepStrictEqual(noPlan.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(noPlan.winGrantUids, []);
+    assert.deepStrictEqual(noPlan.rewardUids, ['p1', 'p2']);
+
+    const unexpected = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, {
+        reason: 'mystery',
+        grant: true,
+        players: [{ uid: 'p1' }, { uid: 'p2' }],
+    });
+    assert.deepStrictEqual(unexpected.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(unexpected.winGrantUids, []);
+
+    const noMatch = flow.planPvpReward({
+        status: 'finished',
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(noMatch.reason, 'no_match');
+    const noMatchBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, noMatch);
+    assert.deepStrictEqual(noMatchBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(noMatchBadges.winGrantUids, []);
+
+    const badPlayers = flow.planPvpReward({
+        matchId: 'm-bad-players',
+        status: 'finished',
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p1', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(badPlayers.reason, 'bad_players');
+    const badPlayersBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, badPlayers);
+    assert.deepStrictEqual(badPlayersBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(badPlayersBadges.winGrantUids, []);
+
+    const already = flow.planPvpReward({
+        matchId: 'm-already',
+        status: 'finished',
+        alreadyGranted: true,
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(already.reason, 'already_granted');
+    const alreadyBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, already);
+    assert.deepStrictEqual(alreadyBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(alreadyBadges.winGrantUids, []);
+
+    const badForfeit = flow.planPvpReward({
+        matchId: 'm-bad-forfeit',
+        status: 'forfeit',
+        forfeitReason: 'manual_leave',
+        forfeitedBy: 'someone-else',
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 2 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(badForfeit.reason, 'bad_forfeit');
+    const badForfeitBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, badForfeit);
+    assert.deepStrictEqual(badForfeitBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(badForfeitBadges.winGrantUids, []);
+});
+
+test('onPvpMatchFinished treats a thrown or null settle as a null plan', function () {
+    const src = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
+    const fin = src.slice(src.indexOf('exports.onPvpMatchFinished'), src.indexOf('exports.onUserDocCreated'));
+    assert.ok(fin.indexOf('let settled = null;') !== -1, 'settled starts null so a thrown settle cannot leave a stale plan');
+    const tryAt = fin.indexOf('settled = await settlePvpMatch');
+    const catchAt = fin.indexOf("} catch (e) { console.error('[onPvpMatchFinished] settle failed:'");
+    const badgeAt = fin.indexOf('planPvpBadgeGrants(sideUids, stamp, settled && settled.plan)');
+    assert.ok(tryAt !== -1 && catchAt !== -1 && badgeAt !== -1, 'settle is tried, caught, then planned');
+    assert.ok(tryAt < catchAt && catchAt < badgeAt, 'a thrown settle leaves settled null before the badge plan');
+    // An existing pvp_rewards doc returns { plan: null } from settlePvpMatch.
+    const start = src.indexOf('async function settlePvpMatch');
+    const settle = src.slice(start, start + 12000);
+    assert.ok(settle.indexOf('if (existing.exists) return false;') !== -1, 'an existing reward doc does not mint a second grant');
+    assert.ok(/return \{ plan: plan, stamp: stamp \};/.test(settle), 'settle returns the plan, which stays null when the reward doc already exists');
+});
+
+test('settle reads the pair count inside the transaction and uses finish time', function () {
+    const src = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
+    const start = src.indexOf('async function settlePvpMatch');
+    const settle = src.slice(start, start + 12000);
+    const txAt = settle.indexOf('db.runTransaction');
+    const pairRead = settle.indexOf('await tx.get(pairRef)');
+    assert.ok(txAt !== -1 && pairRead !== -1 && pairRead > txAt, 'pair count is read inside the settle transaction');
+    assert.ok(settle.indexOf('pairRef.get()') === -1, 'pair count is not read outside the transaction');
+    assert.ok(settle.indexOf('matchDurationMs') !== -1, 'duration uses matchDurationMs(created, finish)');
+    assert.ok(settle.indexOf('nowMs - created') === -1, 'duration is not Date.now() at settle minus createdAt');
+    assert.ok(settle.indexOf('return 0;') !== -1, 'missing creationTime fails closed with age 0');
+    const fin = src.slice(src.indexOf('exports.onPvpMatchFinished'), src.indexOf('exports.onUserDocCreated'));
+    assert.ok(fin.indexOf('matchFinishMs') !== -1, 'finish time is taken from the match, not settle clock');
+    assert.ok(fin.indexOf("familyFor('pvpWins')") !== -1);
+    assert.ok(fin.indexOf('winGrantUids') !== -1, 'capped players are skipped for pvpWins grants');
+    const rules = fs.readFileSync(path.join(__dirname, '../firestore.rules'), 'utf8');
+    assert.ok(/match \/pvp_pair_locks\/\{docId\} \{\s*allow read, write: if false;\s*\}/.test(rules));
+    assert.ok(/match \/pvp_pair_daily\/\{docId\} \{\s*allow read, write: if false;\s*\}/.test(rules));
+    assert.ok(settle.indexOf('pairDailyExpireAtMs') !== -1, 'pair daily docs get an expireAt');
+    assert.ok(settle.indexOf('shouldIncrementPairDaily') !== -1, 'settle uses shouldIncrementPairDaily for the pair cap');
+    assert.ok(settle.indexOf('!plan.voided') === -1, 'a voided disconnect no longer skips the pair-cap write');
+    const earlyAt = settle.indexOf("if (!plan.grant)");
+    const earlyEnd = settle.indexOf('return false;', earlyAt);
+    const early = earlyAt !== -1 && earlyEnd !== -1 ? settle.slice(earlyAt, earlyEnd) : '';
+    assert.ok(early.indexOf('shouldIncrementPairDaily') !== -1 && early.indexOf('writePairDaily') !== -1, 'a no-grant disconnect still writes pvp_pair_daily');
+    const lockAt = early.indexOf('tx.set(rewardRef');
+    const pairAt = early.indexOf('writePairDaily');
+    assert.ok(lockAt !== -1 && pairAt !== -1 && lockAt < pairAt, 'the pvp_rewards lock is written before the pair-cap increment');
+    assert.ok(early.indexOf('applied: []') !== -1 && early.indexOf('reason: plan.reason') !== -1, 'the no-grant lock is an empty applied row with the plan reason');
+    assert.ok(settle.indexOf('if (existing.exists) return false;') !== -1, 'an existing reward lock makes a retry a no-op');
+    assert.ok(settle.indexOf('ttls update') === -1 && src.indexOf('enable-ttl') === -1, 'this PR does not create a TTL policy');
+});
+
+test('settling the same disconnect twice increments the pair cap only once', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+    const disc = flow.planPvpReward({
+        matchId: 'm-disc-retry',
+        status: 'forfeit',
+        forfeitReason: 'disconnect',
+        forfeitedBy: 'p1',
+        durationMs: 60000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 2 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(disc.reason, 'disconnect');
+    assert.strictEqual(disc.grant, false);
+    assert.strictEqual(flow.shouldIncrementPairDaily(disc, stamp), true);
+
+    // Same protocol as settlePvpMatch: the pvp_rewards doc is the lock.
+    // A retried or concurrent delivery that already sees the lock must not
+    // increment pvp_pair_daily again.
+    const claimId = flow.rewardClaimId('m-disc-retry');
+    const docs = {};
+    function settleDisconnectOnce() {
+        const lockPath = 'pvp_rewards/' + claimId;
+        if (docs[lockPath]) return { incremented: false, count: docs['pvp_pair_daily/pair'].count };
+        if (!flow.shouldIncrementPairDaily(disc, stamp)) return { incremented: false, count: 0 };
+        docs[lockPath] = { matchId: 'm-disc-retry', reason: disc.reason, applied: [] };
+        const prev = docs['pvp_pair_daily/pair'] ? docs['pvp_pair_daily/pair'].count : 0;
+        docs['pvp_pair_daily/pair'] = { count: prev + 1 };
+        return { incremented: true, count: docs['pvp_pair_daily/pair'].count };
+    }
+    const first = settleDisconnectOnce();
+    assert.strictEqual(first.incremented, true);
+    assert.strictEqual(first.count, 1);
+    const second = settleDisconnectOnce();
+    assert.strictEqual(second.incremented, false);
+    assert.strictEqual(second.count, 1);
+    assert.strictEqual(docs['pvp_rewards/' + claimId].reason, 'disconnect');
+    assert.deepStrictEqual(docs['pvp_rewards/' + claimId].applied, []);
 });
 
 console.log(failed ? ('\n' + failed + ' failed') : ('\n' + passed + ' passed'));

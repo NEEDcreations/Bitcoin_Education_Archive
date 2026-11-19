@@ -289,6 +289,12 @@ async function main() {
     await check('M5: client cannot write a pair lock', function () {
         return assertFails(setDoc(doc(alice, 'pvp_pair_locks', 'pair_x'), { matchId: 'm' }));
     });
+    await check('client cannot read a pair daily cap doc', function () {
+        return assertFails(getDoc(doc(alice, 'pvp_pair_daily', 'day_x')));
+    });
+    await check('client cannot write a pair daily cap doc', function () {
+        return assertFails(setDoc(doc(alice, 'pvp_pair_daily', 'day_x'), { count: 1 }));
+    });
     await seedMatch(env, 'explain-set', 'question_result', { currentQ: 0, questionWinner: 'player1' });
     await check('client cannot write a new roundExplain', function () {
         return assertFails(updateDoc(doc(alice, 'pvp_matches', 'explain-set'), {

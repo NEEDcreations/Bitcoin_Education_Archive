@@ -1460,6 +1460,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Daily same-pair XP cap counters (settlePvpMatch). Server-only.
+    match /pvp_pair_daily/{docId} {
+      allow read, write: if false;
+    }
+
     // One summary of who is waiting. Clients listen to this doc only.
     // onPvpLobbyLive maintains it. Clients cannot write it.
     match /pvp_lobby_live/{docId} {

@@ -194,6 +194,11 @@ test('rules: pvp_pair_locks is server-only', function () {
     assert.ok(/match \/pvp_pair_locks\/\{docId\} \{\s*allow read, write: if false;\s*\}/.test(rules));
 });
 
+test('rules: pvp_pair_daily is server-only', function () {
+    const rules = read('firestore.rules');
+    assert.ok(/match \/pvp_pair_daily\/\{docId\} \{\s*allow read, write: if false;\s*\}/.test(rules));
+});
+
 test('M5 retention: the lock carries expireAt = create time + 7 days as a Firestore Timestamp', async function () {
     const { Timestamp } = require(require.resolve('firebase-admin/firestore', { paths: [path.join(root, 'functions')] }));
     assert.strictEqual(pvpPairLock.PAIR_LOCK_RETENTION_MS, 7 * 24 * 60 * 60 * 1000);

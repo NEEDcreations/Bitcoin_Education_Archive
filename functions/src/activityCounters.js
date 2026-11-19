@@ -154,29 +154,6 @@ async function recordPvpPlayed(db, adminSdk, after, matchId, opts) {
     return result;
 }
 
-async function recordPvpFinished(db, adminSdk, before, after) {
-    if (!after || after.status !== 'finished') return { bumped: false, reason: 'not_finished' };
-    if (before && before.status === 'finished') return { bumped: false, reason: 'already' };
-    const p1 = after.player1 || {};
-    const p2 = after.player2 || {};
-    const u1 = cleanUid(p1.uid || after.player1Uid);
-    const u2 = cleanUid(p2.uid || after.player2Uid);
-    const s1 = Number(p1.score || 0);
-    const s2 = Number(p2.score || 0);
-    const jobs = [];
-    if (u1) jobs.push(bumpCounter(db, adminSdk, u1, 'pvpPlayed'));
-    if (u2) jobs.push(bumpCounter(db, adminSdk, u2, 'pvpPlayed'));
-    if (s1 > s2 && u1) jobs.push(bumpCounter(db, adminSdk, u1, 'pvpWins'));
-    if (s2 > s1 && u2) jobs.push(bumpCounter(db, adminSdk, u2, 'pvpWins'));
-    await Promise.all(jobs);
-    const day = offsetDateKey(Date.now());
-    const zones = [];
-    if (u1) zones.push(noteComboZone(db, adminSdk, u1, 'pvp', day).catch(function () { return null; }));
-    if (u2 && u2 !== u1) zones.push(noteComboZone(db, adminSdk, u2, 'pvp', day).catch(function () { return null; }));
-    await Promise.all(zones);
-    return { bumped: true };
-}
-
 module.exports = {
     forumActivityAwardable: forumActivityAwardable,
     bumpCounter: bumpCounter,
@@ -188,5 +165,4 @@ module.exports = {
     recordBeatsUpload: recordBeatsUpload,
     recordArticle: recordArticle,
     recordPvpPlayed: recordPvpPlayed,
-    recordPvpFinished: recordPvpFinished,
 };

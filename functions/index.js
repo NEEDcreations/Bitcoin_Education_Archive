@@ -5698,6 +5698,7 @@ exports.onPvpMatchFinished = onDocumentUpdated({
     const before = (event.data.before && event.data.before.data()) || {};
     const after = (event.data.after && event.data.after.data()) || {};
     const matchId = event.params.matchId;
+    const finishMs = pvpFlow.matchFinishMs(after, event.data.after && event.data.after.updateTime);
     const becameFinished = before.status !== 'finished' && after.status === 'finished';
     const becameTerminal = before.status !== after.status
         && (after.status === 'finished' || after.status === 'forfeit');
@@ -5709,26 +5710,36 @@ exports.onPvpMatchFinished = onDocumentUpdated({
             }, { merge: true });
         } catch (e) { console.error('[onPvpMatchFinished] stats failed:', e.message); }
     }
+    let settled = null;
     try {
-        await settlePvpMatch(matchId, after);
+        settled = await settlePvpMatch(matchId, after, finishMs);
     } catch (e) { console.error('[onPvpMatchFinished] settle failed:', e.message); }
     try {
         const sides = [after.player1, after.player2];
         const sideUids = sides.map(function (side) { return side && side.uid; }).filter(Boolean);
         // Only the create-time stamp decides a guest match (never live Auth).
         const stampSnap = await db.collection('pvp_answer_keys').doc(matchId).get();
-        const stamp = pvpFlow.readGuestStamp(stampSnap.exists ? stampSnap.data() : null);
-        // A guest match grants no badge family to either side.
-        const badgePlan = pvpFlow.planPvpBadgeGrants(sideUids, stamp);
+        const stamp = (settled && settled.stamp) || pvpFlow.readGuestStamp(stampSnap.exists ? stampSnap.data() : null);
+        // A guest match grants no badge family to either side. Farm caps also
+        // skip pvpWins / best-streak grants for the capped player.
+        const badgePlan = pvpFlow.planPvpBadgeGrants(sideUids, stamp, settled && settled.plan);
         const skipUids = badgePlan.skipUids;
         const rewardUids = badgePlan.rewardUids;
+        const winGrantUids = badgePlan.winGrantUids || [];
         await activityCounters.recordPvpPlayed(db, admin, after, matchId, { skipUids: skipUids, guestMatch: stamp.guestMatch });
         // pvpWins, pvpPlayed and pvpBestStreak (Hot Streak, Unstoppable).
         // awardBadge re-checks each counter on the fresh user doc.
+        // skipUids covers capped sides, a null plan (thrown or incomplete
+        // settle), and any reason that is not a finished win or draw.
+        // Do not grant the played family from a match that did not count as played.
         for (let ri = 0; ri < rewardUids.length; ri++) {
-            await grantFamily(db, admin, rewardUids[ri], familyFor('pvpWins'));
-            await grantFamily(db, admin, rewardUids[ri], familyFor('pvpPlayed'));
-            await grantFamily(db, admin, rewardUids[ri], familyFor('pvpBestStreak'));
+            if (skipUids.indexOf(rewardUids[ri]) === -1) {
+                await grantFamily(db, admin, rewardUids[ri], familyFor('pvpPlayed'));
+            }
+            if (winGrantUids.indexOf(rewardUids[ri]) !== -1) {
+                await grantFamily(db, admin, rewardUids[ri], familyFor('pvpWins'));
+                await grantFamily(db, admin, rewardUids[ri], familyFor('pvpBestStreak'));
+            }
         }
     } catch (badgeErr) { console.warn('[onPvpMatchFinished] badges', badgeErr && badgeErr.message); }
     return null;
@@ -8965,32 +8976,93 @@ async function pvpAccountFlags(uid) {
 
 // Grant match XP, W/L, and one win ticket from the server-owned player uids.
 // pvp_rewards/{matchId} is the claim lock, so a replay cannot mint a second ticket.
-async function settlePvpMatch(matchId, after) {
-    if (!after || (after.status !== 'finished' && after.status !== 'forfeit')) return;
-    if (after.rewardsGranted === true) return;
+async function settlePvpMatch(matchId, after, finishMs) {
+    if (!after || (after.status !== 'finished' && after.status !== 'forfeit')) return null;
+    if (after.rewardsGranted === true) return null;
     const keySnap = await db.collection('pvp_answer_keys').doc(matchId).get();
     const keyData = keySnap.exists ? keySnap.data() : {};
     const ids = keyData.playerUids || null;
-    if (!ids || !ids.player1 || !ids.player2) return;
-    const p1 = after.player1 || {};
-    const p2 = after.player2 || {};
+    if (!ids || !ids.player1 || !ids.player2) return null;
     // Ban state is read live. Guest status comes only from the create-time
     // stamp; a missing stamp is treated as a guest match.
     const [f1, f2] = await Promise.all([pvpAccountFlags(ids.player1), pvpAccountFlags(ids.player2)]);
-    const settled = pvpFlow.settleRewardPlan({ matchId: matchId, after: after, keyData: keyData, flags1: f1, flags2: f2 });
-    const stamp = settled.stamp;
-    const plan = settled.plan;
-    if (!plan.grant) {
-        if (plan.reason === 'disconnect' || plan.reason === 'guest_match' || plan.guestMatch === true) {
-            await db.collection('pvp_matches').doc(matchId).set({ rewardsGranted: true, rewards: {} }, { merge: true });
-        }
-        return;
+    const createdMs = pvpFlow.lastSeenMs(after.createdAt);
+    const endedMs = pvpFlow.matchFinishMs(after, finishMs);
+    // Duration is finish time minus createdAt, never Date.now() at settle.
+    const durationMs = pvpFlow.matchDurationMs(createdMs, endedMs);
+    const day = pvpFlow.farmDayKey(endedMs || Date.now());
+    const pairId = pvpFlow.pairDailyId(day, ids.player1, ids.player2);
+    const pairRef = pairId ? db.collection('pvp_pair_daily').doc(pairId) : null;
+    async function accountAgeMs(uid) {
+        try {
+            const authUser = await admin.auth().getUser(uid);
+            const created = Date.parse(authUser.metadata && authUser.metadata.creationTime);
+            // Missing creationTime fails closed (treated as younger than the cap).
+            if (created) return (endedMs || Date.now()) - created;
+        } catch (e) {}
+        return 0;
     }
-    const rewardRef = db.collection('pvp_rewards').doc(plan.claimId);
+    const [age1, age2] = await Promise.all([
+        accountAgeMs(ids.player1),
+        accountAgeMs(ids.player2),
+    ]);
     const offsetToday = getOffsetDateKey();
+    const rewardRef = db.collection('pvp_rewards').doc(pvpFlow.rewardClaimId(matchId) || matchId);
+    let stamp = null;
+    let plan = null;
+    function writePairDaily(tx) {
+        if (!pairRef) return;
+        // expireAt is end of the ET day plus 2 days. Do not create the
+        // Firestore TTL policy here; that needs Phil.
+        const expireAtMs = pvpFlow.pairDailyExpireAtMs(day);
+        const pairWrite = {
+            count: admin.firestore.FieldValue.increment(1),
+            day: day,
+            uids: [ids.player1, ids.player2],
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (expireAtMs) pairWrite.expireAt = admin.firestore.Timestamp.fromMillis(expireAtMs);
+        tx.set(pairRef, pairWrite, { merge: true });
+    }
     const wrote = await db.runTransaction(async (tx) => {
         const existing = await tx.get(rewardRef);
         if (existing.exists) return false;
+        // Pair count must be read inside the transaction so two quick finishes
+        // cannot both see a count under the cap and both pay.
+        const pairSnap = pairRef ? await tx.get(pairRef) : null;
+        const settled = pvpFlow.settleRewardPlan({
+            matchId: matchId,
+            after: after,
+            keyData: keyData,
+            flags1: f1,
+            flags2: f2,
+            durationMs: durationMs,
+            pairMatchesToday: pairSnap && pairSnap.exists ? (pairSnap.data().count || 0) : 0,
+            accountAgeMs: { player1: age1, player2: age2 },
+        });
+        stamp = settled.stamp;
+        plan = settled.plan;
+        if (!plan.grant) {
+            if (plan.reason === 'disconnect' || plan.reason === 'guest_match' || plan.guestMatch === true) {
+                tx.set(db.collection('pvp_matches').doc(matchId), { rewardsGranted: true, rewards: {} }, { merge: true });
+            }
+            // Disconnects are void (no win or played credit) but still count
+            // toward the pair cap, with the same expireAt as a paid match.
+            // Write the rewardRef lock first so a retried or concurrent
+            // settle (retry:true) cannot increment the cap twice. The
+            // existing.exists read at the start of the transaction then
+            // makes a second delivery a no-op.
+            if (pvpFlow.shouldIncrementPairDaily(plan, stamp)) {
+                tx.set(rewardRef, {
+                    matchId: matchId,
+                    reason: plan.reason,
+                    applied: [],
+                    at: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                writePairDaily(tx);
+            }
+            return false;
+        }
         const userRefs = plan.players.map(function (p) { return db.collection('users').doc(p.uid); });
         const dailyRefs = plan.players.map(function (p) {
             return db.collection('users').doc(p.uid).collection('daily_points').doc(offsetToday);
@@ -9033,6 +9105,7 @@ async function settlePvpMatch(matchId, after) {
             const write = pvpFlow.planXpWrite(grant.awarded);
             const ticket = pvpFlow.planWinTicket(Object.assign({}, p, {
                 ticketClaimedToday: ticketSnaps[i].exists,
+                blocked: p.blocked || p.statsCapped === true,
             }));
             const upd = {};
             if (write.write) {
@@ -9041,7 +9114,8 @@ async function settlePvpMatch(matchId, after) {
                 upd.monthlyXP = admin.firestore.FieldValue.increment(write.monthlyXP);
             }
             const skipAnonStats = plan.guestMatch === true || stamp.guestMatch === true
-                || (p.uid === ids.player1 ? stamp.player1 : stamp.player2) === true;
+                || (p.uid === ids.player1 ? stamp.player1 : stamp.player2) === true
+                || p.statsCapped === true;
             if (!skipAnonStats) {
                 if (p.pvpWins) upd.pvpWins = admin.firestore.FieldValue.increment(p.pvpWins);
                 if (p.pvpLosses) upd.pvpLosses = admin.firestore.FieldValue.increment(p.pvpLosses);
@@ -9088,12 +9162,14 @@ async function settlePvpMatch(matchId, after) {
             rewardsGranted: true,
             rewards: rewardsMap,
         }, { merge: true });
+        if (pvpFlow.shouldIncrementPairDaily(plan, stamp)) writePairDaily(tx);
         return true;
     });
-    if (wrote && plan.shout && plan.shout.post) {
+    if (wrote && plan && plan.shout && plan.shout.post) {
         try { await postNachoPvpMessage(plan.shout); }
         catch (e) { console.warn('[pvp] result shout failed'); }
     }
+    return { plan: plan, stamp: stamp };
 }
 
 const { createLobbyPush } = require('./src/pvpLobbyPush');
