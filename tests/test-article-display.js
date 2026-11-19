@@ -73,13 +73,12 @@ function load(opts) {
         },
     };
     vm.createContext(ctx);
-    const fEscLine = forum.split('\n').find(function (l) { return l.indexOf('function fEsc(') === 0; });
     const code = [
-        fEscLine,
+        sliceFrom(forum, 'function fEsc('),
         lines('var MD_'), lines('var ARTICLE_ID_RE'), lines('var ARTICLE_UID_RE'),
         sliceFrom(forum, 'function isForumAdmin('),
         sliceFrom(forum, 'function forumCount('),
-        lines('function forumText('),
+        sliceFrom(forum, 'function forumText('),
         sliceFrom(forum, 'function forumLevel('),
         sliceFrom(forum, 'function articleAuthorIsAdmin('),
         lines('function articlePinShown('),
@@ -92,6 +91,8 @@ function load(opts) {
         sliceFrom(forum, 'async function loadArticles('),
         sliceFrom(forum, 'window.articleView = async function('),
         'this.loadArticles = loadArticles;',
+        'this.forumText = forumText;',
+        'this.fEsc = fEsc;',
     ].join('\n');
     vm.runInContext(code, ctx, { filename: 'forum.js' });
     return { ctx: ctx, els: els, levelCalls: levelCalls };
@@ -197,6 +198,77 @@ test('odd article ids are skipped in the list and refused on the page', async fu
     assert.ok(r.html.indexOf('Second real title here') !== -1);
     const v = await renderView(article({ id: "y');alert(1);//" }));
     assert.ok(v.html.indexOf('alert(1)') === -1);
+});
+
+const ODD_MAP = { toString: 'x', valueOf: 'y' };
+
+test('forumText escapes strings, keeps finite numbers and booleans, and blanks other values', function () {
+    const t = load();
+    const ft = t.ctx.forumText;
+    assert.strictEqual(ft('A & B <C>'), 'A &amp; B &lt;C&gt;');
+    assert.strictEqual(ft(42), '42');
+    assert.strictEqual(ft(-7.5), '-7.5');
+    assert.strictEqual(ft(true), 'true');
+    assert.strictEqual(ft(false), 'false');
+    assert.strictEqual(ft(NaN), '');
+    assert.strictEqual(ft(Infinity), '');
+    assert.strictEqual(ft(-Infinity), '');
+    assert.strictEqual(ft(null), '');
+    assert.strictEqual(ft(undefined), '');
+    assert.strictEqual(ft(ODD_MAP), '');
+    assert.strictEqual(ft(['nope']), '');
+    assert.strictEqual(ft({ a: 1 }), '');
+    assert.strictEqual(t.ctx.fEsc(ODD_MAP), '');
+    assert.strictEqual(t.ctx.fEsc(['nope']), '');
+});
+
+test('odd subtitle, authorName and tag values stay plain and do not blank the list', async function () {
+    const docs = [
+        article({ id: 'sMap', subtitle: ODD_MAP, title: 'Subtitle map title here' }),
+        article({ id: 'sArr', subtitle: ['nope'], title: 'Subtitle array title here' }),
+        article({ id: 'sNull', subtitle: null, title: 'Subtitle null title here' }),
+        article({ id: 'nMap', authorName: ODD_MAP, title: 'Author map title here' }),
+        article({ id: 'nArr', authorName: ['nope'], title: 'Author array title here' }),
+        article({ id: 'nNull', authorName: null, title: 'Author null title here' }),
+        article({ id: 'tMap', tags: [ODD_MAP, 'ok'], title: 'Tag map title here' }),
+        article({ id: 'tArr', tags: [['nope'], 'ok'], title: 'Tag array title here' }),
+        article({ id: 'tNull', tags: [null, 'ok'], title: 'Tag null title here' }),
+    ];
+    const r = await renderList(docs);
+    assert.ok(r.html.indexOf('Error loading articles') === -1, 'list stayed up');
+    [
+        'Subtitle map title here', 'Subtitle array title here', 'Subtitle null title here',
+        'Author map title here', 'Author array title here', 'Author null title here',
+        'Tag map title here', 'Tag array title here', 'Tag null title here'
+    ].forEach(function (title) {
+        assert.ok(r.html.indexOf(title) !== -1, title);
+    });
+    assert.deepStrictEqual(injected(r.html), []);
+    assert.ok(r.html.indexOf('[object Object]') === -1);
+    assert.ok(r.html.indexOf('nope') === -1);
+    assert.ok(r.html.indexOf('Anon') !== -1);
+    const v = await renderView(article({ subtitle: ODD_MAP, authorName: ['nope'], tags: [null, ODD_MAP] }), { uid: 'viewer9' });
+    assert.ok(v.html.indexOf('Error loading article') === -1);
+    assert.ok(v.html.indexOf('A real article title') !== -1);
+    assert.deepStrictEqual(injected(v.html), []);
+    assert.ok(v.html.indexOf('[object Object]') === -1);
+    assert.ok(v.html.indexOf('nope') === -1);
+});
+
+test('one unreadable article is skipped and the rest of the list still shows', async function () {
+    const r = await renderList([
+        article({ id: 'good1', title: 'First good article title' }),
+        article({
+            id: 'bad1',
+            title: 'Broken article title here',
+            subtitle: ODD_MAP,
+            createdAt: { toDate: function () { throw new Error('bad date'); } },
+        }),
+        article({ id: 'good2', title: 'Second good article title' }),
+    ]);
+    assert.ok(r.html.indexOf('Error loading articles') === -1, 'list stayed up');
+    assert.ok(r.html.indexOf('First good article title') !== -1);
+    assert.ok(r.html.indexOf('Second good article title') !== -1);
 });
 
 (async function () {

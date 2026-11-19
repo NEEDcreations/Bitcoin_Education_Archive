@@ -9031,7 +9031,14 @@ function isCleanText(text) {
 }
 
 // Sanitize HTML
-function fEsc(str) { return typeof escapeHtml === 'function' ? escapeHtml(str) : String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fEsc(str) {
+    if (typeof str !== 'string') {
+        if (typeof str === 'boolean') str = String(str);
+        else if (typeof str === 'number' && isFinite(str)) str = String(str);
+        else return '';
+    }
+    return typeof escapeHtml === 'function' ? escapeHtml(str) : str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 // Display helpers for stored counters, levels and text.
 function forumCount(v) {
@@ -9040,7 +9047,12 @@ function forumCount(v) {
     if (!isFinite(n) || n < 0) return 0;
     return Math.floor(n);
 }
-function forumText(v) { return fEsc(v == null ? '' : (typeof v === 'string' ? v : String(v))); }
+function forumText(v) {
+    if (typeof v === 'string') return fEsc(v);
+    if (typeof v === 'boolean') return fEsc(String(v));
+    if (typeof v === 'number' && isFinite(v)) return fEsc(String(v));
+    return '';
+}
 function forumLevel(points) {
     var p = forumCount(points);
     var max = (typeof LEVELS !== 'undefined' && LEVELS && LEVELS.length) ? (Number(LEVELS[LEVELS.length - 1].min) || 0) : Number.MAX_SAFE_INTEGER;
@@ -10019,7 +10031,7 @@ function mdSafeUrl(escapedUrl, kind) {
 }
 
 function mdToHtml(md) {
-    if (!md) return '';
+    if (typeof md !== 'string' || !md) return '';
     // Generated tags are held as tokens until the end so later passes only
     // ever see plain text.
     var tokens = [];
@@ -10113,45 +10125,49 @@ async function loadArticles() {
         
         var html = '';
         articles.forEach(function(a) {
-            if (!ARTICLE_ID_RE.test(String(a.id || ''))) return;
-            var lv = forumLevel(a.authorPoints);
-            var readTime = Math.max(1, Math.round((forumCount(a.wordCount) || 500) / 200));
-            var dateStr = a.createdAt && typeof a.createdAt.toDate === 'function' ? fEsc(a.createdAt.toDate().toLocaleDateString()) : '';
-            var pinned = articlePinShown(a) ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;">📌 PINNED</span> ' : '';
-            
-            html += '<div onclick="articleView(\'' + a.id + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:12px;cursor:pointer;transition:0.2s;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
-            
-            var listCover = articleImgUrl(a.coverUrl);
-            if (listCover && !/["'()\\]/.test(mdUnescape(listCover))) {
-                html += '<div style="height:160px;background:url(' + listCover + ') center/cover no-repeat;"></div>';
+            try {
+                if (!ARTICLE_ID_RE.test(String(a.id || ''))) return;
+                var lv = forumLevel(a.authorPoints);
+                var readTime = Math.max(1, Math.round((forumCount(a.wordCount) || 500) / 200));
+                var dateStr = a.createdAt && typeof a.createdAt.toDate === 'function' ? fEsc(a.createdAt.toDate().toLocaleDateString()) : '';
+                var pinned = articlePinShown(a) ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;">📌 PINNED</span> ' : '';
+                
+                html += '<div onclick="articleView(\'' + a.id + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:12px;cursor:pointer;transition:0.2s;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+                
+                var listCover = articleImgUrl(a.coverUrl);
+                if (listCover && !/["'()\\]/.test(mdUnescape(listCover))) {
+                    html += '<div style="height:160px;background:url(' + listCover + ') center/cover no-repeat;"></div>';
+                }
+                
+                html += '<div style="padding:16px;">';
+                html += pinned + '<h3 style="color:var(--heading);font-size:1.05rem;font-weight:800;margin:0 0 6px;line-height:1.4;">' + forumText(a.title) + '</h3>';
+                if (a.subtitle) html += '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;line-height:1.4;">' + forumText(a.subtitle) + '</div>';
+                
+                // Tags
+                if (Array.isArray(a.tags) && a.tags.length) {
+                    html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">';
+                    a.tags.slice(0, 10).forEach(function(t) { html += '<span style="padding:2px 8px;background:var(--accent-bg);border-radius:10px;font-size:0.65rem;color:var(--accent);font-weight:600;">' + forumText(t) + '</span>'; });
+                    html += '</div>';
+                }
+                
+                // Meta
+                html += '<div style="display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--text-faint);">' +
+                    '<span ' + (a.authorFaction ? 'style="' + window._factionNameStyle(a.authorFaction) + '"' : '') + '>' + lv.emoji + ' ' + forumText(a.authorName || 'Anon') + '</span>' +
+                    '<span>·</span><span>' + readTime + ' min read</span>' +
+                    (dateStr ? '<span>·</span><span>' + dateStr + '</span>' : '') +
+                '</div>';
+                
+                // Stats
+                html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:0.75rem;color:var(--text-faint);">' +
+                    '<span>👍 ' + forumCount(a.upvotes) + '</span>' +
+                    '<span>💬 ' + forumCount(a.replyCount) + '</span>' +
+                    (articleTipTotal(a) ? '<span>⚡ ' + articleTipTotal(a) + ' sats</span>' : '') +
+                '</div>';
+                
+                html += '</div></div>';
+            } catch (e) {
+                console.error('Article skipped');
             }
-            
-            html += '<div style="padding:16px;">';
-            html += pinned + '<h3 style="color:var(--heading);font-size:1.05rem;font-weight:800;margin:0 0 6px;line-height:1.4;">' + forumText(a.title) + '</h3>';
-            if (a.subtitle) html += '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;line-height:1.4;">' + forumText(a.subtitle) + '</div>';
-            
-            // Tags
-            if (Array.isArray(a.tags) && a.tags.length) {
-                html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">';
-                a.tags.slice(0, 10).forEach(function(t) { html += '<span style="padding:2px 8px;background:var(--accent-bg);border-radius:10px;font-size:0.65rem;color:var(--accent);font-weight:600;">' + forumText(t) + '</span>'; });
-                html += '</div>';
-            }
-            
-            // Meta
-            html += '<div style="display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--text-faint);">' +
-                '<span ' + (a.authorFaction ? 'style="' + window._factionNameStyle(a.authorFaction) + '"' : '') + '>' + lv.emoji + ' ' + forumText(a.authorName || 'Anon') + '</span>' +
-                '<span>·</span><span>' + readTime + ' min read</span>' +
-                (dateStr ? '<span>·</span><span>' + dateStr + '</span>' : '') +
-            '</div>';
-            
-            // Stats
-            html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:0.75rem;color:var(--text-faint);">' +
-                '<span>👍 ' + forumCount(a.upvotes) + '</span>' +
-                '<span>💬 ' + forumCount(a.replyCount) + '</span>' +
-                (articleTipTotal(a) ? '<span>⚡ ' + articleTipTotal(a) + ' sats</span>' : '') +
-            '</div>';
-            
-            html += '</div></div>';
         });
         
         container.innerHTML = html;

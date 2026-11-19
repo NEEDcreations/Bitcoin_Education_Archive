@@ -37,11 +37,11 @@ function escapeHtml(str) {
 
 const ctx = { escapeHtml: escapeHtml, console: console };
 vm.createContext(ctx);
-const fEscLine = forum.split('\n').find(function (l) { return l.indexOf('function fEsc(') === 0; });
-assert.ok(fEscLine, 'fEsc');
+const fEscFn = sliceFn(forum, 'fEsc');
+assert.ok(fEscFn, 'fEsc');
 vm.runInContext([
     sliceFn(utils, 'sanitizeUrl'),
-    fEscLine,
+    fEscFn,
     forum.split('\n').filter(function (l) { return l.indexOf('var MD_') === 0; }).join('\n'),
     sliceFn(forum, 'mdUnescape'),
     sliceFn(forum, 'mdSafeUrl'),
