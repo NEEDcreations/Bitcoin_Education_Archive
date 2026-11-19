@@ -1,0 +1,811 @@
+{
+ "checked": "2026-11-17",
+ "method": "YouTube oEmbed (public, no key) for every id, plus the public watch page playabilityStatus, playableInEmbed and availableCountries. 7619 unique ids in 22 stations.",
+ "removed": [
+  {
+   "station": "pleb-underground",
+   "id": "MoDpuhMUEG8",
+   "title": "Bitcoin to $1M  Crypto Expert Breaks Down Bear Market Strategy!",
+   "reason": "age-restricted (cannot play embedded)"
+  },
+  {
+   "station": "orange-pill",
+   "id": "dO9SvaZ4wz0",
+   "title": "COLDCARD MK5 First Look: Reincarnated!",
+   "reason": "private"
+  },
+  {
+   "station": "orange-pill",
+   "id": "Sv9VAocAA80",
+   "title": "\\\"FINAL WARNING! I WON'T Say This Again!\\\" - Max Keiser 2025 Bitcoin Prediction",
+   "reason": "private"
+  },
+  {
+   "station": "orange-pill",
+   "id": "7ro85G6kclk",
+   "title": "Bedtime Finance: The Story of Bitcoin and Cryptocurrency",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "orange-pill",
+   "id": "S7LV9xJLz4Q",
+   "title": "The Fastest Asset Ever Built (0 to $1 Trillion Bitcoin Bedtime Story)",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "orange-pill",
+   "id": "9sK--GhseBE",
+   "title": "He Left 1,000,000 BTC and Disappeared - Satoshi Claus (Bitcoin Bedtime Story)",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "orange-pill",
+   "id": "mE69jbkgEsU",
+   "title": "Elite Strategy! Borrow Against Your Crypto With The Best Rates In The Industry With CLend!",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "culture-travel",
+   "id": "ic_4-EFJogY",
+   "title": "From Accenture to Bitcoin Maximalist: Alexandre Laizet's Origin Story | The Blockchain Report",
+   "reason": "private"
+  },
+  {
+   "station": "history",
+   "id": "KjMQvN7Fajs",
+   "title": "Who Created Bitcoin? The Mystery of Satoshi Nakamoto",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "history",
+   "id": "chcASJW1pMs",
+   "title": "Satoshi Nakamoto - The Beginning of Bitcoin Documentary 2019",
+   "reason": "unavailable"
+  },
+  {
+   "station": "history",
+   "id": "F5AiHEzu-uc",
+   "title": "The Historical Mystery : WHO IS SATOSHI NAKAMOTO? The True Story of Bitcoin's Creator",
+   "reason": "private"
+  },
+  {
+   "station": "economics-money",
+   "id": "GRZ1urjRIAo",
+   "title": "Macro analyst I shared my realistic timeline for Bitcoin's next major all-time highs. #bitcoin",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "economics-money",
+   "id": "Ux-iV_9KAxk",
+   "title": "Jeff Booth: This Is Why Most People Will Get Wiped Out in the Transition",
+   "reason": "private"
+  },
+  {
+   "station": "economics-money",
+   "id": "LJoIISZVZoY",
+   "title": "Listen carefully and join my Telegram for more Crypto Insights. ➡️https://t.me/OfficialLynAlden",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "freedom-sovereignty",
+   "id": "pR4t4dRdajw",
+   "title": "Banking on Freedom - How Bitcoin Enforces Human Rights",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "freedom-sovereignty",
+   "id": "PHYCAE2n55M",
+   "title": "🔥 ISABELLA SANTOS ON BITCOIN MEDIA, FREEDOM & BUILDING A CIRCULAR ECONOMY!",
+   "reason": "private"
+  },
+  {
+   "station": "health-fitness",
+   "id": "pm7Ff5viURM",
+   "title": "Jeff Booth Reveals How Much Bitcoin You Need!",
+   "reason": "private"
+  },
+  {
+   "station": "kids-family",
+   "id": "auIOUn0ubDk",
+   "title": "What is Inflation? Explained for Kids (👾The Invisible Money Nibbler!)",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "memes-comedy",
+   "id": "BgHEOhciWcQ",
+   "title": "What Happens If You Never Buy Bitcoin?",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "memes-comedy",
+   "id": "3mA_U4tYS8s",
+   "title": "Hank Finds Out About Crypto Crash",
+   "reason": "private"
+  },
+  {
+   "station": "music",
+   "id": "Vb_uhDZCIGQ",
+   "title": "21 MILLION – The Bitcoin Anthem",
+   "reason": "unavailable"
+  },
+  {
+   "station": "music",
+   "id": "bK95lWHl7js",
+   "title": "Megadeth - Dystopia (Official Music Video)",
+   "reason": "age-restricted (cannot play embedded)"
+  },
+  {
+   "station": "music",
+   "id": "q31WY0Aobro",
+   "title": "Sex Pistols - Anarchy In The UK",
+   "reason": "unavailable"
+  },
+  {
+   "station": "news",
+   "id": "by2zdOVp9uc",
+   "title": "Strategy Purchases 4,871 BTC for $330M | Is Saylor Seeing Something We Are Not?",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "news",
+   "id": "vk9aIjHBKuw",
+   "title": "Btc Live Trading | Crypto Live Trading | Live Trading | Live Crypto Trading | Bitcoin Live Trading",
+   "reason": "private"
+  },
+  {
+   "station": "news",
+   "id": "0mjJ4_nADHw",
+   "title": "Strategy Buys 13,927 Bitcoin Worth $1 Billion | Is BTC About to Explode?",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "podcasts-debates",
+   "id": "WfVyfNg1Tik",
+   "title": "Bitcoin Makes You Zoom Out. Stoicism Pulls You Back In. | Connor Dolan Episode 268 Clip",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "podcasts-debates",
+   "id": "OtTMwrSe110",
+   "title": "China Is Breaking Gold & Silver Free From Western Manipulation - Peruvian Bull",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "podcasts-debates",
+   "id": "uoXVBBq78VY",
+   "title": "The Universe Didn’t Come From Nothing | Brian Keating",
+   "reason": "unavailable"
+  },
+  {
+   "station": "podcasts-debates",
+   "id": "yQTPB6EwK4E",
+   "title": "Sovryn and Swan Bitcoin Twitter Spaces (with Edan Yago, Alex Swan and Tone Vays)",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "podcasts-debates",
+   "id": "5Ihs4sOkI_g",
+   "title": "He Lost Everything - Then Found His Bitcoin on an Old Hard Drive | Secure Sovereign Ep 270 Clip",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "podcasts-debates",
+   "id": "q3_OlLs_9wE",
+   "title": "Saylor Wants to Convert the Entire System - The MNAV Cycle Explained | Ep 268 Clip",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "podcasts-debates",
+   "id": "XaNNNp6JuYI",
+   "title": "Proof Of Work - Fuck Around And Find Out T-Shirt #proofofwork #bitcoin",
+   "reason": "age-restricted (cannot play embedded)"
+  },
+  {
+   "station": "podcasts-debates",
+   "id": "TjnC8GqB4vM",
+   "title": "Bitcoin Mining Spaces w/ @ausenhus (livestream)",
+   "reason": "private"
+  },
+  {
+   "station": "podcasts-debates",
+   "id": "MmdQKU0YNX4",
+   "title": "Bitcoin Will Hit $850K - Max Keiser Prediction",
+   "reason": "private"
+  },
+  {
+   "station": "podcasts-debates",
+   "id": "LnjVY0bqt_c",
+   "title": "Bitcoin's iPhone Moment - Two Financial Systems Are Running Simultaneously | Ep 268 Clip",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "saylor",
+   "id": "dXix6OIU1hw",
+   "title": "Bitcoin is Digital Energy - Michael Saylor at the MIT Bitcoin Expo",
+   "reason": "private"
+  },
+  {
+   "station": "saylor",
+   "id": "lr4EjqoV0IE",
+   "title": "📺 Bitcoin Breaks $77k + Why #Bitcoin is Better | BFC Show @ Strategy World 2026",
+   "reason": "removed or unavailable"
+  },
+  {
+   "station": "saylor",
+   "id": "JxBf7Ez14kA",
+   "title": "Strategy Announces Second Quarter 2026 Financial Results",
+   "reason": "private"
+  },
+  {
+   "station": "saylor",
+   "id": "XdgP25UcHB0",
+   "title": "Bitcoin for Corporations - Saylor & Dorsey",
+   "reason": "private"
+  },
+  {
+   "station": "saylor",
+   "id": "z5ky5nc4eEA",
+   "title": "Q2 2026 Earnings: Investor Q&A",
+   "reason": "private"
+  },
+  {
+   "station": "future-predictions",
+   "id": "wOi9XqeJy2E",
+   "title": "Cathie Wood - New 2025 Prediction for Bitcoin & Ethereum",
+   "reason": "private"
+  },
+  {
+   "station": "future-predictions",
+   "id": "lyTHPcHDOk8",
+   "title": "Rational Root: Bitcoin Will Hit $600k then $6 Million",
+   "reason": "private"
+  },
+  {
+   "station": "future-predictions",
+   "id": "iww09Eeql_o",
+   "title": "PlanB: Stock-to-Flow Model & Future Price Predictions",
+   "reason": "private"
+  },
+  {
+   "station": "future-predictions",
+   "id": "bw5Gepxo2Ps",
+   "title": "Bitcoin Network Effects Model - 10x Users = 100x Price",
+   "reason": "private"
+  },
+  {
+   "station": "tutorials",
+   "id": "P0yBusy5_Zc",
+   "title": "HOW TO BUILD A BITCOIN NODE",
+   "reason": "private"
+  }
+ ],
+ "durationFixed": [
+  {
+   "id": "_EVDtos8ZgI",
+   "from": 899,
+   "to": 720
+  },
+  {
+   "id": "wzJLuEU8ejo",
+   "from": 5400,
+   "to": 2314
+  },
+  {
+   "id": "AJzCQaIXelE",
+   "from": 248,
+   "to": 233
+  }
+ ],
+ "keptForReview": [
+  {
+   "station": "history",
+   "id": "yW0TzIUYmEQ",
+   "title": "Banking on Bitcoin",
+   "reason": "region limited to 2 countries (US allowed)"
+  },
+  {
+   "station": "history",
+   "id": "9vz06QO3UkQ",
+   "title": "The Internet's Own Boy: The Story of Aaron Swartz (2014)",
+   "reason": "content warning gate (YouTube asks viewers to confirm before playing)"
+  },
+  {
+   "station": "history",
+   "id": "gQ8XKns2ipc",
+   "title": "The Satoshi Mystery The Origins of Bitcoin",
+   "reason": "region limited to 7 countries (US allowed)"
+  },
+  {
+   "station": "health-fitness",
+   "id": "LLVf3d0rqqY",
+   "title": "How to do Intermittent Fasting: Complete Guide",
+   "reason": "unplayable: We're processing this video. Check back later."
+  },
+  {
+   "station": "kids-family",
+   "id": "nqdv6Ad9Nt4",
+   "title": "What is Bitcoin? (for kids)",
+   "reason": "sign-in required on YouTube: Please sign in"
+  },
+  {
+   "station": "kids-family",
+   "id": "rT4ThQ55SD8",
+   "title": "Who Invented Bitcoin? (for kids)",
+   "reason": "sign-in required on YouTube: Please sign in"
+  },
+  {
+   "station": "kids-family",
+   "id": "Iyq4khMiM9A",
+   "title": "Saving vs Investing for Kids 💰🌱 | Types of Investments Explained with Fun Examples!",
+   "reason": "sign-in required on YouTube: Please sign in"
+  },
+  {
+   "station": "music",
+   "id": "hZJRJpbGkG4",
+   "title": "War",
+   "reason": "region limited to 120 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "xm1r3seNVNM",
+   "title": "BITCOIN ARUSHA",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "oV-QXF_JxIc",
+   "title": "Assange, Manning, Snowden",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "7pAr6B7fqyM",
+   "title": "Freedom",
+   "reason": "region limited to 111 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "gGJdWNnC80s",
+   "title": "Don't Tread on Me (Remastered)",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "KwVbcjJYctM",
+   "title": "Clubbed to Death (from \\\"The Matrix\\\")",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "fjFGInQZnyY",
+   "title": "Testing Bitcoin 123",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "_qcvxLefJdY",
+   "title": "Immutable",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "AiAwwJOrG3E",
+   "title": "Bright & Orange",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "_OGqQO06JP8",
+   "title": "Wavin'  Flag (Coca-Cola® Celebration Mix)",
+   "reason": "region limited to 89 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "s3xXVsGANNI",
+   "title": "The Ballad Of Surfer Jim (feat. The Toxic Pleb Chorus)",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "tR26mFkI9wI",
+   "title": "WEALTH IN CODE",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "roxSjlgmR5M",
+   "title": "Something's Got to Give",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "o-JajNZKuiA",
+   "title": "Validate",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "vtwJ00ck0nI",
+   "title": "Swiss Bank Bitcoin (Bitcoin Anthem)",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "NEnaxCLcSL8",
+   "title": "One Bit Wonder",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "kL3KuEQaQVw",
+   "title": "For What It's Worth",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "f4nxo2H1n2o",
+   "title": "Satoshi is Back, Pt. III",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "SMVEFDtAxJc",
+   "title": "Bitcoin Anthem",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "TmWhY_irAXE",
+   "title": "Pet",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "h7I_DqVzYjI",
+   "title": "Bitcoin",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "qlJdTtSNpcI",
+   "title": "HODL On",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "d7ZOCibyihc",
+   "title": "FOMO",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "w47yNylcEU0",
+   "title": "DCA2BTC",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "jXwOd99Gcds",
+   "title": "100K ON THE WAY (Remix)",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "OdtFiTQ-Ngk",
+   "title": "BTC MAXI",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "MVboooHtzPE",
+   "title": "BITCOIN NI HELA",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "DH-tCLh2PM8",
+   "title": "21 Million Bitcoin",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "0xjxJ-P9VbY",
+   "title": "The Shores Of Sovereignty",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "tJrtRnA7xe4",
+   "title": "HODL On Ye Bitcoin Sailors (feat. The Toxic Pleb Chorus)",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "69uczA-41nE",
+   "title": "Blockchain Sees It All",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "k8ukx0LKJRo",
+   "title": "Have Fun Staying Poor",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "0LhJR11B1CE",
+   "title": "Bags On Exchanges",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "Etk0eS8cIZQ",
+   "title": "Level Up",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "9PJPk1kkRUo",
+   "title": "Freedom Riders",
+   "reason": "region limited to 122 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "PcWtVAibg2Y",
+   "title": "BITCOIN DADA",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "NzWdap8Y3tU",
+   "title": "Big City",
+   "reason": "region limited to 122 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "XZbvb3pD81E",
+   "title": "Cantillionaires Game",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "30PnHDy1qQc",
+   "title": "FIXED SUPPLY 999,999",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "86dY1614PLs",
+   "title": "UTXO (The Transaction)",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "78QQ4L44xj0",
+   "title": "Aint Gotta Dollar (Laundry Room Edition)",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "d_PAaFN2kOI",
+   "title": "CERTIFIED TREZOR BOY",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "UBQ4mDsuWeI",
+   "title": "Central Bank",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "Geh6M87Njcs",
+   "title": "Take The Power Back",
+   "reason": "region limited to 111 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "oF4lleeOPe8",
+   "title": "Future of Money",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "aNrpN9oAUlo",
+   "title": "Bitcoin Baller",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "7LBYrDx_784",
+   "title": "I Won't Back Down",
+   "reason": "region limited to 4 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "5Uis4flerMI",
+   "title": "Feuer über Fiat",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "zHxobd1WLno",
+   "title": "Imagine (Ultimate Mix)",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "pmc5H6zAi6M",
+   "title": "The Harder They Come",
+   "reason": "region limited to 115 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "wa6Ex4Shxes",
+   "title": "Ringing of Revolution",
+   "reason": "region limited to 118 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "TNokpVVCwSg",
+   "title": "PLEBRAP ODE",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "DVB3upn54AY",
+   "title": "Testify",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "3cCxzR9NjhI",
+   "title": "The Panic Is On",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "CBufq6ous9I",
+   "title": "Stackin Sats",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "IeKDJbJSVoo",
+   "title": "War",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "oQlqCjM4tAg",
+   "title": "Government Out",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "r-VKXRTXZl8",
+   "title": "BITCOIN BANDA",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "9EeRN2qwDU0",
+   "title": "Bitcoin Anthem",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "AxWejrVYcCg",
+   "title": "Gonna Fly Now (Theme From \"Rocky\")",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "JYJ6QJqy92s",
+   "title": "Killing in the Name",
+   "reason": "region limited to 121 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "CsZ8UJG0m9M",
+   "title": "The Block (Time, Energy, Sats)",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "qUNX6nyCL9Q",
+   "title": "BITCOIN Ballin'",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "K85b7XcK9yU",
+   "title": "Proof Of Life",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "cDmWR520hgk",
+   "title": "Roll The Old Timechain Along",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "vgxFDmVpGh4",
+   "title": "Rich Off Bitcoin",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "dat8SK0Hw18",
+   "title": "Rockin' in the Free World",
+   "reason": "region limited to 72 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "Nm2uXbGSUwc",
+   "title": "The Signature",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "GxalY2vHZro",
+   "title": "1 BTC = 1 BTC",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "feIzSQK8kiA",
+   "title": "Stack Sats (extended space mix)",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "jFLU0FE8_nQ",
+   "title": "2140",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "lnmbsD3XUW0",
+   "title": "The Node",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "6cXL8TJnY1E",
+   "title": "Inflation Blues",
+   "reason": "region limited to 121 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "0J2MyKWX4O4",
+   "title": "Timekeeper",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "aypOWTotKBQ",
+   "title": "I’M HODLIN’",
+   "reason": "region limited to 123 countries (US allowed)"
+  },
+  {
+   "station": "music",
+   "id": "qKSNABST4b0",
+   "title": "Rage Against The Machine - Take The Power Back (Official Audio)",
+   "reason": "content warning gate (YouTube asks viewers to confirm before playing)"
+  },
+  {
+   "station": "news",
+   "id": "BSiQHfEUabI",
+   "title": "Bitcoin touches new all-time highs, topping $118,000 as institutions pile into ETFs",
+   "reason": "region limited to 6 countries (US allowed)"
+  },
+  {
+   "station": "saylor",
+   "id": "OBaNWJ5vLQI",
+   "title": "What Shall We Do With Michael Saylor?",
+   "reason": "region limited to 123 countries (US allowed)"
+  }
+ ]
+}
