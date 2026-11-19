@@ -75,7 +75,14 @@ function load(opts) {
     vm.createContext(ctx);
     const code = [
         sliceFrom(forum, 'function fEsc('),
-        lines('var MD_'), lines('var ARTICLE_ID_RE'), lines('var ARTICLE_UID_RE'),
+        lines('var MD_'), lines('var ARTICLE_ID_RE'), lines('var ARTICLE_UID_RE'), lines('var FORUM_ID_RE'),
+        sliceFrom(forum, 'function forumIdOk('),
+        sliceFrom(forum, 'function forumIdSkip('),
+        sliceFrom(forum, 'function forumProfileAttrs('),
+        sliceFrom(forum, 'function forumCall('),
+        sliceFrom(forum, 'var FORUM_ACTIONS ='),
+        sliceFrom(forum, 'function forumOnAction('),
+        sliceFrom(forum, 'function forumBindActions('),
         sliceFrom(forum, 'function isForumAdmin('),
         sliceFrom(forum, 'function forumCount('),
         sliceFrom(forum, 'function forumText('),
@@ -114,7 +121,7 @@ async function renderList(docs, opts) {
 }
 async function renderView(doc, opts) {
     const t = load(Object.assign({ docs: [doc] }, opts || {}));
-    const fc = { innerHTML: '' };
+    const fc = { innerHTML: '', addEventListener: function () {} };
     t.ctx.document.getElementById = function (id) { if (id === 'forumContainer') return fc; if (id === 'main') return { scrollTop: 0 }; return null; };
     await t.ctx.articleView(doc.id);
     return { html: fc.innerHTML, t: t };

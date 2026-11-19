@@ -91,7 +91,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
 
-    <link rel="preload" href="/bundle.min.js?v=20261119_v2667" as="script">
+    <link rel="preload" href="/bundle.min.js?v=20261119_v2668" as="script">
 
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image" referrerpolicy="no-referrer">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
@@ -2317,8 +2317,8 @@
     <script src="/popup-stack.js?v=20261106_v2519" defer></script>
 
     <script src="/kill-switch.js?v=20261111_v2551" defer></script>
-    <script src="/ranking.js?v=20261119_v2665" defer></script>    <!-- Critical: needed for initial page render -->
-    <script src="/bundle.min.js?v=20261119_v2667" defer fetchpriority="high"></script>
+    <script src="/ranking.js?v=20261119_v2668" defer></script>    <!-- Critical: needed for initial page render -->
+    <script src="/bundle.min.js?v=20261119_v2668" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="/features.registry.js?v=20261114_v2565" defer></script>
@@ -2346,20 +2346,20 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261119_v2665',
+            'global-chat.js?v=20261119_v2668',
             'satoshi-favor.js?v=20261116_v2582'
         ];
         var _lazyScripts = [
             'quests.js?v=20261118_v2590',
             'hot-topics.js?v=20261114_citadelwire3',
-            'pvp.js?v=20261118_v2605','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261105_v2506',
-            'scholar.js?v=20261105_v2490','beats.js?v=20261119_v2666',
-            'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261119_v2666',
+            'pvp.js?v=20261118_v2605','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261119_v2668',
+            'scholar.js?v=20261105_v2490','beats.js?v=20261119_v2668',
+            'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261119_v2668',
             'notifications.js?v=20261106_v2512','gifting.js?v=20261106_v2522','guide.js?v=20261104_v2482','modules.js?v=20261106_v2512',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20261028_v2410',
-            'sats-vs-bits.js?v=20261030_v2440','tips-integrations.js?v=20260307','wallet-router.js?v=20261104_v2482',
-            'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
-            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
+            'sats-vs-bits.js?v=20261030_v2440','tips-integrations.js?v=20261119_v2668','wallet-router.js?v=20261104_v2482',
+            'lightning-prompt.js?v=20260307','irl-sync.js?v=20261119_v2668',
+            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261119_v2668',
             'timechain-tv.js?v=20261105_v2502',
             'learning-quests.js?v=20261026_v2377',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20261031_v2447'
@@ -2615,12 +2615,12 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2666', 'global-chat.js?v=20261119_v2665'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2666', 'global-chat.js?v=20261119_v2665'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261119_v2665'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261119_v2665'],
-            'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
-            'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261119_v2666'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2668', 'global-chat.js?v=20261119_v2668'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2668', 'global-chat.js?v=20261119_v2668'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261119_v2668'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261119_v2668'],
+            'irl-sync':      ['irl-sync.js?v=20261119_v2668'],
+            'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261119_v2668'],
             'pvp':           ['pvp.js?v=20261118_v2605'],
             'proof-of-play': ['pvp.js?v=20261118_v2605', 'proof-of-play.js?v=20261031_v2447'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],

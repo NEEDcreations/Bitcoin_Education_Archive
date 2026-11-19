@@ -236,10 +236,10 @@ document.addEventListener('touchend', function(e) {
     var now = Date.now();
     if (now - lastTapTime < 300) {
         // Double tap detected
-        var forumPost = e.target.closest && e.target.closest('[onclick*="forumViewPost"]');
+        var forumPost = e.target.closest && e.target.closest('[data-forum-action="view-post"]');
         if (forumPost) {
             // Find the upvote button inside
-            var upBtn = forumPost.querySelector('[onclick*="forumVotePost"]');
+            var upBtn = forumPost.querySelector('[data-forum-action="vote-post"]');
             if (upBtn) { upBtn.click(); haptic('medium'); }
             e.preventDefault();
         }
@@ -1204,7 +1204,7 @@ function walletRouteReady() {
 
 var WALLET_SCRIPT_SRCS = [
     'lightning.js?v=20261023_v2323',
-    'lightning-tips.js?v=20261119_v2666',
+    'lightning-tips.js?v=20261119_v2668',
     'wallet-router.js?v=20261104_v2482'
 ];
 var _walletTapQueued = false;

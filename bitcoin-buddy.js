@@ -33,6 +33,11 @@ window.showBuddyFinder = function() {
     }).catch(function() { _showFreshBuddyForm(); });
 };
 
+var BUDDY_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+function buddyIdOk(v) { return typeof v === 'string' && BUDDY_ID_RE.test(v); }
+window._buddyIdOk = buddyIdOk;
+function _buddyEsc(v) { return typeof escapeHtml === 'function' ? escapeHtml(String(v == null ? '' : v)) : String(v == null ? '' : v).replace(/[&<>"']/g, ''); }
+
 function _showExistingMatch(matchDoc, myUid) {
     var m = matchDoc.data();
     var isUser1 = m.user1.uid === myUid;
@@ -55,23 +60,36 @@ function _showExistingMatch(matchDoc, myUid) {
 
     html += '<div style="padding:16px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:14px;margin-bottom:16px;">';
     html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">';
-    html += '<div style="width:48px;height:48px;border-radius:50%;background:rgba(34,197,94,0.15);border:2px solid rgba(34,197,94,0.3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">' + (buddy.username ? buddy.username.charAt(0).toUpperCase() : '?') + '</div>';
-    html += '<div><div style="font-weight:800;color:var(--heading);font-size:1rem;">@' + (buddy.username || 'User') + '</div>';
-    html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + (buddy.goal === 'teach' ? '🎓 Teacher' : '📖 Learner') + ' · ' + (buddy.level || 'beginner').charAt(0).toUpperCase() + (buddy.level || 'beginner').slice(1) + '</div></div>';
+    html += '<div style="width:48px;height:48px;border-radius:50%;background:rgba(34,197,94,0.15);border:2px solid rgba(34,197,94,0.3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">' + _buddyEsc(buddy.username ? String(buddy.username).charAt(0).toUpperCase() : '?') + '</div>';
+    html += '<div><div style="font-weight:800;color:var(--heading);font-size:1rem;">@' + _buddyEsc(buddy.username || 'User') + '</div>';
+    html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + (buddy.goal === 'teach' ? '🎓 Teacher' : '📖 Learner') + ' · ' + _buddyEsc(String(buddy.level || 'beginner').charAt(0).toUpperCase() + String(buddy.level || 'beginner').slice(1)) + '</div></div>';
     html += '</div>';
-    if (buddy.intro) html += '<div style="font-size:0.8rem;color:var(--text);font-style:italic;padding:8px 0;border-top:1px solid rgba(34,197,94,0.15);">"' + buddy.intro + '"</div>';
+    if (buddy.intro) html += '<div style="font-size:0.8rem;color:var(--text);font-style:italic;padding:8px 0;border-top:1px solid rgba(34,197,94,0.15);">"' + _buddyEsc(buddy.intro) + '"</div>';
     html += '</div>';
 
     html += '<div style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-bottom:16px;">Your role: ' + (me.goal === 'teach' ? '🎓 Teacher' : '📖 Learner') + '</div>';
 
     // Action buttons
-    html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove();if(typeof openDM===\'function\')openDM(\'' + buddy.uid + '\',\'' + (buddy.username || 'User').replace(/[\\'"]/g, '') + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">💬 Open Conversation</button>';
-    html += '<button onclick="_rerollBuddy(\'' + matchDoc.id + '\')" id="rerollBtn" style="width:100%;padding:12px;background:none;border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">🔄 Find a New Buddy</button>';
+    html += '<button data-buddy-action="message" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">💬 Open Conversation</button>';
+    html += '<button data-buddy-action="reroll" id="rerollBtn" style="width:100%;padding:12px;background:none;border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">🔄 Find a New Buddy</button>';
     html += '<div style="text-align:center;font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">This will unmatch you and put you back in the pool</div>';
     html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Close</button>';
     html += '</div>';
 
     overlay.innerHTML = html;
+    var _buddyUid = String(buddy.uid || ''), _buddyName = String(buddy.username || 'User'), _matchId = String(matchDoc.id || '');
+    overlay.addEventListener('click', function(ev) {
+        var t = ev.target;
+        var el = t && t.closest ? t.closest('[data-buddy-action]') : null;
+        if (!el || !overlay.contains(el)) return;
+        var act = el.getAttribute('data-buddy-action');
+        if (act === 'message' && buddyIdOk(_buddyUid)) {
+            overlay.remove();
+            if (typeof openDM === 'function') openDM(_buddyUid, _buddyName);
+        } else if (act === 'reroll' && buddyIdOk(_matchId)) {
+            _rerollBuddy(_matchId);
+        }
+    });
     document.body.appendChild(overlay);
 }
 

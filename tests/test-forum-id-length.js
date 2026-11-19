@@ -62,7 +62,9 @@ test('forum list renders a 200-char mirror post id', function () {
     vm.createContext(ctx);
     // When the shared id check exists, load it so the renderer applies it.
     const idCheck = src.indexOf('var FORUM_ID_RE') !== -1 ? slice(src, 'var FORUM_ID_RE', 'window._forumIdOk = forumIdOk;') : '';
-    vm.runInContext(idCheck + slice(src, 'function forumRenderPosts(posts, container)', '\n// ---- Sort/Filter'), ctx);
+    // When the article display helpers exist, load them too (the renderer calls them).
+    const display = src.indexOf('function forumCount(v)') !== -1 ? slice(src, 'function forumCount(v)', 'var ARTICLE_ID_RE') : '';
+    vm.runInContext(display + idCheck + slice(src, 'function forumRenderPosts(posts, container)', '\n// ---- Sort/Filter'), ctx);
     const container = {};
     Object.defineProperty(container, 'innerHTML', { set: function (v) { html.value = v; }, get: function () { return html.value; } });
     ctx.forumRenderPosts([{ id: ID200, title: 'Mirror', body: 'b', authorId: 'u1', authorName: 'A', createdAt: 1 }], container);

@@ -17,10 +17,12 @@ function spendableXp(user) {
     return (Number(u.points) || 0) - (Number(u.pointsClaimed) || 0) - (Number(u.pointsDonated) || 0) - (Number(u.pointsExchanged) || 0) - unclaimable;
 }
 
-function escapeHtml(str) {
-    return String(str == null ? '' : str).replace(/[&<>"']/g, function (ch) {
-        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
-    });
+if (typeof escapeHtml !== 'function') {
+    var escapeHtml = function (str) {
+        return String(str == null ? '' : str).replace(/[&<>"']/g, function (ch) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+        });
+    };
 }
 
 function safeJSON(key, fallback) {
@@ -7583,16 +7585,17 @@ function _lbXpRowHtml(d, period, index) {
     if (d.earnedHidden && d.earnedHidden.indexOf('cert_scholar') !== -1) certIcons += ' 🎓';
     if (d.earnedHidden && d.earnedHidden.indexOf('cert_tech') !== -1) certIcons += ' 🛠️';
     var safeId = String(d.id || '').replace(/[^A-Za-z0-9_-]/g, '');
-    var _lbTipData = JSON.stringify({ recipientName: d.username || 'Anon', recipientUid: safeId, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+    var _lbName = (typeof d.username === 'string' ? d.username : '') || 'Anon';
+    var _lbTipData = JSON.stringify({ recipientName: _lbName, recipientUid: safeId, lightningAddress: typeof d.lightningAddress === 'string' && d.lightningAddress ? d.lightningAddress : (typeof d.lightning === 'string' ? d.lightning : ''), context: 'leaderboard', label: 'Tip ' + _lbName }).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     var _lbNameStyle = d.faction && typeof window._factionNameStyle === 'function' ? window._factionNameStyle(d.faction) : '';
     var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
     var score = period === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : period === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP';
     return '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
         '<span class="lb-rank">' + medal + '</span>' +
         '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-        '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + (d._you ? ' (you)' : '') + statusDot + certIcons + '</span>' +
+        '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(_lbName) + (d._you ? ' (you)' : '') + statusDot + certIcons + '</span>' +
         '<span class="lb-score">' + score + '</span>' +
-        '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
+        '<span data-lb-tip="1" onclick="event.stopPropagation();if(window._tipFromEl)_tipFromEl(this)" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(_lbName) + '">⚡</span>' +
         '</div>';
 }
 
@@ -8253,18 +8256,19 @@ function _renderPvpSnapshot(container, doc) {
         var safeId = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
         var isMe = !!(myUid && safeId === myUid);
         if (isMe) seenMe = true;
-        var name = escapeHtml(p.username || 'Anon');
+        var _pvpName = (typeof p.username === 'string' ? p.username : '') || 'Anon';
+        var name = escapeHtml(_pvpName);
         var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
         var pvpIcon = wins >= 100 ? '👑' : wins >= 50 ? '🏆' : wins >= 25 ? '🏟️' : wins >= 5 ? '🥊' : '⚔️';
         var record = LbPrefix.pvpRecordText(wins, losses);
-        var _pvpTipData = JSON.stringify({ recipientName: p.username || 'Anon', recipientUid: safeId, lightningAddress: p.lightningAddress || '', context: 'pvp', label: 'Tip ' + (p.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+        var _pvpTipData = JSON.stringify({ recipientName: _pvpName, recipientUid: safeId, lightningAddress: typeof p.lightningAddress === 'string' ? p.lightningAddress : '', context: 'pvp', label: 'Tip ' + _pvpName }).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         var peerTag = (window._myPeers && window._myPeers.has(safeId)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
         return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
             '<span class="lb-rank">' + medal + '</span>' +
             '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
             '<span class="lb-name">' + peerTag + name + '</span>' +
             '<span class="lb-score">' + record + '</span>' +
-            '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + name + '">⚡</span>' +
+            '<span data-lb-tip="1" onclick="event.stopPropagation();if(window._tipFromEl)_tipFromEl(this)" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + name + '">⚡</span>' +
             '</div>';
     });
     var pvpHtml = pvpSplit.html;
@@ -9062,7 +9066,7 @@ function showSettingsPage(tab) {
         var settingsEmoji = getUserDisplayEmoji(lvl);
         var _pfpUrl = currentUser ? currentUser.profilePic || '' : '';
         var _pfpHtml = _pfpUrl
-            ? ('<img src="' + (_pfpUrl && /^data:image\//i.test(_pfpUrl) ? _pfpUrl : escapeHtml(sanitizeUrl(_pfpUrl))) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Click to change photo">')
+            ? ('<img src="' + escapeHtml(sanitizeUrl(_pfpUrl)) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Click to change photo">')
             : '<div style="font-size:2.5rem;margin-bottom:0;">' + settingsEmoji + '</div>';
         // Build title pill for own profile
         var _activeTitleId = currentUser ? currentUser.activeTitle || '' : '';
@@ -9133,7 +9137,7 @@ function showSettingsPage(tab) {
             '<div style="text-align:center;">' +
                 (_pfpUrl
                     ? ('<div style="position:relative;display:inline-block;margin-bottom:12px;cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Click to change photo">' +
-                        '<img src="' + (_pfpUrl && /^data:image\//i.test(_pfpUrl) ? _pfpUrl : escapeHtml(sanitizeUrl(_pfpUrl))) + '" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 16px rgba(247,147,26,0.3);display:block;" onerror="this.style.display=\'none\'">' +
+                        '<img src="' + escapeHtml(sanitizeUrl(_pfpUrl)) + '" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 16px rgba(247,147,26,0.3);display:block;" onerror="this.style.display=\'none\'">' +
                         '<div style="position:absolute;bottom:2px;right:2px;background:var(--accent);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;border:2px solid var(--bg-side);">✏️</div>' +
                        '</div>')
                     : '<div style="width:96px;height:96px;border-radius:50%;background:var(--bg);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:2.5rem;margin:0 auto 12px;">👤</div>') +

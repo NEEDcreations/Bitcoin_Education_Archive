@@ -352,6 +352,7 @@
     var EDIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
     window.forumEditPost = function(postId) {
+        if (typeof postId !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(postId)) return;
         if (!auth || !auth.currentUser) return;
         if (typeof db === 'undefined') return;
 
@@ -382,7 +383,7 @@
                     '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Body</label>' +
                     '<textarea id="editPostBody" rows="6" maxlength="2000" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;resize:vertical;">' + (typeof escapeHtml === 'function' ? escapeHtml(p.body || '') : (p.body || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')) + '</textarea>' +
                     '<div style="display:flex;gap:10px;">' +
-                        '<button onclick="forumSaveEdit(\'' + postId + '\')" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Save Changes</button>' +
+                        '<button type="button" id="forumEditSaveBtn" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Save Changes</button>' +
                         '<button onclick="document.getElementById(\'forumEditOverlay\').remove()" style="padding:12px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Cancel</button>' +
                     '</div>' +
                     '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;text-align:center;">Edited posts will show an "edited" indicator</div>' +
@@ -391,6 +392,8 @@
             var div = document.createElement('div');
             div.innerHTML = html;
             document.body.appendChild(div.firstChild);
+            var saveBtn = document.getElementById('forumEditSaveBtn');
+            if (saveBtn) saveBtn.addEventListener('click', function() { window.forumSaveEdit(postId); });
         });
     };
 

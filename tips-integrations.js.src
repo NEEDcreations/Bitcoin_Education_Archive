@@ -20,20 +20,20 @@
 function esc(s) { return typeof escapeHtml === 'function' ? escapeHtml(s) : s; }
 
 function makeDataAttr(obj) {
-    return JSON.stringify(obj).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return JSON.stringify(obj).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function tipBtn(opts, label, size) {
-    label = label || '⚡ Tip';
+    label = typeof label === 'string' && label ? label : '⚡ Tip';
     size = size || 'sm';
     var pad = size === 'md' ? 'padding:7px 16px;font-size:0.82rem;' : 'padding:4px 11px;font-size:0.72rem;';
-    return '<button data-tip-action=\'' + JSON.stringify(opts).replace(/'/g, '&#39;') + '\' style="' + pad +
+    return '<button data-tip-action="' + makeDataAttr(opts) + '" style="' + pad +
         'background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;color:#eab308;' +
         'font-weight:700;cursor:pointer;font-family:inherit;transition:0.15s;touch-action:manipulation;' +
         'display:inline-flex;align-items:center;gap:4px;" ' +
         'onmouseover="this.style.background=\'rgba(234,179,8,0.15)\';this.style.borderColor=\'#eab308\'" ' +
         'onmouseout="this.style.background=\'rgba(234,179,8,0.06)\';this.style.borderColor=\'rgba(234,179,8,0.2)\'">' +
-        label + '</button>';
+        esc(label) + '</button>';
 }
 
 // =============================================
@@ -44,31 +44,29 @@ function injectForumTips() {
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
 
-    // Find upvote buttons (they contain "⚡" and a number)
-    // Pattern: <button onclick="forumVotePost('id')">⚡ N</button>
-    var voteBtns = fc.querySelectorAll('button[onclick*="forumVotePost"], button[onclick*="forumVoteReply"]');
+    // Find upvote buttons by their data attributes
+    // Pattern: <button data-forum-action="vote-post" data-id="id">👍 N</button>
+    var voteBtns = fc.querySelectorAll('button[data-forum-action="vote-post"], button[data-forum-action="vote-reply"]');
     voteBtns.forEach(function(btn) {
         // Skip if already has a tip sibling
         if (btn.nextElementSibling && btn.nextElementSibling.hasAttribute('data-tip-action')) return;
         if (btn.parentElement && btn.parentElement.querySelector('[data-tip-action]')) return;
 
         // Extract post/reply ID and author info from the surrounding context
-        var onclickStr = btn.getAttribute('onclick') || '';
-        var idMatch = onclickStr.match(/(?:forumVotePost|forumVoteReply)\('([^']+)'\)/);
-        var itemId = idMatch ? idMatch[1] : '';
-        var isReply = onclickStr.includes('forumVoteReply');
+        var itemId = btn.getAttribute('data-id') || '';
+        if (typeof window._forumIdOk === 'function' && !window._forumIdOk(itemId)) return;
+        var isReply = btn.getAttribute('data-forum-action') === 'vote-reply';
 
         // Try to find author name and UID from nearby elements
-        var card = btn.closest('div[style*="background"]') || btn.parentElement;
+        var card = btn.closest('[data-forum-card]') || btn.parentElement;
         var authorName = 'this user';
         var authorUid = '';
 
         // First try: find the showUserProfile link (most reliable — has both UID and name)
         if (card) {
-            var profileLink = card.querySelector('[onclick*="showUserProfile"]');
+            var profileLink = card.querySelector('[data-forum-action="profile"]');
             if (profileLink) {
-                var uidMatch = (profileLink.getAttribute('onclick') || '').match(/showUserProfile\('([^']+)'\)/);
-                if (uidMatch) authorUid = uidMatch[1];
+                authorUid = profileLink.getAttribute('data-id') || '';
                 // Extract name from the profile link text (strip emoji prefix)
                 var linkText = profileLink.textContent.trim();
                 if (linkText) authorName = linkText.replace(/^[^\w\s]+\s*/, '').trim() || linkText;
@@ -81,7 +79,7 @@ function injectForumTips() {
         }
 
         var tipOpts = {
-            recipientName: authorName,
+            recipientName: typeof authorName === 'string' ? authorName : '',
             recipientUid: authorUid,
             context: isReply ? 'forum_reply' : 'forum_post',
             contextId: itemId,
@@ -123,7 +121,7 @@ function injectBeatsTips() {
         if (!trackData) return;
 
         var tipOpts = {
-            recipientName: trackData.artist || trackData.authorName || 'Artist',
+            recipientName: (typeof trackData.artist === 'string' ? trackData.artist : '') || (typeof trackData.authorName === 'string' ? trackData.authorName : '') || 'Artist',
             recipientUid: trackData.authorId || '',
             context: 'beats_track',
             contextId: trackData.id || '',
@@ -162,7 +160,7 @@ function injectBeatsTips() {
             var track = window._beatsQueue[window._beatsQueueIdx];
             if (track) {
                 var opts = {
-                    recipientName: track.artist || track.authorName || 'Artist',
+                    recipientName: (typeof track.artist === 'string' ? track.artist : '') || (typeof track.authorName === 'string' ? track.authorName : '') || 'Artist',
                     recipientUid: track.authorId || '',
                     context: 'beats_track',
                     contextId: track.id || '',
@@ -224,7 +222,7 @@ function injectMarketplaceTips() {
         }
 
         var tipOpts = {
-            recipientName: sellerName || 'Seller',
+            recipientName: (typeof sellerName === 'string' ? sellerName : '') || 'Seller',
             recipientUid: sellerUid,
             context: 'marketplace',
             contextId: listingId,
@@ -286,7 +284,7 @@ function injectIRLTips() {
         var hostUid = '';
 
         var tipOpts = {
-            recipientName: 'Event: ' + title,
+            recipientName: 'Event: ' + (typeof title === 'string' ? title : ''),
             recipientUid: hostUid,
             context: 'irl_ticket',
             contextId: eventId,
@@ -333,7 +331,7 @@ function injectLeaderboardTips() {
         if (row.classList.contains('lb-me')) return;
 
         var tipOpts = {
-            recipientName: userName || 'this user',
+            recipientName: (typeof userName === 'string' ? userName : '') || 'this user',
             recipientUid: uid,
             context: 'leaderboard',
             label: 'Tip User',
