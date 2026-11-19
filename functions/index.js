@@ -1927,9 +1927,11 @@ exports.claimSats = functionsV1.runWith({
 
     let txFlag = null;
     let displayName = 'Bitcoiner';
+    let firstSetHold = false;
     try {
         await db.runTransaction(async (t) => {
             txFlag = null;
+            firstSetHold = false;
             function deny(message, extra) {
                 txFlag = extra || null;
                 const err = new Error('FAUCET_USER:' + message);
@@ -2111,6 +2113,40 @@ exports.claimSats = functionsV1.runWith({
                 deny(addrDecision.error, flag);
             }
 
+            // First address set (claim form or a recent unstamped client write)
+            // gets the 48h hold stamp in this transaction, without paying.
+            const stampPresent = Object.prototype.hasOwnProperty.call(user, 'lightningAddressChangedAt');
+            const firstSet = !saved;
+            const lockAt = lockDoc.exists ? _toMillis((lockDoc.data() || {}).lockedAt) : 0;
+            const hasPriorPayout = !!(user.lastSatsClaim || user.satsWithdrawn || ledger.satsWithdrawn);
+            let shouldStampHold = firstSet;
+            if (!shouldStampHold && !stampPresent) {
+                if (lockAt) {
+                    const inferred = faucetGuard.assessAddressChangeHold({ lightningAddressChangedAt: lockAt }, Date.now());
+                    if (!inferred.ok) shouldStampHold = true;
+                } else if (!hasPriorPayout) {
+                    shouldStampHold = true;
+                }
+            }
+            if (shouldStampHold) {
+                const stamp = admin.firestore.FieldValue.serverTimestamp();
+                t.update(userRef, {
+                    lightning: lnNorm,
+                    lightningAddress: lnNorm,
+                    lightningAddressChangedAt: stamp,
+                });
+                if (!lockDoc.exists) {
+                    t.set(lockRef, {
+                        uid: uid,
+                        address: lnNorm,
+                        displayName: displayName,
+                        lockedAt: stamp,
+                    });
+                }
+                firstSetHold = true;
+                return;
+            }
+
             const fpUids = fpDoc.exists ? (fpDoc.data().uids || []) : [];
             const fpDecision = faucetGuard.assessFingerprint(fpUids, uid);
             if (!fpDecision.ok) {
@@ -2238,6 +2274,10 @@ exports.claimSats = functionsV1.runWith({
         }
         console.error('[FAUCET] Transaction failed:', raw);
         return { success: false, error: 'Claim validation failed. Please try again.' };
+    }
+
+    if (firstSetHold) {
+        return { success: false, error: faucetGuard.ADDRESS_CHANGE_HOLD_ERROR };
     }
 
     const payInfo = {

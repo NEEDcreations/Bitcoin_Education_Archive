@@ -382,6 +382,19 @@ queue.push(test('a successful reset stamps lightningAddressChangedAt for the 48h
     assert.ok(resetSrc.indexOf('lightningAddressChangedAt') !== -1);
     const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     assert.ok(index.indexOf('assessAddressChangeHold') !== -1, 'claimSats must refuse payouts during the 48h hold');
+    assert.ok(index.indexOf('firstSetHold') !== -1, 'claimSats first-set stamps the hold and does not pay in the same call');
+    assert.ok(index.indexOf('lightningAddressChangedAt: stamp') !== -1 || index.indexOf('lightningAddressChangedAt: stamp') !== -1);
+    const emailSrc = fs.readFileSync(path.join(root, 'functions/src/emailChange.js'), 'utf8');
+    const beginAt = emailSrc.indexOf('async function beginPayout');
+    const begin = emailSrc.slice(beginAt, beginAt + 2500);
+    assert.ok(begin.indexOf('assessAddressChangeHold') !== -1, 'beginPayout must apply the 48h hold to every payout path');
+    assert.ok(begin.indexOf('userReadable') !== -1, 'an unreadable hold key holds the payout');
+    const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    assert.ok(ranking.indexOf("For safety, payouts are paused for 48 hours.") !== -1, 'reset success screen mentions the 48h pause');
+    assert.ok(ranking.indexOf("id = 'lnAddrStepSuccess'") !== -1 || ranking.indexOf("id = 'lnAddrStepSuccess'") !== -1 || ranking.indexOf("lnAddrStepSuccess") !== -1);
+    const keysFn = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+    const keys = keysFn.slice(keysFn.indexOf('function userProfileServerOnlyKeys()'), keysFn.indexOf('match /users/{userId}'));
+    assert.ok(keys.indexOf("'lightningAddressChangedAt'") !== -1, 'hold key is in the server-only list');
 }));
 
 queue.push(test('rules deny client address edits once one is saved, and the reset doc is server-only', function () {

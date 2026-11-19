@@ -12403,6 +12403,7 @@ var LN_PERMANENT_WARNING = 'This will be your permanent Lightning Address for wi
 var LN_READONLY_NOTE = 'This is your permanent Lightning Address for withdrawals. If you ever need to change it, contact support at info.603btc@gmail.com.';
 var LN_DOUBLE_CHECK = 'Please double-check this is written exactly right';
 var LN_SET_TITLE = 'Set your withdrawal Lightning Address';
+var LN_RESET_SUCCESS = 'Lightning Address saved. For safety, payouts are paused for 48 hours.';
 var LN_TURNSTILE_SITEKEY = '0x4AAAAAAD-ivgpRkbXpgz86';
 
 function _savedWithdrawalLn() {
@@ -12544,9 +12545,25 @@ function openWithdrawalAddress(opts) {
         stepRead.appendChild(readNote);
         stepRead.appendChild(closeBtn);
 
+        var stepSuccess = document.createElement('div');
+        stepSuccess.id = 'lnAddrStepSuccess';
+        var successAddr = document.createElement('div');
+        successAddr.id = 'lnAddrSuccessText';
+        successAddr.style.cssText = addrEl.style.cssText;
+        var successNote = document.createElement('p');
+        successNote.id = 'lnAddrSuccessNote';
+        successNote.textContent = LN_RESET_SUCCESS;
+        successNote.style.cssText = 'margin:0 0 14px;font-size:0.8rem;line-height:1.45;color:#cbd5e1;text-align:center;';
+        var successBtn = _lnBtn('Done', true);
+        successBtn.id = 'lnAddrSuccessBtn';
+        stepSuccess.appendChild(successAddr);
+        stepSuccess.appendChild(successNote);
+        stepSuccess.appendChild(successBtn);
+
         panel.appendChild(stepInput);
         panel.appendChild(stepConfirm);
         panel.appendChild(stepRead);
+        panel.appendChild(stepSuccess);
         overlay.appendChild(panel);
 
         var chosen = normalizeClientLn(opts.address || '');
@@ -12556,7 +12573,8 @@ function openWithdrawalAddress(opts) {
             stepInput.style.display = name === 'input' ? 'block' : 'none';
             stepConfirm.style.display = name === 'confirm' ? 'block' : 'none';
             stepRead.style.display = name === 'readonly' ? 'block' : 'none';
-            title.textContent = name === 'readonly' ? 'Withdrawal Lightning Address' : LN_SET_TITLE;
+            stepSuccess.style.display = name === 'success' ? 'block' : 'none';
+            title.textContent = name === 'readonly' ? 'Withdrawal Lightning Address' : (name === 'success' ? 'Lightning Address saved' : LN_SET_TITLE);
             if (name === 'confirm' && mode === 'reset' && !widgetRendered) {
                 widgetRendered = true;
                 var lnWidget = document.getElementById('lnAddrTurnstile');
@@ -12578,6 +12596,7 @@ function openWithdrawalAddress(opts) {
 
         cancelBtn.addEventListener('click', function () { finish(null); });
         closeBtn.addEventListener('click', function () { finish(null); });
+        successBtn.addEventListener('click', function () { finish(chosen); });
         nextBtn.addEventListener('click', function () {
             var addr = normalizeClientLn(input.value);
             if (!clientLnValid(addr)) {
@@ -12613,7 +12632,13 @@ function openWithdrawalAddress(opts) {
                     paintLnStep('input');
                     return;
                 }
-                finish(result.address || chosen);
+                var savedAddr = result.address || chosen;
+                if (mode === 'reset') {
+                    successAddr.textContent = savedAddr;
+                    paintLnStep('success');
+                    return;
+                }
+                finish(savedAddr);
             }).catch(function (e) {
                 paintLnError((e && e.message) ? e.message : 'Could not resolve Lightning Address. Check the address and try again.');
                 confirmBtn.textContent = 'Confirm';
@@ -12679,7 +12704,7 @@ function _callResetLightning(addr, proofId, retried) {
             currentUser.lightningAddress = data.address || addr;
         }
         try { sessionStorage.removeItem('btc_ln_needs_reset'); } catch (e) {}
-        if (typeof showToast === 'function') showToast('Lightning Address saved.');
+        if (typeof showToast === 'function') showToast(LN_RESET_SUCCESS);
         return { ok: true, address: data.address || addr };
     }).catch(function (e) {
         var msg = (e && e.message) ? e.message : 'Could not resolve Lightning Address. Check the address and try again.';

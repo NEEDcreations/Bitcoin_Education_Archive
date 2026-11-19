@@ -547,6 +547,13 @@ test('a Lightning Address change holds payouts for 48 hours', function () {
     assert.strictEqual(guard.assessAddressChangeHold({
         lightningAddressChangedAt: { toMillis: function () { return now; } },
     }, now + 1000).ok, false);
+    assert.strictEqual(guard.assessAddressChangeHold({ lightningAddressChangedAt: 'garbage' }, now).ok, false);
+    assert.strictEqual(guard.assessAddressChangeHold({ lightningAddressChangedAt: 'garbage' }, now).unreadable, true);
+    assert.strictEqual(guard.assessAddressChangeHold({ lightningAddressChangedAt: {} }, now).ok, false);
+    assert.strictEqual(guard.assessAddressChangeHold({ lightningAddressChangedAt: 0 }, now).ok, false);
+    assert.strictEqual(guard.parseHoldMillis('garbage').ok, false);
+    assert.strictEqual(guard.parseHoldMillis(null).ok, true);
+    assert.strictEqual(guard.parseHoldMillis(null).ms, 0);
 });
 
 Promise.all(queue).then(function() {
