@@ -9129,12 +9129,17 @@ async function settlePvpMatch(matchId, after, finishMs) {
             rewards: rewardsMap,
         }, { merge: true });
         if (pairRef && !plan.voided) {
-            tx.set(pairRef, {
+            // expireAt is end of the ET day plus 2 days. Do not create the
+            // Firestore TTL policy here; that needs Phil.
+            const expireAtMs = pvpFlow.pairDailyExpireAtMs(day);
+            const pairWrite = {
                 count: admin.firestore.FieldValue.increment(1),
                 day: day,
                 uids: [ids.player1, ids.player2],
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
+            };
+            if (expireAtMs) pairWrite.expireAt = admin.firestore.Timestamp.fromMillis(expireAtMs);
+            tx.set(pairRef, pairWrite, { merge: true });
         }
         return true;
     });

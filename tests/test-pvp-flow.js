@@ -272,6 +272,7 @@ test('short matches and a fourth same-pair match pay no XP', function () {
     assert.strictEqual(short.players[1].pvpWins, 0);
     assert.strictEqual(short.players[1].pvpLosses, 0);
     assert.strictEqual(short.players[0].statsCapped, true);
+    assert.strictEqual(short.shout, null);
 
     const capped = flow.planPvpReward(Object.assign({}, base, { durationMs: 60000, pairMatchesToday: 3 }));
     assert.strictEqual(capped.reason, 'pair_cap');
@@ -281,11 +282,13 @@ test('short matches and a fourth same-pair match pay no XP', function () {
     assert.strictEqual(capped.players[0].pvpLosses, 0);
     assert.strictEqual(capped.players[1].pvpWins, 0);
     assert.strictEqual(capped.players[1].pvpLosses, 0);
+    assert.strictEqual(capped.shout, null);
 
     const third = flow.planPvpReward(Object.assign({}, base, { durationMs: 60000, pairMatchesToday: 2 }));
     assert.strictEqual(third.reason, 'win');
     assert.strictEqual(third.players[0].points, 50);
     assert.strictEqual(third.players[1].points, 25);
+    assert.ok(third.shout && third.shout.post === true);
 });
 
 test('consolation needs a won round, and young accounts earn no PvP XP', function () {
@@ -316,9 +319,15 @@ test('consolation needs a won round, and young accounts earn no PvP XP', functio
     assert.strictEqual(young.players[1].points, 25);
     assert.strictEqual(young.players[1].pvpLosses, 1);
     assert.ok(!young.players[1].statsCapped);
+    assert.strictEqual(young.shout, null);
 
     assert.ok(flow.pairDailyId('2026-11-18', 'b', 'a').indexOf('2026-11-18_a_b') === 0);
     assert.strictEqual(flow.farmDayKey(Date.parse('2026-06-01T04:30:00Z')), '2026-06-01');
+    // 2026-11-18 is EST. End of day + 2 days = 2026-11-21 00:00 ET.
+    assert.strictEqual(flow.pairDailyExpireAtMs('2026-11-18'), Date.parse('2026-11-21T00:00:00-05:00'));
+    // DST fall-back weekend: 2026-10-31 is EDT, expire lands on EST midnight Nov 3.
+    assert.strictEqual(flow.pairDailyExpireAtMs('2026-10-31'), Date.parse('2026-11-03T00:00:00-05:00'));
+    assert.strictEqual(flow.pairDailyExpireAtMs(''), 0);
 });
 
 test('pvp win badges need server-counted wins', function () {
@@ -526,6 +535,18 @@ test('farm caps skip win-badge grants for the capped player', function () {
     const badges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, capped);
     assert.deepStrictEqual(badges.rewardUids, ['p1', 'p2']);
     assert.deepStrictEqual(badges.winGrantUids, []);
+    assert.deepStrictEqual(badges.skipUids, ['p1', 'p2']);
+
+    const short = flow.planPvpReward({
+        matchId: 'm-badge-short',
+        status: 'finished',
+        durationMs: 5000,
+        player1: { uid: 'p1', name: 'Ada', score: 30, roundWins: 3 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    const shortBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, short);
+    assert.deepStrictEqual(shortBadges.skipUids, ['p1', 'p2']);
+    assert.deepStrictEqual(shortBadges.winGrantUids, []);
 
     const young = flow.planPvpReward({
         matchId: 'm-badge2',
@@ -537,6 +558,7 @@ test('farm caps skip win-badge grants for the capped player', function () {
     });
     const youngBadges = flow.planPvpBadgeGrants(['p1', 'p2'], stamp, young);
     assert.deepStrictEqual(youngBadges.winGrantUids, ['p2']);
+    assert.deepStrictEqual(youngBadges.skipUids, ['p1']);
 });
 
 test('settle reads the pair count inside the transaction and uses finish time', function () {
@@ -557,6 +579,8 @@ test('settle reads the pair count inside the transaction and uses finish time', 
     const rules = fs.readFileSync(path.join(__dirname, '../firestore.rules'), 'utf8');
     assert.ok(/match \/pvp_pair_locks\/\{docId\} \{\s*allow read, write: if false;\s*\}/.test(rules));
     assert.ok(/match \/pvp_pair_daily\/\{docId\} \{\s*allow read, write: if false;\s*\}/.test(rules));
+    assert.ok(settle.indexOf('pairDailyExpireAtMs') !== -1, 'pair daily docs get an expireAt');
+    assert.ok(settle.indexOf('ttls update') === -1 && src.indexOf('enable-ttl') === -1, 'this PR does not create a TTL policy');
 });
 
 console.log(failed ? ('\n' + failed + ' failed') : ('\n' + passed + ' passed'));

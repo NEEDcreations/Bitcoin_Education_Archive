@@ -288,6 +288,40 @@ function farmDayKey(nowMs) {
     return y && m && d ? y + '-' + m + '-' + d : '';
 }
 
+function pad2(n) {
+    return String(n).padStart(2, '0');
+}
+
+// Midnight at the start of an ET calendar day (YYYY-MM-DD). Returns 0 if the
+// day string is not a real ET date.
+function etStartOfDayMs(day) {
+    const parts = String(day || '').split('-');
+    if (parts.length !== 3) return 0;
+    const y = Number(parts[0]), m = Number(parts[1]), d = Number(parts[2]);
+    if (!y || !m || !d) return 0;
+    const ymd = y + '-' + pad2(m) + '-' + pad2(d);
+    const candidates = [
+        Date.parse(ymd + 'T00:00:00-04:00'),
+        Date.parse(ymd + 'T00:00:00-05:00'),
+    ];
+    for (let i = 0; i < candidates.length; i++) {
+        const ms = candidates[i];
+        if (!Number.isFinite(ms)) continue;
+        if (farmDayKey(ms) === ymd && farmDayKey(ms - 1) !== ymd) return ms;
+    }
+    return 0;
+}
+
+// expireAt for pvp_pair_daily: end of the ET day plus 2 days (start of day+3).
+// The Timestamp is written on the doc so a TTL policy can use it later; this
+// code does not create the policy (needs Phil).
+function pairDailyExpireAtMs(day) {
+    const start = etStartOfDayMs(day);
+    if (!start) return 0;
+    const later = start + (3 * 24 * 60 * 60 * 1000) + (12 * 60 * 60 * 1000);
+    return etStartOfDayMs(farmDayKey(later));
+}
+
 function pairDailyId(day, uidA, uidB) {
     const a = String(uidA || '');
     const b = String(uidB || '');
@@ -467,6 +501,8 @@ function planPvpReward(input) {
             docId: resultShoutDocId(src.matchId),
         };
     }
+    // Capped and too-short matches must not post a lobby result shout.
+    if (players.some(function (p) { return p && p.statsCapped === true; })) shout = null;
     return {
         grant: true,
         reason: xpReason,
@@ -788,7 +824,8 @@ function planPvpBadgeGrants(sideUids, stamp, plan) {
         if (p && p.uid && p.statsCapped === true) capped[p.uid] = true;
     });
     const winGrantUids = uids.filter(function (u) { return !capped[u]; });
-    return { rewardUids: uids, skipUids: [], winGrantUids: winGrantUids, fields: PVP_BADGE_FIELDS.slice() };
+    const skipUids = uids.filter(function (u) { return !!capped[u]; });
+    return { rewardUids: uids, skipUids: skipUids, winGrantUids: winGrantUids, fields: PVP_BADGE_FIELDS.slice() };
 }
 
 // ---- Lobby summary work cap ----
@@ -850,6 +887,7 @@ module.exports = {
     planWinTicket: planWinTicket,
     planXpWrite: planXpWrite,
     farmDayKey: farmDayKey,
+    pairDailyExpireAtMs: pairDailyExpireAtMs,
     pairDailyId: pairDailyId,
     playerKeyForUid: playerKeyForUid,
     pushShardOrder: pushShardOrder,
