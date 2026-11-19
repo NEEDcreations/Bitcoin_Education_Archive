@@ -408,6 +408,7 @@ var APP_CHECK_CALLABLES = {
     markIntroSeen: 1,
     myFavorEpochClaims: 1,
     noteNachoQuestion: 1,
+    postTopicComment: 1,
     prepareEmailChange: 1,
     prepareGuestLink: 1,
     pvpCreateMatch: 1,

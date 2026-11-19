@@ -176,12 +176,12 @@ test('client wires posting, confirmation, and the existing forum opener', functi
     assert.ok(client.includes('.oled-theme .td-convo-success{border-color:#4ade80;background:#052e16;color:#bbf7d0;}'));
 });
 
-test('service worker and bundle pins moved to v2627', function() {
+test('service worker and bundle pins moved to v2635', function() {
     const sw = read('sw.js');
     const html = read('index.html');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2627'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2635'"));
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2627/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2635/g) || []).length, 2);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

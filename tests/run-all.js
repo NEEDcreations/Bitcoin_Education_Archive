@@ -162,6 +162,7 @@ const TESTS = [
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Topic Discussions', file: 'test-topic-discussion.js' },
     { name: 'Topic conversation post UI', file: 'test-topic-convo-post.js' },
+    { name: 'Topic inline reply state', file: 'test-topic-inline-reply-state.js' },
     { name: 'Quest defer', file: 'test-quest-defer.js' },
     { name: 'Topic Forum Mirror', file: 'test-topic-forum-mirror.js' },
     { name: 'Topic Conversation XP', file: 'test-topic-conversation-xp.js' },

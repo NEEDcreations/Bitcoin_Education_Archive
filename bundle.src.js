@@ -27709,6 +27709,10 @@ window.toggleAITools = function() {
             // The inline card and the bottom composer reply to different targets.
             // Sending from one must not clear the other.
             if (inline) {
+                // Inline replies share the post state with the bottom composer.
+                // Clear it so the next send is not left in Posting.
+                convoPostView = idleConvoPostView();
+                applySendView(send, area, { status: 'idle', sendDisabled: false, sendLabel: 'Reply', ariaBusy: false });
                 area.value = '';
                 renderInlineComposer();
                 if (crossNote) toast(crossNote);

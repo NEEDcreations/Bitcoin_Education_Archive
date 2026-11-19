@@ -87,7 +87,8 @@ async function main() {
     const scanned = [...protectedNames()].sort();
     assert.ok(scanned.indexOf('claimSats') !== -1);
     assert.ok(scanned.indexOf('totpResumeDevice') !== -1);
-    ['setUsername', 'nostrAuth', 'lnAuthChallenge', 'lnAuthVerify', 'totpCheck', 'totpStatus', 'totpSetup', 'totpVerify', 'issueRecoveryCodes', 'recordDailyVisit', 'dailySpin', 'contributeRaid', 'contributeFavor', 'hashForFavor', 'searchUsers', 'pollVote', 'postTopicComment'].forEach(function (name) {
+    assert.ok(scanned.indexOf('postTopicComment') !== -1, 'postTopicComment enforces App Check');
+    ['setUsername', 'nostrAuth', 'lnAuthChallenge', 'lnAuthVerify', 'totpCheck', 'totpStatus', 'totpSetup', 'totpVerify', 'issueRecoveryCodes', 'recordDailyVisit', 'dailySpin', 'contributeRaid', 'contributeFavor', 'hashForFavor', 'searchUsers', 'pollVote'].forEach(function (name) {
         assert.strictEqual(scanned.indexOf(name), -1, name + ' is not an App Check callable');
     });
     const onboarding = fs.readFileSync(path.join(root, 'functions', 'src', 'onboardingApi.js'), 'utf8');
