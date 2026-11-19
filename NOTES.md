@@ -3,11 +3,23 @@
 Not meant to ship as-is. Client and server prep, committed locally only.
 Rufus decides whether this file and the branch stay in the repo.
 
-**NEVER DEPLOYED:** `getCitadelShopStatus`, `buyCitadelStage`,
-`buildCitadelPart`, `claimLessonParts` are exported from `functions/index.js`
-but have never been deployed anywhere. Rufus deploys them by name only, after
-review, Red Team GO and Security sign-off, because `buyCitadelStage` debits
-OrangeTix. The `firestore.rules` additions are also undeployed.
+**NEVER DEPLOYED to live:** `getCitadelShopStatus`, `buyCitadelStage`,
+`buildCitadelPart`, `claimLessonParts` are exported from `functions/index.js`.
+Staging only: deployed by name to `bitcoin-quest-staging` on Nov 19, 2026 at
+8:58 AM ET (all four v1) for the preview. Live deploy is by name only, after
+review, Red Team GO, Security sign-off and Phil's OK, because `buyCitadelStage`
+debits OrangeTix. The `firestore.rules` additions are undeployed everywhere
+(staging and live); the preview works without them, but they must ship with
+or before the live functions so clients cannot write `users/{uid}.citadel`.
+
+Review fixes (Rufus, Nov 19): `claimLessonParts` is also closed before the open
+date (status reports no pending grant while closed); a requestId replay only
+returns a row whose stored uid matches the caller; `buyCitadelStage`,
+`buildCitadelPart` and `claimLessonParts` are on the kill-switch `GATED.rewards`
+list as well as self-checking `isOffline` (fail closed); the client reads
+`open` from status and shows "Opens Jan 3, 2027" instead of Buy/Build.
+`openEarly` is honored only when the runtime project id is exactly
+`bitcoin-quest-staging`.
 
 Files: `citadel-shop.js` (new, lazy-loaded by the Citadel tab in `quests.js`),
 `tests/test-citadel-shop.js`; server `functions/src/citadelShop.js` (logic),

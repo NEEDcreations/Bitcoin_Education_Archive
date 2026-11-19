@@ -7155,8 +7155,8 @@ exports.adminSetFavorClaims = favorBlockClaimFns.adminSetFavorClaims;
 exports.adminFreezeFavorEpoch = favorBlockClaimFns.adminFreezeFavorEpoch;
 exports.adminResolveFavorReview = favorBlockClaimFns.adminResolveFavorReview;
 
-// Citadel shop (client citadel-shop.js). NEVER DEPLOYED: Rufus deploys these by
-// name only after review, Red Team and Security sign-off (debits OrangeTix).
+// Citadel shop (client citadel-shop.js). NEVER DEPLOYED to live (staging only):
+// deploy by name only after review, Red Team and Security sign-off (debits OrangeTix).
 const citadelShopFns = require('./src/citadelShopFns').factory(functionsV1, { db: db, admin: admin });
 exports.getCitadelShopStatus = citadelShopFns.getCitadelShopStatus;
 exports.buyCitadelStage = citadelShopFns.buyCitadelStage;
