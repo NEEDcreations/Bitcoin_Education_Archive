@@ -114,18 +114,22 @@ function _u32(b, at) {
 
 // One r tag is one route: hops of pubkey(33) + channel(8) + fee_base_msat(4)
 // + fee_proportional_millionths(4) + cltv(2). The route's summed base fee must
-// stay within max(10 sat, 1% of the amount) and each hop's rate within 1%.
+// stay within max(10 sat, 1% of the amount), the summed rate within 1%, and
+// the hop count at most 3.
 var TIP_HINT_MAX_PPM = 10000;
+var TIP_HINT_MAX_HOPS = 3;
 function _routeHintOk(words, start, len, msats) {
     var bytes = _wordsToBytes(words, start, len);
     var hops = Math.floor(bytes.length / 51);
-    if (hops < 1 || bytes.length !== hops * 51 || len !== Math.ceil(hops * 408 / 5)) return false;
+    if (hops < 1 || hops > TIP_HINT_MAX_HOPS || bytes.length !== hops * 51 || len !== Math.ceil(hops * 408 / 5)) return false;
     var maxBase = Math.max(10000, Math.floor(msats / 100));
     var base = 0;
+    var ppm = 0;
     for (var h = 0; h < hops; h++) {
         var at = h * 51;
         base += _u32(bytes, at + 41);
-        if (_u32(bytes, at + 45) > TIP_HINT_MAX_PPM) return false;
+        ppm += _u32(bytes, at + 45);
+        if (ppm > TIP_HINT_MAX_PPM) return false;
     }
     return base <= maxBase;
 }

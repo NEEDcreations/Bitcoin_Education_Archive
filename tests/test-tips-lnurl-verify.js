@@ -358,6 +358,18 @@ function expectRefused(out, label) {
         assert.strictEqual(check(makeInvoice('lnbc10u', { r: [[{ base: 0, ppm: 1 }], [{ base: 0, ppm: 50000 }]] }), MSATS), null);
     });
 
+    test(file + ': route hint fee rate is capped across the route and hop count is capped', () => {
+        // Three hops at the cap still pass; one millionth over, or a fourth hop, fails.
+        assert.ok(check(makeInvoice('lnbc10u', { r: [[{ base: 0, ppm: 4000 }, { base: 0, ppm: 4000 }, { base: 0, ppm: 2000 }]] }), MSATS));
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [[{ base: 0, ppm: 4000 }, { base: 0, ppm: 4000 }, { base: 0, ppm: 2001 }]] }), MSATS), null);
+        assert.ok(check(makeInvoice('lnbc10u', { r: [[{ base: 0, ppm: 5000 }, { base: 0, ppm: 5000 }]] }), MSATS));
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [[{ base: 0, ppm: 5000 }, { base: 0, ppm: 5001 }]] }), MSATS), null);
+        const fourLow = [{ base: 0, ppm: 0 }, { base: 0, ppm: 0 }, { base: 0, ppm: 0 }, { base: 0, ppm: 0 }];
+        assert.strictEqual(check(makeInvoice('lnbc10u', { r: [fourLow] }), MSATS), null);
+        const threeOk = [{ base: 1000, ppm: 0 }, { base: 1000, ppm: 0 }, { base: 1000, ppm: 0 }];
+        assert.ok(check(makeInvoice('lnbc10u', { r: [threeOk] }), MSATS));
+    });
+
     test(file + ': malformed route hints are refused', () => {
         const one = routeHex([{ base: 1, ppm: 1 }]);
         assert.strictEqual(check(makeInvoice('lnbc10u', { r: [one.slice(0, 100)] }), MSATS), null, 'short hop');

@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const dns = require('dns').promises;
 const bolt11 = require('bolt11');
 const { resolveLnurlInvoice } = require('./lnurlResolve');
+const tipConfirm = require('./tipConfirm');
 const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
 const faucetGuard = require('./faucetGuard');
@@ -1168,7 +1169,7 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
     }
     let decoded;
     try { decoded = bolt11.decode(bolt); } catch (_) { throw new Error('That invoice could not be read.'); }
-    const decodedAmt = Math.floor((decoded.millisatoshis || 0) / 1000);
+    const decodedAmt = tipConfirm.invoiceSatsFromDecoded(decoded);
     if (decodedAmt !== amount) throw new Error('Invoice must be for exactly ' + amount + ' sats.');
     if (decoded.timeExpireDate && decoded.timeExpireDate < Math.floor(Date.now() / 1000)) {
         throw new Error('That invoice has expired. Make a new one.');

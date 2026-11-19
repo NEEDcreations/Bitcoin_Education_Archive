@@ -108,11 +108,18 @@ function setup(opt) {
         querySelectorAll: () => [],
         addEventListener() {},
     };
+    const keysends = [];
+    if (opt.webln) {
+        sandbox.webln = {
+            enable: async () => {},
+            keysend: async (args) => { keysends.push(args); },
+        };
+    }
     vm.createContext(sandbox);
     if (!opt.noChecker) vm.runInContext(read('lightning-tips.js'), sandbox, { filename: 'lightning-tips.js' });
     vm.runInContext(read('beats.js'), sandbox, { filename: 'beats.js' });
     sandbox.lnSendPaymentDirect = async (inv) => { paid.push(inv); };
-    return { sandbox, els, paid };
+    return { sandbox, els, paid, keysends };
 }
 
 function artist(name, sats, invoice) {
@@ -161,6 +168,44 @@ test('with the checker missing, nothing is paid', async () => {
     await t.sandbox.beatsExecuteV4VTip('track1');
     assert.deepStrictEqual(t.paid, []);
     assert.ok(t.els.v4vTipResult.innerHTML.includes('Could not verify this invoice'));
+});
+
+function keysendArtist(name, sats, dest) {
+    return {
+        name, amountSats: sats, canPay: true, canPayLnurl: false, canKeysend: true,
+        keysend: { nodeAddress: dest || '02' + 'ab'.repeat(16), customKey: '', customValue: '' },
+        paymentType: 'keysend',
+    };
+}
+
+test('a split total over the tip amount is refused before any payment', async () => {
+    const a = makeInvoice('lnbc6u');
+    const b = makeInvoice('lnbc6u');
+    const t = setup({ invoices: [artist('ada', 600, a), artist('bob', 600, b)] });
+    await t.sandbox.beatsExecuteV4VTip('track1');
+    assert.deepStrictEqual(t.paid, []);
+    assert.ok(t.els.v4vTipResult.innerHTML.includes('No payment was sent'));
+    assert.ok(!t.els.v4vTipResult.innerHTML.includes('payment(s) sent'));
+});
+
+test('keysend rows over the tip amount are also refused before any payment', async () => {
+    const t = setup({
+        webln: true,
+        invoices: [keysendArtist('ada', 600), keysendArtist('bob', 600)],
+    });
+    await t.sandbox.beatsExecuteV4VTip('track1');
+    assert.deepStrictEqual(t.keysends, []);
+    assert.deepStrictEqual(t.paid, []);
+    assert.ok(t.els.v4vTipResult.innerHTML.includes('No payment was sent'));
+});
+
+test('split amounts that sum to the tip are still paid', async () => {
+    const a = makeInvoice('lnbc6u');
+    const b = makeInvoice('lnbc4u');
+    const t = setup({ invoices: [artist('ada', 600, a), artist('bob', 400, b)] });
+    await t.sandbox.beatsExecuteV4VTip('track1');
+    assert.deepStrictEqual(t.paid, [a, b]);
+    assert.ok(t.els.v4vTipResult.innerHTML.includes('2 payment(s) sent'));
 });
 
 (async () => {

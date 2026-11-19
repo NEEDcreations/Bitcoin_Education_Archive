@@ -4313,6 +4313,20 @@ window.beatsExecuteV4VTip = async function(trackId) {
             return;
         }
 
+        var payableRows = lnurlPayable.concat(keysendable);
+        var splitTotal = 0;
+        var splitOk = true;
+        for (var si = 0; si < payableRows.length; si++) {
+            var rowSats = Number(payableRows[si].amountSats);
+            if (!Number.isSafeInteger(rowSats) || rowSats < 0) { splitOk = false; break; }
+            splitTotal += rowSats;
+        }
+        if (!splitOk || splitTotal > amount) {
+            result.innerHTML = '<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-size:0.82rem;text-align:center;">Split amounts do not match the tip. No payment was sent.</div>';
+            btn.disabled = false; btn.textContent = '⚡ Pay All Artists';
+            return;
+        }
+
         var lnState = null; try { lnState = JSON.parse(localStorage.getItem('btc_ln_state')); } catch(e) {}
         var hasWallet = lnState && ((lnState.method === 'nwc' && lnState.nwcRelay) || (lnState.method === 'webln' && window.webln));
         var hasWebLN  = !!(window.webln);
