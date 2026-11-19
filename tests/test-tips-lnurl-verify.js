@@ -3,6 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const nodeCrypto = require('crypto');
 
 let passed = 0;
 let failed = 0;
@@ -51,12 +52,31 @@ function intWords(n, len) {
     for (let i = 0; i < len; i++) { out.unshift(n % 32); n = Math.floor(n / 32); }
     return out;
 }
+function hexWords(hex) {
+    const bytes = Buffer.from(hex, 'hex');
+    const out = [];
+    let acc = 0;
+    let bits = 0;
+    for (const b of bytes) {
+        acc = (acc << 8) | b;
+        bits += 8;
+        while (bits >= 5) { bits -= 5; out.push((acc >> bits) & 31); }
+        acc &= (1 << bits) - 1;
+    }
+    if (bits > 0) out.push((acc << (5 - bits)) & 31);
+    return out;
+}
+const sha = (str) => nodeCrypto.createHash('sha256').update(Buffer.from(str, 'utf8')).digest('hex');
 function makeInvoice(hrp, opts) {
     opts = opts || {};
     const ts = opts.timestamp != null ? opts.timestamp : Math.floor(Date.now() / 1000);
     let words = intWords(ts, 7);
     // payment hash tag (p = 1), 52 words
     words = words.concat([1], intWords(52, 2), new Array(52).fill(3));
+    (opts.h || []).forEach((hex) => {
+        const hw = hexWords(hex);
+        words = words.concat([23], intWords(hw.length, 2), hw);
+    });
     if (opts.expiry != null) {
         const ew = intWords(opts.expiry, 3);
         words = words.concat([6], intWords(ew.length, 2), ew);
@@ -74,6 +94,9 @@ function load(file, extra) {
         console: { log() {}, warn() {} },
         localStorage: { getItem() { return null; } },
         escapeHtml: (s) => String(s).replace(/[&<>"']/g, ''),
+        crypto: globalThis.crypto,
+        TextEncoder: TextEncoder,
+        Uint8Array: Uint8Array,
     }, extra || {});
     vm.createContext(sb);
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), sb);
@@ -168,7 +191,12 @@ const valid = makeInvoice('lnbc10u');
 });
 
 // ---- flow: the LNURL fallback never pays an invoice that fails the check ----
-async function runFallback(file, pr) {
+const META = JSON.stringify([['text/plain', 'Tip for alice'], ['text/identifier', 'alice@example.com']]);
+const META_HASH = sha(META);
+const goodInvoice = makeInvoice('lnbc10u', { h: [META_HASH] });
+async function runFallback(file, pr, opt) {
+    opt = opt || {};
+    const meta = 'metadata' in opt ? opt.metadata : META;
     const els = {};
     const mk = (id) => (els[id] = els[id] || { id, innerHTML: '', textContent: '', disabled: false, value: '', style: {}, querySelector() { return null; } });
     const paid = [];
@@ -179,10 +207,15 @@ async function runFallback(file, pr) {
         localStorage: { getItem: () => JSON.stringify({ method: 'nwc', nwcRelay: 'wss://relay.example' }) },
         fetch: async (url) => {
             calls.push(url);
-            if (calls.length === 1) return { ok: true, json: async () => ({ callback: 'https://example.com/cb' }) };
+            if (calls.length === 1) {
+                const body = { callback: 'https://example.com/cb' };
+                if (meta !== undefined) body.metadata = meta;
+                return { ok: true, json: async () => body };
+            }
             return { ok: true, json: async () => ({ pr }) };
         },
         setTimeout: () => 0,
+        ...('crypto' in opt ? { crypto: opt.crypto } : {}),
     });
     win.lnSendPaymentDirect = async (inv) => { paid.push(inv); };
     win._renderQRCode = (el, data) => { qr.push(data); };
@@ -193,19 +226,19 @@ async function runFallback(file, pr) {
 
 ['lightning-tips.js.src', 'lightning-tips.js'].forEach((file) => {
     test(file + ': fallback pays a valid invoice for the asked amount', async () => {
-        const out = await runFallback(file, 'lightning:' + valid.toUpperCase());
-        assert.deepStrictEqual(out.paid, [valid]);
+        const out = await runFallback(file, 'lightning:' + goodInvoice.toUpperCase());
+        assert.deepStrictEqual(out.paid, [goodInvoice]);
         assert.ok(out.calls[1].includes('amount=' + MSATS));
     });
 
     test(file + ': fallback refuses invoices that fail the check and shows a fixed error', async () => {
         const hostile = [
-            makeInvoice('lnbc100u'),
-            makeInvoice('lnbc'),
-            makeInvoice('lntb10u'),
-            makeInvoice('lnbcrt10u'),
-            makeInvoice('lnbc10u', { timestamp: Math.floor(NOW / 1000) - 7200 }),
-            valid.slice(0, -1) + (valid.slice(-1) === 'q' ? 'p' : 'q'),
+            makeInvoice('lnbc100u', { h: [META_HASH] }),
+            makeInvoice('lnbc', { h: [META_HASH] }),
+            makeInvoice('lntb10u', { h: [META_HASH] }),
+            makeInvoice('lnbcrt10u', { h: [META_HASH] }),
+            makeInvoice('lnbc10u', { h: [META_HASH], timestamp: Math.floor(NOW / 1000) - 7200 }),
+            goodInvoice.slice(0, -1) + (goodInvoice.slice(-1) === 'q' ? 'p' : 'q'),
             "x');alert(1);('",
             { pr: 'obj' },
         ];
@@ -216,6 +249,61 @@ async function runFallback(file, pr) {
             assert.ok(out.res.includes('No payment was sent'), 'error: ' + String(pr).slice(0, 30));
             assert.ok(!out.res.includes('alert'), 'echo');
         }
+    });
+});
+
+// ---- LUD-06: description hash must match the LNURL-pay metadata ----
+function expectRefused(out, label) {
+    assert.deepStrictEqual(out.paid, [], 'paid: ' + label);
+    assert.deepStrictEqual(out.qr, [], 'qr: ' + label);
+    assert.ok(out.res.includes('No payment was sent'), 'error: ' + label);
+}
+
+['lightning-tips.js.src', 'lightning-tips.js'].forEach((file) => {
+    test(file + ': test encoder writes the h tag the decoder reads', () => {
+        const parsed = load(file).win._tipParseInvoice(goodInvoice, MSATS, NOW);
+        assert.ok(parsed);
+        assert.deepStrictEqual(Array.from(parsed.descHashes), [META_HASH]);
+    });
+
+    test(file + ': metadata check passes only on an exact match', async () => {
+        const { win } = load(file);
+        const parsed = win._tipParseInvoice(goodInvoice, MSATS, NOW);
+        assert.strictEqual(await win._tipMetadataOk(parsed, META), true);
+        assert.strictEqual(await win._tipMetadataOk(parsed, META + ' '), false);
+        assert.strictEqual(await win._tipMetadataOk(parsed, ''), false);
+        assert.strictEqual(await win._tipMetadataOk(parsed, undefined), false);
+        assert.strictEqual(await win._tipMetadataOk(parsed, JSON.parse(META)), false);
+        assert.strictEqual(await win._tipMetadataOk(null, META), false);
+    });
+
+    test(file + ': matching metadata hash pays', async () => {
+        const out = await runFallback(file, goodInvoice);
+        assert.deepStrictEqual(out.paid, [goodInvoice]);
+    });
+
+    test(file + ': mismatched metadata hash never pays', async () => {
+        expectRefused(await runFallback(file, makeInvoice('lnbc10u', { h: [sha(META + 'x')] })), 'mismatch');
+        expectRefused(await runFallback(file, goodInvoice, { metadata: META.replace('alice', 'mallory') }), 'other meta');
+    });
+
+    test(file + ': missing or non-string metadata never pays', async () => {
+        expectRefused(await runFallback(file, goodInvoice, { metadata: undefined }), 'missing');
+        expectRefused(await runFallback(file, goodInvoice, { metadata: '' }), 'empty');
+        expectRefused(await runFallback(file, goodInvoice, { metadata: JSON.parse(META) }), 'array');
+        expectRefused(await runFallback(file, goodInvoice, { metadata: null }), 'null');
+    });
+
+    test(file + ': missing, duplicate or short h tag never pays', async () => {
+        expectRefused(await runFallback(file, makeInvoice('lnbc10u')), 'no h');
+        expectRefused(await runFallback(file, makeInvoice('lnbc10u', { h: [META_HASH, META_HASH] })), 'two h');
+        expectRefused(await runFallback(file, makeInvoice('lnbc10u', { h: [META_HASH.slice(0, 62)] })), 'short h');
+    });
+
+    test(file + ': no crypto.subtle never pays', async () => {
+        expectRefused(await runFallback(file, goodInvoice, { crypto: {} }), 'no subtle');
+        expectRefused(await runFallback(file, goodInvoice, { crypto: undefined }), 'no crypto');
+        expectRefused(await runFallback(file, goodInvoice, { crypto: { subtle: { digest: () => Promise.reject(new Error('x')) } } }), 'digest throws');
     });
 });
 

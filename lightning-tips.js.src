@@ -55,8 +55,8 @@ async function makeInvoice(amountSats, memo) {
 
 // ─── Invoice check ───────────────────────────────────────
 // Reads a BOLT11 invoice enough to confirm it before paying: bech32 checksum,
-// mainnet prefix, amount in msats, and expiry (timestamp + x tag, default 3600s).
-// Returns the normalized invoice, or null when any check fails.
+// mainnet prefix, amount in msats, expiry (timestamp + x tag, default 3600s),
+// and the description hash (h tag) for the LNURL-pay metadata check.
 
 var _B32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 
@@ -87,7 +87,21 @@ function _wordsToInt(words, start, len) {
     return n;
 }
 
-function tipCheckInvoice(pr, expectedMsats, nowMs) {
+function _wordsToHex(words, start, len) {
+    var acc = 0, bits = 0, hex = '';
+    for (var i = 0; i < len; i++) {
+        acc = (acc << 5) | words[start + i];
+        bits += 5;
+        while (bits >= 8) {
+            bits -= 8;
+            hex += ((acc >> bits) & 0xff).toString(16).padStart(2, '0');
+        }
+        acc &= (1 << bits) - 1;
+    }
+    return hex;
+}
+
+function tipParseInvoice(pr, expectedMsats, nowMs) {
     if (typeof pr !== 'string') return null;
     var s = pr.trim();
     if (/^lightning:/i.test(s)) s = s.slice(10);
@@ -125,6 +139,7 @@ function tipCheckInvoice(pr, expectedMsats, nowMs) {
     var timestamp = _wordsToInt(words, 0, 7);
     var expiry = 3600;
     var seenExpiry = false;
+    var descHashes = [];
     var pos = 7;
     while (pos < end) {
         if (pos + 3 > end) return null;
@@ -137,14 +152,44 @@ function tipCheckInvoice(pr, expectedMsats, nowMs) {
             expiry = _wordsToInt(words, pos, len);
             seenExpiry = true;
         }
+        if (type === 23) {
+            // 256-bit hash in 52 words; any other length can never match.
+            descHashes.push(len === 52 ? _wordsToHex(words, pos, 52).slice(0, 64) : '');
+        }
         pos += len;
     }
     var now = typeof nowMs === 'number' ? nowMs : Date.now();
     if ((timestamp + expiry) * 1000 <= now) return null;
-    return s;
+    return { invoice: s, descHashes: descHashes };
+}
+
+function tipCheckInvoice(pr, expectedMsats, nowMs) {
+    var parsed = tipParseInvoice(pr, expectedMsats, nowMs);
+    return parsed ? parsed.invoice : null;
+}
+
+// LUD-06: the invoice's single h tag must equal SHA-256 of the exact metadata
+// string the LNURL-pay endpoint returned. Fails closed when anything is missing.
+async function tipMetadataOk(parsed, metadata) {
+    if (!parsed || !parsed.descHashes || parsed.descHashes.length !== 1) return false;
+    var want = parsed.descHashes[0];
+    if (!want || want.length !== 64) return false;
+    if (typeof metadata !== 'string' || !metadata) return false;
+    var subtle = (typeof crypto !== 'undefined' && crypto) ? crypto.subtle : null;
+    if (!subtle || typeof subtle.digest !== 'function' || typeof TextEncoder !== 'function') return false;
+    var got = '';
+    try {
+        var buf = new Uint8Array(await subtle.digest('SHA-256', new TextEncoder().encode(metadata)));
+        for (var i = 0; i < buf.length; i++) got += buf[i].toString(16).padStart(2, '0');
+    } catch (e) {
+        return false;
+    }
+    return got === want;
 }
 
 window._tipCheckInvoice = tipCheckInvoice;
+window._tipParseInvoice = tipParseInvoice;
+window._tipMetadataOk = tipMetadataOk;
 
 // ─── Tip Overlay ─────────────────────────────────────────
 // Universal overlay for sending tips / payments
@@ -345,7 +390,8 @@ window.executeTip = async function() {
                             var cbResp = await fetch(cbUrl);
                             var cbData = await cbResp.json();
                             if (cbData && cbData.pr) {
-                                var checkedPr = tipCheckInvoice(cbData.pr, msats);
+                                var parsedPr = tipParseInvoice(cbData.pr, msats);
+                                var checkedPr = parsedPr && await tipMetadataOk(parsedPr, lnurlData.metadata) ? parsedPr.invoice : null;
                                 if (!checkedPr) {
                                     res.innerHTML = '<span style="color:#ef4444;">Could not verify the recipient\'s invoice. No payment was sent.</span>';
                                     btn.textContent = '\u26a1 ' + (opts.label || 'Send Tip');
