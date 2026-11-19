@@ -10813,7 +10813,7 @@ function accountDeleteRowHtml(user) {
                 return;
             }
             var s = document.createElement('script');
-            s.src = 'notifications.js?v=20261105_v2497';
+            s.src = '/notifications.js?v=20261105_v2497';
             s.onload = fill;
             document.body.appendChild(s);
         }, 0);
@@ -10907,7 +10907,7 @@ function accountDeleteRowHtml(user) {
                 if (!_qScript) {
                     var _qs = document.createElement('script');
                     var _qv = (document.querySelector('script[src*="quests.js?"]') || {src:''}).src.split('?v=')[1] || '';
-                    _qs.src = 'quests.js' + (_qv ? '?v=' + _qv : '');
+                    _qs.src = '/quests.js' + (_qv ? '?v=' + _qv : '');
                     _qs.onload = function() { setTimeout(_ensureCharityReady, 300); };
                     document.head.appendChild(_qs);
                 } else {
@@ -12791,7 +12791,7 @@ window.togglePushNotifications = function() {
     };
     if (typeof window.enablePushFromTap === 'function') { run(); return; }
     var s = document.createElement('script');
-    s.src = 'notifications.js?v=20261105_v2497';
+    s.src = '/notifications.js?v=20261105_v2497';
     s.onload = run;
     document.body.appendChild(s);
 };

@@ -4,6 +4,17 @@
 <html lang="en">
 <head>
 <script>
+// Same-origin script lookup that matches "/file.js?v=x" and "file.js?v=x".
+// Lazy loaders use root-relative srcs (Nov 19: /app/meetup-box.js was a 404
+// under Nacho Mode's /app/nacho URL); older tags may still be relative.
+window.bqHasScript = function (src) {
+    var s = String(src || '');
+    var rel = s.charAt(0) === '/' ? s.slice(1) : s;
+    if (!rel || /[\"\\]/.test(rel)) return false;
+    return !!(document.querySelector('script[src="/' + rel + '"]') || document.querySelector('script[src="' + rel + '"]'));
+};
+</script>
+<script>
 // Strip trailing slash on deep links before any assets load.
 // Live seo-router only aliases /timechain-tv (no slash); /timechain-tv/ used to serve
 // this HTML with a directory base URL and break relative script/css paths.
@@ -91,7 +102,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
 
-    <link rel="preload" href="/bundle.min.js?v=20261118_v2602" as="script">
+    <link rel="preload" href="/bundle.min.js?v=20261119_v2675" as="script">
 
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image" referrerpolicy="no-referrer">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
@@ -2317,8 +2328,8 @@
     <script src="/popup-stack.js?v=20261106_v2519" defer></script>
 
     <script src="/kill-switch.js?v=20261111_v2551" defer></script>
-    <script src="/ranking.js?v=20261118_v2605" defer></script>    <!-- Critical: needed for initial page render -->
-    <script src="/bundle.min.js?v=20261118_v2602" defer fetchpriority="high"></script>
+    <script src="/ranking.js?v=20261119_v2675" defer></script>    <!-- Critical: needed for initial page render -->
+    <script src="/bundle.min.js?v=20261119_v2675" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="/features.registry.js?v=20261114_v2565" defer></script>
@@ -2333,10 +2344,10 @@
     <script src="/faction-race-prizes.js?v=20261105_v2505" defer></script>
     
     <script src="/miniapp-share.js?v=20261107_v2526" defer></script>
-    <script src="/pvp-lobby-alert.js?v=20261118_v2605" defer></script>
+    <script src="/pvp-lobby-alert.js?v=20261119_v2675" defer></script>
     <script src="/patches.js?v=20261026_v2385" defer></script>
     <script src="/onboarding.js?v=20261114_v2565" defer></script>
-    <script src="/learning-quests.js?v=20261026_v2377" defer></script>
+    <script src="/learning-quests.js?v=20261119_v2675" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
     <script src="/beats-censor.js?v=20261022_v2322"></script>
@@ -2345,27 +2356,30 @@
     (function(){
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
-            'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261106_v2509',
-            'satoshi-favor.js?v=20261116_v2582'
+            '/beats-censor.js?v=20261022_v2322',
+            '/global-chat.js?v=20261119_v2675',
+            '/satoshi-favor.js?v=20261116_v2582'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261118_v2590',
-            'hot-topics.js?v=20261114_citadelwire3',
-            'pvp.js?v=20261118_v2605','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261105_v2506',
-            'scholar.js?v=20261105_v2490','beats.js?v=20261109_v2542',
-            'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261104_v2472',
-            'notifications.js?v=20261106_v2512','gifting.js?v=20261106_v2522','guide.js?v=20261104_v2482','modules.js?v=20261106_v2512',
-            'first-purchase.js?v=20260411','shareable-certs.js?v=20261028_v2410',
-            'sats-vs-bits.js?v=20261030_v2440','tips-integrations.js?v=20260307','wallet-router.js?v=20261104_v2482',
-            'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
-            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
-            'timechain-tv.js?v=20261105_v2502',
-            'learning-quests.js?v=20261026_v2377',
-            'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20261031_v2447'
+            '/quests.js?v=20261119_v2675',
+            '/hot-topics.js?v=20261114_citadelwire3',
+            '/pvp.js?v=20261118_v2605','/pvp-enhance.js?v=20261022_v2285','/nacho-qa.js?v=20261105_v2506',
+            '/scholar.js?v=20261105_v2490','/beats.js?v=20261109_v2542',
+            '/lightning.js?v=20261023_v2323','/lightning-tips.js?v=20261104_v2472',
+            '/notifications.js?v=20261106_v2512','/gifting.js?v=20261106_v2522','/guide.js?v=20261104_v2482','/modules.js?v=20261106_v2512',
+            '/first-purchase.js?v=20260411','/shareable-certs.js?v=20261028_v2410',
+            '/sats-vs-bits.js?v=20261030_v2440','/tips-integrations.js?v=20260307','/wallet-router.js?v=20261104_v2482',
+            '/lightning-prompt.js?v=20260307','/irl-sync.js?v=20261022_v2287',
+            '/meetup-builder.js?v=20260713','/meetup-box.js?v=20260401','/bitcoin-buddy.js?v=20261022_v2252',
+            '/timechain-tv.js?v=20261105_v2502',
+            '/learning-quests.js?v=20261119_v2675',
+            '/proof-of-walk.js?v=20260527_strava_comply','/proof-of-play.js?v=20261031_v2447'
         ];
+        // Root-relative: Nacho Mode and go() move the URL to /app/<id>, where
+        // a relative src would load /app/<file> (404). The relative form is
+        // still checked so a tag added by an older loader is not loaded twice.
         function _injectScript(src) {
-            if (document.querySelector('script[src="' + src + '"]')) return;
+            if (window.bqHasScript(src)) return;
             var s = document.createElement('script');
             s.src = src;
             s.async = true;
@@ -2615,28 +2629,28 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261109_v2542', 'global-chat.js?v=20261106_v2509'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261109_v2542', 'global-chat.js?v=20261106_v2509'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261106_v2509'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261106_v2509'],
-            'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
-            'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261104_v2472'],
-            'pvp':           ['pvp.js?v=20261118_v2605'],
-            'proof-of-play': ['pvp.js?v=20261118_v2605', 'proof-of-play.js?v=20261031_v2447'],
-            'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
-            'trails':        ['modules.js?v=20261106_v2512'],
-            'learning-quests': ['learning-quests.js?v=20261026_v2377'],
-            'quests':        ['quests.js?v=20261118_v2590'],
-            'questhub':      ['quests.js?v=20261118_v2590'],
-            'app':           ['quests.js?v=20261118_v2590'],
-            'timechain-tv':  ['timechain-tv.js?v=20261105_v2502'],
-            'tv':            ['timechain-tv.js?v=20261105_v2502'],
-            'cert':          ['shareable-certs.js?v=20261028_v2410']
+            'bitcoin-beats': ['/beats-censor.js?v=20261022_v2322', '/beats.js?v=20261109_v2542', '/global-chat.js?v=20261119_v2675'],
+            'beats':         ['/beats-censor.js?v=20261022_v2322', '/beats.js?v=20261109_v2542', '/global-chat.js?v=20261119_v2675'],
+            'chat':          ['/beats-censor.js?v=20261022_v2322', '/global-chat.js?v=20261119_v2675'],
+            'dms':           ['/beats-censor.js?v=20261022_v2322', '/global-chat.js?v=20261119_v2675'],
+            'irl-sync':      ['/irl-sync.js?v=20261022_v2287'],
+            'lightning':     ['/lightning.js?v=20261023_v2323', '/lightning-tips.js?v=20261104_v2472'],
+            'pvp':           ['/pvp.js?v=20261118_v2605'],
+            'proof-of-play': ['/pvp.js?v=20261118_v2605', '/proof-of-play.js?v=20261031_v2447'],
+            'proof-of-walk': ['/proof-of-walk.js?v=20260527_strava_comply'],
+            'trails':        ['/modules.js?v=20261106_v2512'],
+            'learning-quests': ['/learning-quests.js?v=20261119_v2675'],
+            'quests':        ['/quests.js?v=20261119_v2675'],
+            'questhub':      ['/quests.js?v=20261119_v2675'],
+            'app':           ['/quests.js?v=20261119_v2675'],
+            'timechain-tv':  ['/timechain-tv.js?v=20261105_v2502'],
+            'tv':            ['/timechain-tv.js?v=20261105_v2502'],
+            'cert':          ['/shareable-certs.js?v=20261028_v2410']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {
             var _toLoad = scripts.filter(function(src) {
-                return !document.querySelector('script[src="' + src + '"]');
+                return !window.bqHasScript(src);
             });
             var _loaded = 0;
             function _onScriptLoad() {

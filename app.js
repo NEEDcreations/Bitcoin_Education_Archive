@@ -3449,7 +3449,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Fallback if unified pipeline not loaded yet
         if (!document.querySelector('script[data-nacho-retry]')) {
             var s = document.createElement('script');
-            s.src = 'nacho-qa.js?v=' + Date.now();
+            s.src = '/nacho-qa.js?v=' + Date.now();
             s.setAttribute('data-nacho-retry', '1');
             document.head.appendChild(s);
         }
@@ -4777,8 +4777,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
             _showCertPage();
             if (typeof window.renderCertVerification !== 'function') {
-                var _certSrc = 'shareable-certs.js?v=20261028_v2410';
-                var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]');
+                var _certSrc = '/shareable-certs.js?v=20261028_v2410';
+                var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]') || document.querySelector('script[src="' + _certSrc.slice(1) + '"]');
                 if (!_existingCertScript) {
                     var _certScript = document.createElement('script');
                     _certScript.src = _certSrc;
@@ -6336,7 +6336,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                     if (!window._popScriptLoading) {
                         window._popScriptLoading = true;
                         var _popS = document.createElement('script');
-                        _popS.src = 'proof-of-play.js?v=20261031_v2447';
+                        _popS.src = '/proof-of-play.js?v=20261031_v2447';
                         _popS.onload = function() { window._popScriptLoading = false; };
                         document.head.appendChild(_popS);
                     }

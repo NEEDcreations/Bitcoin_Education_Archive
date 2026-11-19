@@ -130,8 +130,8 @@
             if (typeof window.enterPVPMode === 'function') window.enterPVPMode();
         }
         if (typeof window.enterPVPMode === 'function') { go(); return; }
-        var src = 'pvp.js?v=20261118_v2605';
-        var existing = document.querySelector('script[src="' + src + '"]');
+        var src = '/pvp.js?v=20261118_v2605';
+        var existing = document.querySelector('script[src="' + src + '"]') || document.querySelector('script[src="' + src.slice(1) + '"]');
         if (existing) { setTimeout(go, 400); return; }
         var s = document.createElement('script');
         s.src = src;

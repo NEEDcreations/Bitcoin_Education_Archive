@@ -7117,14 +7117,14 @@ window._contributeRaidNav = function() {
     // Load trivia bank
     if (typeof TRIVIA_BANK === 'undefined') {
         var ts = document.createElement('script');
-        ts.src = 'data/trivia-bank.js?v=20261030_v2435';
+        ts.src = '/data/trivia-bank.js?v=20261030_v2435';
         ts.onerror = function() { console.warn('[QUEST] Trivia bank failed to load'); };
         document.head.appendChild(ts);
     }
     // Load poll bank
     if (typeof POLL_BANK === 'undefined') {
         var ps = document.createElement('script');
-        ps.src = 'data/poll-bank.js?v=20260528';
+        ps.src = '/data/poll-bank.js?v=20260528';
         ps.onerror = function() { console.warn('[QUEST] Poll bank failed to load'); };
         document.head.appendChild(ps);
     }

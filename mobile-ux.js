@@ -883,7 +883,7 @@ window.dismissIOSA2HS = function() {
 // window.BQ_LEARN_MENU and window.BQ_EXPLORE_APPS from features.registry.js.
 // Wallet taps wait until wallet-router.js has patched go().
 var MOBILE_SHEET_Z = '2100020';
-window.SCHOLAR_SCRIPT = 'scholar.js?v=20261105_v2490';
+window.SCHOLAR_SCRIPT = '/scholar.js?v=20261105_v2490';
 
 function ensureMobileSheetStyle() {
     if (document.getElementById('mobileSheetStyle')) return;
@@ -1079,7 +1079,9 @@ function closeMobileSheets() {
 
 function loadScriptOnce(src, done, onError) {
     if (typeof window._loadDeferred === 'function') window._loadDeferred();
-    var existing = document.querySelector('script[src="' + src + '"]');
+    // Root-relative srcs; a relative tag from an older loader still counts.
+    var rel = String(src || '').charAt(0) === '/' ? String(src).slice(1) : String(src || '');
+    var existing = document.querySelector('script[src="/' + rel + '"]') || document.querySelector('script[src="' + rel + '"]');
     if (existing && existing.getAttribute('data-failed') === '1') {
         existing.remove();
         existing = null;
@@ -1134,8 +1136,8 @@ window.openCertification = function(type) {
         return true;
     }
     if (start()) return;
-    var src = window.SCHOLAR_SCRIPT || 'scholar.js';
-    var existing = document.querySelector('script[src="' + src + '"]') || document.querySelector('script[src^="scholar.js"]');
+    var src = window.SCHOLAR_SCRIPT || '/scholar.js';
+    var existing = document.querySelector('script[src="' + src + '"]') || document.querySelector('script[src^="/scholar.js"]') || document.querySelector('script[src^="scholar.js"]');
     if (existing) {
         existing.addEventListener('load', function() { start(); });
         pollUntil(start, 50);
@@ -1190,7 +1192,7 @@ function openProofOfPlay() {
         window.enterProofOfPlay();
         return;
     }
-    loadScriptOnce('proof-of-play.js?v=20261031_v2447');
+    loadScriptOnce('/proof-of-play.js?v=20261031_v2447');
     pollUntil(function() {
         if (typeof window.enterProofOfPlay !== 'function') return false;
         window.enterProofOfPlay();
@@ -1203,14 +1205,15 @@ function walletRouteReady() {
 }
 
 var WALLET_SCRIPT_SRCS = [
-    'lightning.js?v=20261023_v2323',
-    'lightning-tips.js?v=20261022_v2279',
-    'wallet-router.js?v=20261104_v2482'
+    '/lightning.js?v=20261023_v2323',
+    '/lightning-tips.js?v=20261022_v2279',
+    '/wallet-router.js?v=20261104_v2482'
 ];
 var _walletTapQueued = false;
 
 function removeUnloadedScript(src) {
-    var tag = document.querySelector('script[src="' + src + '"]');
+    var rel = String(src || '').charAt(0) === '/' ? String(src).slice(1) : String(src || '');
+    var tag = document.querySelector('script[src="/' + rel + '"]') || document.querySelector('script[src="' + rel + '"]');
     if (tag && tag.getAttribute('data-loaded') !== '1') tag.remove();
 }
 

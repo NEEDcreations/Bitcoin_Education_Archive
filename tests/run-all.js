@@ -115,6 +115,7 @@ const TESTS = [
     { name: 'Mini app share', file: 'test-miniapp-share.js' },
     { name: 'Certificate fast path', file: 'test-cert-fast-path.js' },
     { name: 'Nacho mobile tap', file: 'test-nacho-mobile-tap.js' },
+    { name: 'Nacho Mode /app/ script paths', file: 'test-nacho-app-paths.js' },
     { name: 'Nacho Quiz Me', file: 'test-nacho-quiz-me.js' },
     { name: 'Nacho quiet on certificate links', file: 'test-nacho-cert-quiet.js' },
     { name: 'Mobile Learn and Explore Apps', file: 'test-mobile-menus.js' },
