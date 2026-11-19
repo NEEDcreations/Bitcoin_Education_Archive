@@ -169,6 +169,7 @@ test('authorPoints is a whole non-negative number', async function () {
         [NaN, 0],
         ['20', 20],
         ['8.9', 8],
+        ['42.7', 42],
         [0, 0],
         [undefined, 0],
     ];
@@ -177,6 +178,26 @@ test('authorPoints is a whole non-negative number', async function () {
         assert.strictEqual(r.added.length, 1, String(pts));
         assert.strictEqual(r.added[0].authorPoints, want, 'points ' + String(pts));
     }
+});
+
+test('authorPoints blanks infinity, a throwing value, and anything over the safe max', async function () {
+    const inf = await submit({ user: { points: Infinity } });
+    assert.strictEqual(inf.added.length, 1);
+    assert.strictEqual(inf.added[0].authorPoints, 0);
+    const ninf = await submit({ user: { points: -Infinity } });
+    assert.strictEqual(ninf.added[0].authorPoints, 0);
+    const nan = await submit({ user: { points: NaN } });
+    assert.strictEqual(nan.added[0].authorPoints, 0);
+    const boom = { valueOf: function () { throw new Error('bad value'); } };
+    const thrown = await submit({ user: { points: boom } });
+    assert.strictEqual(thrown.added.length, 1, 'submit still saved');
+    assert.strictEqual(thrown.added[0].authorPoints, 0);
+    const over = Number.MAX_SAFE_INTEGER + 1;
+    const capped = await submit({ user: { points: over } });
+    assert.strictEqual(capped.added.length, 1);
+    assert.strictEqual(capped.added[0].authorPoints, Number.MAX_SAFE_INTEGER);
+    const str = await submit({ user: { points: '42.7' } });
+    assert.strictEqual(str.added[0].authorPoints, 42);
 });
 
 test('authorName is a string of at most 40 characters', async function () {

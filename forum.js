@@ -151,7 +151,11 @@ function articleAuthorPic(u) {
     return '';
 }
 function articleAuthorPoints(pts) {
-    return Math.max(0, Math.floor(Number(pts)) || 0);
+    var n = (typeof pts === 'number' && Number.isFinite(pts))
+        ? Math.max(0, Math.floor(pts))
+        : (typeof pts === 'string' && Number.isFinite(Number(pts)) ? Math.max(0, Math.floor(Number(pts))) : 0);
+    if (n > Number.MAX_SAFE_INTEGER) n = Number.MAX_SAFE_INTEGER;
+    return n;
 }
 function articleAuthorName(name) {
     return (typeof name === 'string' && name) ? name.slice(0, 40) : 'Anon';
