@@ -6204,7 +6204,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     // First-load and in-app deep links. fromPopState-style openers keep the hash.
     window.bqOpenForumPost = function(postId) {
         var id = String(postId || '');
-        if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) return false;
+        if (!/^[A-Za-z0-9_-]{1,256}$/.test(id)) return false;
         _showAppShell();
         try { history.replaceState({ channel: 'forum', forumPost: id }, '', '#forum/post/' + id); } catch (e) {}
         _openWhenReady(function() {

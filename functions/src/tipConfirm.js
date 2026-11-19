@@ -173,6 +173,17 @@ function normalizePaymentHash(raw) {
     return hash;
 }
 
+// Whole sats from a decoded bolt11 invoice. The msat amount must be an exact
+// multiple of 1000; anything else (or no amount) returns 0.
+function invoiceSatsFromDecoded(decoded) {
+    if (!decoded) return 0;
+    let msats = NaN;
+    if (decoded.millisatoshis != null && decoded.millisatoshis !== '') msats = Number(decoded.millisatoshis);
+    else if (decoded.satoshis != null && decoded.satoshis !== '') msats = Number(decoded.satoshis) * 1000;
+    if (!Number.isSafeInteger(msats) || msats <= 0 || msats % 1000 !== 0) return 0;
+    return Math.min(msats / 1000, 1000000000);
+}
+
 module.exports = {
     TIP_CHALLENGE_XP: TIP_CHALLENGE_XP,
     CHALLENGE_IDS: CHALLENGE_IDS,
@@ -188,4 +199,5 @@ module.exports = {
     interpretLud21: interpretLud21,
     interpretNwcLookup: interpretNwcLookup,
     normalizePaymentHash: normalizePaymentHash,
+    invoiceSatsFromDecoded: invoiceSatsFromDecoded,
 };
