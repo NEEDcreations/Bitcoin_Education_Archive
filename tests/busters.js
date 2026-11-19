@@ -1,4 +1,4 @@
-// Cache-buster pin. This ship is btc-archive-v2611 (Premium checkout paused by kill switch: premium-buy.js 20261118_v2611). Before: btc-archive-v2610 (Premium Manage billing in Settings: ranking.js and premium-buy.js 20261118_v2610).
+// Cache-buster pin. This ship is btc-archive-v2612 (Premium Manage billing from server flag and return-from-Stripe refresh: premium-buy.js 20261118_v2612). Before: btc-archive-v2611 (Premium checkout paused by kill switch: premium-buy.js 20261118_v2611).
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
@@ -51,9 +51,9 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     assert.ok(!html.includes('features.registry.js?v=20261109_v2538'));
 });
 
-test('service worker cache is v2611', () => {
+test('service worker cache is v2612', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2611'"))
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2612'"))
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2582'"));
     assert.ok(!sw.includes('btc-archive-v2581'));
     assert.ok(!sw.includes('btc-archive-v2578'));
@@ -300,6 +300,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261118_v2606'));
     assert.ok(!html.includes('premium-buy.js?v=20261118_v2609'));
     assert.ok(!html.includes('premium-buy.js?v=20261118_v2610'));
+    assert.ok(!html.includes('premium-buy.js?v=20261118_v2611'));
     assert.ok(!html.includes('ranking.js?v=20261114_v2565'));
     assert.ok(!html.includes('ranking.js?v=20261104_v2483'));
     assert.ok(html.includes('/tctv-drip.js?v=20261117_v2588'));
@@ -662,7 +663,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2611');
+    assert.ok(swVersion && swVersion[1] === 'v2612');
     assert.ok(html.includes('faction-race-prizes.js?v=20261105_v2505'));
 });
 

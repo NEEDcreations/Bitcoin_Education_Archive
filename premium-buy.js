@@ -136,7 +136,9 @@
 
     // Card subscribers manage renewal in Stripe's portal (our own portal
     // configuration). Founders and bitcoin prepay have nothing to manage.
-    function isCardSubscriber(st) { return !!(st && st.active && !st.founders && st.autoRenew === true); }
+    // manageBilling comes from the server (card monthly/yearly with a Stripe
+    // subscription); autoRenew is the older signal and still counts.
+    function isCardSubscriber(st) { return !!(st && st.active && !st.founders && (st.manageBilling === true || st.autoRenew === true)); }
     // Kill switch on (getPremiumStatus checkoutPaused): no buy flow at all.
     function pausedNote() {
         var n = el('p', 'margin:8px 0;color:#fcd34d;font-size:.92rem', REASONS.checkout_paused);
@@ -157,9 +159,9 @@
     }
     // Settings > Account: shows a Manage billing card to Premium card
     // subscribers only. Stays hidden for everyone else or on any error.
-    function mountSettingsBilling(holder) {
+    function mountSettingsBilling(holder, known) {
         if (!holder || !signedIn()) return;
-        call('getPremiumStatus', {}).then(function (st) {
+        (known ? Promise.resolve(known) : call('getPremiumStatus', {})).then(function (st) {
             if (!holder.isConnected || !isCardSubscriber(st)) return;
             while (holder.firstChild) holder.removeChild(holder.firstChild);
             holder.appendChild(el('div', 'font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;color:#f7931a', 'Premium'));
@@ -395,6 +397,31 @@
             history.replaceState(history.state, '', u.pathname + (u.search || '') + u.hash);
         } catch (e) {}
     }
+    // Back from Stripe: the webhook may land a few seconds after the redirect.
+    // Re-read status a few times, then refresh Settings and tell the app.
+    var RETURN_POLL_MS = [1500, 3000, 5000, 8000, 12000, 20000];
+    function watchReturn(kind, delays) {
+        var steps = (delays || RETURN_POLL_MS).slice();
+        var announced = false;
+        function publish(st) {
+            try { window.dispatchEvent(new CustomEvent('bq:premium-status', { detail: st })); } catch (e) {}
+            var holder = document.getElementById && document.getElementById('settingsPremiumBilling');
+            if (holder) mountSettingsBilling(holder, st);
+        }
+        function tick() {
+            if (!steps.length) return;
+            var wait = steps.shift();
+            setTimeout(function () {
+                if (!signedIn()) { tick(); return; }
+                call('getPremiumStatus', {}).then(function (st) {
+                    if (kind === 'success' && !(st && st.active)) { tick(); return; }
+                    publish(st);
+                    if (kind === 'success' && !announced) { announced = true; toast('Premium is on.'); }
+                }).catch(function () { tick(); });
+            }, wait);
+        }
+        tick();
+    }
     function boot() {
         var p = '';
         try {
@@ -403,7 +430,7 @@
             var s = (qs.get('src') || '').toLowerCase();
             if (/^[a-z0-9_-]{1,40}$/.test(s)) sessionStorage.setItem('bq_premium_src', s);
         } catch (e) {}
-        if (RETURN_MSG[p]) { toast(RETURN_MSG[p]); stripParams(); return; }
+        if (RETURN_MSG[p]) { toast(RETURN_MSG[p]); stripParams(); if (p === 'success' || p === 'portal') watchReturn(p); return; }
         var pending = '';
         try { pending = sessionStorage.getItem('bq_premium_pending') || ''; } catch (e) {}
         var want = (p === 'buy' || p === 'founders') ? p : pending;
@@ -436,7 +463,7 @@
             setTimeout(wait, 500);
         })();
     }
-    window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS, holdText: holdText, holdMinutesLeft: holdMinutesLeft, isCardSubscriber: isCardSubscriber, mountSettingsBilling: mountSettingsBilling, render: render };
+    window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS, holdText: holdText, holdMinutesLeft: holdMinutesLeft, isCardSubscriber: isCardSubscriber, mountSettingsBilling: mountSettingsBilling, render: render, watchReturn: watchReturn, boot: boot };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
 })();

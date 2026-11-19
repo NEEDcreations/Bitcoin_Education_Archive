@@ -1095,6 +1095,50 @@ function invoicePaid(orderId, amount, extra) {
     return { id: 'evt_' + crypto.randomBytes(4).toString('hex'), type: 'invoice.paid', livemode: false, data: { object: Object.assign({ id: 'in_' + crypto.randomBytes(3).toString('hex'), currency: 'usd', amount_paid: amount, customer: 'cus_1', billing_reason: 'subscription_cycle', parent: { subscription_details: { subscription: 'sub_1', metadata: { orderId: orderId } } }, lines: { data: [{ period: { end: periodEnd } }] } }, extra || {}) } };
 }
 
+test('QA P2: invoice.paid before checkout.session.completed still marks the card subscription renewing; Manage billing shows', async function () {
+    const a = setup();
+    const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old'));
+    assert.strictEqual((await stripePost(a, invoicePaid(out.orderId, 475, { billing_reason: 'subscription_create' }))).body.outcome, 'granted');
+    let e = a.db.store.get('premium_entitlements/old');
+    assert.strictEqual(e.autoRenew, true);
+    assert.strictEqual(e.stripeSubscriptionStatus, 'active');
+    assert.strictEqual(e.stripeSubscriptionId, 'sub_1');
+    assert.strictEqual((await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 475 }))).body.outcome, 'already_paid');
+    e = a.db.store.get('premium_entitlements/old');
+    assert.strictEqual(e.autoRenew, true);
+    let st = await a.h.getPremiumStatus({}, ctx('old'));
+    assert.strictEqual(st.autoRenew, true);
+    assert.strictEqual(st.manageBilling, true);
+    // Turning renewal off later still wins, and billing stays reachable.
+    const upd = { id: 'evt_p2u', type: 'customer.subscription.updated', livemode: false, data: { object: { id: 'sub_1', status: 'active', cancel_at_period_end: true, metadata: { orderId: out.orderId } } } };
+    assert.strictEqual((await stripePost(a, upd)).body.outcome, 'not_renewing');
+    st = await a.h.getPremiumStatus({}, ctx('old'));
+    assert.strictEqual(st.autoRenew, false);
+    assert.strictEqual(st.manageBilling, true);
+    // A later renewal invoice does not flip it back on.
+    await stripePost(a, invoicePaid(out.orderId, 475));
+    assert.strictEqual(a.db.store.get('premium_entitlements/old').autoRenew, false);
+});
+
+test('QA P2: completion first still sets status; an earlier subscription event is not overridden; no billing for Founders or non-Premium', async function () {
+    const a = setup();
+    const out = await a.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('old'));
+    await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 4750 }));
+    const e = a.db.store.get('premium_entitlements/old');
+    assert.strictEqual(e.autoRenew, true);
+    assert.strictEqual(e.stripeSubscriptionStatus, 'active');
+    assert.strictEqual((await a.h.getPremiumStatus({}, ctx('old'))).manageBilling, true);
+    // Subscription event (renewal off) lands before the first grant.
+    const b = setup();
+    const o2 = await b.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old'));
+    const early = { id: 'evt_p2e', type: 'customer.subscription.updated', livemode: false, data: { object: { id: 'sub_1', status: 'active', cancel_at_period_end: true, metadata: { orderId: o2.orderId } } } };
+    await stripePost(b, early);
+    await stripePost(b, invoicePaid(o2.orderId, 475, { billing_reason: 'subscription_create' }));
+    assert.strictEqual(b.db.store.get('premium_entitlements/old').autoRenew, false);
+    // Nothing bought: no billing.
+    assert.strictEqual((await setup().h.getPremiumStatus({}, ctx('old'))).manageBilling, false);
+});
+
 test('Red Team 1: forged X-Forwarded-For does not reset the per-IP limit; Turnstile gets the same IP', async function () {
     const a = setup();
     for (let i = 0; i < 10; i++) {

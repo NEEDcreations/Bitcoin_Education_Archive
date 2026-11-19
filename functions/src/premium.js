@@ -337,6 +337,12 @@ function summarize(ent, nowMs) {
     };
 }
 
+function manageBillingFor(ent, s) {
+    const e = ent || {};
+    return !!(s && s.active && !s.founders && e.stripeCustomerId && e.stripeSubscriptionId &&
+        (e.subscriptionPlan === 'monthly' || e.subscriptionPlan === 'yearly'));
+}
+
 function isPremiumActive(ent, nowMs) { return summarize(ent, nowMs).active; }
 
 // Paid Premium (including Founders and the Family buyer's account) can claim
@@ -1528,16 +1534,30 @@ function createPremiumHandlers(deps) {
         writeEntitlement(tx, r);
     }
 
+    // First grant on a new card subscription: mark it renewing unless a
+    // subscription event for this same subscription already set the state
+    // (customer.subscription.updated/deleted stay authoritative). invoice.paid
+    // usually lands before checkout.session.completed, so both grant paths use it.
+    function markRenewingOnGrant(r, subId, trialing) {
+        // A status with no subscription id came from an early subscription event
+        // for this order; with an id it must be this same subscription.
+        const known = !!r.ent.stripeSubscriptionStatus && (!r.ent.stripeSubscriptionId || (!!subId && r.ent.stripeSubscriptionId === subId));
+        if (known) return;
+        if (r.ent.trialReused === true || r.ent.frozenReason === 'trial_reused') return;
+        r.ent.autoRenew = true;
+        r.ent.stripeSubscriptionStatus = trialing ? 'trialing' : 'active';
+    }
+
     function grantSubscriptionFromOrder(tx, r, g, periodEndSec) {
         const o = r.order;
         const orderId = g.orderId;
         setStart(r, o);
+        markRenewingOnGrant(r, g.subId || r.ent.stripeSubscriptionId || null, !!o.trialEndMs && r.nowMs < Number(o.trialEndMs));
         if (g.customerId) r.ent.stripeCustomerId = g.customerId;
         if (g.subId) r.ent.stripeSubscriptionId = g.subId;
         else r.ent.stripeSubscriptionId = r.ent.stripeSubscriptionId || null;
         r.ent.subscriptionPlan = o.plan;
         r.ent.subscriptionOrderId = orderId;
-        r.ent.autoRenew = true;
         if (o.trialEndMs) { r.ent.trialUsed = true; if (o.trialDays > 0) r.ent.trialUntilMs = o.trialEndMs; }
         const stashed = Number(o.trialInvoicePeriodEnd) || 0;
         const provisional = (o.trialEndMs || pricing.addMonths(r.nowMs, o.interval === 'year' ? 12 : 1)) + SUB_GRACE_MS;
@@ -1808,6 +1828,7 @@ function createPremiumHandlers(deps) {
                         invoicePatch: invoicePatch,
                     }, periodEnd);
                 }
+                if (o.status !== 'paid') markRenewingOnGrant(r, subId, false);
                 r.ent.stripeSubscriptionId = subId;
                 if (customerId) r.ent.stripeCustomerId = customerId;
                 r.ent.subscriptionPlan = o.plan;
@@ -2232,6 +2253,9 @@ function createPremiumHandlers(deps) {
             founders: s.founders,
             expiresAtMs: s.expiresAtMs,
             autoRenew: s.autoRenew,
+            // Card monthly/yearly with a Stripe subscription can open the portal,
+            // even if a renewal flag is missing or renewal was turned off.
+            manageBilling: manageBillingFor(entSnap.exists ? entSnap.data() : null, s),
             startsAtMs: s.startsAtMs,
             pendingStart: s.pendingStart,
             inTrial: s.inTrial,

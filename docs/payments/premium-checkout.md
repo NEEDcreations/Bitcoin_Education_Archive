@@ -343,3 +343,25 @@ entitlement, allowance and per-account rate docs are deleted, as before.
   gated function), with the same note, in the dialog and in Settings.
 - Staging: `getPremiumStatus` redeployed; preview rebuilt with `btc-archive-v2611`
   (premium-buy.js `20261118_v2611`; ranking.js stays `20261118_v2610`).
+
+## Round 9 (Nov 18, QA P2 and return from Stripe)
+
+- **Root cause:** with charge at purchase, Stripe sends `invoice.paid` before
+  `checkout.session.completed`. The `invoice.paid` first-grant path set the
+  plan and paid time but not `autoRenew` or `stripeSubscriptionStatus`, and the
+  later completion returned `already_paid`, so the flags were never set.
+- **Fix:** both grant paths mark a new card subscription renewing
+  (`autoRenew: true`, `stripeSubscriptionStatus: 'active'`, or `'trialing'`
+  during a trial) unless a `customer.subscription.updated/deleted` for that
+  subscription already set the state. Later subscription events still win.
+- **getPremiumStatus `manageBilling`:** true for active, non-Founders card
+  monthly/yearly with a Stripe customer and subscription, even when renewal is
+  off. The buy dialog and Settings show Manage billing on it (or `autoRenew`).
+- **Return from Stripe:** `success_url` already carries `?premium=success`; the
+  client shows the toast and then tidies the URL. It now re-reads status a few
+  times (1.5 s to 20 s), and once Premium is active it says "Premium is on.",
+  refreshes the Settings billing card and fires `bq:premium-status`. A portal
+  return refreshes once.
+- Staging: `premiumStripeWebhook` and `getPremiumStatus` redeployed; preview
+  `btc-archive-v2612` (premium-buy.js `20261118_v2612`). No QA entitlements
+  backfilled (the affected ones are refunded/frozen or deleted).

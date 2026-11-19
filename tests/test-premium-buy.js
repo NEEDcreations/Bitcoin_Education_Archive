@@ -36,7 +36,7 @@ test('kill switch and other server reasons have friendly messages', function () 
     });
 });
 test('loaded on index.html and 404.html with the same buster', function () {
-    const tag = '<script src="/premium-buy.js?v=20261118_v2611" defer></script>';
+    const tag = '<script src="/premium-buy.js?v=20261118_v2612" defer></script>';
     assert.ok(index.includes(tag));
     assert.ok(notFound.includes(tag));
     assert.strictEqual(index, notFound);
@@ -212,6 +212,45 @@ async function mountWith(status, fail) {
         const box = fakeNode('div');
         T.render(box, { active: false, checkoutOpen: true, checkoutPaused: false, offers: [{ plan: 'yearly', rail: 'card', amountCents: 5000 }] }, 'buy');
         assert.ok(texts(box).indexOf('Continue to payment') !== -1);
+    });
+    await atest('QA P2: server manageBilling shows the card even without autoRenew', async function () {
+        assert.strictEqual(T.isCardSubscriber({ active: true, founders: false, autoRenew: false, manageBilling: true }), true);
+        assert.strictEqual(T.isCardSubscriber({ active: true, founders: true, manageBilling: true }), false);
+        const r = await mountWith({ active: true, founders: false, autoRenew: false, manageBilling: true });
+        assert.strictEqual(r.holder.hidden, false);
+    });
+    await atest('return from Stripe: polls status until Premium is on, then refreshes Settings and tells the app', async function () {
+        const seen = [];
+        const holder = fakeNode('div');
+        ctx.document.createElement = fakeNode;
+        ctx.document.getElementById = function (id) { return id === 'settingsPremiumBilling' ? holder : null; };
+        ctx.CustomEvent = function (n, o) { this.type = n; this.detail = o && o.detail; };
+        ctx.dispatchEvent = function (ev) { seen.push(ev.type); };
+        ctx.auth = { currentUser: { isAnonymous: false } };
+        let n = 0;
+        const calls = [];
+        ctx.firebase = { functions: function () { return { httpsCallable: function (name) { return function () { calls.push(name); if (name === 'getPremiumStatus') { n++; return Promise.resolve({ data: n < 3 ? { active: false } : { active: true, founders: false, manageBilling: true } }); } return Promise.resolve({ data: {} }); }; } }; } };
+        toasts.length = 0;
+        T.watchReturn('success', [0, 0, 0, 0]);
+        await new Promise(function (r) { setTimeout(r, 60); });
+        assert.strictEqual(n, 3);
+        assert.deepStrictEqual(seen, ['bq:premium-status']);
+        assert.ok(toasts.indexOf('Premium is on.') !== -1);
+        assert.strictEqual(holder.hidden, false);
+    });
+    await atest('return from Stripe: gives up quietly after the last retry', async function () {
+        let n = 0;
+        ctx.firebase = { functions: function () { return { httpsCallable: function () { return function () { n++; return Promise.resolve({ data: { active: false } }); }; } }; } };
+        toasts.length = 0;
+        T.watchReturn('success', [0, 0]);
+        await new Promise(function (r) { setTimeout(r, 40); });
+        assert.strictEqual(n, 2);
+        assert.strictEqual(toasts.indexOf('Premium is on.'), -1);
+    });
+    await atest('success and portal returns start the status watch; success_url carries ?premium=success', async function () {
+        assert.ok(/if \(p === 'success' \|\| p === 'portal'\) watchReturn\(p\)/.test(js));
+        const srv = fs.readFileSync(path.join(root, 'functions/src/premium.js'), 'utf8');
+        assert.ok(srv.indexOf("success_url: back + '?premium=success&order=' + orderId") !== -1);
     });
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);
