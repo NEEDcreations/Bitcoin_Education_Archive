@@ -9034,7 +9034,7 @@ function isCleanText(text) {
 function fEsc(str) { return typeof escapeHtml === 'function' ? escapeHtml(str) : String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // Item ids accepted by the list renderers and the delegated click handler.
-var FORUM_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+var FORUM_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 function forumIdOk(id) { return typeof id === 'string' && FORUM_ID_RE.test(id); }
 function forumIdSkip(where) { try { console.warn('[forum] skipped an item with an unsupported id (' + where + ')'); } catch (e) {} }
 // Profile link markup for an author. Falls back to plain text when the uid is not usable.
@@ -11003,13 +11003,15 @@ function snRenderFeedCards(items) {
     var h = '';
     for (var i = 0; i < items.length; i++) {
         var item = items[i];
+        var snId = parseInt(item && item.id, 10);
+        if (isNaN(snId)) continue;
         var ago = snTimeAgo(item.createdAt);
         var domain = '';
         if (item.url) {
             try { domain = new URL(item.url).hostname.replace('www.',''); } catch(e) {}
         }
         var subName = (item.sub && item.sub.name) ? item.sub.name : '';
-        h += '<div onclick="snOpenPost(' + item.id + ')" style="cursor:pointer;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
+        h += '<div onclick="snOpenPost(' + snId + ')" style="cursor:pointer;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
         h += '<div style="display:flex;gap:12px;align-items:flex-start;">';
         // Sats badge
         h += '<div style="min-width:52px;text-align:center;padding:6px 0;">';
@@ -11038,7 +11040,7 @@ function snRenderFeedCards(items) {
         }
         h += '</div></div>';
         // View on SN link
-        h += '<a href="https://stacker.news/items/' + item.id + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="position:absolute;top:12px;right:12px;color:var(--text-muted);font-size:0.8rem;text-decoration:none;opacity:0.5;padding:4px;" onmouseover="this.style.opacity=\'1\';this.style.color=\'var(--accent)\'" onmouseout="this.style.opacity=\'0.5\';this.style.color=\'var(--text-muted)\'">\u2197</a>';
+        h += '<a href="https://stacker.news/items/' + snId + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="position:absolute;top:12px;right:12px;color:var(--text-muted);font-size:0.8rem;text-decoration:none;opacity:0.5;padding:4px;" onmouseover="this.style.opacity=\'1\';this.style.color=\'var(--accent)\'" onmouseout="this.style.opacity=\'0.5\';this.style.color=\'var(--text-muted)\'">\u2197</a>';
         h += '</div></div>';
     }
     return h;
@@ -11048,6 +11050,8 @@ function snRenderFeedCards(items) {
 window.snOpenPost = function(id) {
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
+    id = parseInt(id, 10);
+    if (isNaN(id)) return;
     fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">' +
         '<div style="text-align:center;padding:60px 0;color:var(--text-muted);">' +
             '<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>' +
@@ -11107,8 +11111,9 @@ function snRenderPost(fc, item) {
     }
 
     // View on SN link
+    var snItemId = parseInt(item.id, 10);
     h += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">';
-    h += '<a href="https://stacker.news/items/' + item.id + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);font-size:0.75rem;text-decoration:none;">View on stacker.news ↗</a>';
+    if (!isNaN(snItemId)) h += '<a href="https://stacker.news/items/' + snItemId + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);font-size:0.75rem;text-decoration:none;">View on stacker.news ↗</a>';
     h += '</div>';
 
     h += '</div>'; // end post card

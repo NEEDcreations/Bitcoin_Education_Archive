@@ -19,16 +19,26 @@ function test(name, fn) {
     });
 }
 
-const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const ODD_IDS = [
     "x' onerror='MARKQ1",
     '"><img src=x onerror=MARKQ2>',
     "a');MARKQ3();//",
     '<svg/onload=MARKQ4>',
     'MARKQ5 with space',
-    'MARKQ6' + 'a'.repeat(64),
+    'MARKQ6' + 'a'.repeat(123),
     '',
 ];
+// Topic mirror ids from the longest channel names must still render. No real
+// channel name is 37 chars, so the 66-char case uses a 21-char tail.
+const LONG_SHAPES = [
+    ['chaumian_e-cash_and_blind_signatures', 'AbCdEfGhIjKlMnOpQrSt'],
+    ['chaumian_e-cash_and_blind_signatures', 'AbCdEfGhIjKlMnOpQrStu'],
+    ['coin_mixing_coinjoin_coin_control_utxo', 'AbCdEfGhIjKlMnOpQrSt'],
+    ['human_rights__social_justice_and_freedo', 'AbCdEfGhIjKlMnOpQrSt'],
+];
+const LONG_POST_IDS = LONG_SHAPES.map(function(x) { return 'tdforum_' + x[0] + '_' + x[1]; });
+const LONG_REPLY_IDS = LONG_SHAPES.map(function(x) { return 'tdreply_' + x[0] + '_' + x[1]; });
 const ODD_AUTHOR = '"><img src=x onerror=MARKQ7>';
 
 // ---- tiny markup reader: start tags with quoted attributes ----
@@ -311,6 +321,71 @@ test('article comments skip odd ids and keep valid ones', async function() {
     assert.deepStrictEqual(ids, ['c_ok']);
     const del = tags.find(function(t) { return t.attrs['data-forum-action'] === 'delete-reply'; });
     assert.strictEqual(del.attrs['data-parent'], 'art_1');
+});
+
+test('topic mirror ids of 65-68 chars render and route; 129 chars is skipped', async function() {
+    const tooLong = 'tdforum_' + 'a'.repeat(121);
+    assert.strictEqual(tooLong.length, 129);
+    assert.deepStrictEqual(LONG_POST_IDS.map(function(id) { return id.length; }), [65, 66, 67, 68]);
+    assert.deepStrictEqual(LONG_REPLY_IDS.map(function(id) { return id.length; }), [65, 66, 67, 68]);
+    const store = { forum_posts: {}, forum_replies: {} };
+    LONG_POST_IDS.forEach(function(id, i) { store.forum_posts[id] = { title: 'Mirror ' + i, body: 'b', authorId: 'user_' + i, authorName: 'M' + i, createdAt: 1 }; });
+    store.forum_posts[tooLong] = { title: 'Too long', body: 'b', authorId: 'user_9', authorName: 'Z', createdAt: 1 };
+    const thread = LONG_POST_IDS[3];
+    LONG_REPLY_IDS.forEach(function(id, i) { store.forum_replies[id] = { postId: thread, authorId: 'user_' + i, authorName: 'R' + i, body: 'mirrored ' + i }; });
+    store.forum_replies['tdreply_' + 'b'.repeat(121)] = { postId: thread, authorId: 'user_9', authorName: 'Z', body: 'too long' };
+
+    const f = loadForum(store);
+    assert.strictEqual(f.win._forumIdOk('a'.repeat(128)), true);
+    assert.strictEqual(f.win._forumIdOk('a'.repeat(129)), false);
+    await f.win.forumLoadPosts();
+    await flush();
+    const listTags = assertClean(f.els.forumPosts.innerHTML);
+    const views = listTags.filter(function(t) { return t.attrs['data-forum-action'] === 'view-post'; }).map(function(t) { return t.attrs['data-id']; });
+    assert.deepStrictEqual(views.sort(), LONG_POST_IDS.slice().sort());
+    assert.strictEqual(f.els.forumPosts.innerHTML.indexOf('Too long'), -1);
+
+    await f.win.forumViewPost(thread, true);
+    await flush();
+    const tags = assertClean(f.els.forumReplies.innerHTML);
+    const votes = tags.filter(function(t) { return t.attrs['data-forum-action'] === 'vote-reply'; }).map(function(t) { return t.attrs['data-id']; });
+    assert.deepStrictEqual(votes.sort(), LONG_REPLY_IDS.slice().sort());
+    assert.strictEqual(f.els.forumReplies.innerHTML.indexOf('too long'), -1);
+
+    const fc = f.els.forumContainer;
+    assert.strictEqual((fc.listeners.click || []).length, 1);
+    const calls = [];
+    f.win.forumViewPost = function(id) { calls.push(['view', id]); };
+    f.win.forumVotePost = function(id) { calls.push(['votePost', id]); };
+    f.win.forumVoteReply = function(id) { calls.push(['vote', id]); };
+    f.win.forumDeleteReply = function(id, parent) { calls.push(['delete', id, parent]); };
+    const handler = fc.listeners.click[0];
+    const pick = function(list, action, id) {
+        return list.find(function(t) { return t.attrs['data-forum-action'] === action && t.attrs['data-id'] === id; });
+    };
+    const expected = [];
+    LONG_POST_IDS.forEach(function(id) {
+        handler.call(fc, { target: elFrom(pick(listTags, 'view-post', id).attrs) });
+        handler.call(fc, { target: elFrom(pick(listTags, 'vote-post', id).attrs) });
+        expected.push(['view', id], ['votePost', id]);
+    });
+    LONG_REPLY_IDS.forEach(function(id) {
+        handler.call(fc, { target: elFrom(pick(tags, 'vote-reply', id).attrs) });
+        handler.call(fc, { target: elFrom(pick(tags, 'delete-reply', id).attrs) });
+        expected.push(['vote', id], ['delete', id, thread]);
+    });
+    handler.call(fc, { target: elFrom({ 'data-forum-action': 'vote-reply', 'data-id': tooLong }) });
+    assert.deepStrictEqual(calls, expected);
+});
+
+test('Stacker News item ids are numbers before they reach markup', function() {
+    const forum = read('forum.js');
+    assert.ok(forum.includes('var snId = parseInt(item && item.id, 10);'));
+    assert.ok(forum.includes("onclick=\"snOpenPost(' + snId + ')\""));
+    assert.ok(forum.includes("stacker.news/items/' + snId + '\""));
+    assert.ok(forum.includes("stacker.news/items/' + snItemId + '\""));
+    assert.ok(!forum.includes("snOpenPost(' + item.id"));
+    assert.ok(!forum.includes("stacker.news/items/' + item.id"));
 });
 
 test('the tip and double-tap helpers find forum buttons by data attributes', function() {
