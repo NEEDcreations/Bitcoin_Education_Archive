@@ -13,7 +13,33 @@ function offsetDateKey(nowMs) {
     return shifted.toISOString().slice(0, 10);
 }
 
+// Calendar date in America/New_York, including daylight saving.
+// Practice limits and other midnight-ET resets use this, not offsetDateKey
+// (which is the 5 AM UTC reward day).
+function nyDateKey(nowMs) {
+    const ms = Number(nowMs);
+    const when = new Date(Number.isFinite(ms) ? ms : Date.now());
+    if (Number.isNaN(when.getTime())) return '';
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(when);
+    const get = function (type) {
+        for (let i = 0; i < parts.length; i++) {
+            if (parts[i].type === type) return parts[i].value;
+        }
+        return '';
+    };
+    const y = get('year');
+    const m = get('month');
+    const d = get('day');
+    return y && m && d ? y + '-' + m + '-' + d : '';
+}
+
 module.exports = {
     RESET_HOUR_UTC: RESET_HOUR_UTC,
     offsetDateKey: offsetDateKey,
+    nyDateKey: nyDateKey,
 };

@@ -677,6 +677,27 @@ function applyAward(mem, uid, data, opts) {
     };
 }
 
+// Win and played badges must match server-counted finished matches.
+// Win, played, and best-streak badges must match server-counted fields.
+const PVP_WIN_BADGES = { pvp_first: 1, pvp_5: 5, pvp_25: 25, pvp_50: 50, pvp_100: 100 };
+const PVP_STREAK_BADGES = { pvp_win_streak_3: 3, pvp_win_streak_5: 5 };
+const PVP_PLAYED_BADGES = { pvp_played_1: 1, pvp_played_10: 10, pvp_played_50: 50 };
+
+function pvpBadgeNeed(badgeId) {
+    const id = String(badgeId || '');
+    if (PVP_WIN_BADGES[id] != null) return { field: 'pvpWins', need: PVP_WIN_BADGES[id] };
+    if (PVP_PLAYED_BADGES[id] != null) return { field: 'pvpPlayed', need: PVP_PLAYED_BADGES[id] };
+    if (PVP_STREAK_BADGES[id] != null) return { field: 'pvpBestStreak', need: PVP_STREAK_BADGES[id] };
+    return null;
+}
+
+function pvpBadgeAllowed(badgeId, user) {
+    const need = pvpBadgeNeed(badgeId);
+    if (!need) return true;
+    const have = Number(user && user[need.field]) || 0;
+    return have >= need.need;
+}
+
 module.exports = {
     DAILY_CAP: DAILY_CAP,
     FLEX_IDS: FLEX_IDS,
@@ -691,4 +712,6 @@ module.exports = {
     claimId: claimId,
     countDocId: countDocId,
     applyAward: applyAward,
+    pvpBadgeNeed: pvpBadgeNeed,
+    pvpBadgeAllowed: pvpBadgeAllowed,
 };

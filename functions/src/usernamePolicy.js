@@ -2,6 +2,8 @@
 
 // Username checks shared by setUsername. No Firebase. The client is not trusted.
 
+const reservedNames = require('./reservedNames');
+
 const MIN_LEN = 3;
 const MAX_LEN = 20;
 // No whitespace of any kind (spaces break @mentions and Telegram tags).
@@ -70,6 +72,11 @@ function normalizeReserved(name) {
 }
 
 function reservedName(name) {
+    // phil, rufus, bq, and 603btc: whole name only, after the same folding the
+    // PvP guest battle-name check uses. Substring names like philosopher,
+    // bqfan, and rufusfan stay allowed. Existing reserved words below keep
+    // their current exact / substring rules.
+    if (reservedNames.isExactReservedStaffName(name)) return true;
     const n = normalizeReserved(name);
     if (!n) return false;
     if (RESERVED_EXACT.indexOf(n) !== -1) return true;
