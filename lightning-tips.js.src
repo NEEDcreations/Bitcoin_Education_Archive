@@ -13,6 +13,22 @@
 var TIP_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 function tipIdOk(v) { return typeof v === 'string' && TIP_ID_RE.test(v); }
 window._tipIdOk = tipIdOk;
+var TIP_BOLT11_RE = /^ln(?:bc|tb|bcrt)[qpzry9x8gf2tvdw0s3jn54khce6mua7l1]+$/i;
+function tipBolt11Ok(v) { return typeof v === 'string' && v.length >= 20 && v.length <= 2048 && TIP_BOLT11_RE.test(v); }
+window._tipBolt11Ok = tipBolt11Ok;
+function tipBindCopy(box) {
+    if (!box || !box.addEventListener || box._tipCopyBound) return;
+    box._tipCopyBound = true;
+    box.addEventListener('click', function(ev) {
+        var t = ev.target;
+        var el = t && t.closest ? t.closest('[data-tip-action]') : null;
+        if (!el || !box.contains(el) || el.getAttribute('data-tip-action') !== 'copy-inv') return;
+        var inv = box._tipInvoice;
+        if (!tipBolt11Ok(inv)) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(inv);
+        if (typeof showToast === 'function') showToast('\uD83D\uDCCB Invoice copied!');
+    });
+}
 function tipBindDm(box, opts, amount) {
     if (!box || !box.addEventListener || box._tipDmBound) return;
     box._tipDmBound = true;
@@ -384,12 +400,21 @@ function confirmServerTip(opts) {
 function showInvoiceCopy(bolt11, amount, opts) {
     var btn = document.getElementById('tipPayBtn');
     var res = document.getElementById('tipResult');
+    if (!tipBolt11Ok(bolt11)) {
+        res.innerHTML = '<span style="color:#ef4444;">\u26a0\ufe0f That invoice could not be used. Please try again.</span>';
+        btn.textContent = '\u26a1 ' + ((opts && opts.label) || 'Send Tip');
+        btn.disabled = false;
+        return;
+    }
+    bolt11 = String(bolt11);
+    res._tipInvoice = bolt11;
+    tipBindCopy(res);
     btn.style.display = 'none';
 
     res.innerHTML = '<div style="padding:14px;background:var(--card-bg);border:1px solid var(--accent);border-radius:12px;margin-top:8px;">' +
         '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;">Invoice for ' + amount.toLocaleString() + ' sats</div>' +
         '<div id="tipInvQR" style="width:180px;height:180px;margin:0 auto 10px;"></div>' +
-        '<div style="padding:8px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.6rem;color:var(--text);word-break:break-all;max-height:70px;overflow-y:auto;line-height:1.4;cursor:pointer;margin-bottom:8px;" onclick="navigator.clipboard.writeText(\'' + bolt11 + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')">' + bolt11.substr(0, 120) + '…</div>' +
+        '<div style="padding:8px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.6rem;color:var(--text);word-break:break-all;max-height:70px;overflow-y:auto;line-height:1.4;cursor:pointer;margin-bottom:8px;" data-tip-action="copy-inv">' + escapeHtml(bolt11.substr(0, 120)) + '…</div>' +
         '<button id="tipCopyInvBtn" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📋 Copy Invoice</button>' +
         '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:6px;text-align:center;">Scan QR or paste invoice into your Lightning wallet</div>' +
     '</div>';
