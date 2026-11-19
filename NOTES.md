@@ -139,7 +139,7 @@ Measured on this branch (gzip -9):
 
 | Item | Raw | Gzip |
 |---|---|---|
-| `citadel-shop.js` (new, lazy) | 26,204 B | about 8.0 KB (budget 30 KB) |
+| `citadel-shop.js` (new, lazy) | 26,796 B | 8,326 B, about 8.1 KB (budget 30 KB) |
 | `quests.js` change (Citadel loader + skeleton) | +535 B | +192 B |
 | `index.html` / `404.html` | 0 B (pin text only, same length) | 0 B |
 
@@ -147,13 +147,13 @@ Measured on this branch (gzip -9):
    the bundle, `build.sh` or the SW precache. The Citadel tab loads it on its
    first open. `quests.js` (itself lazy) grows by 192 B gzip for the loader, so
    the first app load is 0 KB heavier.
-2. **30 KB compressed:** met, about 8.0 KB gzip. Tested.
+2. **30 KB compressed:** met, about 8.1 KB gzip. Tested.
 3. **Placeholder within 100 ms:** the tab draws a skeleton synchronously in
    `_renderCitadelTab` before the script is requested, and the shop's first paint
    is synchronous from the saved user doc before any server call. Not timed in
    a real browser on a slow phone; needs a check on staging.
 4. **Art:** no raster art exists yet. The shop uses inline Lucide SVG icons
-   (inside the 8 KB), so nothing loads before the tab opens. When part art
+   (inside the 8.1 KB), so nothing loads before the tab opens. When part art
    arrives it must be WebP with width and height set, 15 KB or less each,
    150 KB or less above the fold, `loading="lazy"` below the fold. Not built.
 5. **No layout jumps:** skeleton blocks match the shop sections; the progress
