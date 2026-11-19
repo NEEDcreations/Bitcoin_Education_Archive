@@ -54,12 +54,7 @@ function invoiceSats(invoice) {
     const text = String(invoice || '').trim();
     if (!text || text.length > 8000) return 0;
     try {
-        const decoded = bolt11.decode(text);
-        let sats = 0;
-        if (decoded && Number(decoded.satoshis) > 0) sats = Math.floor(Number(decoded.satoshis));
-        else if (decoded && Number(decoded.millisatoshis) > 0) sats = Math.floor(Number(decoded.millisatoshis) / 1000);
-        if (!Number.isFinite(sats) || sats <= 0) return 0;
-        return Math.min(sats, 1000000000);
+        return tipConfirm.invoiceSatsFromDecoded(bolt11.decode(text));
     } catch (e) {
         return 0;
     }

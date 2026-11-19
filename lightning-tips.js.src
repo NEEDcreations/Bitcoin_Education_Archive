@@ -53,6 +53,178 @@ async function makeInvoice(amountSats, memo) {
     return null;
 }
 
+// ─── Invoice check ───────────────────────────────────────
+// Reads a BOLT11 invoice enough to confirm it before paying: bech32 checksum,
+// mainnet prefix, amount in msats, expiry (timestamp + x tag, default 3600s),
+// route hint fees (r tags), and the description hash (h tag) for the LNURL-pay
+// metadata check.
+
+var _B32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+
+function _b32Polymod(values) {
+    var GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+    var chk = 1;
+    for (var i = 0; i < values.length; i++) {
+        var top = chk >>> 25;
+        chk = ((chk & 0x1ffffff) << 5) ^ values[i];
+        for (var j = 0; j < 5; j++) {
+            if ((top >>> j) & 1) chk ^= GEN[j];
+        }
+    }
+    return chk >>> 0;
+}
+
+function _b32HrpExpand(hrp) {
+    var out = [], i;
+    for (i = 0; i < hrp.length; i++) out.push(hrp.charCodeAt(i) >> 5);
+    out.push(0);
+    for (i = 0; i < hrp.length; i++) out.push(hrp.charCodeAt(i) & 31);
+    return out;
+}
+
+function _wordsToInt(words, start, len) {
+    var n = 0;
+    for (var i = 0; i < len; i++) n = n * 32 + words[start + i];
+    return n;
+}
+
+function _wordsToBytes(words, start, len) {
+    var acc = 0, bits = 0, out = [];
+    for (var i = 0; i < len; i++) {
+        acc = (acc << 5) | words[start + i];
+        bits += 5;
+        while (bits >= 8) {
+            bits -= 8;
+            out.push((acc >> bits) & 0xff);
+        }
+        acc &= (1 << bits) - 1;
+    }
+    return out;
+}
+
+function _wordsToHex(words, start, len) {
+    var bytes = _wordsToBytes(words, start, len), hex = '';
+    for (var i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, '0');
+    return hex;
+}
+
+function _u32(b, at) {
+    return b[at] * 16777216 + b[at + 1] * 65536 + b[at + 2] * 256 + b[at + 3];
+}
+
+// One r tag is one route: hops of pubkey(33) + channel(8) + fee_base_msat(4)
+// + fee_proportional_millionths(4) + cltv(2). The route's summed base fee must
+// stay within max(10 sat, 1% of the amount), the summed rate within 1%, and
+// the hop count at most 3.
+var TIP_HINT_MAX_PPM = 10000;
+var TIP_HINT_MAX_HOPS = 3;
+function _routeHintOk(words, start, len, msats) {
+    var bytes = _wordsToBytes(words, start, len);
+    var hops = Math.floor(bytes.length / 51);
+    if (hops < 1 || hops > TIP_HINT_MAX_HOPS || bytes.length !== hops * 51 || len !== Math.ceil(hops * 408 / 5)) return false;
+    var maxBase = Math.max(10000, Math.floor(msats / 100));
+    var base = 0;
+    var ppm = 0;
+    for (var h = 0; h < hops; h++) {
+        var at = h * 51;
+        base += _u32(bytes, at + 41);
+        ppm += _u32(bytes, at + 45);
+        if (ppm > TIP_HINT_MAX_PPM) return false;
+    }
+    return base <= maxBase;
+}
+
+function tipParseInvoice(pr, expectedMsats, nowMs) {
+    if (typeof pr !== 'string') return null;
+    var s = pr.trim();
+    if (/^lightning:/i.test(s)) s = s.slice(10);
+    if (s.length < 120 || s.length > 2048) return null;
+    if (s !== s.toLowerCase() && s !== s.toUpperCase()) return null;
+    s = s.toLowerCase();
+    var sep = s.lastIndexOf('1');
+    if (sep < 4) return null;
+    var hrp = s.slice(0, sep);
+    var m = /^lnbc([1-9][0-9]{0,14})([munp]?)$/.exec(hrp);
+    if (!m) return null;
+    var words = [];
+    for (var i = sep + 1; i < s.length; i++) {
+        var w = _B32.indexOf(s.charAt(i));
+        if (w < 0) return null;
+        words.push(w);
+    }
+    // 7 timestamp words + 104 signature words + 6 checksum words at minimum.
+    if (words.length < 117) return null;
+    if (_b32Polymod(_b32HrpExpand(hrp).concat(words)) !== 1) return null;
+
+    var num = Number(m[1]);
+    var msats;
+    if (m[2] === 'm') msats = num * 1e8;
+    else if (m[2] === 'u') msats = num * 1e5;
+    else if (m[2] === 'n') msats = num * 100;
+    else if (m[2] === 'p') {
+        if (num % 10 !== 0) return null;
+        msats = num / 10;
+    } else msats = num * 1e11;
+    if (!Number.isSafeInteger(msats) || msats < 1) return null;
+    if (msats !== Number(expectedMsats)) return null;
+
+    var end = words.length - 6 - 104;
+    var timestamp = _wordsToInt(words, 0, 7);
+    var expiry = 3600;
+    var seenExpiry = false;
+    var descHashes = [];
+    var pos = 7;
+    while (pos < end) {
+        if (pos + 3 > end) return null;
+        var type = words[pos];
+        var len = words[pos + 1] * 32 + words[pos + 2];
+        pos += 3;
+        if (pos + len > end) return null;
+        if (type === 6 && !seenExpiry) {
+            if (len < 1 || len > 7) return null;
+            expiry = _wordsToInt(words, pos, len);
+            seenExpiry = true;
+        }
+        if (type === 3 && !_routeHintOk(words, pos, len, msats)) return null;
+        if (type === 23) {
+            // 256-bit hash in 52 words; any other length can never match.
+            descHashes.push(len === 52 ? _wordsToHex(words, pos, 52).slice(0, 64) : '');
+        }
+        pos += len;
+    }
+    var now = typeof nowMs === 'number' ? nowMs : Date.now();
+    if ((timestamp + expiry) * 1000 <= now) return null;
+    return { invoice: s, descHashes: descHashes };
+}
+
+function tipCheckInvoice(pr, expectedMsats, nowMs) {
+    var parsed = tipParseInvoice(pr, expectedMsats, nowMs);
+    return parsed ? parsed.invoice : null;
+}
+
+// LUD-06: the invoice's single h tag must equal SHA-256 of the exact metadata
+// string the LNURL-pay endpoint returned. Fails closed when anything is missing.
+async function tipMetadataOk(parsed, metadata) {
+    if (!parsed || !parsed.descHashes || parsed.descHashes.length !== 1) return false;
+    var want = parsed.descHashes[0];
+    if (!want || want.length !== 64) return false;
+    if (typeof metadata !== 'string' || !metadata) return false;
+    var subtle = (typeof crypto !== 'undefined' && crypto) ? crypto.subtle : null;
+    if (!subtle || typeof subtle.digest !== 'function' || typeof TextEncoder !== 'function') return false;
+    var got = '';
+    try {
+        var buf = new Uint8Array(await subtle.digest('SHA-256', new TextEncoder().encode(metadata)));
+        for (var i = 0; i < buf.length; i++) got += buf[i].toString(16).padStart(2, '0');
+    } catch (e) {
+        return false;
+    }
+    return got === want;
+}
+
+window._tipCheckInvoice = tipCheckInvoice;
+window._tipParseInvoice = tipParseInvoice;
+window._tipMetadataOk = tipMetadataOk;
+
 // ─── Tip Overlay ─────────────────────────────────────────
 // Universal overlay for sending tips / payments
 
@@ -154,6 +326,36 @@ window.showTipOverlay = function(opts) {
 
 // ─── Execute Tip / Payment ───────────────────────────────
 
+var TIP_VERIFY_ERROR = 'Could not verify the recipient\'s invoice. No payment was sent.';
+
+function _tipResetBtn(btn, opts) {
+    btn.textContent = '\u26a1 ' + (opts.label || 'Send Tip');
+    btn.disabled = false;
+}
+
+function _tipVerifyFailed(res, btn, opts) {
+    res.innerHTML = '<span style="color:#ef4444;">' + TIP_VERIFY_ERROR + '</span>';
+    _tipResetBtn(btn, opts);
+}
+
+// Lightning Address box so the tipper can still send by hand from their wallet.
+function _tipShowAddressBox(res, btn, opts, title, lead) {
+    var _lnEsc = escapeHtml(opts.lightningAddress || '');
+    res.innerHTML = (lead ? '<div style="color:#ef4444;font-size:0.8rem;margin-top:6px;">' + lead + '</div>' : '') +
+        '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-top:8px;">' +
+        '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;margin-bottom:6px;">' + title + '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:8px;">Send directly to this Lightning Address from your wallet app:</div>' +
+        '<div style="padding:8px;background:var(--input-bg);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.84rem;color:var(--accent);font-weight:700;margin-bottom:8px;word-break:break-all;">' + _lnEsc + '</div>' +
+        '<button id="_tipCopyLnBtn" style="width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">\uD83D\uDCCB Copy Lightning Address</button>' +
+    '</div>';
+    var _cpBtn = res.querySelector('#_tipCopyLnBtn');
+    if (_cpBtn) _cpBtn.addEventListener('click', function() {
+        navigator.clipboard.writeText(opts.lightningAddress || '');
+        if (typeof showToast === 'function') showToast('\uD83D\uDCCB Lightning Address copied!');
+    });
+    _tipResetBtn(btn, opts);
+}
+
 window.executeTip = async function() {
     var opts = window._tipOpts || {};
     var btn = document.getElementById('tipPayBtn');
@@ -179,13 +381,18 @@ window.executeTip = async function() {
     try {
         // If we have a pre-made invoice, pay it directly
         if (opts.bolt11) {
+            var givenPr = tipCheckInvoice(opts.bolt11, amount * 1000);
+            if (!givenPr) {
+                _tipVerifyFailed(res, btn, opts);
+                return;
+            }
             if (method && typeof window.lnSendPaymentDirect === 'function') {
-                await window.lnSendPaymentDirect(opts.bolt11);
+                await window.lnSendPaymentDirect(givenPr);
                 showTipSuccess(amount, opts);
                 return;
             }
             // No wallet connected — show invoice to copy
-            showInvoiceCopy(opts.bolt11, amount, opts);
+            showInvoiceCopy(givenPr, amount, opts);
             return;
         }
 
@@ -197,19 +404,26 @@ window.executeTip = async function() {
                 var invRes = await invFn({ recipientUid: opts.recipientUid, amountSats: amount });
                 var invData = invRes && invRes.data ? invRes.data : null;
                 if (invData && invData.invoice) {
+                    // Same client check as the other paths. The server does not
+                    // return the LNURL metadata, so there is no h-tag check here.
+                    var serverPr = tipCheckInvoice(invData.invoice, amount * 1000);
+                    if (!serverPr) {
+                        _tipVerifyFailed(res, btn, opts);
+                        return;
+                    }
                     opts._serverInvoice = true;
                     window._tipServerInvoice = invData;
                     window._tipVerifyUrl = invData.verifyUrl || null;
                     if (method && typeof window.lnSendPaymentDirect === 'function') {
                         try {
-                            await window.lnSendPaymentDirect(invData.invoice);
+                            await window.lnSendPaymentDirect(serverPr);
                             showTipSuccess(amount, opts);
                             return;
                         } catch (walletErr) {
                             console.warn('[TIP] Direct wallet payment failed, falling back to QR:', walletErr);
                         }
                     }
-                    showInvoiceCopy(invData.invoice, amount, opts);
+                    showInvoiceCopy(serverPr, amount, opts);
                     return;
                 }
             } catch (serverErr) {
@@ -251,11 +465,21 @@ window.executeTip = async function() {
                             var cbUrl = lnurlData.callback + (lnurlData.callback.includes('?') ? '&' : '?') + 'amount=' + msats;
                             var cbResp = await fetch(cbUrl);
                             var cbData = await cbResp.json();
-                            if (cbData.pr) {
+                            if (cbData && cbData.pr) {
+                                var parsedPr = tipParseInvoice(cbData.pr, msats);
+                                if (!parsedPr) {
+                                    _tipVerifyFailed(res, btn, opts);
+                                    return;
+                                }
+                                if (!(await tipMetadataOk(parsedPr, lnurlData.metadata))) {
+                                    _tipShowAddressBox(res, btn, opts, '\u26a1 Send by hand instead', TIP_VERIFY_ERROR);
+                                    return;
+                                }
+                                var checkedPr = parsedPr.invoice;
                                 window._tipVerifyUrl = cbData.verify || null;
                                 if (method && typeof window.lnSendPaymentDirect === 'function') {
                                     try {
-                                        var payResult = await window.lnSendPaymentDirect(cbData.pr);
+                                        var payResult = await window.lnSendPaymentDirect(checkedPr);
                                         showTipSuccess(amount, opts);
                                         return;
                                     } catch(walletErr) {
@@ -263,7 +487,7 @@ window.executeTip = async function() {
                                         // Fall through to show QR code instead of "Can't tip yet"
                                     }
                                 }
-                                showInvoiceCopy(cbData.pr, amount, opts);
+                                showInvoiceCopy(checkedPr, amount, opts);
                                 return;
                             }
                         }
@@ -272,20 +496,7 @@ window.executeTip = async function() {
                     console.warn('[TIP] LNURL-pay error:', e);
                     // Address exists but server unreachable — don't fall through to "hasn't added address"
                     // Show the address so tipper can send manually from their wallet app
-                    var _lnEsc = escapeHtml(opts.lightningAddress || '');
-                    res.innerHTML = '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-top:8px;">' +
-                        '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;margin-bottom:6px;">\u26a1 Wallet server unreachable</div>' +
-                        '<div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:8px;">Send directly to this Lightning Address from your wallet app:</div>' +
-                        '<div style="padding:8px;background:var(--input-bg);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.84rem;color:var(--accent);font-weight:700;margin-bottom:8px;word-break:break-all;">' + _lnEsc + '</div>' +
-                        '<button id="_tipCopyLnBtn" style="width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">\uD83D\uDCCB Copy Lightning Address</button>' +
-                    '</div>';
-                    var _cpBtn = res.querySelector('#_tipCopyLnBtn');
-                    if (_cpBtn) _cpBtn.addEventListener('click', function() {
-                        navigator.clipboard.writeText(opts.lightningAddress || '');
-                        if (typeof showToast === 'function') showToast('\uD83D\uDCCB Lightning Address copied!');
-                    });
-                    btn.textContent = '\u26a1 ' + (opts.label || 'Send Tip');
-                    btn.disabled = false;
+                    _tipShowAddressBox(res, btn, opts, '\u26a1 Wallet server unreachable', '');
                     return;
                 }
             }
