@@ -892,6 +892,31 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         assert.strictEqual(db.read('forum_posts/' + id), null);
     });
 
+    await testAsync('a forum post id over the stored length is refused', async function() {
+        const mid = 'A'.repeat(200);
+        const atMax = 'A'.repeat(256);
+        const justOver = 'A'.repeat(257);
+        const over = 'A'.repeat(300);
+        const sample = { channelId: 'mining', postId: 'root1', text: 'hi', uid: 'ada', name: 'Ada' };
+        assert.strictEqual(mirror.buildForumReplyDoc(Object.assign({}, sample, { forumPostId: over })), null);
+        assert.strictEqual(mirror.buildForumReplyDoc(Object.assign({}, sample, { forumPostId: justOver })), null);
+        const okMax = mirror.buildForumReplyDoc(Object.assign({}, sample, { forumPostId: atMax }));
+        assert.ok(okMax);
+        assert.strictEqual(okMax.data.postId, atMax);
+        const okMid = mirror.buildForumReplyDoc(Object.assign({}, sample, { forumPostId: mid }));
+        assert.ok(okMid);
+        assert.strictEqual(okMid.data.postId, mid);
+        const patched = await mirror.patchForumSummary({
+            db: createMemoryDb(), channelId: 'mining', postId: 'root1', forumPostId: over,
+        });
+        assert.strictEqual(patched.patched, false);
+        assert.strictEqual(patched.reason, 'bad_id');
+        assert.strictEqual(mirror.buildForumPostDoc(Object.assign({}, sample, { forumPostId: over, text: 'What is a nonce?' })), null);
+        const builtMax = mirror.buildForumPostDoc(Object.assign({}, sample, { forumPostId: atMax, text: 'What is a nonce?' }));
+        assert.ok(builtMax);
+        assert.strictEqual(builtMax.id, atMax);
+    });
+
     await testAsync('a forum reply is re-read and a deleted copy is not mirrored', async function() {
         const db = createMemoryDb();
         const now = Date.UTC(2026, 9, 23, 18, 40, 0);

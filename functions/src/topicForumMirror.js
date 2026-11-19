@@ -227,7 +227,7 @@ async function patchForumSummary(opts) {
     const o = opts || {};
     const channelId = cleanToken(o.channelId, 80);
     const postId = cleanToken(o.postId, 128);
-    const forumPostId = cleanToken(o.forumPostId, 400);
+    const forumPostId = cleanToken(o.forumPostId, 256);
     if (!o.db || !channelId || !postId || !forumPostId) return { patched: false, reason: 'bad_id' };
     const ref = o.db.collection('forum_posts').doc(forumPostId);
     const before = await ref.get();
@@ -285,7 +285,7 @@ function buildForumPostDoc(input) {
     const src = input || {};
     const channelId = cleanToken(src.channelId, 80);
     const postId = cleanToken(src.postId, 128);
-    const forumPostId = src.forumPostId || forumPostIdFor(channelId, postId);
+    const forumPostId = src.forumPostId ? cleanToken(src.forumPostId, 256) : forumPostIdFor(channelId, postId);
     if (!channelId || !postId || !forumPostId) return null;
     const body = forumBodyFor(src.text);
     const summary = excerptSummary(src.text);
@@ -324,7 +324,7 @@ function buildForumReplyDoc(input) {
     const src = input || {};
     const channelId = cleanToken(src.channelId, 80);
     const postId = cleanToken(src.postId, 128);
-    const forumPostId = cleanToken(src.forumPostId, 400);
+    const forumPostId = cleanToken(src.forumPostId, 256);
     const replyId = src.forumReplyId || forumReplyIdFor(channelId, postId);
     if (!channelId || !postId || !forumPostId || !replyId) return null;
     let body = String(src.text || '').slice(0, FORUM_REPLY_MAX);
@@ -388,7 +388,7 @@ async function mirrorTopicPost(opts) {
     const parentSnap = await parentRef.get();
     if (!parentSnap.exists) return { mirrored: false, reason: 'no_parent' };
     const parent = parentSnap.data() || {};
-    const forumPostId = cleanToken(parent.forumPostId, 400);
+    const forumPostId = cleanToken(parent.forumPostId, 256);
     if (!forumPostId) return { mirrored: false, reason: 'no_forum' };
     const built = buildForumReplyDoc({
         channelId: channelId,
@@ -450,7 +450,7 @@ async function mirrorForumReplyToTopic(opts) {
     if (data.origin === 'topic' || data.origin === 'forum' || data.mirrorOf) {
         return { mirrored: false, reason: 'origin' };
     }
-    const forumPostId = cleanToken(data.postId, 400);
+    const forumPostId = cleanToken(data.postId, 256);
     if (!forumPostId) return { mirrored: false, reason: 'no_post' };
     const forumSnap = await db.collection('forum_posts').doc(forumPostId).get();
     if (!forumSnap.exists) return { mirrored: false, reason: 'no_post' };
@@ -619,7 +619,8 @@ async function syncTopicToForum(opts) {
         await replyRef.set(patch, { merge: true });
         return { synced: true, forumReplyId: replyId };
     }
-    const forumPostId = (after && after.forumPostId) || (before && before.forumPostId) || forumPostIdFor(channelId, postId);
+    const rawForumPostId = (after && after.forumPostId) || (before && before.forumPostId);
+    const forumPostId = rawForumPostId ? cleanToken(rawForumPostId, 256) : forumPostIdFor(channelId, postId);
     if (!forumPostId) return { synced: false, reason: 'no_forum' };
     const forumRef = db.collection('forum_posts').doc(forumPostId);
     const snap = await forumRef.get();
