@@ -176,6 +176,7 @@ const TESTS = [
     { name: 'Spin Reminder', file: 'test-spin-reminder.js' },
     { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },
     { name: 'Popup queue', file: 'test-popup-queue.js' },
+    { name: 'Newsletter CTA', file: 'test-newsletter-cta.js' },
     { name: 'Username repick', file: 'test-username-repick.js' },
     { name: 'Favor display name', file: 'test-favor-display-name.js' },
     { name: 'Username spaces', file: 'test-username-spaces.js' },

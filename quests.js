@@ -1913,6 +1913,7 @@ async function _gradeQuestOnServer(quest, answerIndexes, retry) {
 async function submitQuest() {
     // Prevent double-submit
     if (window._questSubmitted) return;
+    var _newsletterWasFirst = (typeof completedQuests !== 'undefined' && completedQuests && completedQuests.size === 0);
     if (!currentQuest || !currentQuest.questions || !currentQuest.questions.length) {
         window._questSubmitted = false;
         if (typeof window.btcRevertEmptyTrailStop === 'function' && currentQuest && currentQuest.topicKey) {
@@ -2068,6 +2069,9 @@ async function submitQuest() {
 
     // Also show a quick results toast for visibility
     if (typeof showToast === 'function') showToast(msg);
+    if (score >= 3 && _newsletterWasFirst && window.btcNewsletterCta && typeof window.btcNewsletterCta.noteFirstQuestFinished === 'function') {
+        window.btcNewsletterCta.noteFirstQuestFinished();
+    }
 }
 
 function playHooraySound() {
@@ -2410,6 +2414,9 @@ function closeQuest() {
     // the updated XP/retake state is visible (tabs were hidden during quiz picker flow)
     if (document.getElementById('questHubOverlay')) {
         if (typeof window._questHubBackToTabs === 'function') window._questHubBackToTabs();
+    }
+    if (window.btcNewsletterCta && typeof window.btcNewsletterCta.tryShowAfterQuest === 'function') {
+        setTimeout(function () { window.btcNewsletterCta.tryShowAfterQuest(); }, 0);
     }
 }
 

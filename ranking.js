@@ -9075,6 +9075,7 @@ function showSettingsPage(tab) {
             _equipTitleHtml +
             '<div style="margin-top:10px;"><a href="/patch-notes.html" id="settingsWhatsNew" onclick="if(window._markPatchSeen)window._markPatchSeen()" style="display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:700;font-size:0.85rem;text-decoration:none;">What\'s new <span class="whats-new-dot" hidden></span></a></div>' +
             '</div>';
+        html += '<a id="settingsNewsletterCta" href="' + ((window.btcNewsletterCta && window.btcNewsletterCta.menuHref()) || 'https://603btc.substack.com/subscribe?utm_source=bq-app&utm_medium=menu') + '" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;min-height:44px;width:100%;padding:12px 16px;margin:0 0 16px;box-sizing:border-box;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:700;text-decoration:none;font-family:inherit;text-align:center;touch-action:manipulation;">Get the weekly 603BTC Newsletter</a>';
 
         // Title & Flair picker (server-validated). Refreshes from the server once shown.
         if (!isAnon && typeof window._renderTitleFlairSection === 'function') {
