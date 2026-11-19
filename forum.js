@@ -1042,23 +1042,44 @@ window.forumSwitchTab = function(tab) {
 };
 
 // ---- Simple Markdown to HTML ----
+// Decode the entities fEsc adds, so a URL can be checked and escaped once.
+function mdUnescape(s) {
+    return String(s).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+// Markdown URLs: http(s) or a same-site path only. Returns the URL escaped for
+// a double-quoted attribute, or '' when it is not allowed.
+function mdSafeUrl(escapedUrl) {
+    var url = mdUnescape(escapedUrl).trim();
+    if (!url || /[\u0000-\u001f\u007f\s]/.test(url)) return '';
+    if (!/^https?:\/\/[^\/\\]/i.test(url) && !/^\/(?![\/\\])/.test(url)) return '';
+    return fEsc(url);
+}
+
 function mdToHtml(md) {
     if (!md) return '';
-    var h = fEsc(md);
-    // Images: ![alt](url) — [VULN-5 FIX] sanitize src to block javascript:/data: schemes
+    // Generated tags are held as tokens until the end so later passes only
+    // ever see plain text.
+    var tokens = [];
+    function hold(html) { tokens.push(html); return '\u0000' + (tokens.length - 1) + '\u0000'; }
+    var h = fEsc(String(md).replace(/\u0000/g, ''));
+    // Images: ![alt](url)
     h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url) {
-        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
+        var safe = mdSafeUrl(url);
         if (!safe) return '';
-        return '<img src="' + fEsc(safe) + '" alt="' + alt + '" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">';
+        return hold('<img src="' + safe + '" alt="' + alt + '" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">');
     });
-    // Links: [text](url) — [VULN-5 FIX] sanitize href to block javascript: scheme
+    // Links: [text](url)
     h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, text, url) {
-        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
-        if (!safe) return fEsc(text);
-        return '<a href="' + fEsc(safe) + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">' + text + '</a>';
+        var safe = mdSafeUrl(url);
+        if (!safe) return text;
+        return hold('<a href="' + safe + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">' + text + '</a>');
     });
-    // Bare URLs (not already in an href or src)
-    h = h.replace(/(?<!href="|src=")(https?:\/\/[^\s<"]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">$1</a>');
+    // Bare URLs
+    h = h.replace(/https?:\/\/[^\s<"\u0000]+/g, function(url) {
+        var safe = mdSafeUrl(url);
+        if (!safe) return url;
+        return hold('<a href="' + safe + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">' + url + '</a>');
+    });
     h = h.replace(/^### (.+)$/gm, '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:20px 0 8px;">$1</h3>');
     h = h.replace(/^## (.+)$/gm, '<h2 style="color:var(--heading);font-size:1.25rem;font-weight:800;margin:24px 0 10px;">$1</h2>');
     h = h.replace(/^# (.+)$/gm, '<h1 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:28px 0 12px;">$1</h1>');
@@ -1071,6 +1092,11 @@ function mdToHtml(md) {
     h = h.replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">');
     h = h.replace(/\n{2,}/g, '</p><p style="margin:12px 0;line-height:1.8;">');
     h = '<p style="margin:12px 0;line-height:1.8;">' + h + '</p>';
+    // Put the held tags back (a link may hold an image).
+    for (var guard = 0; guard < 4 && h.indexOf('\u0000') !== -1; guard++) {
+        h = h.replace(/\u0000(\d+)\u0000/g, function(m, i) { return tokens[Number(i)] || ''; });
+    }
+    h = h.replace(/\u0000/g, '');
     h = forumRenderMentions(h);
     return h;
 }
