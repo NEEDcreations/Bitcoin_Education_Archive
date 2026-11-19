@@ -9048,7 +9048,19 @@ async function settlePvpMatch(matchId, after, finishMs) {
             }
             // Disconnects are void (no win or played credit) but still count
             // toward the pair cap, with the same expireAt as a paid match.
-            if (pvpFlow.shouldIncrementPairDaily(plan, stamp)) writePairDaily(tx);
+            // Write the rewardRef lock first so a retried or concurrent
+            // settle (retry:true) cannot increment the cap twice. The
+            // existing.exists read at the start of the transaction then
+            // makes a second delivery a no-op.
+            if (pvpFlow.shouldIncrementPairDaily(plan, stamp)) {
+                tx.set(rewardRef, {
+                    matchId: matchId,
+                    reason: plan.reason,
+                    applied: [],
+                    at: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                writePairDaily(tx);
+            }
             return false;
         }
         const userRefs = plan.players.map(function (p) { return db.collection('users').doc(p.uid); });

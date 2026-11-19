@@ -394,6 +394,7 @@ test('a guest match pays no XP, wins, or tickets to either side', function () {
     assert.ok(grantAt !== -1 && grantAt > settleFn.indexOf('db.runTransaction'), 'guest no-grant path is inside the transaction');
     assert.ok(guestReturn.indexOf("pvp_rewards") === -1);
     assert.ok(guestReturn.indexOf('rewardsGranted: true') !== -1);
+    assert.strictEqual(flow.shouldIncrementPairDaily(plan, { guestMatch: true, player1: false, player2: true }), false);
     const signedOnly = flow.planPvpReward({
         matchId: 'm-live',
         status: 'finished',
@@ -784,7 +785,52 @@ test('settle reads the pair count inside the transaction and uses finish time', 
     const earlyEnd = settle.indexOf('return false;', earlyAt);
     const early = earlyAt !== -1 && earlyEnd !== -1 ? settle.slice(earlyAt, earlyEnd) : '';
     assert.ok(early.indexOf('shouldIncrementPairDaily') !== -1 && early.indexOf('writePairDaily') !== -1, 'a no-grant disconnect still writes pvp_pair_daily');
+    const lockAt = early.indexOf('tx.set(rewardRef');
+    const pairAt = early.indexOf('writePairDaily');
+    assert.ok(lockAt !== -1 && pairAt !== -1 && lockAt < pairAt, 'the pvp_rewards lock is written before the pair-cap increment');
+    assert.ok(early.indexOf('applied: []') !== -1 && early.indexOf('reason: plan.reason') !== -1, 'the no-grant lock is an empty applied row with the plan reason');
+    assert.ok(settle.indexOf('if (existing.exists) return false;') !== -1, 'an existing reward lock makes a retry a no-op');
     assert.ok(settle.indexOf('ttls update') === -1 && src.indexOf('enable-ttl') === -1, 'this PR does not create a TTL policy');
+});
+
+test('settling the same disconnect twice increments the pair cap only once', function () {
+    const stamp = { guestMatch: false, player1: false, player2: false };
+    const disc = flow.planPvpReward({
+        matchId: 'm-disc-retry',
+        status: 'forfeit',
+        forfeitReason: 'disconnect',
+        forfeitedBy: 'p1',
+        durationMs: 60000,
+        pairMatchesToday: 0,
+        player1: { uid: 'p1', name: 'Ada', score: 20, roundWins: 2 },
+        player2: { uid: 'p2', name: 'Bob', score: 10, roundWins: 1 },
+    });
+    assert.strictEqual(disc.reason, 'disconnect');
+    assert.strictEqual(disc.grant, false);
+    assert.strictEqual(flow.shouldIncrementPairDaily(disc, stamp), true);
+
+    // Same protocol as settlePvpMatch: the pvp_rewards doc is the lock.
+    // A retried or concurrent delivery that already sees the lock must not
+    // increment pvp_pair_daily again.
+    const claimId = flow.rewardClaimId('m-disc-retry');
+    const docs = {};
+    function settleDisconnectOnce() {
+        const lockPath = 'pvp_rewards/' + claimId;
+        if (docs[lockPath]) return { incremented: false, count: docs['pvp_pair_daily/pair'].count };
+        if (!flow.shouldIncrementPairDaily(disc, stamp)) return { incremented: false, count: 0 };
+        docs[lockPath] = { matchId: 'm-disc-retry', reason: disc.reason, applied: [] };
+        const prev = docs['pvp_pair_daily/pair'] ? docs['pvp_pair_daily/pair'].count : 0;
+        docs['pvp_pair_daily/pair'] = { count: prev + 1 };
+        return { incremented: true, count: docs['pvp_pair_daily/pair'].count };
+    }
+    const first = settleDisconnectOnce();
+    assert.strictEqual(first.incremented, true);
+    assert.strictEqual(first.count, 1);
+    const second = settleDisconnectOnce();
+    assert.strictEqual(second.incremented, false);
+    assert.strictEqual(second.count, 1);
+    assert.strictEqual(docs['pvp_rewards/' + claimId].reason, 'disconnect');
+    assert.deepStrictEqual(docs['pvp_rewards/' + claimId].applied, []);
 });
 
 console.log(failed ? ('\n' + failed + ' failed') : ('\n' + passed + ' passed'));
