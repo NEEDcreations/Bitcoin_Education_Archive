@@ -69,6 +69,15 @@ const MESSAGES = {
 
 function fail(code) { return { success: false, code: code, message: MESSAGES[code] || 'Something went wrong.' }; }
 
+// A requestId replay returns the first result only to the uid that made it.
+// Doc ids are uid + '_' + requestId, so a row owned by another uid (an id
+// collision) is refused instead of leaking that player's result.
+function replayOf(row, uid) {
+    const d = row || {};
+    if (d.uid !== uid || !d.result) return fail('bad_request');
+    return Object.assign({ repeat: true }, d.result);
+}
+
 function maskUid(uid) {
     const s = String(uid || '');
     if (s.length <= 4) return '\u2026';
@@ -222,7 +231,7 @@ function createCitadelShopService(deps) {
             stages: st.stages,
             lessonParts: st.lessonParts,
             lessonBuilt: st.lessonBuilt,
-            lessonGrantPending: !guest && pendingLessons(user).length > 0,
+            lessonGrantPending: !guest && isOpen(flags, nowMs) && pendingLessons(user).length > 0,
             weekSpent: week.weekKey === wk.key ? Math.max(0, Number(week.spent) || 0) : 0,
             weekCap: WEEKLY_CAP_OT,
             weekResetsAt: wk.endMs,
@@ -249,7 +258,7 @@ function createCitadelShopService(deps) {
 
         const out = await db.runTransaction(async function (tx) {
             const s = await Promise.all([tx.get(r.op), tx.get(r.user), tx.get(r.week), tx.get(r.ent)]);
-            if (s[0].exists) return Object.assign({ repeat: true }, (s[0].data() || {}).result);
+            if (s[0].exists) return replayOf(s[0].data(), uid);
             if (!s[1].exists) return fail('no_profile');
             const user = s[1].data() || {};
             const pg = premiumGate(s[3].exists ? s[3].data() : null, flags, nowMs, true);
@@ -301,7 +310,7 @@ function createCitadelShopService(deps) {
 
         const out = await db.runTransaction(async function (tx) {
             const s = await Promise.all([tx.get(r.op), tx.get(r.user), tx.get(r.ent)]);
-            if (s[0].exists) return Object.assign({ repeat: true }, (s[0].data() || {}).result);
+            if (s[0].exists) return replayOf(s[0].data(), uid);
             if (!s[1].exists) return fail('no_profile');
             const pg = premiumGate(s[2].exists ? s[2].data() : null, flags, nowMs, false);
             if (pg) return fail(pg);
@@ -329,6 +338,9 @@ function createCitadelShopService(deps) {
     async function claimLessons(context) {
         const g = await gate(context);
         if (g) return g;
+        // Nothing opens on live before Jan 3, 2027. lqPassed is kept, so a
+        // player who passed lessons earlier is granted on the first call after.
+        if (!isOpen(await readFlags(), now())) return fail('not_open');
         const uid = context.auth.uid;
         const userRef = db.collection('users').doc(uid);
         const out = await db.runTransaction(async function (tx) {

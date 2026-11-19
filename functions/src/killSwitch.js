@@ -123,6 +123,11 @@ const GATED = Object.freeze({
         'chooseFaction',
         'managePeer',
         'decryptCipher',
+        // Citadel shop: debit OrangeTix or grant parts. getCitadelShopStatus is
+        // read-only and stays up. Each also self-checks isOffline (fail closed).
+        'buyCitadelStage',
+        'buildCitadelPart',
+        'claimLessonParts',
     ]),
     // Scheduled jobs that should skip (not fail) while offline. Queued work
     // stays in place and is flushed after the switch is off.

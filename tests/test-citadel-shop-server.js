@@ -306,6 +306,48 @@ test('closed before Jan 3, 2027 unless staging opens early', async function () {
     assert.strictEqual(ok.success, true);
 });
 
+test('lesson grant is closed before Jan 3 too; status reports no pending grant', async function () {
+    const before = Date.UTC(2026, 11, 20, 17);
+    const t = setup({ now: before });
+    assert.strictEqual((await t.svc.claimLessons(ctx(FREE))).code, 'not_open');
+    assert.strictEqual(t.get('users/' + FREE).citadel, undefined, 'no grant written');
+    const st = await t.svc.status(ctx(FREE));
+    assert.strictEqual(st.open, false);
+    assert.strictEqual(st.lessonGrantPending, false);
+    assert.strictEqual((await t.svc.claimLessons(ctx(FREE))).code, 'not_open', 'live ignores openEarly for grants');
+    const s2 = setup({ now: before, config: { openEarly: true }, staging: true });
+    assert.deepStrictEqual((await s2.svc.claimLessons(ctx(FREE))).granted.sort(), ['lesson_tower', 'lesson_walls']);
+});
+
+test('a purchase row owned by another uid is never replayed', async function () {
+    const t = setup();
+    // uid 'premUid000001' + '_' + 'x_reqCOLLIDE' collides with uid 'premUid000001_x' + 'reqCOLLIDE'
+    t.db.store.set('premium_entitlements/premUid000001_x', ACTIVE_ENT);
+    t.db.store.set('users/premUid000001_x', { orangeTickets: 500 });
+    t.db.store.set('citadel_purchases/premUid000001_x_reqCOLLIDE', { uid: PREM, kind: 'stage', result: { success: true, newTickets: 1 } });
+    const r = await buy(t, 'premUid000001_x', 'walls', 1, 'reqCOLLIDE');
+    assert.strictEqual(r.success, false);
+    assert.strictEqual(r.code, 'bad_request');
+    assert.strictEqual(r.newTickets, undefined, 'no other player data leaked');
+    const b = await t.svc.build(ctx('premUid000001_x'), { lessonPartId: 'lesson_walls', requestId: 'reqCOLLIDE' });
+    assert.strictEqual(b.code, 'bad_request');
+});
+
+test('openEarly is honored only when the project id is bitcoin-quest-staging', function () {
+    const fns = fs.readFileSync(path.join(root, 'functions/src/citadelShopFns.js'), 'utf8');
+    assert.ok(fns.includes("const STAGING_PROJECT = 'bitcoin-quest-staging';"));
+    assert.ok(fns.includes('isStaging: function () { return projectId() === STAGING_PROJECT; }'));
+    const src = fs.readFileSync(path.join(root, 'functions/src/citadelShop.js'), 'utf8');
+    assert.ok(src.includes("openEarly: d.openEarly === true && !!(deps.isStaging && deps.isStaging())"));
+});
+
+test('kill switch gate wraps the three value callables, not status', function () {
+    const ks = require(path.join(root, 'functions/src/killSwitch.js'));
+    const names = ks.gatedNames();
+    ['buyCitadelStage', 'buildCitadelPart', 'claimLessonParts'].forEach(function (n) { assert.ok(names.indexOf(n) !== -1, n); });
+    assert.ok(names.indexOf('getCitadelShopStatus') === -1);
+});
+
 test('referral-week Premium buys only when config/citadelShop flag is on', async function () {
     const ent = Object.assign({}, ACTIVE_ENT, { referralWeekUntilMs: NOW + 86400000 });
     const t = setup();
