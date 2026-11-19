@@ -1352,6 +1352,32 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         }, { merge: true });
     }
 
+    // F3 fallback: hold only a win that is still 'paying'. Never overwrite
+    // 'paid' or any other status. Returns true when it held the win.
+    async function holdUnknownIfPaying(paymentHash) {
+        return db.runTransaction(async (t) => {
+            const winSnap = await t.get(winRef);
+            const cur = winSnap.exists ? (winSnap.data() || {}) : {};
+            if (cur.status !== 'paying') return false;
+            t.update(winRef, {
+                status: 'unknown',
+                needsReview: true,
+                invoiceHash: invoiceHash,
+                paymentHash: paymentHash || '',
+                payingAt: admin.firestore.FieldValue.delete(),
+            });
+            t.set(invoiceRef, {
+                uid: uid,
+                winId: winId,
+                amount: amount,
+                status: 'unknown',
+                paymentHash: paymentHash || '',
+                ts: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+            return true;
+        });
+    }
+
     async function markPaid(preimage, payRes) {
         // Payment already left the wallet. Never flip the win back to claimable after this.
         const feeRec = require('./lnFee').feeFields(winFee, payRes);
@@ -1462,9 +1488,11 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             return { success: false, error: 'Payment failed. Your prize is still waiting. Make a new invoice to try again.' };
         } catch (e) {
             // The failed invoice row did not save, so the win must not unlock.
-            console.error('[claimCipherWin] failed-row write did not save, holding:', e.message);
-            try { await holdUnknown(lookupReq.payment_hash); }
-            catch (e2) { console.error('[claimCipherWin] could not hold win:', e2.message); }
+            console.error('[claimCipherWin] failed-row write did not save:', e.message);
+            try {
+                const held = await holdUnknownIfPaying(lookupReq.payment_hash);
+                if (!held) console.error('[claimCipherWin] win is no longer paying; status left unchanged');
+            } catch (e2) { console.error('[claimCipherWin] could not hold win:', e2.message); }
             return { success: false, error: holdMessage };
         }
     }
@@ -1908,6 +1936,13 @@ const claimCipherSats = functionsV1.runWith({
         const userPatch = cipherClaimUserPatch(plan);
         if (!plan.ok) {
             denial = plan.error || UNAVAILABLE;
+            return;
+        }
+        // Re-check the 48h address-change hold inside the reserve transaction
+        // (same as claimSats, claimCipherWin and claimFavorBlock).
+        const addrHold = faucetGuard.assessAddressChangeHold(user, nowMs);
+        if (!addrHold.ok) {
+            denial = addrHold.error;
             return;
         }
         // A released failure makes this account and this address wait before the next try.

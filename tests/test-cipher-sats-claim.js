@@ -380,5 +380,20 @@ test('a release refunds only when the wallet says the payment failed', () => {
     });
 });
 
+test('follow-up 3: claimCipherSats re-checks the 48h address-change hold inside its reserve transaction', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'gifting.js'), 'utf8');
+    const body = src.slice(src.indexOf('const claimCipherSats = '));
+    const txStart = body.indexOf('await db.runTransaction(async (t) => {');
+    const firstWrite = body.indexOf('cipherSatsBalance: admin.firestore.FieldValue.increment(', txStart);
+    assert.ok(txStart !== -1 && firstWrite > txStart);
+    const tx = body.slice(txStart, firstWrite);
+    assert.ok(/const user = userSnap\.data\(\) \|\| \{\};/.test(tx), 'user doc read inside the transaction');
+    assert.ok(/const addrHold = faucetGuard\.assessAddressChangeHold\(user, nowMs\);\s*if \(!addrHold\.ok\) \{\s*denial = addrHold\.error;\s*return;\s*\}/.test(tx), 'hold denies before any balance or counter write');
+    // Behaviour of the shared check it uses.
+    const guard = require('../functions/src/faucetGuard');
+    assert.strictEqual(guard.assessAddressChangeHold({ lightningAddressChangedAt: NOW - 1000 }, NOW).ok, false);
+    assert.strictEqual(guard.assessAddressChangeHold({ lightningAddressChangedAt: NOW - guard.ADDRESS_CHANGE_HOLD_MS }, NOW).ok, true);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);

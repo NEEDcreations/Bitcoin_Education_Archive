@@ -68,7 +68,10 @@ function createDb(initial) {
         runTransaction: async function (fn) {
             const tx = {
                 get: function (r) { return r.get(); },
-                set: function (r, data) { docs.set(r.path, Object.assign({}, data)); },
+                set: function (r, data, options) {
+                    const prev = docs.get(r.path) || {};
+                    docs.set(r.path, options && options.merge ? Object.assign({}, prev, data) : Object.assign({}, data));
+                },
             };
             return fn(tx);
         },
@@ -344,44 +347,98 @@ function auth(email) {
     await test('H2: beginPayout treats a saved address with no stamp as a first set (stamps and holds)', async function () {
         const now = 1_700_000_000_000;
         const faucetGuard = require('../functions/src/faucetGuard');
+        const { FieldValue } = require(require.resolve('firebase-admin/firestore', { paths: [path.join(root, 'functions')] }));
+        const isServerStamp = function (v) { return !!v && typeof v === 'object' && v.isEqual && v.isEqual(FieldValue.serverTimestamp()); };
         const authUser = { uid: 'u1', email: 'same@example.com', emailVerified: true, providerData: [] };
         const authApi = { revokeRefreshTokens: async function () {} };
         const base = { email: 'same@example.com', emailHash: tomb.emailHmac('same@example.com'), lightningAddress: 'pleb@wallet.example' };
 
-        // Profile first-set: no stamp, no lock, no payouts -> held and stamped with the server clock.
+        // Profile first-set: no stamp, no lock, no payouts -> held, and the stamp
+        // is a serverTimestamp() written inside a transaction (merge, other fields kept).
         const db1 = createDb({ 'users/u1': Object.assign({}, base) });
+        let txCount = 0;
+        const realTx = db1.runTransaction;
+        db1.runTransaction = function (fn) { txCount++; return realTx(fn); };
         const held = await emailChange.beginPayout(db1, authApi, 'u1', authUser, now);
         assert.strictEqual(held.ok, false);
         assert.strictEqual(held.hold, true);
         assert.strictEqual(held.firstSet, true);
         assert.strictEqual(held.error, faucetGuard.ADDRESS_CHANGE_HOLD_ERROR);
-        assert.strictEqual(db1.docs.get('users/u1').lightningAddressChangedAt, now);
-        // The next claim inside 48h is still held by the stamp; after 48h it pays.
-        const again = await emailChange.beginPayout(db1, authApi, 'u1', authUser, now + 1000);
-        assert.strictEqual(again.ok, false);
-        const later = await emailChange.beginPayout(db1, authApi, 'u1', authUser, now + faucetGuard.ADDRESS_CHANGE_HOLD_MS);
-        assert.strictEqual(later.ok, true);
+        assert.strictEqual(txCount, 1, 'stamp is written inside a transaction');
+        assert.ok(isServerStamp(db1.docs.get('users/u1').lightningAddressChangedAt), 'stamp uses serverTimestamp()');
+        assert.strictEqual(db1.docs.get('users/u1').lightningAddress, 'pleb@wallet.example');
+        // Once stamped, the next claim is held by the stamp itself.
+        db1.docs.set('users/u1', Object.assign({}, db1.docs.get('users/u1'), { lightningAddressChangedAt: now }));
+        assert.strictEqual((await emailChange.beginPayout(db1, authApi, 'u1', authUser, now + 1000)).ok, false);
+        assert.strictEqual((await emailChange.beginPayout(db1, authApi, 'u1', authUser, now + faucetGuard.ADDRESS_CHANGE_HOLD_MS)).ok, true);
 
         // Recent lock doc (client first-set inside 48h) -> held and stamped.
         const db2 = createDb({
             'users/u1': Object.assign({}, base),
             'lightning_addresses/pleb@wallet.example': { uid: 'u1', lockedAt: now - 60000 },
         });
-        const recent = await emailChange.beginPayout(db2, authApi, 'u1', authUser, now);
-        assert.strictEqual(recent.ok, false);
-        assert.strictEqual(db2.docs.get('users/u1').lightningAddressChangedAt, now);
+        assert.strictEqual((await emailChange.beginPayout(db2, authApi, 'u1', authUser, now)).ok, false);
+        assert.ok(isServerStamp(db2.docs.get('users/u1').lightningAddressChangedAt));
 
-        // Legacy: aged lock, or no lock but a prior payout -> pays, no stamp.
+        // Aged lock -> legacy, pays, no stamp.
         const db3 = createDb({
             'users/u1': Object.assign({}, base),
             'lightning_addresses/pleb@wallet.example': { uid: 'u1', lockedAt: now - faucetGuard.ADDRESS_CHANGE_HOLD_MS - 1 },
         });
         assert.strictEqual((await emailChange.beginPayout(db3, authApi, 'u1', authUser, now)).ok, true);
         assert.ok(!('lightningAddressChangedAt' in db3.docs.get('users/u1')));
-        const db4 = createDb({ 'users/u1': Object.assign({ satsWithdrawn: 200 }, base) });
-        assert.strictEqual((await emailChange.beginPayout(db4, authApi, 'u1', authUser, now)).ok, true);
-        const db5 = createDb({ 'users/u1': Object.assign({}, base), 'faucet_ledger/u1': { satsWithdrawn: 100 } });
+
+        // Follow-up 2: no lock, prior payout to the SAME address (ledger lastPaidAddress) -> pays.
+        const db5 = createDb({ 'users/u1': Object.assign({ satsWithdrawn: 200 }, base), 'faucet_ledger/u1': { satsWithdrawn: 200, lastPaidAddress: 'pleb@wallet.example' } });
         assert.strictEqual((await emailChange.beginPayout(db5, authApi, 'u1', authUser, now)).ok, true);
+        assert.ok(!('lightningAddressChangedAt' in db5.docs.get('users/u1')));
+        // Prior payout to a DIFFERENT address -> stamp and hold.
+        const db6 = createDb({ 'users/u1': Object.assign({ satsWithdrawn: 200 }, base), 'faucet_ledger/u1': { satsWithdrawn: 200, lastPaidAddress: 'old@wallet.example' } });
+        const moved = await emailChange.beginPayout(db6, authApi, 'u1', authUser, now);
+        assert.strictEqual(moved.ok, false);
+        assert.strictEqual(moved.firstSet, true);
+        assert.ok(isServerStamp(db6.docs.get('users/u1').lightningAddressChangedAt));
+
+        // No ledger lastPaidAddress: falls back to the newest paid sats_withdrawals row.
+        function withHistory(db, rows) {
+            const coll = db.collection;
+            db.collection = function (name) {
+                const c = coll(name);
+                if (name !== 'users') return c;
+                const doc = c.doc;
+                c.doc = function (id) {
+                    const r = doc(id);
+                    r.collection = function () {
+                        return { orderBy: function () { return { limit: function () { return { get: async function () {
+                            return { forEach: function (fn) { rows.forEach(function (row) { fn({ data: function () { return row; } }); }); } };
+                        } }; } }; } };
+                    };
+                    return r;
+                };
+                return c;
+            };
+            return db;
+        }
+        const db7 = withHistory(createDb({ 'users/u1': Object.assign({ satsWithdrawn: 200 }, base) }), [
+            { status: 'unknown', lightningAddress: 'other@wallet.example' },
+            { status: 'paid', lightningAddress: 'pleb@wallet.example' },
+        ]);
+        assert.strictEqual((await emailChange.beginPayout(db7, authApi, 'u1', authUser, now)).ok, true);
+        const db8 = withHistory(createDb({ 'users/u1': Object.assign({ satsWithdrawn: 200 }, base) }), [
+            { status: 'paid', lightningAddress: 'old@wallet.example' },
+        ]);
+        assert.strictEqual((await emailChange.beginPayout(db8, authApi, 'u1', authUser, now)).ok, false);
+        // Unreadable payout history -> held, not stamped.
+        const db9 = createDb({ 'users/u1': Object.assign({ satsWithdrawn: 200 }, base) });
+        const unreadable = await emailChange.beginPayout(db9, authApi, 'u1', authUser, now);
+        assert.strictEqual(unreadable.ok, false);
+        assert.ok(!('lightningAddressChangedAt' in db9.docs.get('users/u1')));
+    });
+
+    await test('follow-up 2: every faucet payout records the ledger lastPaidAddress', async function () {
+        const src = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+        const fn = src.slice(src.indexOf('async function _recordFaucetPaid('), src.indexOf('async function _holdFaucetUnknown('));
+        assert.ok(/batch\.set\(db\.collection\('faucet_ledger'\)\.doc\(info\.uid\), \{ lastPaidAddress: info\.address \}, \{ merge: true \}\)/.test(fn));
     });
 
     await test('a provider-set change holds sats and keeps the old provider hashes', async function () {

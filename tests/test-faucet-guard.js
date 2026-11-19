@@ -570,9 +570,13 @@ test('H2: a saved address with no hold stamp is treated as a first set', functio
     assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr }, lockAt: now - 1000, nowMs: now }).stamp, true);
     assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr }, lockAt: { toMillis: function () { return now - 1000; } }, nowMs: now }).stamp, true);
     assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr }, lockAt: now - holdMs - 1, nowMs: now }).stamp, false);
-    // No lock doc but a legacy payout on the user or the ledger: no stamp.
-    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr, satsWithdrawn: 100 }, nowMs: now }).stamp, false);
-    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr }, ledger: { satsWithdrawn: 100 }, nowMs: now }).stamp, false);
+    // No lock doc but a legacy payout to this SAME address: no stamp.
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr, satsWithdrawn: 100 }, lastPaidAddress: addr, nowMs: now }).stamp, false);
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr }, ledger: { satsWithdrawn: 100 }, lastPaidAddress: 'PLEB@wallet.example', nowMs: now }).stamp, false);
+    // Follow-up 2: a legacy payout to a DIFFERENT address, or no known last
+    // paid destination, does not grandfather: stamp and hold.
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr, satsWithdrawn: 100 }, lastPaidAddress: 'other@wallet.example', nowMs: now }).stamp, true);
+    assert.strictEqual(guard.assessUnstampedAddress({ user: { lightningAddress: addr }, ledger: { satsWithdrawn: 100 }, nowMs: now }).stamp, true);
 });
 
 Promise.all(queue).then(function() {

@@ -2470,6 +2470,11 @@ async function _recordFaucetPaid(info) {
         net_sent: feeRec.net_sent === undefined ? null : feeRec.net_sent,
         fee_paid: feeRec.fee_paid === undefined ? null : feeRec.fee_paid,
     });
+    // Last paid destination: lets the payout gate grandfather an unstamped
+    // address only when it is the same address that was last paid.
+    if (info.address) {
+        batch.set(db.collection('faucet_ledger').doc(info.uid), { lastPaidAddress: info.address }, { merge: true });
+    }
     batch.set(info.invoiceRef, {
         uid: info.uid,
         amount: info.amount,

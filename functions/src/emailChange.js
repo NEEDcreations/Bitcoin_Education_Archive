@@ -473,6 +473,24 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
     };
 }
 
+// The last paid Lightning destination for an account: the ledger's
+// lastPaidAddress (written by every faucet payout), else the newest 'paid'
+// row in the server-only users/{uid}/sats_withdrawals history. Only looked up
+// when it matters (a legacy payout with no lock doc). Throws when unreadable.
+async function lastPaidDestination(db, uid, ledger, user, lockAt) {
+    if (lockAt) return '';
+    if (!(user.lastSatsClaim || user.satsWithdrawn || ledger.satsWithdrawn)) return '';
+    if (ledger.lastPaidAddress) return String(ledger.lastPaidAddress);
+    const snap = await db.collection('users').doc(uid).collection('sats_withdrawals')
+        .orderBy('timestamp', 'desc').limit(5).get();
+    let found = '';
+    snap.forEach(function (d) {
+        const row = d.data() || {};
+        if (!found && row.status === 'paid' && row.lightningAddress) found = String(row.lightningAddress);
+    });
+    return found;
+}
+
 async function beginPayout(db, authApi, uid, authUser, nowMs, token, providersKnown) {
     if (!accountTombstone.secretReady()) {
         return { ok: false, paused: true, error: PAUSED_CLAIMS, tomb: null };
@@ -503,19 +521,29 @@ async function beginPayout(db, authApi, uid, authUser, nowMs, token, providersKn
         if (saved) {
             let lockAt = 0;
             let ledger = {};
+            let lastPaidAddress = '';
             try {
                 const lockSnap = await db.collection('lightning_addresses').doc(saved).get();
                 lockAt = lockSnap && lockSnap.exists ? ((lockSnap.data() || {}).lockedAt || 0) : 0;
                 const ledgerSnap = await db.collection('faucet_ledger').doc(uid).get();
                 ledger = ledgerSnap && ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
+                lastPaidAddress = await lastPaidDestination(db, uid, ledger, user, lockAt);
             } catch (e) {
-                // Unreadable lock or ledger: hold this payout, do not stamp.
+                // Unreadable lock, ledger or payout history: hold this payout, do not stamp.
                 return { ok: false, hold: true, error: faucetGuard.ADDRESS_CHANGE_HOLD_ERROR, holdUntil: clock + faucetGuard.ADDRESS_CHANGE_HOLD_MS, tomb: tomb };
             }
-            const first = faucetGuard.assessUnstampedAddress({ user: user, lockAt: lockAt, ledger: ledger, nowMs: clock });
+            const first = faucetGuard.assessUnstampedAddress({ user: user, lockAt: lockAt, ledger: ledger, lastPaidAddress: lastPaidAddress, nowMs: clock });
             if (first.stamp) {
                 try {
-                    await db.collection('users').doc(uid).set({ lightningAddressChangedAt: clock }, { merge: true });
+                    const { FieldValue } = require('firebase-admin/firestore');
+                    const userRef = db.collection('users').doc(uid);
+                    await db.runTransaction(async function (t) {
+                        const fresh = await t.get(userRef);
+                        const row = fresh && fresh.exists ? (fresh.data() || {}) : {};
+                        // Another call stamped it first: keep that stamp.
+                        if (Object.prototype.hasOwnProperty.call(row, 'lightningAddressChangedAt')) return;
+                        t.set(userRef, { lightningAddressChangedAt: FieldValue.serverTimestamp() }, { merge: true });
+                    });
                 } catch (e) { /* still held below; the next claim retries the stamp */ }
                 return { ok: false, hold: true, firstSet: true, error: faucetGuard.ADDRESS_CHANGE_HOLD_ERROR, holdUntil: clock + faucetGuard.ADDRESS_CHANGE_HOLD_MS, tomb: tomb };
             }

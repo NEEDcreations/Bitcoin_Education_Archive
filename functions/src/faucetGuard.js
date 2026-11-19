@@ -588,7 +588,8 @@ function assessAddressChangeHold(user, nowMs) {
 // A saved address with no lightningAddressChangedAt stamp is treated as a
 // first set (for example a profile write the client rules allow), mirroring
 // claimSats: stamp and hold unless the address lock is older than the hold, or
-// (with no lock doc) the account already has a legacy payout.
+// (with no lock doc) the account already has a legacy payout to this same
+// address (lastPaidAddress, from the ledger or the last paid withdrawal).
 // Returns { stamp: boolean }.
 function assessUnstampedAddress(input) {
     const src = input || {};
@@ -601,7 +602,10 @@ function assessUnstampedAddress(input) {
     if (lockAt) return { stamp: now < lockAt + ADDRESS_CHANGE_HOLD_MS };
     const ledger = src.ledger || {};
     const hasPriorPayout = !!(user.lastSatsClaim || user.satsWithdrawn || ledger.satsWithdrawn);
-    return { stamp: !hasPriorPayout };
+    if (!hasPriorPayout) return { stamp: true };
+    // Grandfather only when the saved address is the last paid destination.
+    const lastPaid = normalizeLightningAddress(src.lastPaidAddress || '');
+    return { stamp: !lastPaid || lastPaid !== saved };
 }
 
 module.exports = {

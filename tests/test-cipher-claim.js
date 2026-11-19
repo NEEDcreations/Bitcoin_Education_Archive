@@ -278,7 +278,27 @@ later('F3: releaseAfterFailedLookup writes the failed invoice row and the win fl
     assert.strictEqual(relFn.indexOf('.catch('), -1, 'no swallowed write in releaseAfterFailedLookup');
     // The release call site holds the win if the release throws.
     const site = body.slice(body.indexOf("if (settlement.action === 'release') {"));
-    assert.ok(/catch \(e\) \{[\s\S]*?await holdUnknown\(lookupReq\.payment_hash\);[\s\S]*?return \{ success: false, error: holdMessage \};/.test(site.slice(0, 800)));
+    const siteCatch = site.slice(0, 900);
+    assert.ok(/catch \(e\) \{[\s\S]*?await holdUnknownIfPaying\(lookupReq\.payment_hash\);[\s\S]*?return \{ success: false, error: holdMessage \};/.test(siteCatch));
+    assert.ok(!/catch \(e\) \{[\s\S]*?await holdUnknown\(lookupReq\.payment_hash\);/.test(siteCatch.slice(0, siteCatch.indexOf('return { success: false, error: holdMessage };'))), 'fallback never calls the unguarded holdUnknown');
+});
+
+later('F3 fallback: holdUnknownIfPaying holds only a win that is still paying', async function() {
+    const paying = fakeCipherDb();
+    const held = await cipherHelper('holdUnknownIfPaying', paying.scope)('hash4');
+    assert.strictEqual(held, true);
+    assert.strictEqual(paying.store.win.status, 'unknown');
+    assert.strictEqual(paying.store.win.paymentHash, 'hash4');
+    assert.strictEqual(paying.store.invoice.status, 'unknown');
+    assert.strictEqual(paying.store.invoice.paymentHash, 'hash4');
+    for (const status of ['paid', 'claimable', 'unknown']) {
+        const f = fakeCipherDb();
+        f.store.win = { status: status, preimage: 'keep' };
+        const before = JSON.stringify(f.store);
+        const r = await cipherHelper('holdUnknownIfPaying', f.scope)('hash5');
+        assert.strictEqual(r, false, status);
+        assert.strictEqual(JSON.stringify(f.store), before, status + ' left unchanged');
+    }
 });
 
 later('F2: holdUnknown stamps paymentHash on the unknown faucet_invoices row', async function() {
