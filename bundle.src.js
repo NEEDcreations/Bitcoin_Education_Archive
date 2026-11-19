@@ -27352,12 +27352,12 @@ window.toggleAITools = function() {
         var post = String(rootPostId || '');
         if (!/^[A-Za-z0-9_-]+$/.test(channel) || channel.length > 80) return '';
         if (!/^[A-Za-z0-9_-]+$/.test(post) || post.length > 128) return '';
-        return ('tdforum_' + channel + '_' + post).slice(0, 400);
+        return ('tdforum_' + channel + '_' + post).slice(0, 256);
     }
 
     function forumHashForTopic(forumPostId) {
         var id = String(forumPostId || '');
-        if (!/^[A-Za-z0-9_-]+$/.test(id) || id.length > 400) return '';
+        if (!/^[A-Za-z0-9_-]+$/.test(id) || id.length > 256) return '';
         return '#forum/post/' + id;
     }
 
@@ -27459,6 +27459,7 @@ window.toggleAITools = function() {
     }
     window.bqReduceTopicConvoPost = reduceTopicConvoPost;
     window.bqForumPostIdForTopic = forumPostIdForTopic;
+    window.bqForumHashForTopic = forumHashForTopic;
 
     var convoPostView = idleConvoPostView();
 

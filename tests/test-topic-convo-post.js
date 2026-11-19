@@ -46,10 +46,12 @@ function loadClient() {
 const w = loadClient();
 const reduce = w.bqReduceTopicConvoPost;
 const forumId = w.bqForumPostIdForTopic;
+const forumHash = w.bqForumHashForTopic;
 
 test('exposes the post-state reducer and forum id helper', function() {
     assert.strictEqual(typeof reduce, 'function');
     assert.strictEqual(typeof forumId, 'function');
+    assert.strictEqual(typeof forumHash, 'function');
 });
 
 test('forum post id matches the existing Pleb Talk mirror scheme', function() {
@@ -57,6 +59,23 @@ test('forum post id matches the existing Pleb Talk mirror scheme', function() {
     assert.strictEqual(forumId('', 'abc'), '');
     assert.strictEqual(forumId('mining', 'bad id'), '');
     assert.strictEqual(forumId('mining', '../../../x'), '');
+});
+
+test('topic forum hashes accept 129-256 char ids and refuse longer ones', function() {
+    const mid = 'a'.repeat(129);
+    const max = 'a'.repeat(256);
+    const over = 'a'.repeat(257);
+    assert.strictEqual(forumHash(mid), '#forum/post/' + mid);
+    assert.strictEqual(forumHash(max), '#forum/post/' + max);
+    assert.strictEqual(forumHash(over), '');
+    assert.strictEqual(forumHash('a'.repeat(400)), '');
+    const src = read('topic-discussions.js');
+    const start = src.indexOf('function forumPostIdForTopic');
+    const body = src.slice(start, src.indexOf('function idleConvoPostView', start));
+    assert.ok(body.includes("slice(0, 256)"));
+    assert.ok(!body.includes("slice(0, 400)"));
+    assert.ok(body.includes('id.length > 256'));
+    assert.ok(!body.includes('id.length > 400'));
 });
 
 test('submit with text goes to Posting… and disables the button', function() {
@@ -176,13 +195,13 @@ test('client wires posting, confirmation, and the existing forum opener', functi
     assert.ok(client.includes('.oled-theme .td-convo-success{border-color:#4ade80;background:#052e16;color:#bbf7d0;}'));
 });
 
-test('service worker is at or past v2635 and the bundle pin is v2635', function() {
+test('service worker is at or past v2635 and the bundle pin matches the ship version', function() {
     const sw = read('sw.js');
     const html = read('index.html');
     const swVersion = sw.match(/CACHE_NAME = 'btc-archive-v(\d+)'/);
     assert.ok(swVersion && Number(swVersion[1]) >= 2635);
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2635/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2656/g) || []).length, 2);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -917,6 +917,87 @@ test('rules and deploy list freeze mirror fields and keep one announcement path'
         assert.strictEqual(builtMax.id, atMax);
     });
 
+    test('mirror id builders cap constructed ids at the stored length', function() {
+        const src = fs.readFileSync(path.join(root, 'functions/src/topicForumMirror.js'), 'utf8');
+        function bodyOf(name) {
+            const start = src.indexOf('function ' + name + '(');
+            const next = src.indexOf('\nfunction ', start + 1);
+            return src.slice(start, next);
+        }
+        ['forumPostIdFor', 'forumReplyIdFor', 'topicPostIdForForumReply'].forEach(function(name) {
+            const body = bodyOf(name);
+            assert.ok(body.includes('slice(0, 256)'), name);
+            assert.ok(!body.includes('slice(0, 400)'), name);
+        });
+        const built = mirror.forumPostIdFor('c'.repeat(80), 'p'.repeat(128));
+        assert.strictEqual(built.length, 217);
+        assert.ok(built.length <= 256);
+        assert.strictEqual(mirror.topicPostIdForForumReply('x'.repeat(200)).length, 207);
+    });
+
+    test('a forum reply id over the stored length is refused', function() {
+        const sample = { channelId: 'mining', postId: 'root1', text: 'hi', uid: 'ada', name: 'Ada', forumPostId: 'tdforum_mining_root1' };
+        const atMax = 'R'.repeat(256);
+        const justOver = 'R'.repeat(257);
+        const ok = mirror.buildForumReplyDoc(Object.assign({}, sample, { forumReplyId: atMax }));
+        assert.ok(ok);
+        assert.strictEqual(ok.id, atMax);
+        assert.strictEqual(mirror.buildForumReplyDoc(Object.assign({}, sample, { forumReplyId: justOver })), null);
+        assert.strictEqual(mirror.buildForumReplyDoc(Object.assign({}, sample, { forumReplyId: 'bad id' })), null);
+    });
+
+    await testAsync('a topic post id over the stored length is refused', async function() {
+        const db = createMemoryDb();
+        const atMax = 'A'.repeat(256);
+        const justOver = 'A'.repeat(257);
+        const editOver = await mirror.syncForumReplyEdit({
+            db: db,
+            before: { topicChannel: 'mining', topicPost: justOver, body: 'a', deleted: false, hidden: false, authorId: 'ada' },
+            after: { topicChannel: 'mining', topicPost: justOver, body: 'b', deleted: false, hidden: false, authorId: 'ada' },
+        });
+        assert.strictEqual(editOver.reason, 'not_topic');
+        const editMax = await mirror.syncForumReplyEdit({
+            db: db,
+            before: { topicChannel: 'mining', topicPost: atMax, body: 'a', deleted: false, hidden: false, authorId: 'ada' },
+            after: { topicChannel: 'mining', topicPost: atMax, body: 'b', deleted: false, hidden: false, authorId: 'ada' },
+        });
+        assert.strictEqual(editMax.reason, 'missing');
+        const delOver = await mirror.syncForumReplyDelete({
+            db: db, before: { topicChannel: 'mining', topicPost: justOver },
+        });
+        assert.strictEqual(delOver.reason, 'not_topic');
+        const delMax = await mirror.syncForumReplyDelete({
+            db: db, before: { topicChannel: 'mining', topicPost: atMax },
+        });
+        assert.strictEqual(delMax.reason, 'missing');
+        const postOver = await mirror.syncForumPostDelete({
+            db: db, before: { origin: 'topic', topicChannel: 'mining', topicPost: justOver },
+        });
+        assert.strictEqual(postOver.reason, 'bad_id');
+        const postMax = await mirror.syncForumPostDelete({
+            db: db, before: { origin: 'topic', topicChannel: 'mining', topicPost: atMax },
+        });
+        assert.strictEqual(postMax.reason, 'missing');
+    });
+
+    await testAsync('a long stored forum reply id is kept and a longer one is refused', async function() {
+        const db = createMemoryDb();
+        const atMax = 'R'.repeat(256);
+        const justOver = 'R'.repeat(257);
+        const over = await mirror.syncTopicToForum({
+            db: db, channelId: 'mining', postId: 'child1',
+            before: { channelId: 'mining', parentId: 'root1', text: 'hi', forumReplyId: justOver, deleted: false, hidden: false },
+            after: { channelId: 'mining', parentId: 'root1', text: 'hi2', forumReplyId: justOver, deleted: false, hidden: false },
+        });
+        assert.strictEqual(over.reason, 'no_reply');
+        const kept = await mirror.syncTopicToForum({
+            db: db, channelId: 'mining', postId: 'child1',
+            before: { channelId: 'mining', parentId: 'root1', text: 'hi', forumReplyId: atMax, deleted: false, hidden: false },
+            after: { channelId: 'mining', parentId: 'root1', text: 'hi2', forumReplyId: atMax, deleted: false, hidden: false },
+        });
+        assert.strictEqual(kept.reason, 'missing');
+    });
+
     await testAsync('a forum reply is re-read and a deleted copy is not mirrored', async function() {
         const db = createMemoryDb();
         const now = Date.UTC(2026, 9, 23, 18, 40, 0);

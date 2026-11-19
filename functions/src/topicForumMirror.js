@@ -41,20 +41,20 @@ function forumPostIdFor(channelId, rootPostId) {
     const channel = cleanToken(channelId, 80);
     const post = cleanToken(rootPostId, 128);
     if (!channel || !post) return '';
-    return ('tdforum_' + channel + '_' + post).slice(0, 400);
+    return ('tdforum_' + channel + '_' + post).slice(0, 256);
 }
 
 function forumReplyIdFor(channelId, topicPostId) {
     const channel = cleanToken(channelId, 80);
     const post = cleanToken(topicPostId, 128);
     if (!channel || !post) return '';
-    return ('tdreply_' + channel + '_' + post).slice(0, 400);
+    return ('tdreply_' + channel + '_' + post).slice(0, 256);
 }
 
 function topicPostIdForForumReply(replyId) {
     const id = cleanToken(replyId, 200);
     if (!id) return '';
-    return ('tdfrom_' + id).slice(0, 400);
+    return ('tdfrom_' + id).slice(0, 256);
 }
 
 function acceptedAnchor(anchor) {
@@ -325,7 +325,8 @@ function buildForumReplyDoc(input) {
     const channelId = cleanToken(src.channelId, 80);
     const postId = cleanToken(src.postId, 128);
     const forumPostId = cleanToken(src.forumPostId, 256);
-    const replyId = src.forumReplyId || forumReplyIdFor(channelId, postId);
+    const rawReplyId = src.forumReplyId;
+    const replyId = rawReplyId ? cleanToken(rawReplyId, 256) : forumReplyIdFor(channelId, postId);
     if (!channelId || !postId || !forumPostId || !replyId) return null;
     let body = String(src.text || '').slice(0, FORUM_REPLY_MAX);
     if (src.deleted || src.hidden) body = '';
@@ -595,7 +596,8 @@ async function syncTopicToForum(opts) {
         visibleText = prepared.text;
     }
     if (source.parentId) {
-        const replyId = (after && after.forumReplyId) || (before && before.forumReplyId) || forumReplyIdFor(channelId, postId);
+        const rawReplyId = (after && after.forumReplyId) || (before && before.forumReplyId);
+        const replyId = rawReplyId ? cleanToken(rawReplyId, 256) : forumReplyIdFor(channelId, postId);
         if (!replyId) return { synced: false, reason: 'no_reply' };
         const replyRef = db.collection('forum_replies').doc(replyId);
         const snap = await replyRef.get();
@@ -664,7 +666,7 @@ async function syncForumReplyEdit(opts) {
         }
     }
     const channelId = cleanToken(after.topicChannel || before.topicChannel, 80);
-    const topicPostId = cleanToken(after.topicPost || before.topicPost, 400);
+    const topicPostId = cleanToken(after.topicPost || before.topicPost, 256);
     if (!o.db || !channelId || !topicPostId) return { synced: false, reason: 'not_topic' };
     if (before.body === after.body && before.deleted === after.deleted && before.hidden === after.hidden) {
         return { synced: false, reason: 'unchanged' };
@@ -714,7 +716,7 @@ async function syncForumReplyDelete(opts) {
     const o = opts || {};
     const before = o.before || {};
     const channelId = cleanToken(before.topicChannel, 80);
-    const topicPostId = cleanToken(before.topicPost, 400);
+    const topicPostId = cleanToken(before.topicPost, 256);
     if (!o.db || !channelId || !topicPostId) return { synced: false, reason: 'not_topic' };
     const hash = mirrorSyncOf('', true, false);
     const topicRef = o.db.collection('topic_discussions').doc(channelId).collection('posts').doc(topicPostId);
@@ -740,7 +742,7 @@ async function syncForumPostDelete(opts) {
     const before = o.before || {};
     if (before.origin !== 'topic') return { synced: false, reason: 'not_topic' };
     const channelId = cleanToken(before.topicChannel, 80);
-    const topicPostId = cleanToken(before.topicPost, 128);
+    const topicPostId = cleanToken(before.topicPost, 256);
     if (!o.db || !channelId || !topicPostId) return { synced: false, reason: 'bad_id' };
     const hash = mirrorSyncOf('', true, false);
     const topicRef = o.db.collection('topic_discussions').doc(channelId).collection('posts').doc(topicPostId);
