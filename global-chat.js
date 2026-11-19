@@ -3657,6 +3657,7 @@ function showDJBar(d) {
 
     var _djUidOk = gcIdOk(String(d.djUid || ''));
     var _artistUidOk = gcIdOk(String(d.artistUid || ''));
+    var _trackIdOk = gcIdOk(String(d.trackId || ''));
     var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span' + (_djUidOk ? ' data-gc-action="profile" data-id="' + esc(String(d.djUid)) + '"' : '') + ' style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
 
     var artistHtml = _artistUidOk ? '<span data-gc-action="profile" data-id="' + esc(String(d.artistUid)) + '" style="cursor:pointer;text-decoration:underline;" title="View Artist Profile">' + esc(d.trackArtist) + '</span>' : esc(d.trackArtist);
@@ -3678,7 +3679,7 @@ function showDJBar(d) {
         // Row 3: Action buttons
         '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
             djActionBtn +
-            (_artistUidOk ? '<button data-gc-action="profile" data-dj-tip="1" data-id="' + esc(String(d.artistUid)) + '" style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
+            (_trackIdOk ? '<button data-dj-tip="1"' + (_artistUidOk ? ' data-gc-action="profile" data-id="' + esc(String(d.artistUid)) + '"' : '') + ' style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
             tipBtn +
             (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:5px 10px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.7rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
         '</div>';

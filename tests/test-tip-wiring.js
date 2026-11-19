@@ -48,14 +48,30 @@ function makeNode(tag) {
             n._html = String(html);
             n.children.forEach(function(c) { c.parentElement = null; });
             n.children = [];
-            H.readTags(n._html).forEach(function(t) {
-                const c = makeNode(t.name);
-                Object.keys(t.attrs).forEach(function(k) { c.setAttribute(k, t.attrs[k]); });
-                n.appendChild(c);
-            });
+            buildTree(n, n._html);
         },
     });
     return n;
+}
+// Start and end tags build a nested tree; void elements never take children.
+const TOKEN_RE = /<\/([a-zA-Z][a-zA-Z0-9]*)\s*>|<([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^\s=>\/"']+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]+))?)*)\s*\/?>/g;
+const VOID = ['img', 'input', 'br', 'hr', 'meta', 'link', 'source', 'option'];
+function buildTree(root, html) {
+    let cur = root, m;
+    TOKEN_RE.lastIndex = 0;
+    while ((m = TOKEN_RE.exec(html))) {
+        if (m[1]) {
+            let up = cur;
+            while (up && up !== root && up.tagName !== m[1].toUpperCase()) up = up.parentElement;
+            if (up && up !== root) cur = up.parentElement;
+            continue;
+        }
+        const t = H.readTags(m[0])[0];
+        const c = makeNode(t.name);
+        Object.keys(t.attrs).forEach(function(k) { c.setAttribute(k, t.attrs[k]); });
+        cur.appendChild(c);
+        if (VOID.indexOf(t.name) === -1 && !/\/>$/.test(m[0])) cur = c;
+    }
 }
 function walk(n, fn) { fn(n); n.children.forEach(function(c) { walk(c, fn); }); }
 // Supports tag, [attr], [attr="v"] and [attr*="v"], comma lists.
@@ -90,7 +106,7 @@ function clickEl(el) {
 // ---------- Marketplace ----------
 const PAY_BLOCK_HEAD = '// Pay data for the open listing';
 function marketCode() {
-    let code = H.sliceFunction(MK, 'function renderListingDetail(');
+    let code = H.sliceFunction(MK, 'function renderListingDetail(') + '\n' + H.sliceFunction(MK, 'function loadMarketListings(');
     const a = MK.indexOf(PAY_BLOCK_HEAD);
     if (a !== -1) code = MK.slice(a, MK.indexOf('function renderListingDetail(')) + code;
     return code;
@@ -101,6 +117,7 @@ const LISTING = { title: 'Hardware wallet', sellerUid: 'sellerUid01', sellerName
 
 function marketEnv(tiCode, viewerUid) {
     const fc = makeNode('div'); fc.id = 'forumContainer';
+    const grid = makeNode('div'); grid.id = 'marketListings';
     const tipCalls = [];
     const profileCalls = [];
     const sandbox = {
@@ -111,6 +128,7 @@ function marketEnv(tiCode, viewerUid) {
         CONDITIONS: [], MARKETPLACE_CATEGORIES: [],
         safeJSON: function(k, d) { return d; },
         isMarketAdmin: function() { return false; },
+        satsToUSD: function() { return ''; },
         getTimeAgo: function() { return 'now'; },
         showTipOverlay: function(o) { tipCalls.push(o); },
         showUserProfile: function(u) { profileCalls.push(u); },
@@ -118,7 +136,7 @@ function marketEnv(tiCode, viewerUid) {
         MutationObserver: function() { this.observe = function() {}; },
         document: {
             readyState: 'complete',
-            getElementById: function(id) { return id === 'forumContainer' ? fc : null; },
+            getElementById: function(id) { return id === 'forumContainer' ? fc : (id === 'marketListings' ? grid : null); },
             createElement: function(t) { return makeNode(t); },
             addEventListener: function() {}, querySelector: function() { return null; }, querySelectorAll: function() { return []; },
         },
@@ -128,7 +146,7 @@ function marketEnv(tiCode, viewerUid) {
     vm.runInContext(marketCode(), sandbox);
     vm.runInContext(tiCode, sandbox);
     return {
-        fc: fc, tipCalls: tipCalls, profileCalls: profileCalls, sandbox: sandbox,
+        fc: fc, grid: grid, tipCalls: tipCalls, profileCalls: profileCalls, sandbox: sandbox,
         render: async function(listing) {
             const data = Object.assign({}, LISTING, listing || {});
             sandbox.db = {
@@ -137,8 +155,23 @@ function marketEnv(tiCode, viewerUid) {
                     update: function() { return Promise.resolve(); },
                 }; } }; },
             };
+            fc.innerHTML = '';
             sandbox.renderListingDetail(fc, data.id || 'listingA1');
             await new Promise(function(r) { setImmediate(r); });
+        },
+        renderGrid: async function(rows) {
+            const list = rows.map(function(r) { return Object.assign({}, LISTING, r); });
+            sandbox.db = {
+                collection: function() {
+                    const q = { where: function() { return q; }, orderBy: function() { return q; }, limit: function() { return q; },
+                        get: function() { return Promise.resolve({ forEach: function(cb) { list.forEach(function(l) { cb({ id: l.id, data: function() { const c = Object.assign({}, l); delete c.id; return c; } }); }); } }); } };
+                    return q;
+                },
+            };
+            fc.innerHTML = '';
+            fc.appendChild(grid);
+            sandbox.loadMarketListings('all', '', 'newest', 'all');
+            for (let i = 0; i < 5; i++) await new Promise(function(r) { setImmediate(r); });
         },
     };
 }
@@ -237,6 +270,149 @@ function payButtons(fc) { return fc.querySelectorAll('[data-mkt-pay]').concat(fc
     });
 });
 
+function hints(grid) { return grid.querySelectorAll('[data-market-tip]'); }
+function cardFor(grid, id) { return grid.querySelectorAll('div[data-mkt-action="open"]').filter(function(c) { return c.getAttribute('data-listing-id') === id; })[0]; }
+
+[['src', TI_SRC], ['min', TI_MIN]].forEach(function(v) {
+    const label = v[0], code = v[1];
+
+    test('listing grid ' + label + ': hint shows on data-mkt-action cards from loaded listing data', async () => {
+        const env = marketEnv(code, 'buyer01');
+        await env.renderGrid([{ id: 'gridA1' }, { id: 'gridB2', priceSats: 500 }]);
+        assert.strictEqual(env.grid.querySelectorAll('div[data-mkt-action="open"]').length, 2, 'cards rendered');
+        env.sandbox.__inject();
+        assert.strictEqual(hints(env.grid).length, 2);
+        assert.ok(cardFor(env.grid, 'gridA1').querySelector('[data-market-tip]'));
+        hints(env.grid).forEach(function(h) {
+            assert.strictEqual(h.textContent, '⚡ Tap to pay with Lightning');
+            assert.strictEqual(h.getAttribute('data-tip-action'), null);
+        });
+    });
+
+    test('listing grid ' + label + ': markup amounts and ids do not create hints', async () => {
+        const env = marketEnv(code, 'buyer01');
+        await env.renderGrid([{ id: 'gridA1', priceSats: 0 }, { id: 'gridB2', priceSats: 20000000 }, { id: 'gridC3' }]);
+        const c = cardFor(env.grid, 'gridC3');
+        c.setAttribute('data-listing-id', 'notLoaded9');
+        c.setAttribute('data-price-sats', '21000');
+        c.setAttribute('data-tip-action', JSON.stringify({ suggestedAmount: 21000, fixedAmount: true, bolt11: GOOD_INV }));
+        cardFor(env.grid, 'gridA1').setAttribute('data-price-sats', '21000');
+        env.sandbox.__inject();
+        assert.strictEqual(hints(env.grid).length, 0);
+    });
+
+    test('listing grid ' + label + ': no duplicate hints and none on own listings', async () => {
+        const env = marketEnv(code, 'buyer01');
+        await env.renderGrid([{ id: 'gridA1' }, { id: 'gridMine', sellerUid: 'buyer01' }]);
+        env.sandbox.__inject(); env.sandbox.__inject(); env.sandbox.__inject();
+        assert.strictEqual(hints(env.grid).length, 1);
+        assert.ok(!cardFor(env.grid, 'gridMine').querySelector('[data-market-tip]'));
+        await env.renderGrid([{ id: 'gridA1' }]);
+        env.sandbox.__inject(); env.sandbox.__inject();
+        assert.strictEqual(hints(env.grid).length, 1);
+    });
+});
+
+// ---------- IRL ticket button ----------
+const IRL = H.read('irl-sync.js');
+const IRL_ROWS = {
+    evtA_1: { title: 'Meetup A', date: '2099-01-01T18:00:00Z', locationName: 'Here', hostId: 'hostA', hostName: 'Hana', attendees: [] },
+    evtB_2: { title: 'Meetup B', date: '2099-01-02T18:00:00Z', locationName: 'There', hostId: 'hostB', hostName: 'Bo', attendees: [] },
+    evtMine: { title: 'Mine', date: '2099-01-03T18:00:00Z', locationName: 'Home', hostId: 'viewer01', hostName: 'Me', attendees: [] },
+};
+function irlEnv(tiCode) {
+    const fc = makeNode('div'); fc.id = 'forumContainer';
+    const tipCalls = [], irlCalls = [];
+    const rows = JSON.parse(JSON.stringify(IRL_ROWS));
+    function docSnap(id) { return { id: id, exists: !!rows[id], data: function() { return Object.assign({}, rows[id]); } }; }
+    const db = { collection: function() {
+        const q = { where: function() { return q; }, orderBy: function() { return q; }, limit: function() { return q; },
+            get: async function() { const docs = Object.keys(rows).map(docSnap); return { empty: !docs.length, docs: docs, forEach: function(cb) { docs.forEach(cb); } }; },
+            doc: function(id) { return { get: async function() { return docSnap(id); }, update: async function() {} }; } };
+        return q;
+    } };
+    const authObj = { currentUser: { uid: 'viewer01', isAnonymous: false } };
+    const sandbox = {
+        console: quiet, auth: authObj, escapeHtml: escapeHtml, addEventListener: function() {},
+        localStorage: { getItem: function() { return null; }, setItem: function() {} },
+        firebase: { firestore: Object.assign(function() { return db; }, { FieldValue: { arrayUnion: function() {}, arrayRemove: function() {}, serverTimestamp: function() {} } }), auth: function() { return authObj; } },
+        showTipOverlay: function(o) { tipCalls.push(o); },
+        setTimeout: function(fn, ms) { if (ms === 2000) sandbox.__inject = fn; return 0; }, clearTimeout: function() {},
+        MutationObserver: function() { this.observe = function() {}; },
+        showToast: function() {}, confirm: function() { return false; },
+        document: {
+            readyState: 'complete',
+            getElementById: function(id) { let hit = id === 'forumContainer' ? fc : null; if (!hit) walk(fc, function(el) { if (!hit && el.id === id) hit = el; }); return hit; },
+            createElement: function(t) { return makeNode(t); },
+            addEventListener: function() {}, querySelector: function() { return null; }, querySelectorAll: function() { return []; },
+            body: { appendChild: function(el) { return el; }, insertAdjacentHTML: function() {}, style: {} },
+        },
+    };
+    sandbox.window = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(IRL, sandbox);
+    vm.runInContext(tiCode, sandbox);
+    ['viewEvent', 'toggleRSVP'].forEach(function(n) { sandbox[n] = function(id) { irlCalls.push([n, id]); }; });
+    return {
+        fc: fc, tipCalls: tipCalls, irlCalls: irlCalls, sandbox: sandbox, rows: rows,
+        render: async function() { sandbox.renderIRLSync(); for (let i = 0; i < 20; i++) await new Promise(function(r) { setImmediate(r); }); },
+    };
+}
+function rsvpFor(fc, id) { return fc.querySelectorAll('button[data-irl-action="rsvp"]').filter(function(b) { return b.getAttribute('data-id') === id; })[0]; }
+function ticketsFor(fc, id) { const b = rsvpFor(fc, id); return b && b.parentElement ? b.parentElement.querySelectorAll('[data-irl-tip]') : []; }
+
+[['src', TI_SRC], ['min', TI_MIN]].forEach(function(v) {
+    const label = v[0], code = v[1];
+
+    test('irl ' + label + ': ticket button pays the host from the loaded event', async () => {
+        const env = irlEnv(code);
+        await env.render();
+        assert.ok(rsvpFor(env.fc, 'evtA_1'), 'rsvp button rendered');
+        env.sandbox.__inject();
+        assert.strictEqual(ticketsFor(env.fc, 'evtA_1').length, 1);
+        assert.strictEqual(ticketsFor(env.fc, 'evtB_2').length, 1);
+        const t = ticketsFor(env.fc, 'evtA_1')[0];
+        assert.strictEqual(t.getAttribute('data-tip-action'), null);
+        clickEl(t);
+        assert.strictEqual(env.tipCalls.length, 1);
+        const o = env.tipCalls[0];
+        assert.strictEqual(o.recipientUid, 'hostA');
+        assert.strictEqual(o.recipientName, 'Event: Meetup A');
+        assert.strictEqual(o.contextId, 'evtA_1');
+        assert.ok(!('bolt11' in o) && !o.fixedAmount && !o.suggestedAmount);
+        assert.deepStrictEqual(env.irlCalls, [], 'card view not opened');
+    });
+
+    test('irl ' + label + ': injected markup payee and amount are ignored', async () => {
+        const env = irlEnv(code);
+        await env.render();
+        const b = rsvpFor(env.fc, 'evtA_1');
+        b.setAttribute('data-host-id', 'evilUid');
+        b.setAttribute('data-amount', '1');
+        b.setAttribute('data-tip-action', JSON.stringify({ recipientUid: 'evilUid', suggestedAmount: 1, fixedAmount: true, bolt11: GOOD_INV }));
+        b.setAttribute('onclick', "toggleRSVP('evtA_1')");
+        const c = rsvpFor(env.fc, 'evtB_2');
+        c.setAttribute('data-id', 'evtNotLoaded');
+        env.sandbox.__inject();
+        clickEl(ticketsFor(env.fc, 'evtA_1')[0]);
+        const o = env.tipCalls[0];
+        assert.strictEqual(o.recipientUid, 'hostA');
+        assert.ok(!('bolt11' in o) && !o.fixedAmount && !o.suggestedAmount);
+        assert.strictEqual(ticketsFor(env.fc, 'evtNotLoaded').length, 0);
+    });
+
+    test('irl ' + label + ': no duplicates and no ticket on the viewer\'s own event', async () => {
+        const env = irlEnv(code);
+        await env.render();
+        env.sandbox.__inject(); env.sandbox.__inject(); env.sandbox.__inject();
+        assert.strictEqual(ticketsFor(env.fc, 'evtA_1').length, 1);
+        assert.strictEqual(ticketsFor(env.fc, 'evtMine').length, 0);
+        await env.render();
+        env.sandbox.__inject(); env.sandbox.__inject();
+        assert.strictEqual(env.fc.querySelectorAll('[data-irl-tip]').length, 2);
+    });
+});
+
 // ---------- DJ bar ----------
 const HOOK_HEAD = '// One tip hook for the DJ bar.';
 const HOOK_TAIL = 'window._bqDJBarTipPending = null;\n}\n';
@@ -255,19 +431,31 @@ function beatsCode() {
     const a = BE.indexOf('// FEATURE 6:');
     const b = BE.indexOf('// FEATURE 7:');
     assert.ok(a !== -1 && b > a);
-    return BE.slice(a, b);
+    return BE.slice(BE.indexOf('var BEATS_ID_RE'), BE.indexOf('window._beatsIdOk')) + '\n' + BE.slice(a, b);
 }
-const DJ = { active: true, djUid: 'djUid01', djName: 'Deejay', trackTitle: 'Song', trackArtist: 'Arty', artistUid: 'artistUid01', trackAudioUrl: '' };
+// The live DJ doc names a different artist than the track doc does.
+const DJ = { active: true, djUid: 'djUid01', djName: 'Deejay', trackId: 'track01', trackTitle: 'Song', trackArtist: 'Spoofed Name', artistUid: 'spoofUid99', trackAudioUrl: '' };
+const TRACKS = {
+    track01: { authorId: 'realArtist01', authorName: 'Real Artist', title: 'Real Song' },
+    trackNoAuthor: { authorName: 'Nobody', title: 'x' },
+    trackMine: { authorId: 'viewer01', authorName: 'Me', title: 'Mine' },
+};
 
-function djEnv(withTips) {
+function djEnv(opts) {
+    opts = opts || {};
     const panel = makeNode('div');
     const msgs = makeNode('div'); msgs.id = 'globalChatMessages';
     panel.appendChild(msgs);
-    const tipCalls = [], profileCalls = [];
+    const tipCalls = [], profileCalls = [], reads = [];
     const sandbox = {
-        console: quiet, auth: { currentUser: { uid: 'viewer01' } },
+        console: quiet, auth: { currentUser: { uid: 'viewer01' } }, Map: Map, Promise: Promise,
         showUserProfile: function(u) { profileCalls.push(u); },
         setTimeout: function(fn) { fn(); return 0; },
+        db: { collection: function(col) { return { doc: function(id) { return { get: function() {
+            reads.push(col + '/' + id);
+            if (opts.unreadable) return Promise.reject(new Error('denied'));
+            return Promise.resolve({ exists: Object.prototype.hasOwnProperty.call(TRACKS, id), data: function() { return Object.assign({}, TRACKS[id]); } });
+        } }; } }; } },
         document: {
             getElementById: function(id) {
                 let hit = null;
@@ -277,70 +465,128 @@ function djEnv(withTips) {
             createElement: function(t) { return makeNode(t); },
         },
     };
-    if (withTips !== false) sandbox.showTipOverlay = function(o) { tipCalls.push(o); };
+    if (opts.tips !== false) sandbox.showTipOverlay = function(o) { tipCalls.push(o); };
     sandbox.window = sandbox;
     vm.createContext(sandbox);
     return {
-        sandbox: sandbox, tipCalls: tipCalls, profileCalls: profileCalls,
+        sandbox: sandbox, tipCalls: tipCalls, profileCalls: profileCalls, reads: reads,
         loadGc: function() { vm.runInContext(gcCode(), sandbox); },
         loadBeats: function() { vm.runInContext(beatsCode(), sandbox); },
         show: function(d) { sandbox.__showDJBar(Object.assign({}, DJ, d || {})); },
         tipBtn: function() {
             const bar = sandbox.document.getElementById('djNowPlaying');
             assert.ok(bar, 'bar rendered');
-            const btn = bar.children.filter(function(c) { return c.tagName === 'BUTTON' && /artistUid01/.test(c.getAttribute('data-id') || ''); })[0];
+            const btn = bar.querySelectorAll('button').filter(function(c) { return /Tip Artist/.test(c.textContent) || c.hasAttribute('data-dj-tip') || /spoofUid99/.test(c.getAttribute('data-id') || ''); })[0];
             assert.ok(btn, 'artist tip control rendered');
             return btn;
         },
     };
 }
-function expectTip(env) {
+async function settle() { for (let i = 0; i < 10; i++) await new Promise(function(r) { setImmediate(r); }); }
+async function expectTip(env) {
     clickEl(env.tipBtn());
+    await settle();
     assert.strictEqual(env.profileCalls.length, 0, 'profile not opened');
     assert.strictEqual(env.tipCalls.length, 1, 'tip overlay opened once');
-    assert.strictEqual(env.tipCalls[0].recipientUid, 'artistUid01');
-    assert.strictEqual(env.tipCalls[0].recipientName, 'Arty');
+    assert.strictEqual(env.tipCalls[0].recipientUid, 'realArtist01', 'payee from the track doc');
+    assert.strictEqual(env.tipCalls[0].recipientName, 'Real Artist', 'name from the track doc');
     assert.strictEqual(env.tipCalls[0].label, 'Tip Artist');
+    assert.ok(JSON.stringify(env.tipCalls[0]).indexOf('spoof') === -1 && JSON.stringify(env.tipCalls[0]).indexOf('Spoofed') === -1);
+}
+async function expectNoTip(env) {
+    clickEl(env.tipBtn());
+    await settle();
+    assert.strictEqual(env.tipCalls.length, 0, 'no tip overlay');
+    assert.strictEqual(env.profileCalls.length, 0, 'no profile fallback');
 }
 
-test('dj bar: hook attaches when global chat loads before beats', () => {
+test('dj bar: global chat before beats, payee and name come from the track doc', async () => {
     const env = djEnv();
     env.loadGc(); env.loadBeats();
     env.show();
-    expectTip(env);
+    await expectTip(env);
+    assert.deepStrictEqual(env.reads.filter(function(r) { return r === 'beats_tracks/track01'; }).length, 1);
 });
 
-test('dj bar: hook attaches when beats loads before global chat', () => {
+test('dj bar: beats before global chat, payee from the track doc', async () => {
     const env = djEnv();
     env.loadBeats(); env.loadGc();
     env.show();
-    expectTip(env);
+    await expectTip(env);
 });
 
-test('dj bar: a bar already on screen is patched when beats loads late', () => {
+test('dj bar: a bar already on screen is patched when beats loads late', async () => {
     const env = djEnv();
     env.loadGc();
     env.show();
     env.loadBeats();
-    expectTip(env);
+    await expectTip(env);
 });
 
-test('dj bar: hook is idempotent and re-renders keep one handler', () => {
+test('dj bar: hook is idempotent, re-renders keep one handler and one read per track', async () => {
     const env = djEnv();
     env.loadGc(); env.loadBeats(); env.loadBeats();
     assert.strictEqual(typeof env.sandbox.bqDJBarTipHook, 'function');
     assert.strictEqual(env.sandbox.bqDJBarTipHook(function() { throw new Error('second hook'); }), false);
     env.show(); env.show(); env.show();
-    expectTip(env);
+    await expectTip(env);
+    assert.strictEqual(env.reads.length, 1);
     assert.strictEqual(typeof env.sandbox.showDJBar, 'undefined', 'render function stays private');
 });
 
-test('dj bar: without the tips script the control still opens the profile', () => {
-    const env = djEnv(false);
+test('dj bar: missing track, unreadable track or no author gives no overlay', async () => {
+    let env = djEnv();
+    env.loadGc(); env.loadBeats();
+    env.show({ trackId: 'trackGone' });
+    await settle();
+    assert.strictEqual(env.tipBtn().style.display, 'none', 'hidden for a missing track');
+    await expectNoTip(env);
+
+    env = djEnv({ unreadable: true });
     env.loadGc(); env.loadBeats();
     env.show();
-    clickEl(env.tipBtn());
-    assert.deepStrictEqual(env.profileCalls, ['artistUid01']);
+    await expectNoTip(env);
+
+    env = djEnv();
+    env.loadGc(); env.loadBeats();
+    env.show({ trackId: 'trackNoAuthor' });
+    await settle();
+    assert.strictEqual(env.tipBtn().style.display, 'none');
+    await expectNoTip(env);
+});
+
+test('dj bar: a bad track id is refused before any read', async () => {
+    const env = djEnv();
+    env.loadBeats();
+    const hook = env.sandbox._bqDJBarTipPending;
+    assert.strictEqual(typeof hook, 'function', 'hook waiting for global chat');
+    for (const bad of ['../users/x', 'a b', 'x'.repeat(129), '', 42, null]) {
+        const bar = makeNode('div');
+        bar.innerHTML = '<button data-dj-tip="1">Tip Artist</button>';
+        hook(bar, Object.assign({}, DJ, { trackId: bad }));
+        const btn = bar.querySelector('[data-dj-tip]');
+        clickEl(btn);
+        await settle();
+        assert.strictEqual(btn.style.display, 'none', String(bad));
+    }
+    assert.deepStrictEqual(env.reads, []);
+    assert.strictEqual(env.tipCalls.length, 0);
+});
+
+test('dj bar: the viewer\'s own track offers no tip', async () => {
+    const env = djEnv();
+    env.loadGc(); env.loadBeats();
+    env.show({ trackId: 'trackMine' });
+    await settle();
+    assert.strictEqual(env.tipBtn().style.display, 'none');
+    await expectNoTip(env);
+});
+
+test('dj bar: without the tips script nothing opens', async () => {
+    const env = djEnv({ tips: false });
+    env.loadGc(); env.loadBeats();
+    env.show();
+    await expectNoTip(env);
 });
 
 run();

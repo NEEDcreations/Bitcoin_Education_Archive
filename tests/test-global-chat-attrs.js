@@ -160,13 +160,13 @@ test('DM list opens by uid and looks the name up', function() {
 
 test('DJ bar uses data attributes for the DJ and artist', function() {
     const t = load();
-    t.win.showDJBar({ djUid: 'dj1', djName: 'Dee', artistUid: H.ODD_IDS[1], trackArtist: H.ODD_NAMES[1], trackTitle: 't' });
+    t.win.showDJBar({ djUid: 'dj1', djName: 'Dee', artistUid: H.ODD_IDS[1], trackId: H.ODD_IDS[2], trackArtist: H.ODD_NAMES[1], trackTitle: 't' });
     let html = t.els.djNowPlaying.innerHTML;
     assert.strictEqual(html.indexOf('MARKQ2'), -1);
     assert.ok(!H.readTags(html).some(function(x) { return x.name === 'img' && /MARKQ/.test(x.attrs.src || ''); }));
     assert.deepStrictEqual(H.strayAttrs(html, ALLOWED), []);
     assert.ok(!H.readTags(html).some(function(x) { return x.attrs['data-id'] && !H.ID_RE.test(x.attrs['data-id']); }));
-    t.win.showDJBar({ djUid: 'dj1', djName: 'Dee', artistUid: 'artist_1', trackArtist: 'Art', trackTitle: 't' });
+    t.win.showDJBar({ djUid: 'dj1', djName: 'Dee', artistUid: 'artist_1', trackId: 'track_1', trackArtist: 'Art', trackTitle: 't' });
     html = t.els.djNowPlaying.innerHTML;
     H.handlerTexts(html).forEach(function(h) { assert.ok(!/artist_1|dj1|showUserProfile/.test(h), h); });
     H.readTags(html).filter(function(x) { return x.attrs['data-gc-action'] === 'profile'; }).forEach(function(x) { H.click(t.els.djNowPlaying, x.attrs); });

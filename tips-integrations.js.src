@@ -221,18 +221,21 @@ function injectMarketplaceTips() {
         row.insertBefore(payBtn, btn);
     });
 
-    // Also inject quick-pay on listing cards in the grid
-    var listingCards = fc.querySelectorAll('div[onclick*="viewListing"]');
+    // Grid cards: a hint only, shown when the loaded listing has a seller and
+    // a valid price. Tapping the card opens the detail view with the Pay button.
+    var listingCards = fc.querySelectorAll('div[data-mkt-action="open"]');
     listingCards.forEach(function(card) {
         if (card.querySelector('[data-market-tip]')) return;
+        var info = typeof window._mktListingPay === 'function' ? window._mktListingPay(card.getAttribute('data-listing-id') || '') : null;
+        if (!info || typeof info.sellerUid !== 'string' || !info.sellerUid || !mktSats(info.priceSats)) return;
 
         var priceEl = card.querySelector('div[style*="color:var(--accent)"][style*="font-weight"]');
-        if (!priceEl) return;
+        if (!priceEl || !priceEl.parentElement) return;
 
         var marker = document.createElement('div');
         marker.setAttribute('data-market-tip', '1');
-        marker.style.cssText = 'padding:4px 0 0;';
-        marker.innerHTML = '<span style="font-size:0.65rem;color:rgba(234,179,8,0.6);">⚡ Tap to pay with Lightning</span>';
+        marker.style.cssText = 'padding:4px 0 0;font-size:0.65rem;color:rgba(234,179,8,0.6);';
+        marker.textContent = '⚡ Tap to pay with Lightning';
         priceEl.parentElement.appendChild(marker);
     });
 }
@@ -245,40 +248,33 @@ function injectIRLTips() {
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
 
-    // Find RSVP buttons
-    var rsvpBtns = fc.querySelectorAll('button[onclick*="toggleRSVP"]');
+    // Ticket button next to each event's RSVP button. The host and title come
+    // from the event data irl-sync.js loaded, never from markup.
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
+    var rsvpBtns = fc.querySelectorAll('button[data-irl-action="rsvp"]');
     rsvpBtns.forEach(function(btn) {
-        if (btn.parentElement && btn.parentElement.querySelector('[data-irl-tip]')) return;
-
-        var onclickStr = btn.getAttribute('onclick') || '';
-        var idMatch = onclickStr.match(/toggleRSVP\('([^']+)'\)/);
-        var eventId = idMatch ? idMatch[1] : '';
-
-        // Get event title from nearby elements
-        var card = btn.closest('.event-card, div[style*="border-radius:16px"]');
-        var titleEl = card ? card.querySelector('h3') : null;
-        var title = titleEl ? titleEl.textContent.trim() : 'this event';
-
-        // Get host info if available
-        var hostName = '';
-        var hostUid = '';
+        var row = btn.parentElement;
+        if (!row || row.querySelector('[data-irl-tip]')) return;
+        var eventId = btn.getAttribute('data-id') || '';
+        var info = typeof window._irlEventPay === 'function' ? window._irlEventPay(eventId) : null;
+        if (!info || typeof info.hostId !== 'string' || !info.hostId || info.hostId === me) return;
 
         var tipOpts = {
-            recipientName: 'Event: ' + (typeof title === 'string' ? title : ''),
-            recipientUid: hostUid,
+            recipientName: 'Event: ' + ((typeof info.title === 'string' && info.title) ? info.title : 'this event'),
+            recipientUid: info.hostId,
             context: 'irl_ticket',
             contextId: eventId,
             label: 'Buy Ticket',
         };
 
         var ticketBtn = document.createElement('button');
+        ticketBtn.type = 'button';
         ticketBtn.setAttribute('data-irl-tip', '1');
-        ticketBtn.setAttribute('data-tip-action', JSON.stringify(tipOpts));
         ticketBtn.style.cssText = 'background:rgba(234,179,8,0.08);color:#eab308;border:1px solid rgba(234,179,8,0.25);padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;margin-left:6px;';
         ticketBtn.textContent = '⚡ Buy Ticket';
-        (function(o) { ticketBtn.onclick = function(e) { e.stopPropagation(); if (typeof showTipOverlay === 'function') showTipOverlay(o); }; })(tipOpts);
+        ticketBtn.onclick = function(e) { e.stopPropagation(); if (typeof showTipOverlay === 'function') showTipOverlay(tipOpts); };
 
-        btn.parentElement.appendChild(ticketBtn);
+        row.appendChild(ticketBtn);
     });
 }
 

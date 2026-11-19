@@ -12072,6 +12072,7 @@ function loadMarketListings(category, search, sort, section) {
         }
 
         var savedItems = safeJSON('btc_market_saved', []);
+        mktNoteGridPay(listings);
 
         grid.innerHTML = listings.map(function(l) {
             var isSaved = savedItems.indexOf(l.id) !== -1;
@@ -12140,11 +12141,24 @@ function loadMarketListings(category, search, sort, section) {
 // [AUDIT FIX] escapeHtml moved to utils.js
 
 // ---- Single Listing Detail ----
-// Pay data for the open listing, taken from the loaded doc (not the page markup).
+// Pay data for the open listing and the grid, taken from the loaded docs
+// (not the page markup). The viewer's own listings are left out.
 var _mktPayCur = null;
+var _mktGridPay = new Map();
+function mktPayEntry(l) {
+    return { sellerUid: l.sellerUid, sellerName: l.sellerName, priceSats: l.priceSats };
+}
+function mktNoteGridPay(listings) {
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
+    _mktGridPay = new Map();
+    listings.forEach(function(l) {
+        if (l && typeof l.id === 'string' && l.sellerUid !== me) _mktGridPay.set(l.id, mktPayEntry(l));
+    });
+}
 window._mktListingPay = function(id) {
-    var c = _mktPayCur;
-    if (!c || typeof id !== 'string' || id !== c.id) return null;
+    if (typeof id !== 'string') return null;
+    var c = (_mktPayCur && id === _mktPayCur.id) ? _mktPayCur : (_mktGridPay.has(id) ? _mktGridPay.get(id) : null);
+    if (!c) return null;
     return {
         sellerUid: typeof c.sellerUid === 'string' ? c.sellerUid : '',
         sellerName: typeof c.sellerName === 'string' ? c.sellerName : '',
@@ -12170,7 +12184,7 @@ function renderListingDetail(container, listingId) {
         var isSaved = savedItems.indexOf(l.id) !== -1;
         var isOwner = (typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.uid === l.sellerUid);
         var isAdmin = isMarketAdmin();
-        _mktPayCur = isOwner ? null : { id: l.id, sellerUid: l.sellerUid, sellerName: l.sellerName, priceSats: l.priceSats };
+        _mktPayCur = isOwner ? null : Object.assign({ id: l.id }, mktPayEntry(l));
 
         // Format price
         var priceDisplay = l.priceSats >= 1000000 ? (l.priceSats / 1000000).toFixed(2) + 'M sats' :

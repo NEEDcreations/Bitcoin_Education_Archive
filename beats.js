@@ -3858,30 +3858,57 @@ window.beatsQuickCreateAndAdd = function(trackId) {
 // FEATURE 6: Nacho DJ tips go to track artist (not generic donate)
 // ================================================================
 // Registers through the global-chat DJ bar hook, in either load order.
+// The payee and name come from the track doc, read once per track id (the author field is fixed after upload).
 (function() {
+    var _djTrackPay = new Map();
+    function djViewerUid() {
+        return (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
+    }
+    function djTrackPayee(trackId) {
+        if (!beatsIdOk(trackId) || typeof db === 'undefined' || !db) return Promise.resolve(null);
+        if (_djTrackPay.has(trackId)) return _djTrackPay.get(trackId);
+        if (_djTrackPay.size >= 50) _djTrackPay.clear();
+        var p = Promise.resolve().then(function() {
+            return db.collection('beats_tracks').doc(trackId).get();
+        }).then(function(snap) {
+            var t = snap && snap.exists && typeof snap.data === 'function' ? snap.data() : null;
+            if (!t || !beatsIdOk(t.authorId)) return null;
+            var name = (typeof t.authorName === 'string' && t.authorName) ? t.authorName.slice(0, 64) : 'Artist';
+            var title = (typeof t.title === 'string' && t.title) ? t.title.slice(0, 128) : 'Unknown';
+            return { uid: t.authorId, name: name, title: title };
+        }, function() {
+            _djTrackPay.delete(trackId);
+            return null;
+        });
+        _djTrackPay.set(trackId, p);
+        return p;
+    }
     function djTipHook(bar, d) {
         var btn = bar && bar.querySelector ? bar.querySelector('[data-dj-tip]') : null;
         if (!btn || !d) return;
-        var uid = typeof d.artistUid === 'string' ? d.artistUid : '';
-        if (!uid) return;
+        var trackId = typeof d.trackId === 'string' ? d.trackId : '';
         btn.onclick = function(e) {
-            // Without the tips script the click falls through to the profile.
-            if (typeof showTipOverlay !== 'function') return;
             e.stopPropagation();
-            var tipArtist = (typeof d.trackArtist === 'string' ? d.trackArtist : '') || (typeof d.djName === 'string' ? d.djName : '') || 'Artist';
-            var tipTitle = (typeof d.trackTitle === 'string' ? d.trackTitle : '') || 'Unknown';
-            if (typeof beatsCensor === 'function') {
-                tipArtist = beatsCensor(tipArtist);
-                tipTitle = beatsCensor(tipTitle);
-            }
-            showTipOverlay({
-                recipientName: tipArtist,
-                recipientUid: uid,
-                context: 'DJ tip for: ' + tipTitle,
-                label: 'Tip Artist'
+            djTrackPayee(trackId).then(function(info) {
+                if (!info || info.uid === djViewerUid() || typeof showTipOverlay !== 'function') return;
+                var name = info.name, title = info.title;
+                if (typeof beatsCensor === 'function') {
+                    name = beatsCensor(name);
+                    title = beatsCensor(title);
+                }
+                showTipOverlay({
+                    recipientName: name,
+                    recipientUid: info.uid,
+                    context: 'DJ tip for: ' + title,
+                    label: 'Tip Artist'
+                });
             });
         };
         btn.title = 'Tip the artist of this track';
+        if (!beatsIdOk(trackId)) { btn.style.display = 'none'; return; }
+        djTrackPayee(trackId).then(function(info) {
+            if (!info || info.uid === djViewerUid()) btn.style.display = 'none';
+        });
     }
     if (typeof window.bqDJBarTipHook === 'function') window.bqDJBarTipHook(djTipHook);
     else window._bqDJBarTipPending = djTipHook;
