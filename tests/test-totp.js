@@ -159,5 +159,30 @@ test('the app asks the server, and every sign-in method can reach a challenge or
     assert.strictEqual(read('index.html'), read('404.html'));
 });
 
+
+test('authenticator verify shows immediate feedback, a still-working line, and clear errors', function () {
+    const client = read('ranking.js');
+    assert.ok(client.includes('window._startTotpVerifyUi'));
+    assert.ok(client.includes("Verifying your code..."));
+    assert.ok(client.includes("Still working, this can take a few seconds."));
+    assert.ok(client.includes('totpVerifySpin'));
+    assert.ok(client.includes("Code verified."));
+    assert.ok(client.includes('The check timed out. Check your connection and try again.'));
+    assert.ok(client.includes('That code is wrong or has expired. Enter a new one from your authenticator app.'));
+    assert.ok(client.includes('That code has expired. Enter a new one from your authenticator app.'));
+    // Setup, sign-in second step, and admin step-up all use the helper.
+    const setupAt = client.indexOf('async function verifyTotpSetup');
+    const signInAt = client.indexOf('window._submitTotpSignIn = async function');
+    const stepAt = client.indexOf("httpsCallable('totpStepUp')");
+    assert.ok(setupAt > 0 && signInAt > 0 && stepAt > 0);
+    assert.ok(client.slice(setupAt, setupAt + 900).includes('_startTotpVerifyUi'));
+    assert.ok(client.slice(signInAt, signInAt + 1800).includes('_startTotpVerifyUi'));
+    const stepFnAt = client.lastIndexOf('async function submit()', stepAt);
+    assert.ok(stepFnAt > 0);
+    assert.ok(client.slice(stepFnAt, stepAt + 500).includes('_startTotpVerifyUi'));
+    // Immediate state, not only a later toast.
+    assert.ok(client.slice(signInAt, signInAt + 1600).indexOf('_startTotpVerifyUi') < client.slice(signInAt, signInAt + 1600).indexOf("httpsCallable('totpCheck')"));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);

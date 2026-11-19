@@ -484,6 +484,11 @@ function installMfaCallablePatch() {
 function _mfaFailure(e) {
     var code = (e && e.code) || '';
     var msg = (e && e.message) || '';
+    var blob = (code + ' ' + msg).toLowerCase();
+    var networkish = blob.indexOf('deadline') !== -1 || blob.indexOf('timed out') !== -1 || blob.indexOf('timeout') !== -1 || blob.indexOf('network-request-failed') !== -1 || blob.indexOf('failed to fetch') !== -1 || code.indexOf('unavailable') !== -1;
+    if (networkish && msg.indexOf('Authenticator') === -1 && msg.indexOf('unavailable') === -1) {
+        return 'The check timed out. Check your connection and try again.';
+    }
     if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many attempts') !== -1) {
         if (msg.indexOf('tomorrow') !== -1) return 'Too many attempts. Try again tomorrow.';
         return 'Too many attempts. Wait 2 minutes.';
@@ -494,10 +499,72 @@ function _mfaFailure(e) {
     if (msg.indexOf('Invalid recovery code') !== -1) return 'That recovery code is not valid.';
     if (msg.indexOf('fresh authenticator') !== -1) return 'Enter a fresh authenticator code. A remembered device is not enough.';
     if (msg.indexOf('Device is not trusted') !== -1) return 'This device is not remembered. Enter your authenticator code.';
-    if (msg.indexOf('Invalid code') !== -1) return 'That code is not valid.';
+    if (code.indexOf('code-expired') !== -1 || (blob.indexOf('expired') !== -1 && blob.indexOf('code') !== -1)) return 'That code has expired. Enter a new one from your authenticator app.';
+    if (msg.indexOf('Invalid code') !== -1 || msg.indexOf('That code is not valid') !== -1) return 'That code is wrong or has expired. Enter a new one from your authenticator app.';
     if (msg.indexOf('unavailable') !== -1) return 'Authenticator setup is unavailable right now.';
+    if (networkish) return 'The check timed out. Check your connection and try again.';
     return msg || 'Something went wrong.';
 }
+
+// Immediate feedback while totpCheck / totpVerify / totpStepUp run. Those
+// functions can sit on a cold start, so the button and status change right
+// away, and a follow-up line appears after 5 seconds if still waiting.
+window._startTotpVerifyUi = function(btn, statusEl, idleLabel) {
+    var finished = false;
+    var timer = null;
+    var previous = btn ? (btn.getAttribute('data-idle-label') || btn.textContent || idleLabel || 'Verify') : (idleLabel || 'Verify');
+    if (btn && !btn.getAttribute('data-idle-label') && idleLabel) btn.setAttribute('data-idle-label', idleLabel);
+    if (btn && btn.getAttribute('data-idle-label')) previous = btn.getAttribute('data-idle-label');
+    else if (idleLabel) previous = idleLabel;
+    if (btn) {
+        btn.setAttribute('data-idle-label', previous);
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        btn.innerHTML = '<span aria-hidden="true" style="display:inline-block;width:12px;height:12px;margin-right:8px;border:2px solid rgba(255,255,255,0.35);border-top-color:#fff;border-radius:50%;vertical-align:-1px;animation:totpVerifySpin 0.8s linear infinite;"></span>Verifying your code...';
+    }
+    if (statusEl) {
+        statusEl.style.color = 'var(--text-muted,#aaa)';
+        statusEl.textContent = 'Verifying your code...';
+    }
+    if (typeof document !== 'undefined' && document.head && !document.getElementById('totpVerifySpinStyle')) {
+        var st = document.createElement('style');
+        st.id = 'totpVerifySpinStyle';
+        st.textContent = '@keyframes totpVerifySpin{to{transform:rotate(360deg)}}';
+        document.head.appendChild(st);
+    }
+    timer = setTimeout(function() {
+        if (finished) return;
+        if (statusEl) statusEl.textContent = 'Still working, this can take a few seconds.';
+    }, 5000);
+    function stop() {
+        finished = true;
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (btn) {
+            btn.disabled = false;
+            btn.removeAttribute('aria-busy');
+            btn.textContent = previous;
+        }
+    }
+    return {
+        succeed: function(msg) {
+            stop();
+            if (btn) btn.disabled = true;
+            if (statusEl) {
+                statusEl.style.color = '#22c55e';
+                statusEl.textContent = msg || 'Code verified.';
+            }
+        },
+        fail: function(err) {
+            stop();
+            var text = _mfaFailure(err);
+            if (statusEl) {
+                statusEl.style.color = '#ef4444';
+                statusEl.textContent = text;
+            }
+            return text;
+        }
+    };
+};
 
 function _isMfaBlock(e) {
     var msg = (e && e.message) || '';
@@ -12977,8 +13044,7 @@ window._submitTotpSignIn = async function() {
         if (statusEl) statusEl.textContent = 'Enter the full 6-digit code';
         return;
     }
-    if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; }
-    if (statusEl) statusEl.textContent = '';
+    var ui = window._startTotpVerifyUi(btn, statusEl, 'Verify');
     try {
         var rememberEl = document.getElementById('totpRememberDevice');
         var remember = !rememberEl || rememberEl.checked;
@@ -12992,6 +13058,7 @@ window._submitTotpSignIn = async function() {
         var checkFn = firebase.functions().httpsCallable('totpCheck');
         var checked = await checkFn(payload);
         var checkedData = (checked && checked.data) || {};
+        ui.succeed('Code verified.');
         if (auth && auth.currentUser && checkedData.sessionId) window._rememberMfaSession(auth.currentUser.uid, checkedData.sessionId);
         if (auth && auth.currentUser) {
             if (checkedData.deviceToken) window._rememberMfaDevice(auth.currentUser.uid, checkedData.deviceToken);
@@ -13014,9 +13081,7 @@ window._submitTotpSignIn = async function() {
             window.btcAuthDisplay.markNeeds2fa(auth.currentUser.uid);
         }
         if (typeof updateAuthButton === 'function') updateAuthButton();
-        if (btn) { btn.disabled = false; btn.textContent = 'Verify'; }
-        var msg = _mfaFailure(e);
-        if (statusEl) statusEl.textContent = msg;
+        ui.fail(e);
         if (inp) { inp.value = ''; inp.focus(); }
     }
 };
@@ -13440,15 +13505,15 @@ window._showFreshStepUp = function (action) {
         async function submit() {
             var code = input ? input.value.trim() : '';
             if (code.length < 6) { if (status) status.textContent = 'Enter the full 6-digit code'; return; }
-            if (button) { button.disabled = true; button.textContent = 'Checking...'; }
+            var ui = window._startTotpVerifyUi(button, status, 'Continue');
             try {
                 var res = await firebase.functions().httpsCallable('totpStepUp')({ code: code, action: action });
                 var proof = res && res.data && res.data.freshProofId;
                 if (!proof) throw new Error('Enter a fresh authenticator code for this action.');
+                ui.succeed('Code verified.');
                 finish(proof);
             } catch (e) {
-                if (button) { button.disabled = false; button.textContent = 'Continue'; }
-                if (status) status.textContent = _mfaFailure(e);
+                ui.fail(e);
                 if (input) { input.value = ''; input.focus(); }
             }
         }
@@ -13549,7 +13614,8 @@ async function startTotpSetup() {
                     '<img src="' + qrDataUrl + '" style="width:200px;height:200px;border-radius:8px;border:2px solid var(--border);margin-bottom:12px;">' +
                     '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Or enter this key manually: <strong style="font-family:monospace;">' + (result.data.secret || '') + '</strong></div>' +
                     '<input type="text" id="totpVerifyCode" inputmode="numeric" placeholder="Enter 6-digit code" maxlength="6" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;margin-bottom:8px;">' +
-                    '<button onclick="verifyTotpSetup()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Verify & Enable</button>' +
+                    '<div id="totpSetupStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:8px;"></div>' +
+                    '<button id="totpSetupVerifyBtn" onclick="verifyTotpSetup()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Verify & Enable</button>' +
                     '</div>';
             }
         } else {
@@ -13562,17 +13628,26 @@ async function startTotpSetup() {
 
 async function verifyTotpSetup() {
     var code = document.getElementById('totpVerifyCode');
-    if (!code || code.value.trim().length !== 6) { showToast('Enter a 6-digit code'); return; }
+    var statusEl = document.getElementById('totpSetupStatus');
+    var btn = document.getElementById('totpSetupVerifyBtn');
+    if (!code || code.value.trim().length !== 6) {
+        if (statusEl) { statusEl.style.color = '#ef4444'; statusEl.textContent = 'Enter a 6-digit code'; }
+        else showToast('Enter a 6-digit code');
+        return;
+    }
+    var ui = window._startTotpVerifyUi(btn, statusEl, 'Verify & Enable');
     try {
         var verifyFn = firebase.functions().httpsCallable('totpVerify');
         var verified = await verifyFn({ code: code.value.trim() });
         var verifiedData = (verified && verified.data) || {};
+        ui.succeed('Authenticator app is on');
         if (auth && auth.currentUser && verifiedData.sessionId) window._rememberMfaSession(auth.currentUser.uid, verifiedData.sessionId);
         if (verifiedData.recoveryCodes) window._showRecoveryCodes(verifiedData.recoveryCodes);
         showToast('Authenticator app is on');
         showSettingsPage('security');
     } catch(e) {
-        showToast(_mfaFailure(e));
+        var text = ui.fail(e);
+        showToast(text);
     }
 }
 
