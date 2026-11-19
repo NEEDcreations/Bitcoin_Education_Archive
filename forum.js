@@ -110,6 +110,15 @@ function fEsc(str) {
     return typeof escapeHtml === 'function' ? escapeHtml(str) : str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function fEscJs(str) {
+    if (typeof str !== 'string') {
+        if (typeof str === 'boolean') str = String(str);
+        else if (typeof str === 'number' && isFinite(str)) str = String(str);
+        else return '';
+    }
+    return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '').replace(/\n/g, '\\n').replace(/</g, '\\x3c').replace(/>/g, '\\x3e').replace(/&/g, '\\x26').replace(/"/g, '\\x22');
+}
+
 // Display helpers for stored counters, levels and text.
 function forumCount(v) {
     if (typeof v !== 'number' && typeof v !== 'string') return 0;
@@ -633,7 +642,7 @@ async function forumLoadReplies(postId) {
                 '<div style="display:flex;gap:8px;align-items:center;">' +
                     '<button onclick="forumVoteReply(\'' + r.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + (r.upvotes || 0) + '</button>' +
                     (canReply ? '<button data-reply-id="' + r.id + '" data-reply-author="' + fEsc(r.authorName || 'Anon') + '" onclick="window.forumReplyToReply(this.dataset.replyId,this.dataset.replyAuthor)" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\u21A9 Reply</button>' : '') +
-                    (canDeleteReply ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + r.postId + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
+                    (canDeleteReply ? '<button onclick="forumDeleteReply(\'' + fEscJs(r.id) + '\',\'' + fEscJs(r.postId) + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
                 '</div>' +
             '</div>';
             return out;

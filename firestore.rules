@@ -1073,6 +1073,7 @@ service cloud.firestore {
                       isAdmin()
                       || (
                         forumMirrorFieldsFrozen()
+                        && request.resource.data.get('postId', null) == resource.data.get('postId', null)
                         && (
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                        && (!(request.auth.uid in resource.data.get('voters', [])))
@@ -1871,13 +1872,18 @@ service cloud.firestore {
                     && request.resource.data.body.size() <= 2000);
       allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
-                    && (resource.data.authorId == request.auth.uid
-                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
-                            && (!(request.auth.uid in resource.data.get('voters', [])))
-                            && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
-                            && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
-                            && request.auth.uid in request.resource.data.voters)
-                        || isAdmin()));
+                    && (
+                      isAdmin()
+                      || (
+                        request.resource.data.get('articleId', null) == resource.data.get('articleId', null)
+                        && (resource.data.authorId == request.auth.uid
+                            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                                && (!(request.auth.uid in resource.data.get('voters', [])))
+                                && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
+                                && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
+                                && request.auth.uid in request.resource.data.voters))
+                      )
+                    ));
       allow delete: if clientWritesOk() && (request.auth != null
                     && (resource.data.authorId == request.auth.uid
                         || isAdmin()));

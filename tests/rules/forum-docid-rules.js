@@ -2,33 +2,23 @@
 // Client-created Pleb Talk doc ids must be plain tokens (^[A-Za-z0-9_-]{1,256}$,
 // same as the client FORUM_ID_RE). Ids with quotes, angle brackets, parens or
 // spaces are refused on create for forum_posts, forum_replies, articles and
-// article_replies. Starts the Firestore emulator when FIRESTORE_EMULATOR_HOST is not set.
+// article_replies. Requires FIRESTORE_EMULATOR_HOST on an allowed port; does not
+// fall back to 8085 or start the firebase.json emulator.
 'use strict';
-const { spawnSync } = require('child_process');
 const path = require('path');
 const root = path.join(__dirname, '..', '..');
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
-    const child = spawnSync('npx', [
-        '--yes', 'firebase-tools',
-        'emulators:exec',
-        '--only', 'firestore',
-        '--project', 'demo-forum-docid',
-        'node tests/rules/forum-docid-rules.js',
-    ], {
-        cwd: root,
-        stdio: 'inherit',
-        env: Object.assign({}, process.env, { CI: 'true' }),
-    });
-    process.exit(child.status == null ? 1 : child.status);
+    console.error('FIRESTORE_EMULATOR_HOST is required. Point it at an allowed emulator port; this test does not start one and does not fall back to 8085.');
+    process.exit(1);
 }
 
 const fs = require('fs');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
-const { doc, setDoc, serverTimestamp } = require('firebase/firestore');
+const { doc, setDoc, updateDoc, serverTimestamp } = require('firebase/firestore');
 
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
-const emu = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8085';
+const emu = process.env.FIRESTORE_EMULATOR_HOST;
 const parts = emu.split(':');
 
 const ALNUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
@@ -62,7 +52,7 @@ const GOOD_IDS = [
     let seq = 0;
     const env = await initializeTestEnvironment({
         projectId: 'demo-forum-docid',
-        firestore: { rules: rules, host: parts[0], port: Number(parts[1] || 8085) },
+        firestore: { rules: rules, host: parts[0], port: Number(parts[1]) },
     });
     async function expect(name, run, shouldAllow) {
         try {
@@ -82,7 +72,7 @@ const GOOD_IDS = [
         return { postId: postId, body: 'A normal reply.', authorId: 'ada', authorName: 'Ada', createdAt: serverTimestamp() };
     };
     const article = function () {
-        return { title: 'A normal article title', authorId: 'ada', authorName: 'Ada', body: 'Body.', agreedToTerms: true, createdAt: serverTimestamp() };
+        return { title: 'A normal article title', authorId: 'ada', authorName: 'Ada', body: 'Body.', agreedToTerms: true, status: 'published', createdAt: serverTimestamp() };
     };
     const articleReply = function (articleId) {
         return { articleId: articleId, body: 'A comment.', authorId: 'ada', authorName: 'Ada', createdAt: serverTimestamp() };
@@ -112,6 +102,28 @@ const GOOD_IDS = [
         await expect('ATTACK forum_replies numeric postId', function () {
             return setDoc(doc(ada, 'forum_replies', 'numpost1'), reply(12345));
         }, false);
+
+        const admin = env.authenticatedContext('mod', { admin: true, firebase: { sign_in_provider: 'password' } }).firestore();
+        const replyId = 'AbCdEf0123456789wxyz';
+        const articleId = 'AbCdEf0123456789wxyz';
+        await expect('forum_replies author may edit body', function () {
+            return updateDoc(doc(ada, 'forum_replies', replyId), { body: 'An edited reply.' });
+        }, true);
+        await expect('ATTACK forum_replies author cannot change postId', function () {
+            return updateDoc(doc(ada, 'forum_replies', replyId), { postId: 'other_post' });
+        }, false);
+        await expect('ATTACK forum_replies author cannot change postId with body', function () {
+            return updateDoc(doc(ada, 'forum_replies', replyId), { postId: 'other_post', body: 'Still trying.' });
+        }, false);
+        await expect('article_replies author may edit body', function () {
+            return updateDoc(doc(ada, 'article_replies', articleId), { body: 'An edited comment.' });
+        }, true);
+        await expect('ATTACK article_replies author cannot change articleId', function () {
+            return updateDoc(doc(ada, 'article_replies', articleId), { articleId: 'other_art' });
+        }, false);
+        await expect('admin may still update a forum reply (postId frozen only for non-admins)', function () {
+            return updateDoc(doc(admin, 'forum_replies', replyId), { postId: 'other_post' });
+        }, true);
     } finally {
         await env.cleanup();
     }

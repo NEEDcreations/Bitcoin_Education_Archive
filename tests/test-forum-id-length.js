@@ -190,5 +190,21 @@ test('global chat markdown link for a 200-char forum id becomes an in-app link',
     assert.ok(!re.test('forum/post/' + ID257));
 });
 
+
+test('forumDeleteReply onclick escapes r.postId through fEscJs', function () {
+    const src = read('forum.js');
+    assert.ok(src.indexOf('function fEscJs(str)') !== -1);
+    assert.ok(src.indexOf("fEscJs(r.postId)") !== -1, 'onclick uses fEscJs(r.postId)');
+    assert.ok(!/forumDeleteReply\(\\'' \+ r\.id \+ '\\',\\'' \+ r\.postId \+ '\\'\)/.test(src), 'unescaped r.postId onclick is gone');
+    const start = src.indexOf('function fEscJs(str)');
+    const end = src.indexOf('function forumCount(v)');
+    const ctx = { window: {} };
+    vm.createContext(ctx);
+    vm.runInContext(src.slice(start, end) + '\nthis.fEscJs = fEscJs;', ctx);
+    assert.strictEqual(ctx.fEscJs('ok_id-1'), 'ok_id-1');
+    assert.strictEqual(ctx.fEscJs("x'y"), "x\\'y");
+    assert.strictEqual(ctx.fEscJs('a<b>'), 'a\\x3cb\\x3e');
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);
