@@ -490,6 +490,12 @@ function world() {
         'satoshiFavor/current/contributors/u1_chat': { uid: 'u1', username: 'Alice', points: 5 },
         'buddy_matches/bm1': { user1: { uid: 'u1', name: 'Alice' }, user2: { uid: 'u2', name: 'Bob' } },
         'pvp_matches/pm1': { player1: { uid: 'u2' }, player2: { uid: 'u1' } },
+        'citadel_weekly/u1_2026-12-28': { uid: 'u1', weekKey: '2026-12-28', spent: 75 },
+        'citadel_weekly/u2_2026-12-28': { uid: 'u2', weekKey: '2026-12-28', spent: 100 },
+        'citadel_purchases/u1_reqAAAAAAAA1': { uid: 'u1', kind: 'stage', partId: 'walls' },
+        'citadel_purchases/u1_reqBUILD0001': { uid: 'u1', kind: 'build', lessonPartId: 'lesson_keep' },
+        'citadel_purchases/u2_reqKEEP00001': { uid: 'u2', kind: 'stage', partId: 'vault' },
+        'citadel_purchases/u1_noprefixfield': { kind: 'stage', partId: 'tower' },
         'hotTopics/latest': { summary: 'public topics' },
     };
     for (let i = 0; i < del.BATCH_LIMIT + 50; i++) {
@@ -839,6 +845,12 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('gift_pending_pairs/u2_u3'));
         assert.strictEqual(db.docs.has('action_cooldowns/u1_chat_message'), false);
         assert.ok(db.docs.has('action_cooldowns/u2_chat_message'));
+        assert.strictEqual(db.docs.has('citadel_weekly/u1_2026-12-28'), false);
+        assert.ok(db.docs.has('citadel_weekly/u2_2026-12-28'));
+        assert.strictEqual(db.docs.has('citadel_purchases/u1_reqAAAAAAAA1'), false);
+        assert.strictEqual(db.docs.has('citadel_purchases/u1_reqBUILD0001'), false);
+        assert.strictEqual(db.docs.has('citadel_purchases/u1_noprefixfield'), false, 'prefix delete covers a missing uid field');
+        assert.ok(db.docs.has('citadel_purchases/u2_reqKEEP00001'));
         assert.strictEqual(db.docs.has('raid_daily_caps/u1_2026-10-22_chat'), false);
         assert.ok(db.docs.has('raid_daily_caps/u2_2026-10-22_chat'));
         assert.strictEqual(db.docs.has('rate_limits/bridge_u1'), false);
@@ -906,6 +918,29 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('users/u2'));
         assert.ok(db.docs.has('gifts/g2'));
         assert.ok(db.commits.length >= commitsAfter);
+    });
+
+    await testAsync('citadel weekly counters and purchases are removed for the deleted uid only', async function() {
+        const data = {
+            'users/u4': { username: 'Dee' },
+            'citadel_weekly/u4_2027-01-04': { uid: 'u4', spent: 75 },
+            'citadel_weekly/u5_2027-01-04': { uid: 'u5', spent: 120 },
+            'citadel_purchases/u4_reqONLYME01': { uid: 'u4', kind: 'stage' },
+            'citadel_purchases/u4_nofilteruid': { kind: 'build' },
+            'citadel_purchases/u5_reqKEEPME01': { uid: 'u5', kind: 'stage' },
+        };
+        const db = createFakeDb(data);
+        await del.purgeAccount({ db: db, bucket: createBucket([]), authApi: okAuth(), uid: 'u4', documentIdField: '__name__' });
+        assert.strictEqual(db.docs.has('citadel_weekly/u4_2027-01-04'), false);
+        assert.strictEqual(db.docs.has('citadel_purchases/u4_reqONLYME01'), false);
+        assert.strictEqual(db.docs.has('citadel_purchases/u4_nofilteruid'), false);
+        assert.ok(db.docs.has('citadel_weekly/u5_2027-01-04'));
+        assert.ok(db.docs.has('citadel_purchases/u5_reqKEEPME01'));
+        assert.ok(del.RETAINED_COLLECTIONS.indexOf('citadel_weekly') === -1);
+        assert.ok(del.RETAINED_COLLECTIONS.indexOf('citadel_purchases') === -1);
+        const src = fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8');
+        assert.ok(src.includes("deleteIdPrefix(db, batcher, 'citadel_weekly'"));
+        assert.ok(src.includes("deleteIdPrefix(db, batcher, 'citadel_purchases'"));
     });
 
     await testAsync('a missing username reservation and a second empty account still succeed', async function() {

@@ -139,6 +139,7 @@ test('Premium buy debits OrangeTix, advances the stage, records the purchase', a
     assert.strictEqual(p.kind, 'stage');
     assert.strictEqual(p.price, 75);
     assert.ok(p.retainUntilMs > NOW + 390 * 86400000 && p.retainUntilMs < NOW + 400 * 86400000, '13 months');
+    assert.strictEqual(new Date(p.expireAt).getTime(), p.retainUntilMs, 'expireAt is the same 13-month time');
 });
 
 test('purchase and counter rows carry no email, IP or wallet fields', async function () {
@@ -438,6 +439,11 @@ test('index exports the four callables; wiring uses guestGate, kill switch, seco
     assert.ok(fns.includes("require('./killSwitch').isOffline(db)"));
     assert.ok(fns.includes('requireSecondFactor'));
     assert.ok(!/serviceAccount|secrets:/.test(fns), 'no secrets bound');
+    const appCheckHits = (fns.match(/enforceAppCheck:\s*true/g) || []).length;
+    assert.ok(appCheckHits >= 1, 'App Check is on');
+    ['getCitadelShopStatus', 'buyCitadelStage', 'buildCitadelPart', 'claimLessonParts'].forEach(function (n) {
+        assert.ok(new RegExp('const ' + n + ' = onCallApp\\(').test(fns), n + ' uses onCallApp');
+    });
 });
 
 test('rules: citadel_* collections and users.citadel are server-write-only', function () {
@@ -457,6 +463,101 @@ test('NOTES.md lists the functions as never deployed and the retention rules', f
     assert.ok(/NEVER DEPLOYED/.test(notes));
     assert.ok(/expireAt/.test(notes) && /13 months/.test(notes) && /masked uid/i.test(notes));
     assert.ok(/no TTL policy/i.test(notes));
+});
+
+test('account younger than 7 days cannot claim lesson parts', async function () {
+    const created = {};
+    created[FREE] = NOW - 3 * 86400000;
+    const t = setup({ created: created });
+    assert.strictEqual((await t.svc.claimLessons(ctx(FREE))).code, 'account_age');
+    assert.strictEqual(t.get('users/' + FREE).citadel, undefined, 'no grant written');
+    const unknown = {};
+    unknown[FREE] = NaN;
+    assert.strictEqual((await setup({ created: unknown }).svc.claimLessons(ctx(FREE))).code, 'account_age', 'unknown age fails closed');
+});
+
+test('banned and rewardBlocked accounts cannot buy, build or claim lessons', async function () {
+    async function refuse(t) {
+        const before = JSON.stringify([...t.db.store]);
+        assert.strictEqual((await buy(t, PREM, 'walls', 1)).code, 'banned');
+        await t.svc.claimLessons(ctx(PREM)); // may also be banned; prepare build path separately
+        assert.strictEqual((await t.svc.build(ctx(PREM), { lessonPartId: 'lesson_keep', requestId: req() })).code, 'banned');
+        assert.strictEqual((await t.svc.claimLessons(ctx(PREM))).code, 'banned');
+        assert.strictEqual(JSON.stringify([...t.db.store]), before, 'no writes');
+    }
+    const banned = setup();
+    banned.db.store.set('users/' + PREM, Object.assign(banned.get('users/' + PREM), { banned: true, citadel: { lessonParts: { lesson_keep: true } } }));
+    await refuse(banned);
+    const reason = setup();
+    reason.db.store.set('users/' + PREM, Object.assign(reason.get('users/' + PREM), { ban_reason: 'abuse', citadel: { lessonParts: { lesson_keep: true } } }));
+    await refuse(reason);
+    const sats = setup();
+    sats.db.store.set('users/' + PREM, Object.assign(sats.get('users/' + PREM), { satsDisabled: true, citadel: { lessonParts: { lesson_keep: true } } }));
+    await refuse(sats);
+    const ledger = setup();
+    ledger.db.store.set('users/' + PREM, Object.assign(ledger.get('users/' + PREM), { citadel: { lessonParts: { lesson_keep: true } } }));
+    ledger.db.store.set('faucet_ledger/' + PREM, { banned: true });
+    await refuse(ledger);
+    // The ban check lives inside the buy and build transactions (Red Team F2).
+    const src = fs.readFileSync(path.join(root, 'functions/src/citadelShop.js'), 'utf8');
+    const buyAt = src.indexOf('async function buy(');
+    const buildAt = src.indexOf('async function build(');
+    const claimAt = src.indexOf('async function claimLessons(');
+    const buyBlock = src.slice(buyAt, buildAt);
+    const buildBlock = src.slice(buildAt, claimAt);
+    assert.ok(buyBlock.includes('runTransaction') && buyBlock.indexOf('rewardBlocked') > buyBlock.indexOf('runTransaction'));
+    assert.ok(buildBlock.includes('runTransaction') && buildBlock.indexOf('rewardBlocked') > buildBlock.indexOf('runTransaction'));
+});
+
+test('frozen, revoked and pending-start entitlements cannot buy or build', async function () {
+    async function notPremium(ent) {
+        const t = setup();
+        t.db.store.set('premium_entitlements/' + PREM, Object.assign({}, ACTIVE_ENT, ent));
+        t.db.store.set('users/' + PREM, Object.assign(t.get('users/' + PREM), { citadel: { lessonParts: { lesson_keep: true } } }));
+        const beforeTickets = t.get('users/' + PREM).orangeTickets;
+        assert.strictEqual((await buy(t, PREM, 'walls', 1)).code, 'not_premium');
+        assert.strictEqual((await t.svc.build(ctx(PREM), { lessonPartId: 'lesson_keep', requestId: req() })).code, 'not_premium');
+        assert.strictEqual(t.get('users/' + PREM).orangeTickets, beforeTickets);
+        assert.strictEqual((await t.svc.status(ctx(PREM))).premiumActive, false);
+    }
+    await notPremium({ frozen: true });
+    await notPremium({ revoked: true });
+    await notPremium({ startsAtMs: NOW + 86400000 });
+});
+
+test('firstWindowEndMs is off by default and stretches the first week when set', async function () {
+    const openAfternoon = Date.UTC(2027, 0, 3, 17); // Sunday Jan 3, 2027, 12:00 PM ET
+    const defaultEnd = Date.UTC(2027, 0, 4, 5); // Monday 12:00 AM ET
+    const jan11 = Date.UTC(2027, 0, 11, 5);
+    assert.strictEqual(core.weekInfo(openAfternoon).key, '2026-12-28');
+    assert.strictEqual(core.weekInfo(openAfternoon).endMs, defaultEnd);
+    assert.strictEqual(core.weekInfo(openAfternoon, 0).key, '2026-12-28');
+    assert.strictEqual(core.weekInfo(openAfternoon, 'nope').key, '2026-12-28');
+    const hooked = core.weekInfo(openAfternoon, jan11);
+    assert.strictEqual(hooked.key, '2027-01-03');
+    assert.strictEqual(hooked.endMs, jan11);
+    assert.strictEqual(core.weekInfo(jan11, jan11).key, '2027-01-11', 'once the hook ends, Monday weeks resume');
+
+    const t = setup({ now: openAfternoon, config: { firstWindowEndMs: jan11 } });
+    assert.strictEqual((await buy(t, PREM, 'walls', 1)).success, true);
+    const mid = Date.UTC(2027, 0, 5, 17); // Tuesday Jan 5, still inside the hooked window
+    const t2 = setup({ now: mid, config: { firstWindowEndMs: jan11 } });
+    t2.db.store.forEach(function (v, k) { t2.db.store.delete(k); });
+    t.db.store.forEach(function (v, k) { t2.db.store.set(k, clone(v)); });
+    const over = await buy(t2, PREM, 'walls', 2);
+    assert.strictEqual(over.code, 'weekly_cap', 'Jan 3 spend still counts on Jan 5 when the hook is set');
+    const st = await t2.svc.status(ctx(PREM));
+    assert.strictEqual(st.weekResetsAt, jan11);
+    assert.strictEqual(st.weekSpent, 75);
+
+    const plain = setup({ now: openAfternoon });
+    assert.strictEqual((await buy(plain, PREM, 'walls', 1)).success, true);
+    const later = setup({ now: mid });
+    later.db.store.forEach(function (v, k) { later.db.store.delete(k); });
+    plain.db.store.forEach(function (v, k) { later.db.store.set(k, clone(v)); });
+    const nextWeek = await buy(later, PREM, 'walls', 2);
+    assert.strictEqual(nextWeek.success, true, 'without the hook, Jan 5 is a new week');
+    assert.strictEqual(nextWeek.weekSpent, 75);
 });
 
 test('no em-dashes in server code', function () {

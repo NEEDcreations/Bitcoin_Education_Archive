@@ -223,10 +223,20 @@ that sets `citadel.lessonParts.<id>` for each mapped lesson in server-only
 - `citadel_weekly/{uid}_{weekKey}`: `expireAt` = week end (next Monday 12:00 AM
   ET) + 14 days. No TTL policy was created; that is a separate ops step.
 - `citadel_purchases/{uid}_{requestId}`: kept 13 months; each row has
-  `retainUntilMs` = created + 13 months for a future cleanup job. Fields: uid,
-  kind, part or lesson part id, stage, price, weekKey, createdAtMs, result. No
+  `retainUntilMs` = created + 13 months and `expireAt` (a Timestamp) equal to
+  the same time, for a Firestore TTL policy. No TTL policy is created in this
+  PR; that is a separate ops step for Phil's card, next to the
+  `citadel_weekly.expireAt` policy. Fields: uid, kind, part or lesson part id,
+  stage, price, weekKey, createdAtMs, retainUntilMs, expireAt, result. No
   email, IP or wallet fields (tested).
+- `deleteAccount` deletes the user's `citadel_weekly` and `citadel_purchases`
+  rows (uid field query plus `uid_` document-id prefix, in batches). It should
+  be on the shop's live deploy list.
 - Logs use masked uids (`ab…yz`, same shape as `payoutAlerts.maskUid`).
+- `config/citadelShop.firstWindowEndMs` is unset by default, so the first week
+  is the ordinary Monday week (Jan 3, 2027 is a Sunday, so that week ends
+  Jan 4). Setting it to a later ms (for example Jan 11, 2027 12:00 AM ET)
+  stretches the first window; that choice is Phil's.
 
 ### Server TODO(phil) constants (citadelShop.js)
 
@@ -238,7 +248,22 @@ that sets `citadel.lessonParts.<id>` for each mapped lesson in server-only
 
 ### Not done here
 
-- Not deployed; no TTL policy; no cleanup job for `retainUntilMs`.
+- Not deployed to live; no TTL policy was created (ops step for Phil's card).
+  `expireAt` is written on both `citadel_weekly` and `citadel_purchases`.
+- `claimLessonParts` now uses the same 7-day account-age check as buy, and
+  buy, build and claimLessons refuse `rewardBlocked` / banned accounts (ledger
+  and profile flags). Ban checks for buy and build run inside the transaction.
+- All four shop callables set `enforceAppCheck: true`, same as claimSats, with
+  no staging bypass. Staging already has App Check for those other callables.
+- The four names are in `APP_CHECK_CALLABLES` in ranking.js so the client waits
+  for a token. Cache pins: `citadel-shop.js`, `quests.js` and `ranking.js` at
+  `20261119_v2617`. SW stays `btc-archive-v2616` (it does not precache them).
+- The client defaults `shopOpen` to false when the server's open state is
+  unknown or missing.
+- Jan 3 first-week length is unchanged pending Phil. Use
+  `config/citadelShop.firstWindowEndMs` to stretch it.
+- Lesson completion (`lqPassed`) is still minted client-side before the quiz
+  (Red Team F3 / Spam/Abuse M). Server-verified lesson passes are a follow-up.
 - #322's `premium.js` is not on this base. The wiring uses it when present and
   otherwise a local copy of its `summarize` rules on `premium_entitlements`.
 - Rules emulator suites were not run (a Java process holds the emulator ports).

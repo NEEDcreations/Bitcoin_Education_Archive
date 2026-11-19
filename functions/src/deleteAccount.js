@@ -187,6 +187,8 @@ const DELETION_QUERIES = [
     ['gifts', 'ownerId', '==', []],
     ['gift_secrets', 'ownerId', '==', []],
     ['usernames', 'uid', '==', []],
+    ['citadel_weekly', 'uid', '==', []],
+    ['citadel_purchases', 'uid', '==', []],
 ];
 
 // Deleted only after deleteUser succeeds. A timeout before that keeps them.
@@ -226,6 +228,8 @@ const ID_RANGE_QUERIES = [
     { collection: 'weekly_challenges/{week}/user_contribs', prefix: 'uid_' },
     { collection: 'stats', prefix: 'raffle_' },
     { collection: 'beats_play_marks', prefix: '{uid}__' },
+    { collection: 'citadel_weekly', prefix: 'uid_' },
+    { collection: 'citadel_purchases', prefix: 'uid_' },
 ];
 
 // Reads that are not one account's rows. Each one is capped or is the
@@ -1334,6 +1338,10 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         deletedDocs += found.length;
     }
     await deleteOwnedGifts(db, batcher, uid, documentIdField);
+    // Shop rows are keyed uid_... and also carry a uid field. The query
+    // above catches rows with a uid; the prefix catches any without one.
+    await deleteIdPrefix(db, batcher, 'citadel_weekly', uid, documentIdField);
+    await deleteIdPrefix(db, batcher, 'citadel_purchases', uid, documentIdField);
     const mirrorRateRef = db.collection('telegram_mirror_state').doc('rate_' + String(uid).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120));
     const mirrorRateSnap = await mirrorRateRef.get();
     if (mirrorRateSnap && mirrorRateSnap.exists) await batcher.remove(mirrorRateRef);

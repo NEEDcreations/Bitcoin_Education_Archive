@@ -12,6 +12,8 @@
 //   citadel_purchases/{uid}_{requestId} one row per buy or build, kept 13 months
 // Player state lives on users/{uid}.citadel { stages, lessonParts, lessonBuilt }.
 
+const { rewardBlocked } = require('./cipherClaim');
+
 const WEEKLY_CAP_OT = 120;
 // TODO(phil): minimum account age in days to buy parts (spec question 6).
 const MIN_ACCOUNT_AGE_DAYS = 7;
@@ -65,6 +67,7 @@ const MESSAGES = {
     balance: 'Not enough OrangeTix.',
     not_owned: 'You have not earned that lesson part yet.',
     already_built: 'That lesson part is already built.',
+    banned: 'This account cannot use the Citadel shop.',
 };
 
 function fail(code) { return { success: false, code: code, message: MESSAGES[code] || 'Something went wrong.' }; }
@@ -107,13 +110,35 @@ function etMidnightMs(y, m, d) {
     }
     return Date.UTC(y, m - 1, d, 5);
 }
-function weekInfo(nowMs) {
+function etDateKey(ms) {
+    const p = etParts(ms);
+    function pad(n) { return String(n).padStart(2, '0'); }
+    return String(p.y) + '-' + pad(p.m) + '-' + pad(p.d);
+}
+
+// Optional firstWindowEndMs (config/citadelShop.firstWindowEndMs) stretches the
+// first shop window so a Sunday open (Jan 3, 2027) can run through a later
+// reset. Unset, 0, or a non-number leaves the Monday-week behavior unchanged.
+function weekInfo(nowMs, firstWindowEndMs) {
+    const firstEnd = Number(firstWindowEndMs);
+    if (Number.isFinite(firstEnd) && firstEnd > OPENS_AT_MS && nowMs < firstEnd) {
+        return { key: etDateKey(OPENS_AT_MS), endMs: firstEnd };
+    }
     const p = etParts(nowMs);
     const mon = new Date(Date.UTC(p.y, p.m - 1, p.d - p.wd));
     const next = new Date(Date.UTC(p.y, p.m - 1, p.d - p.wd + 7));
     const key = mon.toISOString().slice(0, 10);
     const endMs = etMidnightMs(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
     return { key: key, endMs: endMs };
+}
+
+function tooYoung(createdMs, nowMs) {
+    return MIN_ACCOUNT_AGE_DAYS > 0 && !(Number.isFinite(createdMs) && nowMs - createdMs >= MIN_ACCOUNT_AGE_DAYS * DAY_MS);
+}
+
+function purchaseMeta(nowMs) {
+    const retainUntilMs = addMonths(nowMs, PURCHASE_KEEP_MONTHS);
+    return { createdAtMs: nowMs, retainUntilMs: retainUntilMs, expireAt: new Date(retainUntilMs) };
 }
 
 function addMonths(ms, n) {
@@ -180,15 +205,18 @@ function createCitadelShopService(deps) {
             ent: db.collection('premium_entitlements').doc(uid),
             week: db.collection('citadel_weekly').doc(uid + '_' + weekKey),
             op: requestId ? db.collection('citadel_purchases').doc(uid + '_' + requestId) : null,
+            ledger: db.collection('faucet_ledger').doc(uid),
         };
     }
 
     async function readFlags() {
         const snap = await db.collection('config').doc('citadelShop').get();
         const d = snap.exists ? (snap.data() || {}) : {};
+        const firstEnd = Number(d.firstWindowEndMs);
         return {
             referralWeekPremiumBuy: d.referralWeekPremiumBuy === true,
             openEarly: d.openEarly === true && !!(deps.isStaging && deps.isStaging()),
+            firstWindowEndMs: Number.isFinite(firstEnd) && firstEnd > 0 ? firstEnd : undefined,
         };
     }
 
@@ -214,13 +242,13 @@ function createCitadelShopService(deps) {
         if (!context || !context.auth || !context.auth.uid) return fail('unauthenticated');
         const uid = context.auth.uid;
         const nowMs = now();
-        const wk = weekInfo(nowMs);
+        const flags = await readFlags();
+        const wk = weekInfo(nowMs, flags.firstWindowEndMs);
         const r = refs(uid, null, wk.key);
-        const snaps = await Promise.all([r.user.get(), r.ent.get(), r.week.get(), readFlags()]);
+        const snaps = await Promise.all([r.user.get(), r.ent.get(), r.week.get()]);
         const user = snaps[0].exists ? (snaps[0].data() || {}) : {};
         const ent = snaps[1].exists ? (snaps[1].data() || {}) : null;
         const week = snaps[2].exists ? (snaps[2].data() || {}) : {};
-        const flags = snaps[3];
         const st = stateFrom(user);
         const guest = await deps.isGuest(context);
         return {
@@ -253,17 +281,18 @@ function createCitadelShopService(deps) {
         const flags = await readFlags();
         if (!isOpen(flags, nowMs)) return fail('not_open');
         const createdMs = await deps.accountCreatedMs(uid);
-        const wk = weekInfo(nowMs);
+        const wk = weekInfo(nowMs, flags.firstWindowEndMs);
         const r = refs(uid, requestId, wk.key);
 
         const out = await db.runTransaction(async function (tx) {
-            const s = await Promise.all([tx.get(r.op), tx.get(r.user), tx.get(r.week), tx.get(r.ent)]);
+            const s = await Promise.all([tx.get(r.op), tx.get(r.user), tx.get(r.week), tx.get(r.ent), tx.get(r.ledger)]);
             if (s[0].exists) return replayOf(s[0].data(), uid);
             if (!s[1].exists) return fail('no_profile');
             const user = s[1].data() || {};
+            if (rewardBlocked(user, s[4].exists ? (s[4].data() || {}) : {})) return fail('banned');
             const pg = premiumGate(s[3].exists ? s[3].data() : null, flags, nowMs, true);
             if (pg) return fail(pg);
-            if (MIN_ACCOUNT_AGE_DAYS > 0 && !(Number.isFinite(createdMs) && nowMs - createdMs >= MIN_ACCOUNT_AGE_DAYS * DAY_MS)) return fail('account_age');
+            if (tooYoung(createdMs, nowMs)) return fail('account_age');
             const st = stateFrom(user);
             const have = st.stages[partId];
             if (have >= part.stages) return fail('already_owned');
@@ -285,10 +314,10 @@ function createCitadelShopService(deps) {
             stagesPatch[partId] = have + 1;
             tx.set(r.user, { orangeTickets: balance - part.price, citadel: { stages: stagesPatch } }, { merge: true });
             tx.set(r.week, { uid: uid, weekKey: wk.key, spent: spent + part.price, updatedAtMs: nowMs, expireAt: new Date(wk.endMs + COUNTER_KEEP_DAYS * DAY_MS) });
-            tx.create(r.op, {
+            tx.create(r.op, Object.assign({
                 uid: uid, kind: 'stage', partId: partId, stage: stage, price: part.price, weekKey: wk.key,
-                createdAtMs: nowMs, retainUntilMs: addMonths(nowMs, PURCHASE_KEEP_MONTHS), result: result,
-            });
+                result: result,
+            }, purchaseMeta(nowMs)));
             return result;
         });
         log('[citadel] buy ' + (out.success ? 'ok' : out.code) + (out.repeat ? ' repeat' : '') + ' uid=' + maskUid(uid) + ' part=' + partId);
@@ -306,12 +335,13 @@ function createCitadelShopService(deps) {
         const nowMs = now();
         const flags = await readFlags();
         if (!isOpen(flags, nowMs)) return fail('not_open');
-        const r = refs(uid, requestId, weekInfo(nowMs).key);
+        const r = refs(uid, requestId, weekInfo(nowMs, flags.firstWindowEndMs).key);
 
         const out = await db.runTransaction(async function (tx) {
-            const s = await Promise.all([tx.get(r.op), tx.get(r.user), tx.get(r.ent)]);
+            const s = await Promise.all([tx.get(r.op), tx.get(r.user), tx.get(r.ent), tx.get(r.ledger)]);
             if (s[0].exists) return replayOf(s[0].data(), uid);
             if (!s[1].exists) return fail('no_profile');
+            if (rewardBlocked(s[1].data() || {}, s[3].exists ? (s[3].data() || {}) : {})) return fail('banned');
             const pg = premiumGate(s[2].exists ? s[2].data() : null, flags, nowMs, false);
             if (pg) return fail(pg);
             const st = stateFrom(s[1].data() || {});
@@ -323,10 +353,9 @@ function createCitadelShopService(deps) {
             const patch = {};
             patch[id] = true;
             tx.set(r.user, { citadel: { lessonBuilt: patch } }, { merge: true });
-            tx.create(r.op, {
-                uid: uid, kind: 'build', lessonPartId: id, createdAtMs: nowMs,
-                retainUntilMs: addMonths(nowMs, PURCHASE_KEEP_MONTHS), result: result,
-            });
+            tx.create(r.op, Object.assign({
+                uid: uid, kind: 'build', lessonPartId: id, result: result,
+            }, purchaseMeta(nowMs)));
             return result;
         });
         log('[citadel] build ' + (out.success ? 'ok' : out.code) + (out.repeat ? ' repeat' : '') + ' uid=' + maskUid(uid) + ' id=' + id);
@@ -342,11 +371,17 @@ function createCitadelShopService(deps) {
         // player who passed lessons earlier is granted on the first call after.
         if (!isOpen(await readFlags(), now())) return fail('not_open');
         const uid = context.auth.uid;
+        const nowMs = now();
+        const createdMs = await deps.accountCreatedMs(uid);
+        if (tooYoung(createdMs, nowMs)) return fail('account_age');
         const userRef = db.collection('users').doc(uid);
+        const ledgerRef = db.collection('faucet_ledger').doc(uid);
         const out = await db.runTransaction(async function (tx) {
             const snap = await tx.get(userRef);
+            const ledgerSnap = await tx.get(ledgerRef);
             if (!snap.exists) return fail('no_profile');
             const user = snap.data() || {};
+            if (rewardBlocked(user, ledgerSnap.exists ? (ledgerSnap.data() || {}) : {})) return fail('banned');
             const grant = pendingLessons(user);
             const lessonParts = Object.assign({}, stateFrom(user).lessonParts);
             if (!grant.length) return { success: true, granted: [], lessonParts: lessonParts };

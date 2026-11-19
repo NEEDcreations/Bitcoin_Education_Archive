@@ -62,22 +62,26 @@ function factory(functionsV1, opts) {
         await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     }
 
+    // Same App Check gate as claimSats and other value callables. Staging
+    // already has App Check registered (those callables use this unconditionally).
+    const onCallApp = functionsV1.runWith({ enforceAppCheck: true }).https.onCall;
+
     // Input {} only. Read-only: stages, lesson parts, weekly spend, flags, Premium.
-    const getCitadelShopStatus = functionsV1.https.onCall(async function (data, context) {
+    const getCitadelShopStatus = onCallApp(async function (data, context) {
         return service().status(context);
     });
     // Input { partId, stage, requestId } only. Debits OrangeTix.
-    const buyCitadelStage = functionsV1.https.onCall(async function (data, context) {
+    const buyCitadelStage = onCallApp(async function (data, context) {
         await stepUp(data, context);
         return service().buy(context, data);
     });
     // Input { lessonPartId, requestId } only. No OrangeTix.
-    const buildCitadelPart = functionsV1.https.onCall(async function (data, context) {
+    const buildCitadelPart = onCallApp(async function (data, context) {
         await stepUp(data, context);
         return service().build(context, data);
     });
     // Input {} only. Grants lesson parts from lqPassed, once per uid.
-    const claimLessonParts = functionsV1.https.onCall(async function (data, context) {
+    const claimLessonParts = onCallApp(async function (data, context) {
         return service().claimLessons(context);
     });
 

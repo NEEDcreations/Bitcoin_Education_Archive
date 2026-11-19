@@ -44,8 +44,9 @@
     var DEFAULT_FLAGS = { referralWeekPremiumBuy: false };
     var flags = { referralWeekPremiumBuy: false };
     // Open state from getCitadelShopStatus (server clock, Jan 3, 2027 12:00 AM
-    // ET on live). null until the server answers; the server refuses anyway.
-    var shopOpen = null;
+    // ET on live). Closed until the server answers, and closed if the server
+    // omits open, so a missing flag cannot look like an open shop.
+    var shopOpen = false;
 
     // Draft catalog (Rewards draft, Nov 19, 2026). Server owns the real prices.
     var PARTS = [
@@ -99,7 +100,7 @@
     function computeView(user, opt) {
         var u = user || {};
         var f = (opt && opt.flags) || flags;
-        var open = (opt && typeof opt.open === 'boolean') ? opt.open : shopOpen !== false;
+        var open = (opt && typeof opt.open === 'boolean') ? opt.open : shopOpen === true;
         var now = (opt && opt.now) || Date.now();
         var c = u.citadel || {};
         var premium = !!(u.premium && u.premium.active === true);

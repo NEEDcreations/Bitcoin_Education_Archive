@@ -4785,7 +4785,7 @@ function _renderNookHistory() {
 
 // ── CITADEL TAB ──
 // The Citadel shop lives in citadel-shop.js, loaded the first time this tab opens.
-var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2616';
+var CITADEL_SHOP_SRC = '/citadel-shop.js?v=20261119_v2617';
 function _renderCitadelTab(body) {
     if (window.CitadelShop && typeof window.CitadelShop.render === 'function') {
         window.CitadelShop.render(body);
