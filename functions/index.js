@@ -171,6 +171,9 @@ async function verifyTurnstileDetailed(token, remoteip) {
             success: result.success === true,
             hostname: typeof result.hostname === 'string' ? result.hostname : null,
             action: typeof result.action === 'string' ? result.action : null,
+            // Cloudflare marks results from its published test keys. Premium
+            // accepts them on staging only; live refuses them outright.
+            testingKey: !!(result.metadata && result.metadata.result_with_testing_key === true),
         };
     } catch (e) {
         console.error('[Turnstile] verify error:', e.message);

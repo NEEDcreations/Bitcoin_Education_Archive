@@ -204,6 +204,7 @@ function setup(opts) {
         getAuthUser: async function (uid) { return { metadata: { creationTime: new Date(created[uid] || OLD).toUTCString() } }; },
         verifyTurnstile: async function (token, remoteip) {
             a_ts.push({ token: token, remoteip: remoteip });
+            if (token === 'test-key-token') return { success: true, hostname: 'example.com', action: null, testingKey: true };
             if (token === 'ok-token') return { success: true, hostname: o.tsHost || 'bitcoin-quest-staging.web.app', action: o.tsAction || 'premium_checkout' };
             return { success: false, hostname: null, action: null };
         },
@@ -1139,6 +1140,16 @@ test('QA P2: completion first still sets status; an earlier subscription event i
     assert.strictEqual((await setup().h.getPremiumStatus({}, ctx('old'))).manageBilling, false);
 });
 
+test('Round 10: Cloudflare test-key results pass Turnstile on staging only; live refuses them', async function () {
+    const a = setup();
+    const ok = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'tk@example.com', turnstileToken: 'test-key-token' });
+    assert.strictEqual(ok.code, 200, JSON.stringify(ok.body));
+    const live = setup({ projectId: 'bitcoin-education-archive', tsHost: 'bitcoineducation.quest', env: { STRIPE_SECRET_KEY: 'sk_' + 'live_' + 'z'.repeat(24) } });
+    const r = await publicPost(live, { plan: 'monthly', rail: 'card', email: 'tk@example.com', turnstileToken: 'test-key-token' }, 'https://bitcoineducation.quest');
+    assert.strictEqual(r.body && r.body.reason, 'turnstile', JSON.stringify(r.body));
+    const real = await publicPost(live, { plan: 'monthly', rail: 'card', email: 'tk@example.com', turnstileToken: 'ok-token' }, 'https://bitcoineducation.quest');
+    assert.notStrictEqual(real.body && real.body.reason, 'turnstile');
+});
 test('Red Team 1: forged X-Forwarded-For does not reset the per-IP limit; Turnstile gets the same IP', async function () {
     const a = setup();
     for (let i = 0; i < 10; i++) {

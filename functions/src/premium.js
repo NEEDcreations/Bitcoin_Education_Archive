@@ -981,6 +981,9 @@ function createPremiumHandlers(deps) {
     function turnstileOk(r) {
         const m = providerMode(projectId);
         if (!m || !r || typeof r !== 'object' || r.success !== true) return false;
+        // Cloudflare's always-pass test keys (staging only) report no action and
+        // hostname example.com. Live never accepts a test-key result.
+        if (r.testingKey === true) return m === 'test' && projectId === STAGING_PROJECT;
         if (r.action !== TURNSTILE_ACTION) return false;
         const host = String(r.hostname || '').toLowerCase();
         return TURNSTILE_HOSTS[m].some(function (h) { return typeof h === 'string' ? h === host : h.test(host); });
