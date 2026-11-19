@@ -158,7 +158,7 @@ function articleAuthorPoints(pts) {
     return n;
 }
 function articleAuthorName(name) {
-    return (typeof name === 'string' && name) ? name.slice(0, 40) : 'Anon';
+    return (typeof name === 'string' && name) ? name.slice(0, 40).replace(/[\uD800-\uDBFF]$/,'') : 'Anon';
 }
 function articleCoverUrl(u) {
     return (typeof u === 'string' && u.length <= 2048 && /^https:\/\/[^\n\r]*$/.test(u)) ? u : '';

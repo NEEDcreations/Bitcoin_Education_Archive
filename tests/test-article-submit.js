@@ -215,6 +215,16 @@ test('authorName is a string of at most 40 characters', async function () {
     }
 });
 
+test('authorName drops a trailing high surrogate from a 40-character cut and leaves a normal name unchanged', async function () {
+    const split = 'A'.repeat(39) + '\uD83D\uDE00';
+    const cut = await submit({ user: { username: split } });
+    assert.strictEqual(cut.added[0].authorName, 'A'.repeat(39));
+    assert.strictEqual(cut.added[0].authorName.length, 39);
+    assert.ok(!/[\uD800-\uDFFF]/.test(cut.added[0].authorName));
+    const ok = await submit({ user: { username: 'Alice' } });
+    assert.strictEqual(ok.added[0].authorName, 'Alice');
+});
+
 test('coverUrl is kept only when it is an https URL', async function () {
     const ok = await submit({ coverReturn: HTTPS_COVER });
     assert.strictEqual(ok.added[0].coverUrl, HTTPS_COVER);
