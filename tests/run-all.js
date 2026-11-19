@@ -28,6 +28,7 @@ const TESTS = [
     { name: 'XP line opens leaderboard', file: 'test-xp-leaderboard-link.js' },
     { name: 'Nook shop pricing + caps', file: 'test-nook-shop.js' },
     { name: 'Citadel shop client', file: 'test-citadel-shop.js' },
+    { name: 'Citadel shop server', file: 'test-citadel-shop-server.js' },
     { name: 'Optimistic profile', file: 'test-optimistic-profile.js' },
     { name: '2FA hold release', file: 'test-totp-hold.js' },
     { name: 'Profile paint and trivia status', file: 'test-trivia-xp-status.js' },

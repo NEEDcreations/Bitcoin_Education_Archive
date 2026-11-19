@@ -1,11 +1,17 @@
-# Citadel shop: client notes (branch feat/citadel-shop-1119)
+# Citadel shop: notes (branch feat/citadel-shop-1119)
 
-Not meant to ship as-is. This is client-only prep with stubbed callables that
-do not exist on the server yet. Rufus decides whether this file and the branch
-stay in the repo. No functions or Firestore rules were written.
+Not meant to ship as-is. Client and server prep, committed locally only.
+Rufus decides whether this file and the branch stay in the repo.
+
+**NEVER DEPLOYED:** `getCitadelShopStatus`, `buyCitadelStage`,
+`buildCitadelPart`, `claimLessonParts` are exported from `functions/index.js`
+but have never been deployed anywhere. Rufus deploys them by name only, after
+review, Red Team GO and Security sign-off, because `buyCitadelStage` debits
+OrangeTix. The `firestore.rules` additions are also undeployed.
 
 Files: `citadel-shop.js` (new, lazy-loaded by the Citadel tab in `quests.js`),
-`tests/test-citadel-shop.js`. SW cache `btc-archive-v2616`; `quests.js` pin
+`tests/test-citadel-shop.js`; server `functions/src/citadelShop.js` (logic),
+`functions/src/citadelShopFns.js` (wiring), `tests/test-citadel-shop-server.js`. SW cache `btc-archive-v2616`; `quests.js` pin
 `20261119_v2616` in `index.html` and `404.html` (identical).
 
 ## Rules the UI follows (server is the authority for all of them)
@@ -25,26 +31,30 @@ Files: `citadel-shop.js` (new, lazy-loaded by the Citadel tab in `quests.js`),
   default `false`. Live stays off. Staging can set it to `true`. The client does
   not read the doc; the server sends it back as `flags` in `getCitadelShopStatus`.
 
-## Callables (stubbed client names, httpsCallable)
+## Callables (implemented in functions/src/citadelShop.js)
 
 | Name | Input | Output |
 |---|---|---|
-| `getCitadelShopStatus` | `{}` | `{ success, premiumActive, flags: { referralWeekPremiumBuy }, stages: {walls,turret,vault,tower,keep}, lessonParts: {lesson_walls: true, ...}, lessonBuilt: {...}, lessonGrantPending, weekSpent, weekCap, weekResetsAt, newTickets }` |
-| `buyCitadelStage` | `{ partId, stage, requestId }` | `{ success, stages, weekSpent, weekCap, newTickets }` or `{ success: false, code, message }` |
-| `buildCitadelPart` | `{ lessonPartId, requestId }` | `{ success, lessonBuilt }` or `{ success: false, code, message }` |
+| `getCitadelShopStatus` | `{}` | `{ success, premiumActive, open, flags: { referralWeekPremiumBuy }, stages: {walls,turret,vault,tower,keep}, lessonParts: {lesson_walls: true, ...}, lessonBuilt: {...}, lessonGrantPending, weekSpent, weekCap, weekResetsAt, newTickets }` |
+| `buyCitadelStage` | `{ partId, stage, requestId }` | `{ success, partId, stage, price, stages, weekSpent, weekCap, newTickets, repeat? }` or `{ success: false, code, message }` |
+| `buildCitadelPart` | `{ lessonPartId, requestId }` | `{ success, lessonPartId, lessonBuilt, repeat? }` or `{ success: false, code, message }` |
 | `claimLessonParts` | `{}` | `{ success, granted: [lessonPartId], lessonParts }` |
 
 `requestId` is a client random id for idempotency. Error `code` values the UI
-can map: `not_premium`, `weekly_cap`, `balance`, `account_age`, `not_owned`,
-`already_owned`, `wrong_stage`, `flag_off`, `kill_switch`.
+can map: `unauthenticated`, `guest`, `kill_switch`, `not_open`, `bad_request`,
+`not_premium`, `trial`, `flag_off`, `account_age`, `no_profile`, `already_owned`,
+`wrong_stage`, `weekly_cap`, `balance`, `not_owned`, `already_built`. Each comes
+with a plain `message`. `repeat: true` means a retried `requestId` got its first
+result back with no second debit.
 
-## Server checks needed
+## Server checks (all implemented; see the server section below)
 
-- **Premium active:** read `premium.active` server-side on every buy and build.
-  Never trust the client. Lapsed Premium: see TODO toggle below.
-- **Weekly 120 OT cap:** keep `citadel.weekSpent` and `citadel.weekKey` (ISO week,
-  America/New_York) in one transaction with the OrangeTix debit. Reject if
-  `weekSpent + price > 120`. No partial stages.
+- **Premium active:** `premium_entitlements/{uid}` read in the transaction,
+  judged by #322's `isPremiumActive` (local copy of the same rules until #322
+  is in this build). Never the client's `users.premium` mirror.
+- **Weekly 120 OT cap:** `citadel_weekly/{uid}_{weekKey}` (week = Monday 12:00 AM
+  ET) in one transaction with the OrangeTix debit. Reject if
+  `spent + price > 120`. Hard cap, no partial stages.
 - **Balance:** debit `orangeTickets` in the same transaction; reject below price.
 - **Part ownership and order:** `stage` must equal `stages[partId] + 1` and not
   exceed the part's stage count. `buildCitadelPart` requires the lesson part to
@@ -53,11 +63,12 @@ can map: `not_premium`, `weekly_cap`, `balance`, `account_age`, `not_owned`,
   Vault 2x120, Node Tower 3x100, Keep 4x115 = 1,500). Ignore any client price.
 - **Referral flag:** only honor referral-week Premium buying when
   `config/citadelShop.referralWeekPremiumBuy === true` (staging). Default off.
-  `config/citadelShop` needs public read in rules; writes admin-only.
+  The server reads `config/citadelShop`; clients do not (rules unchanged, the
+  `config` match only exposes `killSwitch`).
 - **Account age:** reject buys while `created` is newer than the minimum (TODO toggle).
 - **Signed-in, non-guest:** reject anonymous sessions.
-- **Idempotency:** store `requestId` per uid (for example
-  `users/{uid}/citadelOps/{requestId}`) and return the first result on retry.
+- **Idempotency:** `citadel_purchases/{uid}_{requestId}` is created in the same
+  transaction; a retry returns the stored result and does not debit again.
 - **Kill switch:** reject when the app off switch is on, like other spends.
 - **No speed-ups:** parts, timers and cooldowns must never read Premium or Embers
   (#322 hard rule). Premium only unlocks the ability to buy and build.
@@ -105,10 +116,13 @@ order players see them). Scarcity, Why Bitcoin and Privacy grant nothing here.
 - `users/{uid}.citadel.stages.{walls|turret|vault|tower|keep}` (numbers)
 - `users/{uid}.citadel.lessonParts.{lesson_*}` (true when earned)
 - `users/{uid}.citadel.lessonBuilt.{lesson_*}` (true when built)
-- `users/{uid}.citadel.weekSpent`, `users/{uid}.citadel.weekCap`
+- `weekSpent`, `weekCap` come from `getCitadelShopStatus` (kept in
+  `citadel_weekly`, not on the user doc)
 - `config/citadelShop.referralWeekPremiumBuy` (server-side only, returned in `flags`)
 
-`citadel.*` must be server-write-only in rules.
+`citadel` is in `userProfileServerOnlyKeys()` in `firestore.rules`, so clients
+cannot write it. `citadel_weekly` and `citadel_purchases` deny all client reads
+and writes; the UI needs none.
 
 ## TODO(phil) toggles (`CONFIG` in citadel-shop.js)
 
@@ -171,3 +185,48 @@ Measured on this branch (gzip -9):
    direct Firestore read, no intervals. The click listener sits on a wrapper the
    hub replaces when the tab changes, and late replies are dropped. Tested with
    a fake DOM.
+
+## Server side (functions/src/citadelShop.js)
+
+Admin SDK only, `functionsV1.https.onCall`, no secrets and no service account
+(same as `spendTickets`). No App Check, matching `spendTickets`.
+
+Gates, in order, for buy and build: signed in; not a guest
+(`guestGate.isGuestCaller`, anonymous with no real provider); second-factor hold
+(`secondFactor.requireSecondFactor`, as `spendTickets`); kill switch
+(`killSwitch.isOffline`, fails closed); valid ids and `requestId`; open (Jan 3,
+2027 12:00 AM ET, or `config/citadelShop.openEarly` on staging only); then in
+ONE transaction: requestId replay, profile exists, Premium active, not a trial
+(buy), referral-week flag (buy), account age from Auth `creationTime` (buy;
+unknown age fails closed), stage order, weekly cap, balance, then debit +
+stage + weekly counter + purchase row.
+
+`claimLessonParts`: signed in, not a guest, kill switch, then one transaction
+that sets `citadel.lessonParts.<id>` for each mapped lesson in server-only
+`lqPassed` that is not already granted. Free and Premium alike; no OrangeTix.
+`getCitadelShopStatus`: read-only, no kill-switch block.
+
+### Retention (User Data draft)
+
+- `citadel_weekly/{uid}_{weekKey}`: `expireAt` = week end (next Monday 12:00 AM
+  ET) + 14 days. No TTL policy was created; that is a separate ops step.
+- `citadel_purchases/{uid}_{requestId}`: kept 13 months; each row has
+  `retainUntilMs` = created + 13 months for a future cleanup job. Fields: uid,
+  kind, part or lesson part id, stage, price, weekKey, createdAtMs, result. No
+  email, IP or wallet fields (tested).
+- Logs use masked uids (`ab…yz`, same shape as `payoutAlerts.maskUid`).
+
+### Server TODO(phil) constants (citadelShop.js)
+
+| Constant | Default | Question |
+|---|---|---|
+| `MIN_ACCOUNT_AGE_DAYS` | `7` | Minimum account age to buy |
+| `TRIAL_CAN_BUY` | `false` (Rewards rec, same as Embers) | Can a Premium trial buy parts |
+| `PRE_JAN3_OT_SPENDABLE` | `true` (not enforced) | false would need an earn-date ledger that does not exist |
+
+### Not done here
+
+- Not deployed; no TTL policy; no cleanup job for `retainUntilMs`.
+- #322's `premium.js` is not on this base. The wiring uses it when present and
+  otherwise a local copy of its `summarize` rules on `premium_entitlements`.
+- Rules emulator suites were not run (a Java process holds the emulator ports).
