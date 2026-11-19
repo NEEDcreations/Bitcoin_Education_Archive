@@ -483,6 +483,10 @@ async function mirrorForumReplyToTopic(opts) {
     const nowMs = typeof o.nowMs === 'number' ? o.nowMs : Date.now();
     const who = await authorProfile(db, data.authorId, nowMs);
     if (!who.ok) return { mirrored: false, reason: who.code === 'banned' ? 'banned' : who.code };
+    // Guests cannot post in topic discussions (the callable refuses them), and
+    // a mirrored reply pays topic XP. A guest's forum reply is not mirrored.
+    // A failed lookup counts as a guest.
+    if (await require('./guestGate').isGuestUid(o.admin, who.uid)) return { mirrored: false, reason: 'guest' };
     const api = topicApi();
     const topicId = topicPostIdForForumReply(replyId);
     const topicRef = db.collection('topic_discussions').doc(channelId).collection('posts').doc(topicId);

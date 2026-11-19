@@ -1,5 +1,7 @@
 'use strict';
 
+const reservedNames = require('./reservedNames');
+
 // Pure PvP decisions: lobby shouts, alert cooldown, push cap, grading, rewards.
 // No Firebase. index.js and pvpResolve.js apply these inside transactions.
 
@@ -23,7 +25,7 @@ const MIN_ACCOUNT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function safeDisplayName(name) {
     const cleaned = String(name || '')
-        .replace(/[\r\n<>\[\]()@#*`_~|\\]/g, ' ')
+        .replace(/[\r\n<>\[\]()@#*`_~|\\"']/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
         .slice(0, 30);
@@ -113,6 +115,27 @@ function lastSeenMs(value) {
     if (seconds == null) return 0;
     return seconds * 1000;
 }
+
+// Finish time is the match's finishedAt, or the snapshot updateTime from the
+// status write that ended it. Never Date.now() at settle, or a delayed retry
+// can let a match under 30 seconds pay.
+function matchFinishMs(after, updateTimeMs) {
+    const fromField = lastSeenMs(after && after.finishedAt);
+    if (fromField) return fromField;
+    if (typeof updateTimeMs === 'number' && isFinite(updateTimeMs) && updateTimeMs > 0) return updateTimeMs;
+    const fromUpdate = lastSeenMs(updateTimeMs);
+    if (fromUpdate) return fromUpdate;
+    return 0;
+}
+
+// null means the duration could not be measured and the planner must fail closed.
+function matchDurationMs(createdMs, finishMs) {
+    const created = typeof createdMs === 'number' && createdMs > 0 ? createdMs : 0;
+    const finish = typeof finishMs === 'number' && finishMs > 0 ? finishMs : 0;
+    if (!created || !finish) return null;
+    return Math.max(0, finish - created);
+}
+
 
 function mergeLobbyEntry(entries, docId, data, nowMs) {
     const out = {};
@@ -312,6 +335,22 @@ function sideReward(key, player, winner, draw) {
     };
 }
 
+
+function guestMatchBlocksRewards(p1, p2) {
+    return (p1 && p1.anonymous === true) || (p2 && p2.anonymous === true);
+}
+
+function zeroGuestMatchRewards(players) {
+    return (players || []).map(function (p) {
+        return Object.assign({}, p, {
+            points: 0,
+            pvpWins: 0,
+            pvpLosses: 0,
+            blocked: true,
+        });
+    });
+}
+
 function planPvpReward(input) {
     const src = input || {};
     const empty = { grant: false, reason: 'not_finished', players: [], shout: null, voided: false };
@@ -326,6 +365,20 @@ function planPvpReward(input) {
     const p2 = src.player2 || {};
     if (!p1.uid || !p2.uid || p1.uid === p2.uid) {
         return { grant: false, reason: 'bad_players', players: [], shout: null, voided: false };
+    }
+    if (guestMatchBlocksRewards(p1, p2)) {
+        return {
+            grant: false,
+            reason: 'guest_match',
+            claimId: claimId,
+            players: zeroGuestMatchRewards([
+                { uid: p1.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'none', blocked: true },
+                { uid: p2.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'none', blocked: true },
+            ]),
+            shout: null,
+            voided: false,
+            guestMatch: true,
+        };
     }
 
     let winner = null;
@@ -344,9 +397,11 @@ function planPvpReward(input) {
                 grant: true,
                 reason: 'forfeit_void',
                 claimId: claimId,
+                // K14: the player who left a tied match is marked leaver, so
+                // settle resets their win streak. The other player keeps theirs.
                 players: [
-                    { uid: p1.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'void', blocked: false },
-                    { uid: p2.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'void', blocked: false },
+                    { uid: p1.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'void', blocked: false, leaver: src.forfeitedBy === p1.uid },
+                    { uid: p2.uid, points: 0, pvpWins: 0, pvpLosses: 0, outcome: 'void', blocked: false, leaver: src.forfeitedBy === p2.uid },
                 ],
                 shout: null,
                 voided: true,
@@ -362,18 +417,28 @@ function planPvpReward(input) {
 
     const players = [sideReward('player1', p1, winner, draw), sideReward('player2', p2, winner, draw)];
     let xpReason = draw ? 'draw' : 'win';
-    if (typeof src.durationMs === 'number' && src.durationMs < (src.minDurationMs || MIN_MATCH_MS)) {
-        players.forEach(function (p) { p.points = 0; });
+    function clearCappedStats(p) {
+        p.points = 0;
+        p.pvpWins = 0;
+        p.pvpLosses = 0;
+        p.statsCapped = true;
+    }
+    // null duration (could not measure finish time) fails closed, same as too short.
+    // undefined duration is left alone so unit tests that omit it still pay.
+    if (src.durationMs === null || (typeof src.durationMs === 'number' && src.durationMs < (src.minDurationMs || MIN_MATCH_MS))) {
+        players.forEach(clearCappedStats);
         xpReason = 'too_short';
     } else if (typeof src.pairMatchesToday === 'number' && src.pairMatchesToday >= (src.pairXpCap || PAIR_XP_CAP)) {
-        players.forEach(function (p) { p.points = 0; });
+        players.forEach(clearCappedStats);
         xpReason = 'pair_cap';
     } else {
         const minAge = src.minAccountAgeMs || MIN_ACCOUNT_AGE_MS;
         const ages = src.accountAgeMs || {};
         ['player1', 'player2'].forEach(function (key, i) {
-            if (typeof ages[key] === 'number' && ages[key] < minAge) {
-                players[i].points = 0;
+            // A present but missing/non-numeric age fails closed.
+            if (!Object.prototype.hasOwnProperty.call(ages, key)) return;
+            if (typeof ages[key] !== 'number' || ages[key] < minAge) {
+                clearCappedStats(players[i]);
                 if (xpReason === 'draw' || xpReason === 'win') xpReason = 'young_account';
             }
         });
@@ -409,6 +474,7 @@ function planPvpReward(input) {
         players: players,
         shout: shout,
         voided: false,
+        guestMatch: false,
     };
 }
 
@@ -498,6 +564,250 @@ function pvpPicAllowed(url) {
     return '';
 }
 
+
+// leaver is true only for the player who manually left a tied match
+// (forfeit_void). Leaving resets their streak like a loss, so walking out of a
+// tied match cannot protect a streak. A normal draw or the other side of a
+// void keeps the streak.
+function planStreakUpdate(currentStreak, currentBest, outcome, leaver) {
+    const streak = Math.max(0, Math.floor(Number(currentStreak) || 0));
+    const best = Math.max(0, Math.floor(Number(currentBest) || 0));
+    if (leaver === true) {
+        return { pvpWinStreak: 0, pvpBestStreak: best };
+    }
+    if (outcome === 'win') {
+        const next = streak + 1;
+        return { pvpWinStreak: next, pvpBestStreak: Math.max(best, next) };
+    }
+    if (outcome === 'loss') {
+        return { pvpWinStreak: 0, pvpBestStreak: best };
+    }
+    return { pvpWinStreak: streak, pvpBestStreak: best };
+}
+
+function skippedRerollQuestion(before, after) {
+    if (!before || !after) return false;
+    if (before.questionWinner !== 'reroll') return false;
+    return Number(after.currentQ) !== Number(before.currentQ);
+}
+
+function planRateWindow(existing, nowMs, maxCount, windowMs) {
+    const now = Number(nowMs) || 0;
+    const max = Math.max(1, Math.floor(Number(maxCount) || 0));
+    const window = Math.max(1, Math.floor(Number(windowMs) || 0));
+    if (!existing || !existing.windowStartMs || (now - existing.windowStartMs) >= window) {
+        return { ok: true, windowStartMs: now, count: 1, reset: true };
+    }
+    const count = Math.floor(Number(existing.count) || 0);
+    if (count >= max) return { ok: false, windowStartMs: existing.windowStartMs, count: count, reset: false };
+    return { ok: true, windowStartMs: existing.windowStartMs, count: count + 1, reset: false };
+}
+
+// ---- Guest battle names ----
+// Guests pick their own battle name. Staff and brand names are refused, after
+// folding case, accents, look-alike letters and digit swaps. foldName and the
+// staff exact list live in reservedNames.js, shared with usernamePolicy.
+const foldName = reservedNames.foldName;
+// Refused anywhere in the name. rufus and 603btc stay on this substring list
+// (existing guest-name policy); username picks treat those two as whole names.
+const RESERVED_ANYWHERE = ['needcreations', 'bitcoinquest', 'bitcoineducation', 'rufus', 'nacho',
+    'admin', 'moderator', 'staff', 'support', 'official', 'system', 'satoshisfavor', '603btc'];
+// Refused as the whole name (after a real/the/official prefix or suffix).
+// The shared staff list (phil, rufus, bq, 603btc) is included here.
+const RESERVED_WHOLE = ['mod', 'mods', 'team', 'dev', 'owner', 'founder', 'bot'].concat(reservedNames.STAFF_RESERVED_EXACT);
+const RESERVED_ANYWHERE_F = RESERVED_ANYWHERE.map(foldName);
+const RESERVED_WHOLE_F = RESERVED_WHOLE.map(foldName);
+const AFFIX_F = ['real', 'the', 'its', 'iam', 'official', 'team', 'hq', 'bot', 'here'].map(foldName);
+function isReservedBattleName(name) {
+    const f = foldName(name);
+    if (!f) return false;
+    for (let i = 0; i < RESERVED_ANYWHERE_F.length; i++) if (f.indexOf(RESERVED_ANYWHERE_F[i]) >= 0) return true;
+    let core = f;
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (let i = 0; i < AFFIX_F.length; i++) {
+            const a = AFFIX_F[i];
+            if (core.length > a.length && core.indexOf(a) === 0) { core = core.slice(a.length); changed = true; }
+            if (core.length > a.length && core.slice(-a.length) === a) { core = core.slice(0, -a.length); changed = true; }
+        }
+    }
+    return RESERVED_WHOLE_F.indexOf(core) >= 0 || RESERVED_WHOLE_F.indexOf(f) >= 0;
+}
+const GUEST_FALLBACK_NAME = 'Guest Bitcoiner';
+// The name a guest (or any lobby/client-supplied name) shows in a match.
+function guestBattleName(raw) {
+    const s = safeDisplayName(raw);
+    if (s === 'a Bitcoiner') return GUEST_FALLBACK_NAME;
+    return isReservedBattleName(s) ? GUEST_FALLBACK_NAME : s;
+}
+
+// ---- Guest stamp ----
+// Whether each player was a guest is decided once, when the match is created,
+// and stored on the server-only answer-key doc (and mirrored on the match doc
+// for the UI). Settle, badges and the played count read only this stamp, so a
+// guest who links a sign-in method after the match cannot turn it into a paid
+// signed-in match.
+const GUEST_STAMP_VERSION = 1;
+function planGuestStamp(p1Guest, p2Guest) {
+    const a = p1Guest !== false;
+    const b = p2Guest !== false;
+    return { version: GUEST_STAMP_VERSION, player1: a, player2: b, guestMatch: a || b };
+}
+// Reads the stamp. A missing or malformed stamp fails closed: guest match.
+function readGuestStamp(keyData) {
+    const st = keyData && keyData.guestStamp;
+    if (!st || st.version !== GUEST_STAMP_VERSION || typeof st.player1 !== 'boolean' || typeof st.player2 !== 'boolean') {
+        return { version: 0, player1: true, player2: true, guestMatch: true, missing: true };
+    }
+    return { version: st.version, player1: st.player1, player2: st.player2, guestMatch: st.player1 || st.player2, missing: false };
+}
+
+// ---- One live match per pair (M5) ----
+// A waiting player can delete and re-create their lobby doc while a match is
+// still running, so "lobby status is waiting" alone does not prove the pair is
+// free. pvpCreateMatch keeps one lock doc per unordered pair, pointing at the
+// pair's latest match, and refuses a new match while that match is still live.
+// The doc id is a hash of the sorted uids, so the lock holds no raw uid.
+const PVP_LIVE_STATUSES = ['countdown', 'active', 'question_result'];
+// A match stuck in a live status (housekeeping missed it) stops blocking the
+// pair after this long. A full 5-question match takes about 3 minutes.
+const PVP_PAIR_LOCK_MS = 30 * 60 * 1000;
+function pvpPairLockId(uidA, uidB) {
+    const pair = [String(uidA || ''), String(uidB || '')].sort();
+    return 'pair_' + require('crypto').createHash('sha256').update(pair[0] + '\n' + pair[1]).digest('hex').slice(0, 40);
+}
+// match is the pair's latest match doc data (or null). Returns true when a new
+// match for the same two players must be refused.
+function pairMatchStillLive(match, nowMs, createdAtMs) {
+    if (!match || PVP_LIVE_STATUSES.indexOf(match.status) === -1) return false;
+    const created = typeof createdAtMs === 'number' && createdAtMs > 0 ? createdAtMs : lastSeenMs(match.createdAt);
+    if (!created) return true;
+    return (nowMs - created) < PVP_PAIR_LOCK_MS;
+}
+
+// ---- Match create caps ----
+// Per-uid hourly caps, plus caps that a fresh anonymous uid cannot reset:
+// one global anonymous-create bucket per hour and one per network (keyed hash).
+// The caller (player2) is always charged. A waiting signed-in player1 is
+// charged only for a signed-in match.
+const PVP_ANON_GLOBAL_PER_HOUR = 300;
+const PVP_ANON_NETWORK_PER_HOUR = 30;
+function planMatchCharges(input) {
+    const src = input || {};
+    const p1Guest = src.p1Guest !== false;
+    const p2Guest = src.p2Guest !== false;
+    const guestMatch = p1Guest || p2Guest;
+    const out = [];
+    if (guestMatch) {
+        if (p1Guest) out.push({ who: 'player1', bucket: 'match_hour', max: 20 });
+        // player2 is always the caller. A logged-in caller who starts a guest
+        // match spends their own hourly cap too, so one account cannot use
+        // fresh anonymous lobbies to drain the shared guest bucket for free.
+        // A logged-in player1 (waiting in the lobby) is not charged, so guests
+        // cannot burn a waiting player's cap by joining them.
+        out.push({ who: 'player2', bucket: 'match_hour', max: p2Guest ? 20 : 60 });
+        out.push({ who: 'global', bucket: 'anon_global', max: PVP_ANON_GLOBAL_PER_HOUR });
+        // The network bucket applies to every guest match, whoever the caller is.
+        if (src.hasNetwork) out.push({ who: 'network', bucket: 'anon_net', max: PVP_ANON_NETWORK_PER_HOUR });
+    } else {
+        out.push({ who: 'player1', bucket: 'match_hour', max: 60 });
+        out.push({ who: 'player2', bucket: 'match_hour', max: 60 });
+    }
+    return out;
+}
+
+// ---- Answer caps ----
+// Every player has a per-uid burst cap (same 30/minute as before). Guests also
+// get a per-network (IP hash, when the request has an IP) burst and hourly cap,
+// so a new anonymous uid cannot reset the answer limit.
+const PVP_ANSWER_PER_MIN = 30;
+const PVP_ANON_ANSWER_NETWORK_PER_MIN = 40;
+const PVP_ANON_ANSWER_NETWORK_PER_HOUR = 150;
+function planAnswerCharges(input) {
+    const src = input || {};
+    const out = [{ who: 'player', bucket: 'answer', max: PVP_ANSWER_PER_MIN, windowMs: 60000 }];
+    if (src.guest && src.hasNetwork) {
+        out.push({ who: 'network', bucket: 'anon_ans_min', max: PVP_ANON_ANSWER_NETWORK_PER_MIN, windowMs: 60000 });
+        out.push({ who: 'network', bucket: 'anon_ans_hour', max: PVP_ANON_ANSWER_NETWORK_PER_HOUR, windowMs: 60 * 60 * 1000 });
+    }
+    return out;
+}
+
+// Settle plan from the match, its answer-key doc and live ban flags. Guest
+// status comes only from the create-time stamp on the key doc; whatever the
+// live flags say about anonymous is ignored.
+function settleRewardPlan(input) {
+    const src = input || {};
+    const after = src.after || {};
+    const keyData = src.keyData || {};
+    const ids = keyData.playerUids || {};
+    const f1 = src.flags1 || {};
+    const f2 = src.flags2 || {};
+    const stamp = readGuestStamp(keyData);
+    const p1 = after.player1 || {};
+    const p2 = after.player2 || {};
+    const plan = planPvpReward({
+        matchId: src.matchId,
+        status: after.status,
+        alreadyGranted: false,
+        forfeitedBy: after.forfeitedBy || '',
+        forfeitReason: after.forfeitReason || '',
+        durationMs: src.durationMs,
+        pairMatchesToday: src.pairMatchesToday,
+        accountAgeMs: src.accountAgeMs,
+        minDurationMs: src.minDurationMs,
+        pairXpCap: src.pairXpCap,
+        minAccountAgeMs: src.minAccountAgeMs,
+        player1: {
+            uid: ids.player1, name: keyData.player1Name || '', score: p1.score || 0,
+            roundWins: countWins(p1.answers), banned: f1.banned === true, anonymous: stamp.player1,
+        },
+        player2: {
+            uid: ids.player2, name: keyData.player2Name || '', score: p2.score || 0,
+            roundWins: countWins(p2.answers), banned: f2.banned === true, anonymous: stamp.player2,
+        },
+    });
+    if (stamp.guestMatch && plan.grant) {
+        // Belt and braces: a stamped guest match never grants.
+        return { stamp: stamp, plan: Object.assign({}, plan, { grant: false, reason: 'guest_match', guestMatch: true, players: zeroGuestMatchRewards(plan.players) }) };
+    }
+    return { stamp: stamp, plan: plan };
+}
+
+// ---- Post-settle badge families ----
+// Server-counted PvP badge families granted after a match settles. A guest
+// match (or a missing stamp, which reads as a guest match) grants none.
+const PVP_BADGE_FIELDS = ['pvpWins', 'pvpPlayed', 'pvpBestStreak'];
+function planPvpBadgeGrants(sideUids, stamp, plan) {
+    const uids = (sideUids || []).filter(function (u) { return typeof u === 'string' && u; });
+    const guest = !stamp || stamp.guestMatch !== false;
+    if (guest) return { rewardUids: [], skipUids: uids, winGrantUids: [], fields: [] };
+    const capped = {};
+    (plan && plan.players || []).forEach(function (p) {
+        if (p && p.uid && p.statsCapped === true) capped[p.uid] = true;
+    });
+    const winGrantUids = uids.filter(function (u) { return !capped[u]; });
+    return { rewardUids: uids, skipUids: [], winGrantUids: winGrantUids, fields: PVP_BADGE_FIELDS.slice() };
+}
+
+// ---- Lobby summary work cap ----
+// Lobby create and delete events each cost an Auth lookup and a transaction on
+// the one pvp_lobby_live/current doc. Past this many per uid per minute the
+// trigger skips the work (heartbeats are not counted).
+const PVP_LOBBY_EVENTS_PER_MIN = 6;
+const PVP_LOBBY_EVENTS_WINDOW_MS = 60000;
+function isLobbyStructuralEvent(before, after) {
+    if (!before || !after) return !!(before || after);
+    return String(before.status || '') !== String(after.status || '');
+}
+function planLobbyEventWindow(rateDoc, nowMs) {
+    const d = rateDoc || {};
+    const existing = d.lobbyWindowStartMs ? { windowStartMs: d.lobbyWindowStartMs, count: d.lobbyCount } : null;
+    const planned = planRateWindow(existing, nowMs, PVP_LOBBY_EVENTS_PER_MIN, PVP_LOBBY_EVENTS_WINDOW_MS);
+    return { ok: planned.ok, write: { lobbyWindowStartMs: planned.windowStartMs, lobbyCount: planned.count } };
+}
+
 module.exports = {
     LOBBY_SHOUT_MS: LOBBY_SHOUT_MS,
     ALERT_COOLDOWN_MS: ALERT_COOLDOWN_MS,
@@ -522,6 +832,8 @@ module.exports = {
     rewardClaimId: rewardClaimId,
     shouldPostLobbyShout: shouldPostLobbyShout,
     lastSeenMs: lastSeenMs,
+    matchFinishMs: matchFinishMs,
+    matchDurationMs: matchDurationMs,
     mergeLobbyEntry: mergeLobbyEntry,
     decideLobbyAlert: decideLobbyAlert,
     decidePvpPush: decidePvpPush,
@@ -542,4 +854,39 @@ module.exports = {
     playerKeyForUid: playerKeyForUid,
     pushShardOrder: pushShardOrder,
     pvpPicAllowed: pvpPicAllowed,
+    planStreakUpdate: planStreakUpdate,
+    skippedRerollQuestion: skippedRerollQuestion,
+    planRateWindow: planRateWindow,
+    guestMatchBlocksRewards: guestMatchBlocksRewards,
+    zeroGuestMatchRewards: zeroGuestMatchRewards,
+    foldName: foldName,
+    isReservedBattleName: isReservedBattleName,
+    guestBattleName: guestBattleName,
+    GUEST_FALLBACK_NAME: GUEST_FALLBACK_NAME,
+    planGuestStamp: planGuestStamp,
+    readGuestStamp: readGuestStamp,
+    GUEST_STAMP_VERSION: GUEST_STAMP_VERSION,
+    planMatchCharges: planMatchCharges,
+    PVP_BADGE_FIELDS: PVP_BADGE_FIELDS,
+    planPvpBadgeGrants: planPvpBadgeGrants,
+    PVP_LOBBY_EVENTS_PER_MIN: PVP_LOBBY_EVENTS_PER_MIN,
+    PVP_LOBBY_EVENTS_WINDOW_MS: PVP_LOBBY_EVENTS_WINDOW_MS,
+    isLobbyStructuralEvent: isLobbyStructuralEvent,
+    planLobbyEventWindow: planLobbyEventWindow,
+    settleRewardPlan: settleRewardPlan,
+    PVP_ANON_GLOBAL_PER_HOUR: PVP_ANON_GLOBAL_PER_HOUR,
+    PVP_ANON_NETWORK_PER_HOUR: PVP_ANON_NETWORK_PER_HOUR,
+    planAnswerCharges: planAnswerCharges,
+    PVP_ANSWER_PER_MIN: PVP_ANSWER_PER_MIN,
+    PVP_ANON_ANSWER_NETWORK_PER_MIN: PVP_ANON_ANSWER_NETWORK_PER_MIN,
+    PVP_ANON_ANSWER_NETWORK_PER_HOUR: PVP_ANON_ANSWER_NETWORK_PER_HOUR,
+    PVP_LIVE_STATUSES: PVP_LIVE_STATUSES,
+    PVP_PAIR_LOCK_MS: PVP_PAIR_LOCK_MS,
+    pvpPairLockId: pvpPairLockId,
+    pairMatchStillLive: pairMatchStillLive,
+    PVP_CREATE_BURST: 10,
+    PVP_CREATE_BURST_MS: 60000,
+    PVP_ANON_MATCH_PER_HOUR: 20,
+    PVP_SIGNED_MATCH_PER_HOUR: 60,
+    PVP_MATCH_HOUR_MS: 60 * 60 * 1000,
 };
