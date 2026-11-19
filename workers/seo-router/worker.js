@@ -555,6 +555,30 @@ async function fetchOrigin(request, url) {
     return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers });
 }
 
+// ─── Premium page ─────────────────────────────────────────────────────────────
+// /premium is a standalone static page served from Pages (premium.html). It is
+// NOT an SPA alias and must never be added to cleanAliases. Until Phil OKs the
+// public launch it is noindex + no-store, and premium.js keeps the live
+// checkout form closed (PAGE_OPEN_ON_LIVE). Flip both together.
+const PREMIUM_PAGE_PUBLIC = false;
+const PREMIUM_PATHS = new Set(['/premium', '/premium/', '/premium.html']);
+
+function isPremiumPath(path) {
+    return PREMIUM_PATHS.has(path);
+}
+
+async function servePremium(request, url, nonce, ref) {
+    const resp = await fetchOrigin(request, url);
+    const ct = resp.headers.get('content-type') || '';
+    const out = ct.includes('text/html') ? applySecurityHeaders(resp, nonce, ref) : resp;
+    if (PREMIUM_PAGE_PUBLIC) return out;
+    const headers = new Headers(out.headers);
+    headers.set('X-Robots-Tag', 'noindex, nofollow');
+    headers.set('Cache-Control', 'private, no-store');
+    headers.set('CDN-Cache-Control', 'no-store');
+    return new Response(out.body, { status: out.status, statusText: out.statusText, headers });
+}
+
 // ─── Main Handler ─────────────────────────────────────────────────────────────
 
 export default {
@@ -685,6 +709,11 @@ export default {
                     'CDN-Cache-Control': 'no-store',
                 });
             }
+        }
+
+        // Standalone /premium page (not an SPA alias).
+        if (isPremiumPath(path) && (request.method === 'GET' || request.method === 'HEAD')) {
+            return servePremium(request, url, nonce, ref);
         }
 
         // Pass-through: fetch from Cloudflare Pages, inject security headers + nonce into HTML

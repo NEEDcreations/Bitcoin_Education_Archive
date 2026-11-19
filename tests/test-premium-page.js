@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 // Static /premium page: standalone, card prices only, approved perks copy,
-// no existing-player discount, ?src= passthrough, staging endpoint off-prod.
+// no existing-player discount, ?src= passthrough, staging endpoint off-prod,
+// no free trial copy, final-sale terms before payment, live launch gate.
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -36,7 +37,7 @@ test('no existing-player discount and no BTC price line until enabled', function
     assert.ok(!/\$45|\$135|\$4\.50|\$42\.50|\$127\.50/.test(text));
 });
 test('approved perks present, dropped perks absent, banned claims absent', function () {
-    assert.ok(text.indexOf('Premium perks unlock with Citadel Spark on Jan 3.') !== -1);
+    assert.ok(text.indexOf('Embers and Citadel perks unlock with Citadel Spark on Jan 3. Every other perk starts the moment you buy.') !== -1);
     assert.ok(/Compute Games Pass\. Watching is free, and paying never buys influence\./.test(text));
     assert.ok(/Paying never changes who wins a battle\./.test(text));
     assert.ok(/No pool fee when you mine/.test(text));
@@ -49,6 +50,29 @@ test('approved perks present, dropped perks absent, banned claims absent', funct
         assert.strictEqual(text.toLowerCase().indexOf(w), -1, w);
     });
 });
+test('no free trial anywhere on the page (Phil, Nov 18)', function () {
+    assert.ok(!/free trial|trial/i.test(text), 'trial copy found');
+    assert.ok(!/7-day/i.test(html + js));
+    assert.ok(/Charged today, then monthly\./.test(text));
+    assert.ok(/Charged today, then yearly\./.test(text));
+});
+test('final-sale terms and a required box sit above the pay button', function () {
+    const terms = html.indexOf('id="pmTerms"');
+    const box = html.indexOf('id="pmAgree"');
+    const pay = html.indexOf('id="pmSubmit"');
+    assert.ok(terms !== -1 && box !== -1 && pay !== -1 && terms < pay && box < pay);
+    assert.ok(/All sales are final\. No refunds\./.test(text));
+    assert.ok(/canceled any time and keep Premium until the end of the period you paid for/.test(text));
+    assert.ok(/Founders' Lifetime and bitcoin payments are final\./.test(text));
+    const server = require('../functions/src/premiumPricing').REFUND_POLICY.text;
+    assert.ok(text.indexOf(server.replace(/^All sales are final\. No refunds\. /, '')) !== -1, 'page copy matches server REFUND_POLICY');
+});
+test('not indexed until launch; live launch gate is closed', function () {
+    assert.ok(/<meta name="robots" content="noindex,nofollow">/.test(html));
+    assert.ok(/var PAGE_OPEN_ON_LIVE = false;/.test(js));
+    const sitemap = fs.readFileSync(path.join(root, 'sitemap.xml'), 'utf8');
+    assert.strictEqual(sitemap.indexOf('/premium'), -1);
+});
 test('Turnstile widget and plan values match the server', function () {
     assert.ok(/class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-action="premium_checkout"/.test(html));
     ['monthly', 'yearly', 'founders'].forEach(function (p) { assert.ok(html.indexOf('value="' + p + '"') !== -1, p); });
@@ -56,7 +80,8 @@ test('Turnstile widget and plan values match the server', function () {
 });
 
 // Run premium.js in a tiny fake DOM to check endpoint choice, src and redirect guard.
-function run(hostname, search, reply, plan) {
+function run(hostname, search, reply, plan, opts) {
+    const o = opts || {};
     const sent = [];
     const nodes = {};
     function el(id) { return nodes[id] || (nodes[id] = { id: id, hidden: true, disabled: false, value: '', textContent: '', className: '', focus: function () {}, appendChild: function () {} }); }
@@ -65,6 +90,8 @@ function run(hostname, search, reply, plan) {
     form.addEventListener = function (t, fn) { if (t === 'submit') submit = fn; };
     form.querySelector = function (sel) { return sel.indexOf('plan') !== -1 ? { value: plan || 'yearly' } : null; };
     el('pmEmail').value = 'buyer@example.com';
+    el('pmAgree').checked = o.agree !== false;
+    el('pmCheckout').hidden = false;
     let assigned = null;
     const ctx = {
         location: { hostname: hostname, search: search, assign: function (u) { assigned = u; } },
@@ -73,9 +100,9 @@ function run(hostname, search, reply, plan) {
         window: { turnstile: { getResponse: function () { return 'tok'; }, reset: function () {} } },
         fetch: function (url, init) { sent.push({ url: url, body: JSON.parse(init.body) }); return Promise.resolve({ json: function () { return Promise.resolve(reply); } }); },
     };
-    vm.runInNewContext(js, ctx);
+    vm.runInNewContext(o.js || js, ctx);
     submit({ preventDefault: function () {} });
-    return new Promise(function (r) { setTimeout(function () { r({ sent: sent, assigned: assigned, msg: el('pmMsg') }); }, 20); });
+    return new Promise(function (r) { setTimeout(function () { r({ sent: sent, assigned: assigned, msg: el('pmMsg'), nodes: nodes }); }, 20); });
 }
 
 (async function () {
@@ -83,11 +110,19 @@ function run(hostname, search, reply, plan) {
     const a = await run('preview1.bitcoin-quest.pages.dev', '?src=YT-1217', okReply);
     test('preview host posts to staging with src tag', function () {
         assert.strictEqual(a.sent[0].url, 'https://us-central1-bitcoin-quest-staging.cloudfunctions.net/premiumPublicCheckout');
-        assert.deepStrictEqual(a.sent[0].body, { plan: 'yearly', rail: 'card', email: 'buyer@example.com', turnstileToken: 'tok', src: 'yt-1217' });
+        assert.deepStrictEqual(a.sent[0].body, { plan: 'yearly', rail: 'card', email: 'buyer@example.com', turnstileToken: 'tok', acceptNoRefunds: true, src: 'yt-1217' });
         assert.strictEqual(a.assigned, okReply.url);
     });
-    const b = await run('bitcoineducation.quest', '?src=%3Cscript%3E', okReply);
-    test('live host posts to live; bad src dropped', function () {
+    const closed = await run('bitcoineducation.quest', '', okReply);
+    test('live host: checkout closed until PAGE_OPEN_ON_LIVE (no post, no redirect)', function () {
+        assert.strictEqual(closed.sent.length, 0);
+        assert.strictEqual(closed.assigned, null);
+        assert.strictEqual(closed.nodes.pmCheckout.hidden, true);
+        assert.strictEqual(closed.nodes.pmClosed.hidden, false);
+    });
+    const openJs = js.replace('var PAGE_OPEN_ON_LIVE = false;', 'var PAGE_OPEN_ON_LIVE = true;');
+    const b = await run('bitcoineducation.quest', '?src=%3Cscript%3E', okReply, null, { js: openJs });
+    test('live host (after launch OK) posts to live; bad src dropped', function () {
         assert.strictEqual(b.sent[0].url, 'https://us-central1-bitcoin-education-archive.cloudfunctions.net/premiumPublicCheckout');
         assert.ok(!('src' in b.sent[0].body));
     });
@@ -99,7 +134,12 @@ function run(hostname, search, reply, plan) {
     test('closed checkout shows a friendly message', function () {
         assert.ok(/opens soon/.test(d.msg.textContent));
     });
-    const f = await run('bitcoineducation.quest', '?src=yt-1217', okReply, 'founders');
+    const noBox = await run('dev.bitcoineducation.quest', '', okReply, 'monthly', { agree: false });
+    test('unticked final-sale box: no post, friendly message', function () {
+        assert.strictEqual(noBox.sent.length, 0);
+        assert.ok(/all sales are final/i.test(noBox.msg.textContent));
+    });
+    const f = await run('bitcoineducation.quest', '?src=yt-1217', okReply, 'founders', { js: openJs });
     test("Founders goes to app sign-in (with src), never the public email checkout", function () {
         assert.strictEqual(f.sent.length, 0);
         assert.strictEqual(f.assigned, '/?premium=founders&src=yt-1217');

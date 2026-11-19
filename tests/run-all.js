@@ -81,6 +81,8 @@ const TESTS = [
     { name: 'Claimable sats cap', file: 'test-claimable-sats.js' },
     { name: 'Premium checkout + entitlements', file: 'test-premium-checkout.js' },
     { name: 'Premium public page', file: 'test-premium-page.js' },
+    { name: 'Premium in-app buy screen', file: 'test-premium-buy.js' },
+    { name: 'Premium /premium route (seo-router)', file: 'test-premium-route.js' },
     { name: 'Quiz And Trivia Rewards', file: 'test-quest-reward.js' },
     { name: 'Trivia tally transaction', file: 'test-answer-trivia.js' },
     { name: 'Poll cumulative tally', file: 'test-poll-cumulative.js' },

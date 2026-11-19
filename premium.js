@@ -11,12 +11,25 @@
   };
   // Flip to true only once bitcoin checkout is open (shows the 10% line).
   var SHOW_BTC_LINE = false;
+  // Live launch gate. While false, the live host shows "opens soon" and never
+  // loads Turnstile or posts a checkout. Staging and previews always work.
+  // Flip only after Phil OKs the public /premium launch.
+  var PAGE_OPEN_ON_LIVE = false;
 
   var form = document.getElementById('premiumForm');
   var msg = document.getElementById('pmMsg');
   var btn = document.getElementById('pmSubmit');
   var email = document.getElementById('pmEmail');
+  var agree = document.getElementById('pmAgree');
   if (!form) return;
+  var isLive = LIVE_HOSTS.indexOf(location.hostname) !== -1;
+  if (isLive && !PAGE_OPEN_ON_LIVE) {
+    var co = document.getElementById('pmCheckout'); if (co) co.hidden = true;
+    var cl = document.getElementById('pmClosed'); if (cl) cl.hidden = false;
+    if (btn) btn.disabled = true;
+    form.addEventListener('submit', function (e) { e.preventDefault(); });
+    return;
+  }
 
   function endpoint() { return LIVE_HOSTS.indexOf(location.hostname) !== -1 ? ENDPOINTS.live : ENDPOINTS.staging; }
   function cleanSrc(v) { v = String(v || '').toLowerCase().trim(); return /^[a-z0-9][a-z0-9_-]{0,39}$/.test(v) ? v : ''; }
@@ -29,6 +42,8 @@
     bad_email: ["That email doesn't look right. Please check it and try again.", 'err'],
     turnstile: ['Please wait for the security check to finish, then tap the button again.', 'err'],
     checkout_closed: ['Checkout opens soon. Please check back.', 'err'],
+    terms_required: ['Please tick the box to confirm that all sales are final.', 'err'],
+    kill_switch: ['Bitcoin Quest is offline for maintenance, so checkout is paused. Please try again later.', 'err'],
     founders_sold_out: ["Founders' Lifetime is sold out or all remaining seats are in checkout. Try again in about 30 minutes.", 'err'],
     hold_exists: ["You already have a Founders' checkout open. Finish it, or try again in about 30 minutes.", 'err'],
     already_lifetime: ["This email already has Founders' Lifetime.", 'ok'],
@@ -69,12 +84,13 @@
     e.preventDefault();
     var chosen = form.querySelector('input[name="plan"]:checked');
     if (chosen && chosen.value === 'founders') { foundersSignIn(); return; }
+    if (!agree || agree.checked !== true) { show('terms_required'); return; }
     var value = (email.value || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) { show('bad_email'); email.focus(); return; }
     var token = turnstileToken();
     if (!token) { show('turnstile'); return; }
     var picked = form.querySelector('input[name="plan"]:checked');
-    var body = { plan: picked ? picked.value : 'monthly', rail: 'card', email: value, turnstileToken: token };
+    var body = { plan: picked ? picked.value : 'monthly', rail: 'card', email: value, turnstileToken: token, acceptNoRefunds: true };
     if (src) body.src = src;
     btn.disabled = true; msg.textContent = ''; msg.className = 'msg';
     fetch(endpoint(), {

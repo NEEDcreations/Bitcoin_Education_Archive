@@ -4,12 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bitcoin Quest Premium</title>
-<meta name="description" content="Bitcoin Quest Premium: $5 a month, $50 a year, or Founders' Lifetime for $150 (500 seats). Premium perks unlock with Citadel Spark on Jan 3.">
+<meta name="description" content="Bitcoin Quest Premium: $5 a month, $50 a year, or Founders' Lifetime for $150 (500 seats). Embers and Citadel perks unlock with Citadel Spark on Jan 3.">
+<!-- Not indexed and not linked from the app until Phil OKs the public launch. -->
+<meta name="robots" content="noindex,nofollow">
 <link rel="canonical" href="https://bitcoineducation.quest/premium">
 <!-- Standalone page: no Firebase, no app JS, no service worker registration.
-     Must keep working while the app is offline or the kill switch is on.
+     Checkout stops while the kill switch is on (server-side).
      Card prices only. No existing-player discount here: that offer lives in
-     the app for signed-in, verified accounts only. -->
+     the app for signed-in, verified accounts only. On the live host the
+     checkout form stays closed until premium.js PAGE_OPEN_ON_LIVE is true. -->
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#0b0d12;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.6;display:flex;flex-direction:column;align-items:center;padding:32px 20px}
@@ -39,6 +42,9 @@
   button:disabled,input:disabled{opacity:.55;cursor:not-allowed}
   .msg{font-size:.92rem;min-height:1.2em}
   .msg.ok{color:#4ade80}.msg.err{color:#f87171}
+  .terms{background:#1a1410;border:1px solid #5a3a12;border-radius:10px;padding:12px 14px;color:#f3d9b5;font-size:.88rem}
+  .agree{display:flex;gap:10px;align-items:flex-start;font-size:.92rem;color:#e5e7eb;cursor:pointer}
+  .agree input{margin-top:4px;width:18px;height:18px;flex:0 0 auto}
   .foot{margin-top:18px;font-size:.8rem;color:#6b7280;text-align:center}
   .foot a,.fine a{color:#f7931a;text-decoration:none}
   @media (max-width:720px){.plans{grid-template-columns:1fr}}
@@ -48,27 +54,27 @@
 <main class="wrap">
   <div class="eyebrow">Bitcoin Quest</div>
   <h1>Bitcoin Quest Premium</h1>
-  <p class="lede">Premium perks unlock with Citadel Spark on Jan 3.</p>
+  <p class="lede">Embers and Citadel perks unlock with Citadel Spark on Jan 3. Every other perk starts the moment you buy.</p>
 
   <form id="premiumForm" novalidate>
     <fieldset class="plans" style="border:0">
       <legend class="sr">Choose a plan</legend>
       <label class="plan"><input type="radio" name="plan" value="monthly" checked>
         <span class="name">Monthly</span><span class="price">$5 <small>/ month</small></span>
-        <span class="note">7-day free trial for new subscribers. Cancel any time.</span></label>
+        <span class="note">Charged today, then monthly. Cancel any time and keep Premium to the end of the month you paid for.</span></label>
       <label class="plan"><input type="radio" name="plan" value="yearly">
         <span class="name">Yearly</span><span class="price">$50 <small>/ year</small></span>
-        <span class="note">7-day free trial for new subscribers. Cancel any time.</span></label>
+        <span class="note">Charged today, then yearly. Cancel any time and keep Premium to the end of the year you paid for.</span></label>
       <label class="plan"><input type="radio" name="plan" value="founders">
         <span class="name">Founders' Lifetime</span><span class="price">$150 <small>one time</small></span>
-        <span class="note">Only 500 seats, ever. Never renews. Sign in to Bitcoin Quest to buy.</span></label>
+        <span class="note">Only 500 seats, ever. One payment, never renews, final sale. Sign in to Bitcoin Quest to buy.</span></label>
     </fieldset>
 
     <section class="card">
       <h2>What Premium includes</h2>
       <ul class="perks">
-        <li>Higher rewards limit (for accounts at least 60 days old; not included during the free trial)</li>
-        <li>100 Embers a month to spend on cosmetics in the Nook. It's for looks only: it can't become sats and can't buy chances, raffles, packs or battle items.</li>
+        <li>Higher rewards limit (for accounts at least 60 days old)</li>
+        <li>100 Embers a month to spend on cosmetics in the Nook, starting Jan 3. Unspent Embers roll over up to 300. It's for looks only: it can't become sats and can't buy chances, raffles, packs or battle items.</li>
         <li>No pool fee when you mine</li>
         <li>Higher chat limit</li>
         <li>One username change and one faction change per year</li>
@@ -78,7 +84,9 @@
       <p class="fine" id="btcNote" hidden>Paying in bitcoin over Lightning? Take 10% off Yearly and Founders' Lifetime.</p>
     </section>
 
-    <section class="card">
+    <section class="card" id="pmCheckout">
+      <p class="terms" id="pmTerms"><strong>All sales are final. No refunds.</strong> Monthly and Yearly plans can be canceled any time and keep Premium until the end of the period you paid for. Founders' Lifetime and bitcoin payments are final.</p>
+      <label class="agree"><input type="checkbox" id="pmAgree" name="acceptNoRefunds" required> I understand that all sales are final and there are no refunds.</label>
       <label class="sr" for="pmEmail">Email</label>
       <input type="email" id="pmEmail" name="email" placeholder="Email you use for Bitcoin Quest" autocomplete="email" required>
       <div id="pmTurnstile" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-action="premium_checkout" data-theme="dark" data-size="flexible"></div>
@@ -87,6 +95,7 @@
       <p class="fine">Use the email on your Bitcoin Quest account. Premium attaches to your account when you sign in with that verified email. Payments are processed by Stripe. You must be 18 or older to buy.</p>
     </section>
   </form>
+  <p class="card" id="pmClosed" hidden>Premium checkout opens soon. Please check back.</p>
 
   <p class="foot"><a href="/">Bitcoin Quest</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
 </main>
