@@ -26667,7 +26667,7 @@ window.toggleAITools = function() {
             '.td-name{font-weight:800;font-size:0.82rem;color:var(--heading,#fff);}',
             '.td-name.td-nacho{color:#22c55e;}',
             '.td-time,.td-anchor{font-size:0.72rem;color:var(--text-faint,#64748b);white-space:nowrap;}',
-            '.td-convo-btn{display:flex;align-items:center;width:fit-content;max-width:100%;box-sizing:border-box;margin:12px 0 16px;padding:8px 14px;min-height:40px;border-radius:999px;border:1px solid var(--accent,#f97316);background:rgba(249,115,22,0.08);color:var(--accent,#f97316);font-weight:800;font-size:0.82rem;line-height:1.2;font-family:inherit;cursor:pointer;white-space:normal;text-align:left;}',
+            '.td-convo-btn{display:flex;align-items:center;width:fit-content;max-width:100%;box-sizing:border-box;margin:12px 0 16px;padding:8px 14px;min-height:44px;border-radius:999px;border:1px solid var(--accent,#f97316);background:rgba(249,115,22,0.08);color:var(--accent,#f97316);font-weight:800;font-size:0.82rem;line-height:1.2;font-family:inherit;cursor:pointer;white-space:normal;text-align:left;}',
             '.td-convo-btn:hover,.td-convo-btn:focus-visible{background:rgba(249,115,22,0.16);outline:2px solid var(--accent,#f97316);outline-offset:2px;}',
             '.td-text{font-size:0.92rem;line-height:1.45;color:var(--text,#e2e8f0);white-space:pre-wrap;word-break:break-word;}',
             '.td-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}',
@@ -26680,7 +26680,9 @@ window.toggleAITools = function() {
             '.td-compose{display:flex;flex-direction:column;gap:8px;margin-top:12px;}',
             '.td-compose textarea{width:100%;box-sizing:border-box;min-height:72px;max-height:180px;padding:12px;border-radius:12px;border:1px solid var(--border,#1e293b);background:var(--input-bg,#020617);color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;resize:vertical;}',
             '.td-compose-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}',
-            '.td-send{padding:10px 16px;border:none;border-radius:10px;background:var(--accent,#f97316);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;}',
+            '.td-send{padding:10px 16px;min-height:44px;min-width:44px;border:none;border-radius:10px;background:#c2410c;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;}',
+            '[data-theme="light"] .td-send{background:#9a3412;color:#fff;}',
+            '.oled-theme .td-send{background:#c2410c;color:#fff;}',
             '.td-send:disabled{opacity:0.55;cursor:default;}',
             '.td-note{font-size:0.75rem;color:var(--text-muted,#94a3b8);line-height:1.4;}',
             '.td-forum-notice{margin:0;padding:8px 10px;border-radius:10px;border:1px solid rgba(249,115,22,0.45);background:rgba(249,115,22,0.1);color:var(--text,#e2e8f0);font-size:0.82rem;font-weight:700;line-height:1.35;}',
@@ -26700,6 +26702,23 @@ window.toggleAITools = function() {
             '.td-convo-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;}',
             '.td-convo-title{font-weight:800;color:var(--heading,#fff);font-size:1rem;}',
             '.td-convo-close{min-height:44px;padding:8px 14px;border-radius:999px;border:1px solid var(--border,#334155);background:rgba(255,255,255,0.06);color:var(--text,#e2e8f0);font-weight:800;font-family:inherit;cursor:pointer;}',
+            '.td-composer-status,#topic-convo-status{margin:0 0 10px;}',
+            '.td-convo-status{margin:0;padding:12px;border-radius:12px;font-weight:800;font-size:0.92rem;line-height:1.4;}',
+            '.td-convo-success{border:1px solid #15803d;background:#14532d;color:#ecfce5;}',
+            '[data-theme="light"] .td-convo-success{border-color:#166534;background:#dcfce7;color:#14532d;}',
+            '.oled-theme .td-convo-success{border-color:#4ade80;background:#052e16;color:#bbf7d0;}',
+            '.td-convo-error{border:1px solid #b91c1c;background:#7f1d1d;color:#fee2e2;}',
+            '[data-theme="light"] .td-convo-error{border-color:#b91c1c;background:#fee2e2;color:#7f1d1d;}',
+            '.oled-theme .td-convo-error{border-color:#f87171;background:#450a0a;color:#fecaca;}',
+            '.td-convo-success-title{margin:0 0 8px;font-size:1.05rem;font-weight:800;color:inherit;}',
+            '.td-convo-success-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}',
+            '.td-convo-view{padding:10px 16px;min-height:44px;min-width:44px;border:none;border-radius:10px;background:#c2410c;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;}',
+            '[data-theme="light"] .td-convo-view{background:#9a3412;color:#fff;}',
+            '.oled-theme .td-convo-view{background:#c2410c;color:#fff;}',
+            '.td-convo-again{padding:10px 16px;min-height:44px;min-width:44px;border-radius:10px;border:1px solid var(--border,#334155);background:rgba(255,255,255,0.06);color:var(--heading,#fff);font-weight:800;cursor:pointer;font-family:inherit;}',
+            '[data-theme="light"] .td-convo-again{color:#0f172a;background:#fff;border-color:#cbd5e1;}',
+            '.oled-theme .td-convo-again{color:#f8fafc;background:#111;border-color:#334155;}',
+            '#topic-convo-modal .td-btn,#topic-convo-modal .td-send,#topic-convo-modal .td-convo-close,#topic-convo-modal .td-convo-view,#topic-convo-modal .td-convo-again{min-height:44px;min-width:44px;}',
             '@media (min-width:800px){#topic-convo-modal{align-items:center;}.td-convo-panel{border-radius:18px;margin:24px;}}',
             '@media (max-width:420px){.td-section{margin:20px 10px calc(180px + env(safe-area-inset-bottom, 0px));}.td-post.td-reply{margin-left:12px;}.td-body{padding:0 10px 12px;}.td-convo-btn{margin:10px 0 14px;padding:10px 12px;min-height:44px;font-size:0.8rem;}}'
         ].join('');
@@ -27317,9 +27336,267 @@ window.toggleAITools = function() {
         return notice;
     }
 
+    function forumPostIdForTopic(channelId, rootPostId) {
+        var channel = String(channelId || '');
+        var post = String(rootPostId || '');
+        if (!/^[A-Za-z0-9_-]+$/.test(channel) || channel.length > 80) return '';
+        if (!/^[A-Za-z0-9_-]+$/.test(post) || post.length > 128) return '';
+        return ('tdforum_' + channel + '_' + post).slice(0, 400);
+    }
+
+    function forumHashForTopic(forumPostId) {
+        var id = String(forumPostId || '');
+        if (!/^[A-Za-z0-9_-]+$/.test(id) || id.length > 400) return '';
+        return '#forum/post/' + id;
+    }
+
+    function idleConvoPostView() {
+        return {
+            status: 'idle',
+            draft: '',
+            error: '',
+            confirmation: '',
+            prompt: '',
+            forumPostId: '',
+            forumHref: '',
+            viewLabel: '',
+            sendLabel: 'Post',
+            sendDisabled: false,
+            keepDraft: true,
+            ariaBusy: false,
+            showComposer: true,
+            showSuccess: false
+        };
+    }
+
+    function reduceTopicConvoPost(state, event) {
+        var prev = state || idleConvoPostView();
+        var ev = event || {};
+        var type = ev.type || '';
+        var draft = ev.draft != null ? String(ev.draft) : (prev.draft || '');
+        if (type === 'submit') {
+            if (!String(draft || '').trim()) {
+                var empty = idleConvoPostView();
+                empty.draft = draft;
+                empty.error = 'Write a comment first.';
+                return empty;
+            }
+            if (prev.status === 'posting') return prev;
+            return {
+                status: 'posting',
+                draft: draft,
+                error: '',
+                confirmation: '',
+                prompt: '',
+                forumPostId: '',
+                forumHref: '',
+                viewLabel: '',
+                sendLabel: 'Posting…',
+                sendDisabled: true,
+                keepDraft: true,
+                ariaBusy: true,
+                showComposer: true,
+                showSuccess: false
+            };
+        }
+        if (type === 'success') {
+            var crossPosted = ev.crossPosted === true;
+            var postId = ev.postId || '';
+            var channelId = ev.channelId || '';
+            var forumPostId = ev.forumPostId || (crossPosted ? forumPostIdForTopic(channelId, postId) : '') || ev.parentForumPostId || '';
+            var forumHref = forumHashForTopic(forumPostId);
+            var confirmation = (crossPosted || forumHref)
+                ? 'Posted to Pleb Talk'
+                : (ev.crossPostNote || 'Your comment was posted.');
+            return {
+                status: 'success',
+                draft: '',
+                error: '',
+                confirmation: confirmation,
+                prompt: 'Post something else on this topic?',
+                forumPostId: forumPostId,
+                forumHref: forumHref,
+                viewLabel: forumHref ? 'View in Pleb Talk' : '',
+                sendLabel: 'Post',
+                sendDisabled: true,
+                keepDraft: false,
+                ariaBusy: false,
+                showComposer: false,
+                showSuccess: true
+            };
+        }
+        if (type === 'error') {
+            return {
+                status: 'error',
+                draft: draft,
+                error: ev.message || 'Could not post that comment.',
+                confirmation: '',
+                prompt: '',
+                forumPostId: '',
+                forumHref: '',
+                viewLabel: '',
+                sendLabel: 'Post',
+                sendDisabled: false,
+                keepDraft: true,
+                ariaBusy: false,
+                showComposer: true,
+                showSuccess: false
+            };
+        }
+        if (type === 'again') return idleConvoPostView();
+        return prev;
+    }
+    window.bqReduceTopicConvoPost = reduceTopicConvoPost;
+    window.bqForumPostIdForTopic = forumPostIdForTopic;
+
+    var convoPostView = idleConvoPostView();
+
+    function clearStatusHost(host) {
+        if (!host) return;
+        while (host.firstChild) host.removeChild(host.firstChild);
+        host.hidden = true;
+        if (typeof host.removeAttribute === 'function') {
+            host.removeAttribute('data-state');
+            host.removeAttribute('role');
+            host.removeAttribute('aria-live');
+        }
+    }
+
+    function ensureComposerStatus() {
+        var existing = document.getElementById('td-composer-status');
+        if (existing) return existing;
+        var status = el('div', 'td-composer-status');
+        status.id = 'td-composer-status';
+        status.hidden = true;
+        var composer = document.getElementById('topic-discussion-composer');
+        if (composer && composer.parentNode) composer.parentNode.insertBefore(status, composer);
+        return status;
+    }
+
+    function convoStatusHost() {
+        if (convoSheetOpen()) {
+            var modal = document.getElementById('topic-convo-status');
+            if (modal) return modal;
+        }
+        return document.getElementById('td-composer-status') || ensureComposerStatus();
+    }
+
+    function setComposerHidden(hidden) {
+        var composer = document.getElementById('topic-discussion-composer');
+        if (composer) composer.hidden = !!hidden;
+    }
+
+    function applySendView(send, area, view) {
+        if (send) {
+            send.disabled = !!view.sendDisabled;
+            send.textContent = view.sendLabel || 'Post';
+            send.setAttribute('aria-busy', view.ariaBusy ? 'true' : 'false');
+        }
+        if (area) area.disabled = view.status === 'posting';
+    }
+
+    function resetConvoPostUi() {
+        convoPostView = idleConvoPostView();
+        clearStatusHost(document.getElementById('topic-convo-status'));
+        clearStatusHost(document.getElementById('td-composer-status'));
+        setComposerHidden(false);
+        var sheet = document.getElementById('topic-convo-modal');
+        if (sheet) sheet.setAttribute('aria-busy', 'false');
+        var area = document.getElementById('topic-discussion-input');
+        if (area) area.disabled = false;
+    }
+
+    function startAnotherConvoPost() {
+        resetConvoPostUi();
+        state.parentId = '';
+        state.replyName = '';
+        clearPendingAnchor();
+        renderComposer();
+        focusComposer();
+    }
+
+    function openForumFromConvo(forumPostId) {
+        closeConvoSheet('back');
+        if (typeof window.bqOpenForumPost === 'function') {
+            window.bqOpenForumPost(forumPostId);
+            return;
+        }
+        var href = forumHashForTopic(forumPostId);
+        if (href && window.location) window.location.hash = href.slice(1);
+    }
+
+    function renderConvoPostView(view, ctx) {
+        ctx = ctx || {};
+        ensureComposerStatus();
+        var host = convoStatusHost();
+        var sheet = document.getElementById('topic-convo-modal');
+        applySendView(ctx.send, ctx.area, view);
+        if (sheet) sheet.setAttribute('aria-busy', view.ariaBusy ? 'true' : 'false');
+        if (!host) return view;
+        clearStatusHost(host);
+        if (view.status === 'posting') {
+            host.hidden = false;
+            host.setAttribute('data-state', 'posting');
+            host.setAttribute('role', 'status');
+            host.setAttribute('aria-live', 'polite');
+            var posting = el('p', 'td-note');
+            posting.id = 'topic-convo-posting';
+            posting.textContent = 'Posting…';
+            host.appendChild(posting);
+            setComposerHidden(false);
+            return view;
+        }
+        if (view.status === 'error') {
+            host.hidden = false;
+            host.setAttribute('data-state', 'error');
+            host.setAttribute('role', 'alert');
+            host.setAttribute('aria-live', 'assertive');
+            var err = el('p', 'td-convo-status td-convo-error');
+            err.id = 'topic-convo-error';
+            err.textContent = view.error;
+            host.appendChild(err);
+            setComposerHidden(false);
+            if (ctx.area && view.draft != null) ctx.area.value = view.draft;
+            return view;
+        }
+        if (view.status === 'success') {
+            host.hidden = false;
+            host.setAttribute('data-state', 'success');
+            host.setAttribute('role', 'status');
+            host.setAttribute('aria-live', 'polite');
+            var box = el('div', 'td-convo-status td-convo-success');
+            box.id = 'topic-convo-success';
+            var title = el('p', 'td-convo-success-title');
+            title.textContent = view.confirmation;
+            box.appendChild(title);
+            var actions = el('div', 'td-convo-success-actions');
+            if (view.forumHref && view.viewLabel) {
+                var viewBtn = btn(view.viewLabel, 'td-convo-view', function() {
+                    openForumFromConvo(view.forumPostId);
+                });
+                viewBtn.id = 'topic-convo-view';
+                actions.appendChild(viewBtn);
+            }
+            var again = btn(view.prompt || 'Post something else on this topic?', 'td-convo-again', function() {
+                startAnotherConvoPost();
+            });
+            again.id = 'topic-convo-again';
+            actions.appendChild(again);
+            box.appendChild(actions);
+            host.appendChild(box);
+            setComposerHidden(true);
+            if (ctx.area) ctx.area.value = '';
+            return view;
+        }
+        setComposerHidden(false);
+        return view;
+    }
+
     function renderComposer() {
         var host = document.getElementById('topic-discussion-composer');
         if (!host) return;
+        setComposerHidden(false);
+        ensureComposerStatus();
         var who = viewer();
         while (host.firstChild) host.removeChild(host.firstChild);
         if (!who.signedIn) {
@@ -27393,7 +27670,13 @@ window.toggleAITools = function() {
         var who = viewer();
         if (!who.signedIn) { toast('Sign in to join the discussion.'); return; }
         if (!who.name || who.name.length < 2) { toast('Set a username first.'); return; }
-        send.disabled = true;
+        if (send && send.disabled) return;
+        var inline = !!(opts && opts.inline);
+        convoPostView = reduceTopicConvoPost(convoPostView, { type: 'submit', draft: area.value });
+        if (!inline) renderConvoPostView(convoPostView, { area: area, send: send });
+        else {
+            applySendView(send, area, convoPostView);
+        }
         var payload = { channelId: state.channelId, text: text };
         var parentForPost = opts && opts.parentId ? opts.parentId : state.parentId;
         if (parentForPost) payload.parentId = parentForPost;
@@ -27403,26 +27686,50 @@ window.toggleAITools = function() {
         }
         callFn('postTopicComment', payload).then(function(res) {
             var data = res && res.data ? res.data : (res || {});
+            var postId = data && data.postId ? String(data.postId) : '';
+            var parentForumPostId = '';
+            if (payload.parentId) {
+                var parent = postById(payload.parentId);
+                if (parent && parent.forumPostId) parentForumPostId = String(parent.forumPostId);
+            }
             if (data && data.toast) toast(data.toast);
             var crossNote = data && data.crossPostNote ? String(data.crossPostNote) : '';
-            area.value = '';
-            if (!(opts && opts.inline)) writeDraft(state.channelId || window.currentChannelId || '', '');
+            if (!inline) writeDraft(state.channelId || window.currentChannelId || '', '');
             // The inline card and the bottom composer reply to different targets.
             // Sending from one must not clear the other.
-            if (opts && opts.inline) {
+            if (inline) {
+                area.value = '';
                 renderInlineComposer();
+                if (crossNote) toast(crossNote);
             } else {
                 state.parentId = '';
                 state.replyName = '';
                 if (!payload.parentId) clearPendingAnchor();
-                renderComposer();
+                convoPostView = reduceTopicConvoPost(convoPostView, {
+                    type: 'success',
+                    postId: postId,
+                    channelId: state.channelId || window.currentChannelId || '',
+                    crossPosted: data && data.crossPosted === true,
+                    crossPostNote: crossNote,
+                    forumPostId: data && data.forumPostId ? String(data.forumPostId) : '',
+                    parentForumPostId: parentForumPostId,
+                    draft: ''
+                });
+                renderConvoPostView(convoPostView, { area: area, send: send });
+                if (crossNote && !convoPostView.forumHref) showCrossPostNote(crossNote);
+                if (crossNote) toast(crossNote);
             }
-            showCrossPostNote(crossNote);
-            if (crossNote) toast(crossNote);
             setOpen(true);
         }).catch(function(err) {
-            toast(errorText(err, 'Could not post that comment.'));
-        }).then(function() { send.disabled = false; });
+            var message = errorText(err, 'Could not post that comment.');
+            toast(message);
+            convoPostView = reduceTopicConvoPost(convoPostView, { type: 'error', message: message, draft: area.value });
+            if (inline) {
+                applySendView(send, area, { status: 'error', sendDisabled: false, sendLabel: 'Reply', ariaBusy: false });
+            } else {
+                renderConvoPostView(convoPostView, { area: area, send: send });
+            }
+        });
     }
 
     function rememberReply(reply) {
@@ -28194,6 +28501,10 @@ window.toggleAITools = function() {
         head.appendChild(title);
         head.appendChild(close);
         panel.appendChild(head);
+        var status = el('div', 'td-composer-status');
+        status.id = 'topic-convo-status';
+        status.hidden = true;
+        panel.appendChild(status);
         var host = el('div');
         host.id = 'topic-convo-host';
         panel.appendChild(host);
@@ -28255,6 +28566,7 @@ window.toggleAITools = function() {
                 if (document.activeElement === area && document.body) document.activeElement = document.body;
             }
         }
+        resetConvoPostUi();
         var composer = document.getElementById('topic-discussion-composer');
         var body = document.getElementById('topic-discussion-body');
         if (composer && body && composer.parentNode !== body) body.appendChild(composer);
@@ -28492,9 +28804,13 @@ window.toggleAITools = function() {
             more.hidden = true;
             var composer = el('div', 'td-compose');
             composer.id = 'topic-discussion-composer';
+            var composerStatus = el('div', 'td-composer-status');
+            composerStatus.id = 'td-composer-status';
+            composerStatus.hidden = true;
             body.appendChild(archive);
             body.appendChild(live);
             body.appendChild(more);
+            body.appendChild(composerStatus);
             body.appendChild(composer);
             section.appendChild(body);
         }
