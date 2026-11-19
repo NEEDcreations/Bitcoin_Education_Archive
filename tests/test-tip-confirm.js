@@ -178,5 +178,23 @@ test('badge credit requires a server invoice and an allowlisted verify host', ()
     assert.ok(deployed.includes('requestTipInvoice'));
 });
 
+test('invoice sats are whole sats from an exact msat amount', () => {
+    const f = tip.invoiceSatsFromDecoded;
+    assert.strictEqual(f({ millisatoshis: '1000000', satoshis: 1000 }), 1000);
+    assert.strictEqual(f({ millisatoshis: '1000001', satoshis: null }), 0, 'one msat over');
+    assert.strictEqual(f({ millisatoshis: '999999', satoshis: null }), 0, 'one msat under');
+    assert.strictEqual(f({ millisatoshis: '999', satoshis: null }), 0);
+    assert.strictEqual(f({ millisatoshis: null, satoshis: 5 }), 5);
+    assert.strictEqual(f({ millisatoshis: null, satoshis: null }), 0, 'no amount');
+    assert.strictEqual(f({ millisatoshis: 'abc' }), 0);
+    assert.strictEqual(f({ millisatoshis: '-1000' }), 0);
+    assert.strictEqual(f(null), 0);
+    assert.strictEqual(f({ millisatoshis: '2000000000000000' }), 1000000000, 'capped');
+    const service = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'tipService.js'), 'utf8');
+    const body = service.slice(service.indexOf('function invoiceSats('), service.indexOf('async function tryLud21'));
+    assert.ok(body.includes('tipConfirm.invoiceSatsFromDecoded(bolt11.decode(text))'));
+    assert.ok(!body.includes('Math.floor'));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);
