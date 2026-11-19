@@ -1,0 +1,117 @@
+# Citadel shop: client notes (branch feat/citadel-shop-1119)
+
+Not meant to ship as-is. This is client-only prep with stubbed callables that
+do not exist on the server yet. Rufus decides whether this file and the branch
+stay in the repo. No functions or Firestore rules were written.
+
+Files: `citadel-shop.js` (new, lazy-loaded by the Citadel tab in `quests.js`),
+`tests/test-citadel-shop.js`. SW cache `btc-archive-v2616`; `quests.js` pin
+`20261119_v2616` in `index.html` and `404.html` (identical).
+
+## Rules the UI follows (server is the authority for all of them)
+
+- The shop is its own section (Quest Hub, Citadel tab). Everyone can see it.
+- Only Premium (`users/{uid}.premium.active === true`) can buy stages or build.
+  Non-Premium players see locked "Premium only" buttons and one Get Premium
+  button that opens the existing Premium buy screen (`window.bqOpenPremium()`
+  from #322, falling back to `/?premium=buy`).
+- The 5 lesson parts are earned by free and Premium players and kept. They show
+  as "Owned, earned from lessons". Building with them is Premium-only.
+- Purchases are capped at 120 OrangeTix a week. The UI shows "N / 120 used this
+  week" and "N OrangeTix left", and disables Buy when a stage costs more than
+  what is left.
+- Footer keeps the exact line: "Paying never changes who wins a battle."
+- Referral-week Premium buying is behind `config/citadelShop.referralWeekPremiumBuy`,
+  default `false`. Live stays off. Staging can set it to `true`.
+
+## Callables (stubbed client names, httpsCallable)
+
+| Name | Input | Output |
+|---|---|---|
+| `getCitadelShopStatus` | `{}` | `{ success, stages: {walls,turret,vault,tower,keep}, lessonParts: {lesson_walls: true, ...}, lessonBuilt: {...}, weekSpent, weekCap, weekResetsAt, newTickets }` |
+| `buyCitadelStage` | `{ partId, stage, requestId }` | `{ success, stages, weekSpent, weekCap, newTickets }` or `{ success: false, code, message }` |
+| `buildCitadelPart` | `{ lessonPartId, requestId }` | `{ success, lessonBuilt }` or `{ success: false, code, message }` |
+| `claimLessonParts` | `{}` | `{ success, granted: [lessonPartId], lessonParts }` |
+
+`requestId` is a client random id for idempotency. Error `code` values the UI
+can map: `not_premium`, `weekly_cap`, `balance`, `account_age`, `not_owned`,
+`already_owned`, `wrong_stage`, `flag_off`, `kill_switch`.
+
+## Server checks needed
+
+- **Premium active:** read `premium.active` server-side on every buy and build.
+  Never trust the client. Lapsed Premium: see TODO toggle below.
+- **Weekly 120 OT cap:** keep `citadel.weekSpent` and `citadel.weekKey` (ISO week,
+  America/New_York) in one transaction with the OrangeTix debit. Reject if
+  `weekSpent + price > 120`. No partial stages.
+- **Balance:** debit `orangeTickets` in the same transaction; reject below price.
+- **Part ownership and order:** `stage` must equal `stages[partId] + 1` and not
+  exceed the part's stage count. `buildCitadelPart` requires the lesson part to
+  be owned and not built.
+- **Prices:** server catalog only (draft: Walls 4x75, Lightning Turret 2x100,
+  Vault 2x120, Node Tower 3x100, Keep 4x115 = 1,500). Ignore any client price.
+- **Referral flag:** only honor referral-week Premium buying when
+  `config/citadelShop.referralWeekPremiumBuy === true` (staging). Default off.
+  `config/citadelShop` needs public read in rules; writes admin-only.
+- **Account age:** reject buys while `created` is newer than the minimum (TODO toggle).
+- **Signed-in, non-guest:** reject anonymous sessions.
+- **Idempotency:** store `requestId` per uid (for example
+  `users/{uid}/citadelOps/{requestId}`) and return the first result on retry.
+- **Kill switch:** reject when the app off switch is on, like other spends.
+- **No speed-ups:** parts, timers and cooldowns must never read Premium or Embers
+  (#322 hard rule). Premium only unlocks the ability to buy and build.
+
+## Lesson parts grant (`claimLessonParts`)
+
+- Idempotent and once per uid: each `lessonParts.<id>` is set at most once
+  (transaction; already-true entries are skipped and not re-announced). Safe to
+  call on every shop open, which is what the client does for signed-in
+  non-guest accounts.
+- Grants to free and Premium players alike. Parts are kept forever.
+- Must verify lesson completion from server-trusted data. `users/{uid}.lqProgress`
+  is written by the client (`learning-quests.js`), so it cannot be the proof on
+  its own.
+- **Which lesson grants which part: TODO.** Not found in the spec or repo. Client
+  placeholders (`LESSON_PARTS[].lesson = null`):
+  - `lesson_walls` (Walls cornerstone): TODO lesson
+  - `lesson_turret` (Turret coil): TODO lesson
+  - `lesson_vault` (Vault lock): TODO lesson
+  - `lesson_tower` (Node Tower antenna): TODO lesson
+  - `lesson_keep` (Keep banner): TODO lesson
+  The lesson part names are placeholders too.
+
+## Firestore fields the UI reads
+
+- `users/{uid}.premium.active`, `users/{uid}.premium.lapsedAt`
+- `users/{uid}.orangeTickets`
+- `users/{uid}.created`
+- `users/{uid}.citadel.stages.{walls|turret|vault|tower|keep}` (numbers)
+- `users/{uid}.citadel.lessonParts.{lesson_*}` (true when earned)
+- `users/{uid}.citadel.lessonBuilt.{lesson_*}` (true when built)
+- `users/{uid}.citadel.weekSpent`, `users/{uid}.citadel.weekCap`
+- `config/citadelShop.referralWeekPremiumBuy`
+
+`citadel.*` must be server-write-only in rules.
+
+## TODO(phil) toggles (`CONFIG` in citadel-shop.js)
+
+| Constant | Default | Question |
+|---|---|---|
+| `PROGRESS_LABEL_MODE` | `'stages'` ("7 / 15 stages", spec) | Stage vs part labels |
+| `LAPSED_PARTS_MODE` | `'keep_paused'` (kept, buying paused) | Parts after Premium lapses |
+| `PRE_JAN3_OT_SPENDABLE` | `true` (Rewards recommendation) | Pre-Jan 3 OrangeTix spendable on parts |
+| `MIN_ACCOUNT_AGE_DAYS` | `7` (spec question) | Minimum account age to buy |
+| `COSMETICS_TAB` | `false` (Nook only, spec) | Cosmetics tab here vs Nook |
+
+`PRE_JAN3_OT_SPENDABLE` has no client effect yet; the server decides the
+spendable balance.
+
+## Differences from the mockups
+
+- Buy is disabled when a stage costs more than what is left of the 120 weekly
+  cap. The state-5 mock shows Buy on Node Tower (100) with 75 left.
+- Added a "Lesson parts" section (not in the mock) for the lesson-parts add-on,
+  with a non-orange "Get Premium" text link so Get Premium stays the only orange CTA.
+- The Quest Hub tab bar, nav and sidebar are the app's existing ones, not the mock's.
+- The mock footer is split into two lines; the battle line is its own line.
+- The "Citadel is coming soon" entry in `features.registry.js` is unchanged.
