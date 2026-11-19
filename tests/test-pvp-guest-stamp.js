@@ -347,6 +347,17 @@ test('K12: the quick-name submit refuses reserved names and never writes current
     const code = ldn.split('\n').filter(function (l) { return !/^\s*\/\//.test(l); }).join('\n');
     assert.ok(/isPvpGuest\(\)/.test(code) && !/currentUser/.test(code));
 });
+test('QA B3 follow-up: one name overlay, one input, Enter submits', function () {
+    const src = read('pvp.js.src');
+    const fn = src.slice(src.indexOf('window._pvpQuickName'), src.indexOf('window.pvpQuickNameSubmit'));
+    assert.ok(fn.indexOf('if (existing)') !== -1, 'reuse existing overlay');
+    assert.strictEqual((fn.match(/id="pvpQuickNameInput"/g) || []).length, 1);
+    assert.strictEqual((fn.match(/Enter Battle/g) || []).length, 1);
+    assert.ok(fn.indexOf('id="pvpQuickNameForm"') !== -1);
+    assert.ok(fn.indexOf('type="submit"') !== -1);
+    assert.ok(fn.indexOf('ev.preventDefault()') !== -1);
+    assert.ok(fn.indexOf('event.stopPropagation()') !== -1);
+});
 
 
 // ---- K14: leaving a tied match resets the leaver's win streak ----
