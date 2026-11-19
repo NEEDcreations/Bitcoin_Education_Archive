@@ -23639,6 +23639,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _homeShowEl = document.getElementById('home');
         _homeShowEl.classList.remove('hidden');
         if (_homeShowEl.style.visibility) _homeShowEl.style.visibility = ''; // clear direct-link preload hide
+        document.documentElement.classList.remove('dl-preload');
         if (_activeChBtn) { _activeChBtn.classList.remove('active'); _activeChBtn = null; }
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', '/');
@@ -24430,6 +24431,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (home) {
             home.classList.remove('hidden');
             home.style.visibility = '';
+            document.documentElement.classList.remove('dl-preload');
         }
         var fc = document.getElementById('forumContainer');
         if (fc) fc.style.display = 'none';
@@ -24728,6 +24730,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _homeEl = document.getElementById('home');
         _homeEl.classList.add('hidden');
         if (_homeEl.style.visibility) _homeEl.style.visibility = ''; // clear direct-link preload hide
+        document.documentElement.classList.remove('dl-preload'); // routing painted the target; restore layout
         hero.style.display = 'none';
 
         if (isMobile()) {

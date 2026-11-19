@@ -64,9 +64,10 @@ test('More Quests toggle is a 44px high-contrast secondary button in both themes
     assert.ok(light >= 4.5, 'light More Quests contrast ' + light.toFixed(2));
 });
 
-test('service worker cache pin is v2628', function () {
+test('service worker cache pin is v2632', function () {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2628'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2632'"));
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2628'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2622'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2615'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2605'"));
@@ -98,17 +99,24 @@ test('Nacho mobile sheet is capped at 35vh with a 44px high-contrast close', fun
     assert.ok(light >= 4.5, 'light Nacho close contrast ' + light.toFixed(2));
 });
 
-test('Mining and Whitepaper message areas reserve first-batch height', function () {
+test('direct-link preload takes home, hero and #msgs out of layout (no #msgs jump)', function () {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('#msgs[data-channel="mining"] { min-height: 15486px; }'));
-    assert.ok(html.includes('#msgs[data-channel="whitepaper"] { min-height: 2916px; }'));
-    assert.ok(html.includes('#msgs[data-channel="mining"] { min-height: 9559px; }'));
-    assert.ok(html.includes('#msgs[data-channel="whitepaper"] { min-height: 3398px; }'));
+    // No magic per-breakpoint reserved heights.
+    assert.ok(!/#msgs\[data-channel="(mining|whitepaper)"\] \{ min-height/.test(html));
+    assert.ok(html.includes("document.documentElement.classList.add('dl-preload');"));
+    assert.ok(html.includes('html.dl-preload #home, html.dl-preload #hero, html.dl-preload #msgs { display: none; }'));
+    assert.ok(html.indexOf("classList.add('dl-preload')") < html.indexOf('html.dl-preload #home'));
+    assert.ok(html.includes("home.style.visibility = ''; document.documentElement.classList.remove('dl-preload');"));
     const app = read('app.js');
+    // Removed on the channel path, the home path and the cert open-quest path.
+    assert.strictEqual((app.match(/classList\.remove\('dl-preload'\)/g) || []).length, 3);
+    const chan = app.indexOf("if (_homeEl.style.visibility) _homeEl.style.visibility = '';");
+    assert.ok(chan !== -1 && app.indexOf("classList.remove('dl-preload')", chan) - chan < 300);
     assert.ok(app.includes("document.getElementById('msgs').setAttribute('data-channel', id);"));
     assert.ok(app.includes("removeAttribute('data-channel')"));
     assert.ok(!app.includes('Loading channel...'));
+    assert.ok(read('bundle.src.js').includes("classList.remove('dl-preload')"));
 });
 
 test('Nacho mascot menu is capped at 35vh with a 44px high-contrast close', function () {
