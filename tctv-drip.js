@@ -105,7 +105,10 @@
             '#tctv-drip.td-below .td-ptip,#tctv-drip.td-below .td-pop{bottom:auto;top:calc(100% + 8px)}' +
             '#tctv-drip.td-right .td-ptip,#tctv-drip.td-right .td-pop{left:auto;right:0}' +
             '#tctv-drip.td-tipopen .td-ptip,#tctv-drip.td-open .td-pop{display:block}' +
-            '@media (hover:hover){#tctv-drip:has(.td-pinfo:hover) .td-ptip{display:block}}' +
+            '@media (hover:hover){#tctv-drip:has(.td-pinfo:hover) .td-ptip,#tctv-drip .td-ptip:hover{display:block}}' +
+            '#tctv-drip .td-ptip-grow{margin:8px 0 0;color:#fde68a;font-weight:600}' +
+            '#tctv-drip .td-invite{display:inline-flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;min-height:44px;width:100%;box-sizing:border-box;padding:8px 12px;border-radius:10px;border:1px solid rgba(247,147,26,.6);background:#1a120b;color:#fff;font:inherit;font-size:13px;font-weight:800;cursor:pointer}' +
+            '#tctv-drip .td-invite:focus-visible,#tctv-drip .td-pinfo:focus-visible{outline:2px solid #f7931a;outline-offset:2px}' +
             '#tctv-drip .td-bar{height:6px;border-radius:4px;background:rgba(255,255,255,.12);margin:6px 0;overflow:hidden}' +
             '#tctv-drip .td-fill{height:100%;background:linear-gradient(90deg,#f7931a,#ffcf6b);width:0;transition:width .8s ease}' +
             '#tctv-drip .td-live b,#tctv-drip .td-ptip-rate b{color:#4ade80}' +
@@ -280,11 +283,13 @@
             '<div class="td-main"><button type="button" class="td-pill" aria-expanded="false" aria-label="pot of sats details"><span class="td-face"><span class="td-lbl">pot of sats</span> <span class="td-n"><span class="td-sats">0</span>/<span class="td-target">5,000</span></span></span></button>' +
             '<div class="td-share" aria-live="polite"></div>' +
             '<div class="td-tools">' +
-            '<button type="button" class="td-pinfo" aria-label="About this button" aria-expanded="false">\u24D8</button>' +
+            '<button type="button" class="td-pinfo" aria-label="About the pot of sats" aria-expanded="false" aria-controls="tdPotInfo" aria-haspopup="dialog">\u24D8</button>' +
             '</div></div>' +
             '<button type="button" class="td-min" aria-label="Minimize pot of sats" title="Minimize">\u2013</button>' +
             ['tl', 'tr', 'bl', 'br', 't', 'b', 'l', 'r'].map(function (d) { return '<span class="td-rz td-rz-' + d + '" data-rz="' + d + '" aria-hidden="true"></span>'; }).join('') +
-            '<div class="td-ptip" role="tooltip"><div class="td-ptip-rate"></div>You can ignore this, but if you don\u2019t tap it, your watch time won\u2019t be added to the pot of sats.</div>' +
+            '<div class="td-ptip" id="tdPotInfo" role="dialog" aria-label="About the pot of sats"><div class="td-ptip-rate"></div>You can ignore this, but if you don\u2019t tap it, your watch time won\u2019t be added to the pot of sats.' +
+            '<div class="td-ptip-grow">More people watching means a faster sats rate. Invite friends to watch Timechain TV together!</div>' +
+            '<button type="button" class="td-invite" aria-label="Invite friends to watch Timechain TV">\uD83D\uDCFA Invite friends</button></div>' +
             '<div class="td-pop"><div class="td-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div class="td-fill"></div></div>' +
             '<div class="td-live" aria-live="polite"></div>' +
             '<div style="margin-top:6px;opacity:.85">The pot of sats fills a little every minute while people watch Timechain TV together. More viewers, faster fill. When it\u2019s full, the sats are shared with the viewers who helped fill it, based on how long each person watched. Your Share updates live on this pot while you watch. When the pot is full, that share is added to your sats balance to claim. Keep the video playing and this tab open to take part. Drag this anywhere. Drag any edge or corner to resize it, or tap \u2013 in the corner to minimize it to a small pill. The size and minimized choice stay on this device.</div></div></div>' +
@@ -308,6 +313,21 @@
             el.classList.remove('td-open'); pill.setAttribute('aria-expanded', 'false');
             var o = el.classList.toggle('td-tipopen');
             pinfo.setAttribute('aria-expanded', o ? 'true' : 'false');
+        });
+        var invite = el.querySelector('.td-invite');
+        if (invite) invite.addEventListener('click', function (e) {
+            e.preventDefault(); e.stopPropagation();
+            // Same Timechain TV share card as the player's Share button (keeps the referral code).
+            if (typeof window.miniAppShare === 'function') { window.miniAppShare('tctv'); return; }
+            var url = 'https://bitcoineducation.quest/#timechain-tv';
+            try { if (typeof window.shareDeepUrl === 'function') url = window.shareDeepUrl(url); } catch (x) {}
+            if (navigator.share) { navigator.share({ title: 'Timechain TV', url: url }).catch(function () {}); return; }
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(function () { invite.textContent = 'Link copied'; }).catch(function () {});
+        });
+        el.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && el.classList.contains('td-tipopen')) {
+                el.classList.remove('td-tipopen'); pinfo.setAttribute('aria-expanded', 'false'); pinfo.focus();
+            }
         });
         el.querySelector('.td-min').addEventListener('click', function () { setMini(el, true); });
         el.querySelector('.td-bubble').addEventListener('click', function () {

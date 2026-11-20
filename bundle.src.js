@@ -21318,6 +21318,7 @@ document.addEventListener('btcProfileSaved', function() {
                 '<div style="font-size:2.5rem;margin-bottom:8px;">🎡</div>' +
                 '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:4px;">Daily Spin</div>' +
                 '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:20px;">Spin for Orange Tickets, XP, Nacho Closet items, and rare Freeze Tickets!</p>' +
+                '<div id="spinStreakLine" hidden aria-live="polite" style="margin:-12px auto 16px;max-width:300px;padding:6px 10px;border-radius:999px;background:rgba(247,147,26,0.10);border:1px solid rgba(247,147,26,0.30);color:#fbbf24;font-size:0.8rem;font-weight:700;line-height:1.35;"></div>' +
                 '<div id="spinWheelContainer" style="position:relative;width:250px;height:250px;margin:0 auto 20px;">' +
                     '<canvas id="spinCanvas" width="250" height="250" style="border-radius:50%;box-shadow:0 4px 20px rgba(0,0,0,0.4);"></canvas>' +
                     '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:20px solid #ef4444;z-index:10;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></div>' +
@@ -21327,6 +21328,52 @@ document.addEventListener('btcProfileSaved', function() {
             '</div>';
         
         document.body.appendChild(modal);
+
+        // Spin streak (BIP Breakthrough gate data). Hidden for guests or when unavailable.
+        function paintSpinStreakLine() {
+            var line = document.getElementById('spinStreakLine');
+            if (!line || !window.BipBreakthrough || typeof window.BipBreakthrough.paintSpinStreak !== 'function') return;
+            try { window.BipBreakthrough.paintSpinStreak(line, (typeof currentUser !== 'undefined') ? currentUser : null); } catch (e) {}
+        }
+        paintSpinStreakLine();
+
+        // Today's counted spin, read back from the server copy. No reward is
+        // granted or mirrored here; this only shows what already happened.
+        function showSpinAlreadyCounted() {
+            var btn = document.getElementById('spinBtn');
+            var out = document.getElementById('spinResult');
+            if (btn) btn.style.display = 'none';
+            var utcDay = new Date().toISOString().split('T')[0];
+            try { localStorage.setItem('btc_last_spin_date', utcDay); } catch (e) {}
+            if (typeof currentUser !== 'undefined' && currentUser) currentUser.lastSpinDate = utcDay;
+            if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
+            function render(detail) {
+                if (!out) return;
+                out.innerHTML = '<div data-spin-counted="1" style="animation:fadeSlideIn 0.4s ease-out;">' +
+                    '<div style="font-size:2.2rem;margin-bottom:6px;">\u2705</div>' +
+                    '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.05rem;margin-bottom:4px;">Your spin already counted today</div>' +
+                    '<div id="spinCountedDetail" style="color:var(--text-muted,#aaa);font-size:0.85rem;line-height:1.4;">' + (detail ? escapeHtml(detail) : 'Your reward is already in your account. Come back tomorrow for the next spin.') + '</div>' +
+                    '<button type="button" onclick="document.getElementById(\'spinModal\').remove()" style="margin-top:12px;padding:10px 24px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Got it</button>' +
+                    '</div>';
+            }
+            render('');
+            try {
+                var uid = auth && auth.currentUser ? auth.currentUser.uid : '';
+                if (!uid || typeof db === 'undefined') return;
+                var nid = 'rn_' + String(uid).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80) + '_spin_' + utcDay;
+                db.collection('notifications').doc(nid).get().then(function(snap) {
+                    if (!snap || !snap.exists) return;
+                    var d = snap.data() || {};
+                    var msg = String(d.message || '').replace(/\s+/g, ' ').trim();
+                    if (!msg) return;
+                    var el = document.getElementById('spinCountedDetail');
+                    if (el) el.textContent = 'Today\u2019s reward: ' + msg + '.';
+                }).catch(function() {});
+            } catch (e) {}
+        }
+        if (!isBonusSpin && typeof currentUser !== 'undefined' && currentUser && currentUser.lastSpinDate === new Date().toISOString().split('T')[0]) {
+            showSpinAlreadyCounted();
+        }
         
         // Draw the wheel
         var canvas = document.getElementById('spinCanvas');
@@ -21412,12 +21459,9 @@ document.addEventListener('btcProfileSaved', function() {
                 spinBtn.style.opacity = '';
                 spinBtn.textContent = 'SPIN! 🎰';
                 var msg = (err && err.message) ? err.message : '';
-                if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1) {
-                    localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0]);
-                    var openModal = document.getElementById('spinModal');
-                    if (openModal) openModal.remove();
-                    if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
-                    if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');
+                var code = (err && err.code) ? String(err.code) : '';
+                if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1 || code.indexOf('already-exists') !== -1) {
+                    showSpinAlreadyCounted();
                 } else if (typeof showToast === 'function') {
                     showToast('❌ Spin failed — try again.');
                 }
@@ -21463,6 +21507,9 @@ document.addEventListener('btcProfileSaved', function() {
                 idx = ((idx % n) + n) % n;
                 serverReward = reward || { rewardIndex: idx };
                 spinState.serverIndex = idx;
+                if (!isBonusSpin && reward && window.BipBreakthrough && typeof window.BipBreakthrough.applySpinResponse === 'function' && typeof currentUser !== 'undefined' && currentUser) {
+                    try { window.BipBreakthrough.applySpinResponse(currentUser, reward); } catch (e) {}
+                }
             }).catch(function(err) {
                 spinState.error = err || new Error('unknown');
             });
@@ -21527,6 +21574,7 @@ document.addEventListener('btcProfileSaved', function() {
                     rewardText = (reward.label || (landed && landed.label) || 'Spin complete');
                 }
                 mirrorServerSpin(reward);
+                paintSpinStreakLine();
                 if (((reward.tickets || 0) >= 100 || reward.rare) && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('confetti'))) {
                     if (typeof launchConfetti === 'function') launchConfetti();
                     if (typeof playBadgeSound === 'function') playBadgeSound();
