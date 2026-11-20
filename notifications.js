@@ -392,6 +392,59 @@ function notifCardHtml(docId, n, variant) {
     '</div>';
 }
 
+// Pending incoming peer requests, read straight from peer_requests so they
+// stay visible even after newer notifications push the original one out of
+// the recent list (and in Lite/Beginner modes, which hide peer notifications).
+function notifPendingPeerRows(docs) {
+    var html = '';
+    (docs || []).forEach(function(doc) {
+        var d = (doc && typeof doc.data === 'function') ? (doc.data() || {}) : {};
+        var reqId = doc && doc.id;
+        var fromUid = d.from;
+        if (d.status !== 'pending' || !notifSafeId(fromUid, 64) || !notifSafeId(reqId, 128)) return;
+        html += '<div class="notif-peer-pending" data-peer-req="' + notifEscape(reqId) + '" style="padding:10px 12px;border-bottom:1px solid var(--border);background:rgba(247,147,26,0.08);">' +
+            '<div style="display:flex;gap:8px;align-items:flex-start;">' +
+                '<span style="font-size:1.1rem;flex-shrink:0;">🧡</span>' +
+                '<div style="flex:1;min-width:0;font-size:0.82rem;color:var(--text);line-height:1.4;font-weight:600;">' +
+                    notifEscape(d.fromUsername || 'A Bitcoiner') + ' sent you a peer request' +
+                '</div>' +
+            '</div>' +
+            '<div style="display:flex;gap:6px;margin-top:6px;">' +
+                '<button type="button" class="notif-peer-btn" data-peer-action="accept" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(reqId) + '" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
+                '<button type="button" class="notif-peer-btn" data-peer-action="decline" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(reqId) + '" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+            '</div>' +
+        '</div>';
+    });
+    if (!html) return '';
+    return '<div class="notif-peer-pending-list" style="margin-bottom:6px;">' +
+        '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;padding:6px 12px;">Peer requests</div>' +
+        html + '</div>';
+}
+
+// Returns the pending incoming request docs, or null when they could not be read.
+async function notifLoadPendingPeers(uid) {
+    try {
+        if (typeof db === 'undefined' || !db || !uid) return null;
+        var snap = await db.collection('peer_requests')
+            .where('to', '==', uid).where('status', '==', 'pending').limit(20).get();
+        return snap.docs || [];
+    } catch (e) {
+        return null;
+    }
+}
+
+// A peer_request notification shows Accept/Decline only while its request is
+// still pending and not already pinned above. Unknown state keeps old behavior.
+function notifPeerAdjust(n, pendingDocs) {
+    if (!n || n.type !== 'peer_request' || !pendingDocs) return n;
+    var pinned = pendingDocs.some(function(doc) {
+        var d = (doc && typeof doc.data === 'function') ? (doc.data() || {}) : {};
+        return d.from === n.fromUid;
+    });
+    if (pinned) return null;
+    return Object.assign({}, n, { fromUid: '' });
+}
+
 function bindNotifCards(root, closeAfter) {
     if (!root || !root.querySelectorAll) return;
     root.querySelectorAll('.notif-card').forEach(function(row) {
@@ -539,23 +592,31 @@ window.showNotifications = async function() {
 
     // Load notifications
     try {
-        var snap = await db.collection('notifications')
-            .where('recipientId', '==', uid)
-            .orderBy('createdAt', 'desc')
-            .limit(30)
-            .get();
+        var loads = await Promise.all([
+            db.collection('notifications')
+                .where('recipientId', '==', uid)
+                .orderBy('createdAt', 'desc')
+                .limit(30)
+                .get(),
+            notifLoadPendingPeers(uid)
+        ]);
+        var snap = loads[0];
+        var pendingPeers = loads[1];
 
         var list = document.getElementById('notifList');
         if (!list) return;
+        var peerRows = notifPendingPeerRows(pendingPeers);
         if (snap.empty) {
-            var onlyLocal = _localRewardHtml();
+            var onlyLocal = peerRows + _localRewardHtml();
             list.innerHTML = onlyLocal || '<div style="text-align:center;padding:30px;color:var(--text-faint);">No notifications yet! 🦌</div>';
+            if (peerRows) bindNotifCards(list, false);
             return;
         }
 
-        var html = _localRewardHtml();
+        var html = peerRows + _localRewardHtml();
         snap.forEach(function(doc) {
-            html += notifCardHtml(doc.id, doc.data(), 'panel');
+            var nd = notifPeerAdjust(doc.data(), pendingPeers);
+            if (nd) html += notifCardHtml(doc.id, nd, 'panel');
         });
         list.innerHTML = html;
         bindNotifCards(list, false);
@@ -574,7 +635,7 @@ window.handlePeerNotifAction = async function(action, fromUid, notifId, btnEl) {
         var fn = firebase.functions().httpsCallable('managePeer');
         await fn({ action: action, targetUid: fromUid });
         // Dismiss the notification row
-        var row = btnEl.closest('[data-notif-id]');
+        var row = btnEl.closest('.notif-peer-pending, .notif-card');
         if (row) row.remove();
         if (typeof showToast === 'function') {
             showToast(action === 'accept' ? 'Peer request accepted! 🧡' : 'Request declined');
@@ -803,21 +864,29 @@ window.renderNotifList = async function() {
     body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Loading...</div>';
 
     try {
-        var snap = await db.collection('notifications')
-            .where('recipientId', '==', auth.currentUser.uid)
-            .orderBy('createdAt', 'desc')
-            .limit(40)
-            .get();
+        var loads = await Promise.all([
+            db.collection('notifications')
+                .where('recipientId', '==', auth.currentUser.uid)
+                .orderBy('createdAt', 'desc')
+                .limit(40)
+                .get(),
+            notifLoadPendingPeers(auth.currentUser.uid)
+        ]);
+        var snap = loads[0];
+        var pendingPeers = loads[1];
+        var peerRows = notifPendingPeerRows(pendingPeers);
 
         if (snap.empty) {
-            var onlyLocal = _localRewardHtml();
+            var onlyLocal = peerRows + _localRewardHtml();
             body.innerHTML = onlyLocal || '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.85rem;">No notifications yet!</div></div>';
+            if (peerRows) bindNotifCards(body, true);
             return;
         }
 
-        var html = _localRewardHtml();
+        var html = peerRows + _localRewardHtml();
         snap.forEach(function(doc) {
-            html += notifCardHtml(doc.id, doc.data(), 'sheet');
+            var nd = notifPeerAdjust(doc.data(), pendingPeers);
+            if (nd) html += notifCardHtml(doc.id, nd, 'sheet');
         });
         body.innerHTML = html;
         bindNotifCards(body, true);

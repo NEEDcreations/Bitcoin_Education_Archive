@@ -9379,7 +9379,7 @@ function showSettingsPage(tab) {
         }
 
         // Peers / Gifts section - collapsible, above Advanced Account
-        html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';var _arrows=this.querySelectorAll(\'span\');if(_arrows.length)_arrows[_arrows.length-1].textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers / Gifts <span id="peersGiftsBadge"></span> <span>▼</span></button>';
+        html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';var _arrows=this.querySelectorAll(\'span\');if(_arrows.length)_arrows[_arrows.length-1].textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers / Gifts <span id="peersReqBadge" style="color:#f97316;"></span><span id="peersGiftsBadge"></span> <span>▼</span></button>';
         html += '<div id="peersSectionContent" style="display:none;margin-bottom:12px;">';
         html += '<style>@media(max-width:420px){.peer-action-row .peer-primary,.peer-action-row .peer-more{flex-basis:100%!important;}}'
             + '#peersSectionContent .peer-sent{color:#f97316;}#peersSectionContent .peer-hold{color:#c4b5fd;}#peersSectionContent .peer-remove{color:#fca5a5;}'
@@ -11105,13 +11105,22 @@ function accountDeleteRowHtml(user) {
                     reqHtml += '<h4 style="font-size:0.85rem;margin:0 0 8px;color:var(--text);">Incoming Requests</h4>';
                     reqSnap.forEach(function(doc) {
                         var d = doc.data();
+                        var _reqFrom = String(d.from || '');
+                        if (!/^[A-Za-z0-9_-]{4,128}$/.test(_reqFrom)) return;
+                        var _reqName = String(d.fromUsername || 'Bitcoiner');
+                        _reqName = (typeof escapeHtml === 'function') ? escapeHtml(_reqName) : _reqName.replace(/[&<>"']/g, function(c) { return '&#' + c.charCodeAt(0) + ';'; });
                         reqHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
-                            '<span style="font-size:0.85rem;">🧡 ' + (d.fromUsername || 'Bitcoiner') + '</span>' +
+                            '<span style="font-size:0.85rem;">🧡 ' + _reqName + '</span>' +
                             '<div style="display:flex;gap:6px;">' +
-                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
-                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+                            '<button type="button" data-peer-action="accept-req" data-peer-uid="' + _reqFrom + '" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
+                            '<button type="button" data-peer-action="decline-req" data-peer-uid="' + _reqFrom + '" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
                             '</div></div>';
                     });
+                    // Open the collapsed Peers section so waiting requests are seen.
+                    var _peersBox = document.getElementById('peersSectionContent');
+                    if (_peersBox && reqHtml) _peersBox.style.display = 'block';
+                    var _reqBadge = document.getElementById('peersReqBadge');
+                    if (_reqBadge && reqHtml) _reqBadge.textContent = ' · ' + reqSnap.size + ' request' + (reqSnap.size === 1 ? '' : 's');
                 }
 
                 // Load current peers
@@ -11229,6 +11238,11 @@ function accountDeleteRowHtml(user) {
                         else if (action === 'more') window._togglePeerMore(btn);
                         else if (action === 'remove') window.confirmRemovePeer(uid, btn);
                         else if (action === 'profile') window._viewPeerProfile(uid);
+                        else if ((action === 'accept-req' || action === 'decline-req') && typeof window.managePeer === 'function') {
+                            Promise.resolve(window.managePeer(action === 'accept-req' ? 'accept' : 'decline', uid, btn)).then(function() {
+                                if (typeof showSettingsPage === 'function') showSettingsPage('account');
+                            });
+                        }
                     });
                 }
                 var listEl2 = document.getElementById('peersList');
@@ -14589,7 +14603,22 @@ window.managePeer = async function(action, targetUid, btnEl) {
         } catch(e) {
             var code = (e && e.code) ? String(e.code) : '';
             var msg = (e && e.message) ? String(e.message) : 'Error';
-            if (code.indexOf('already-exists') !== -1 || msg.indexOf('already-exists') !== -1) {
+            // They already sent us a request: both people want this, so accept theirs.
+            if (action === 'send' && /already sent you a request/i.test(msg)) {
+                try {
+                    var acceptRes = await firebase.functions().httpsCallable('managePeer')({ action: 'accept', targetUid: targetUid });
+                    if (!(acceptRes && acceptRes.data && acceptRes.data.success)) throw new Error('Could not update peer');
+                    window._myPeers = window._myPeers || new Set();
+                    if (typeof window._myPeers.add === 'function') window._myPeers.add(targetUid);
+                    if (btnEl) btnEl.textContent = '🧡 Peers';
+                    if (typeof showToast === 'function') showToast('They already sent you a request, so you are peers now! 🧡');
+                    if (typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
+                    return;
+                } catch (acceptErr) {
+                    msg = (acceptErr && acceptErr.message) ? String(acceptErr.message) : msg;
+                    code = '';
+                }
+            } else if (code.indexOf('already-exists') !== -1 || msg.indexOf('already-exists') !== -1) {
                 if (action === 'accept' && typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
                 return;
             }

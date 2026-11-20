@@ -290,8 +290,9 @@ queue.push(test('managePeer asks the user to sign in and does not call the funct
 
 queue.push(test('settings buttons pass the clicked element into managePeer', function() {
     const ranking = read('ranking.js');
-    assert.ok(ranking.includes("managePeer(\\'accept\\',\\'' + d.from + '\\',this)"));
-    assert.ok(ranking.includes("managePeer(\\'decline\\',\\'' + d.from + '\\',this)"));
+    assert.ok(ranking.includes('data-peer-action="accept-req" data-peer-uid="'));
+    assert.ok(ranking.includes('data-peer-action="decline-req" data-peer-uid="'));
+    assert.ok(ranking.includes("window.managePeer(action === 'accept-req' ? 'accept' : 'decline', uid, btn)"));
     assert.ok(ranking.includes('data-peer-action="remove"'));
     assert.ok(ranking.includes("managePeer('remove', uid, btnEl)"));
 }));
@@ -352,6 +353,138 @@ queue.push(test('managePeer send reads in one batch and writes the request with 
     assert.ok(remove.includes('arrayRemove(targetUid)'));
     assert.ok(remove.includes('batch.delete(reqRef)'));
     assert.ok(remove.includes('batch.delete(revReqRef)'));
+}));
+
+function seqHarness(responses) {
+    const h = harness();
+    h.state.mode = 'seq';
+    h.sandbox.firebase.functions = function() {
+        return {
+            httpsCallable: function(name) {
+                return function(data) {
+                    h.state.calls.push({ name: name, data: data });
+                    const r = responses.shift();
+                    return r instanceof Error ? Promise.reject(r) : Promise.resolve(r);
+                };
+            }
+        };
+    };
+    return h;
+}
+function reverseErr() {
+    return Object.assign(new Error('This user already sent you a request — check your notifications'), { code: 'functions/already-exists' });
+}
+
+queue.push(test('profile send accepts their request when they already sent one (mutual)', async function() {
+    const h = seqHarness([reverseErr(), { data: { success: true } }]);
+    const btn = mockBtn('🧡 Add Peer');
+    await h.sandbox.window._sendPeerRequest(btn, 'peer-1234');
+    assert.deepStrictEqual(h.state.calls.map(c => c.data.action), ['send', 'accept']);
+    assert.strictEqual(h.state.calls[1].data.targetUid, 'peer-1234');
+    assert.strictEqual(btn.textContent, '🧡 Peers');
+    assert.strictEqual(btn.disabled, true);
+    assert.ok(h.sandbox.window._myPeers.has('peer-1234'));
+    assert.ok(h.state.toasts.some(t => /you are peers now/.test(t)));
+}));
+
+queue.push(test('profile send rolls back when the mutual accept fails', async function() {
+    const h = seqHarness([reverseErr(), Object.assign(new Error('Peer request not found or already handled'), { code: 'not-found' })]);
+    const btn = mockBtn('🧡 Add Peer');
+    await h.sandbox.window._sendPeerRequest(btn, 'peer-1234');
+    assert.strictEqual(btn.textContent, '🧡 Add Peer');
+    assert.strictEqual(btn.disabled, false);
+    assert.strictEqual(h.sandbox.window._myPeers.has('peer-1234'), false);
+    assert.ok(h.state.toasts.indexOf('Peer request not found or already handled') !== -1);
+}));
+
+queue.push(test('profile send still treats an already-sent request as sent', async function() {
+    const h = seqHarness([Object.assign(new Error('Peer request already sent'), { code: 'functions/already-exists' })]);
+    const btn = mockBtn('🧡 Add Peer');
+    await h.sandbox.window._sendPeerRequest(btn, 'peer-1234');
+    assert.deepStrictEqual(h.state.calls.map(c => c.data.action), ['send']);
+    assert.strictEqual(btn.textContent, '🧡 Sent!');
+}));
+
+queue.push(test('managePeer send accepts their request when they already sent one (mutual)', async function() {
+    const h = seqHarness([reverseErr(), { data: { success: true } }]);
+    const btn = mockBtn('Add');
+    await h.sandbox.window.managePeer('send', 'peer-1234', btn);
+    assert.deepStrictEqual(h.state.calls.map(c => c.data.action), ['send', 'accept']);
+    assert.strictEqual(btn.textContent, '🧡 Peers');
+    assert.ok(h.sandbox.window._myPeers.has('peer-1234'));
+}));
+
+queue.push(test('managePeer send rolls back when the mutual accept fails', async function() {
+    const h = seqHarness([reverseErr(), { data: { success: false } }]);
+    const btn = mockBtn('Add');
+    await h.sandbox.window.managePeer('send', 'peer-1234', btn);
+    assert.strictEqual(btn.textContent, 'Add');
+    assert.strictEqual(btn.disabled, false);
+    assert.strictEqual(h.sandbox.window._myPeers.has('peer-1234'), false);
+}));
+
+function notifSandbox() {
+    const src = read('notifications.js');
+    const sb = { window: {}, console: console, localStorage: { getItem: function() { return 'advanced'; } } };
+    vm.createContext(sb);
+    ['function notifSafeId(', 'function notifEscape(', 'function notifPendingPeerRows(', 'function notifPeerAdjust(',
+     'function notifSafeTarget(', 'function notifListedInMode(', 'function notifIcon(']
+        .forEach(sig => vm.runInContext(extractFunction(src, sig), sb));
+    vm.runInContext("var NOTIF_TARGET_TYPES = { peer_request: 1 };", sb);
+    return sb;
+}
+function fakeDoc(id, data) { return { id: id, data: function() { return data; } }; }
+
+queue.push(test('pending peer requests render as pinned rows with Accept and Decline', function() {
+    const sb = notifSandbox();
+    const html = sb.notifPendingPeerRows([
+        fakeDoc('aaaa_me', { from: 'aaaa', to: 'me', status: 'pending', fromUsername: 'crew<b>man' }),
+        fakeDoc('bbbb_me', { from: 'bbbb', to: 'me', status: 'accepted', fromUsername: 'old' }),
+        fakeDoc('bad"id_me', { from: 'bad"id', to: 'me', status: 'pending', fromUsername: 'x' })
+    ]);
+    assert.ok(html.includes('Peer requests'));
+    assert.ok(html.includes('crew&lt;b&gt;man sent you a peer request'));
+    assert.strictEqual(html.includes('<b>'), false);
+    assert.strictEqual((html.match(/data-peer-action="accept"/g) || []).length, 1);
+    assert.strictEqual((html.match(/data-peer-action="decline"/g) || []).length, 1);
+    assert.ok(html.includes('data-from-uid="aaaa"'));
+    assert.strictEqual(html.includes('old sent'), false);
+    assert.strictEqual(sb.notifPendingPeerRows([]), '');
+    assert.strictEqual(sb.notifPendingPeerRows(null), '');
+}));
+
+queue.push(test('old peer_request notifications drop stale buttons and dedupe pinned ones', function() {
+    const sb = notifSandbox();
+    const pending = [fakeDoc('aaaa_me', { from: 'aaaa', status: 'pending' })];
+    const pinned = { type: 'peer_request', fromUid: 'aaaa', message: 'x' };
+    const stale = { type: 'peer_request', fromUid: 'cccc', message: 'y' };
+    assert.strictEqual(sb.notifPeerAdjust(pinned, pending), null);
+    assert.strictEqual(sb.notifPeerAdjust(stale, pending).fromUid, '');
+    assert.strictEqual(stale.fromUid, 'cccc', 'original object untouched');
+    assert.strictEqual(sb.notifPeerAdjust(stale, null), stale, 'unknown state keeps old behavior');
+    const other = { type: 'dm', fromUid: 'aaaa' };
+    assert.strictEqual(sb.notifPeerAdjust(other, pending), other);
+}));
+
+queue.push(test('both notification lists load pending requests and pin them first', function() {
+    const src = read('notifications.js');
+    assert.strictEqual((src.match(/notifLoadPendingPeers\(/g) || []).length, 3);
+    assert.strictEqual((src.match(/var html = peerRows \+ _localRewardHtml\(\);/g) || []).length, 2);
+    assert.strictEqual((src.match(/notifPeerAdjust\(doc\.data\(\), pendingPeers\)/g) || []).length, 2);
+    assert.ok(src.includes(".where('to', '==', uid).where('status', '==', 'pending').limit(20)"));
+    assert.ok(src.includes("btnEl.closest('.notif-peer-pending, .notif-card')"));
+}));
+
+queue.push(test('settings incoming requests escape names and open the Peers section', function() {
+    const ranking = read('ranking.js');
+    const start = ranking.indexOf("// Load inbound requests first");
+    const blk = ranking.slice(start, ranking.indexOf('// Load current peers', start));
+    assert.ok(blk.includes('escapeHtml(_reqName)'));
+    assert.strictEqual(blk.includes("(d.fromUsername || 'Bitcoiner') + '</span>"), false);
+    assert.strictEqual(blk.includes('onclick='), false);
+    assert.ok(blk.includes("/^[A-Za-z0-9_-]{4,128}$/.test(_reqFrom)"));
+    assert.ok(blk.includes("_peersBox.style.display = 'block'"));
+    assert.ok(ranking.includes('id="peersReqBadge"'));
 }));
 
 queue.push(test('preferRest is enabled once before any Firestore use', function() {
