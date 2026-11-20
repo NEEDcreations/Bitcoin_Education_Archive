@@ -116,6 +116,7 @@ const TESTS = [
     { name: 'Profile stacking', file: 'test-profile-stack.js' },
     { name: 'Push Notifications', file: 'test-push.js' },
     { name: 'Reset Reminders', file: 'test-reset-reminders.js' },
+    { name: 'Resets, Timelines & Odds page', file: 'test-resets-page.js' },
     { name: 'Push Opt-in Migration', file: 'test-push-optin-migration.js' },
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
     { name: 'Achievement share cards', file: 'test-achievement-share.js' },
