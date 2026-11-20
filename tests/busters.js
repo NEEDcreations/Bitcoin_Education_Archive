@@ -881,6 +881,8 @@ test('terms publish Satoshi\'s Favor and cipher sats odds', () => {
     const terms = fs.readFileSync(path.join(__dirname, '..', 'terms.html'), 'utf8');
     assert.ok(terms.includes('id="odds"'));
     assert.ok(terms.includes('1 in 4,000 per hash'));
+    assert.ok(terms.includes('<td>10,000,000 sats</td><td>1 in 1,000,000,000,000</td>'));
+    assert.ok(terms.includes('<td>1,000,000 sats</td><td>1 in 1,000,000,000</td>'));
     assert.ok(terms.includes('<td>100,000 sats</td><td>1 in 10,000,000</td>'));
     assert.ok(terms.includes('<td>5 sats</td><td>1 in 5</td>'));
     assert.ok(terms.includes('Odds can change'));

@@ -68,7 +68,7 @@ test('under 1,000 credits the balance once per open and 1,000 stays manual', () 
         assert.strictEqual(sender.books.users.sender1.cipherSatsBalance, amount);
         assert.strictEqual(sender.books.users.player1.cipherSatsBalance, amount);
     });
-    [1000, 5000, 10000, 50000, 100000].forEach(function(amount) {
+    [1000, 5000, 10000, 50000, 100000, 1000000, 10000000].forEach(function(amount) {
         assert.strictEqual(reward.satsDisposition(amount), 'manual');
         const skipped = claim.applyCipherBalanceCredit({ users: {}, credits: {} }, {
             cipherId: 'big', role: 'opener', uid: 'player1', amount: amount,
@@ -223,12 +223,42 @@ test('claim source does not read or write the faucet clock, and the faucet does 
 
     const decrypt = gifting.slice(gifting.indexOf('const decryptCipher'), gifting.indexOf('const claimCipherWin'));
     assert.ok(decrypt.includes('ALLOWED_SATS_AMOUNTS'));
-    assert.ok(decrypt.includes('100000, 50000, 10000, 5000, 1000, 500, 100, 50, 25, 10, 5'));
+    assert.ok(decrypt.includes('10000000, 1000000, 100000, 50000, 10000, 5000, 1000, 500, 250, 100, 50, 25, 10, 5'));
     assert.strictEqual(decrypt.indexOf('[100, 500, 1000, 5000, 10000, 50000, 100000]'), -1);
     assert.ok(decrypt.includes("collection('cipher_sats_credits')"));
     assert.ok(decrypt.includes('cipherSatsBalance'));
     assert.ok(decrypt.includes("sats added to your cipher balance"));
-    assert.deepStrictEqual(reward.ALLOWED_SATS_AMOUNTS, [100000, 50000, 10000, 5000, 1000, 500, 250, 100, 50, 25, 10, 5]);
+    assert.ok(decrypt.includes('verifyCipherPrize'));
+    assert.ok(decrypt.includes('openCipherReward'));
+    assert.ok(decrypt.includes('cipherRollKey'));
+    assert.ok(decrypt.includes('rollSpace: ROLL_SPACE'));
+    assert.ok(decrypt.includes('rollSchema: ROLL_SCHEMA'));
+    assert.ok(decrypt.includes('receiptMac: reward.receiptMac'));
+    assert.ok(decrypt.includes('openedWithKeyId: keyId'));
+    assert.ok(decrypt.includes("secrets: [cipherRollSecret]"));
+    assert.deepStrictEqual(reward.ALLOWED_SATS_AMOUNTS, [10000000, 1000000, 100000, 50000, 10000, 5000, 1000, 500, 250, 100, 50, 25, 10, 5]);
+});
+
+test('jackpot cipher wins stay manual, are recorded, and cannot be paid if the roll does not match', () => {
+    const gifting = fs.readFileSync(path.join(root, 'functions/src/gifting.js'), 'utf8');
+    const claim = gifting.slice(gifting.indexOf('const claimCipherWin'), gifting.indexOf('function winForUser'));
+    assert.ok(claim.includes('win.amount >= 1000'));
+    assert.ok(claim.includes("This prize is paid manually."));
+    const mark = gifting.slice(gifting.indexOf('const adminMarkCipherWinPaid'), gifting.indexOf('const ackCipherShare'));
+    assert.ok(mark.includes('cipherWinAudit(win)'));
+    assert.ok(mark.includes('This win does not match the recorded roll.'));
+    const list = gifting.slice(gifting.indexOf('function cipherWinAudit'), gifting.indexOf('const adminMarkCipherWinPaid'));
+    assert.ok(list.includes('data.cipherId'));
+    assert.ok(list.includes("collection('locked_ciphers')"));
+    assert.ok(list.includes('auditOpen'));
+    assert.ok(gifting.includes('getCipherRollCommitments'));
+    assert.ok(gifting.includes('getCipherOpenProof'));
+    assert.ok(gifting.includes('listPeriodPublic'));
+    const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+    const ciphers = rules.slice(rules.indexOf('match /locked_ciphers/{cipherId}'), rules.indexOf('match /key_send_pairs/{pairId}'));
+    assert.ok(ciphers.includes('allow write: if false'));
+    const wins = rules.slice(rules.indexOf('match /cipher_wins/{winId}'), rules.indexOf('match /cipher_shares/{shareId}'));
+    assert.ok(wins.includes('allow read, write: if false'));
 });
 
 test('rules deny client writes of the balance and the claim collections', () => {
