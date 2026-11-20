@@ -1233,7 +1233,7 @@ window.showPartnershipLevelUpPopup = function(notifData) {
     // copy is read so the next load does not deliver it again.
     if (notifData.read === true) return;
     if (_partnerSeenHas(seenKey)) { _partnerMarkRead(notifData.id); return; }
-    var guardKey = peerId + '_lvl' + levelNum;
+    var guardKey = seenKey;
     if (_shownPartnershipPopups.has(guardKey)) return;
     _shownPartnershipPopups.add(guardKey);
     _partnerSeenAdd(seenKey);

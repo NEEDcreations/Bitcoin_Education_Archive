@@ -21283,11 +21283,9 @@ document.addEventListener('btcProfileSaved', function() {
         if (!isBonusSpin) {
             var lastSpin = localStorage.getItem('btc_last_spin_date');
             var today = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]); // 5 AM UTC reset — matches getDailyKey
-            if (lastSpin === today) {
-                showToast('🎡 You already spun today! Come back tomorrow!');
-                if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
-                return;
-            }
+            // Still open the modal for an already-counted spin: it can show
+            // the saved reward instead of treating an interrupted animation as an error.
+            var alreadyCountedLocally = lastSpin === today;
         }
         
         var existing = document.getElementById('spinModal');
@@ -21371,7 +21369,7 @@ document.addEventListener('btcProfileSaved', function() {
                 }).catch(function() {});
             } catch (e) {}
         }
-        if (!isBonusSpin && typeof currentUser !== 'undefined' && currentUser && currentUser.lastSpinDate === new Date().toISOString().split('T')[0]) {
+        if (!isBonusSpin && (alreadyCountedLocally || (typeof currentUser !== 'undefined' && currentUser && currentUser.lastSpinDate === new Date().toISOString().split('T')[0]))) {
             showSpinAlreadyCounted();
         }
         
