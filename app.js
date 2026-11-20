@@ -1314,6 +1314,7 @@
         
         var existing = document.getElementById('spinModal');
         if (existing) existing.remove();
+        window._spinStreakFromResponse = false;
         
         var modal = document.createElement('div');
         modal.id = 'spinModal';
@@ -1358,6 +1359,25 @@
             try { window.BipBreakthrough.paintSpinStreak(line, (typeof currentUser !== 'undefined') ? currentUser : null); } catch (e) {}
         }
         paintSpinStreakLine();
+        // The profile copy can still be loading when the wheel opens. Read the
+        // server copy once so the streak and an already-counted spin are right.
+        try {
+            if (!isBonusSpin && auth && auth.currentUser && typeof db !== 'undefined') {
+                db.collection('users').doc(auth.currentUser.uid).get().then(function(snap) {
+                    if (!snap || !snap.exists || !document.getElementById('spinModal')) return;
+                    var d = snap.data() || {};
+                    var line = document.getElementById('spinStreakLine');
+                    if (line && window.BipBreakthrough && typeof window.BipBreakthrough.paintSpinStreak === 'function' && !window._spinStreakFromResponse) {
+                        window.BipBreakthrough.paintSpinStreak(line, d);
+                    }
+                    var btn = document.getElementById('spinBtn');
+                    var idle = btn && !btn.disabled && btn.style.display !== 'none';
+                    if (idle && d.lastSpinDate === new Date().toISOString().split('T')[0] && !document.querySelector('#spinResult [data-spin-counted]')) {
+                        showSpinAlreadyCounted();
+                    }
+                }).catch(function() {});
+            }
+        } catch (eSnap) {}
 
         // Today's counted spin, read back from the server copy. No reward is
         // granted or mirrored here; this only shows what already happened.
@@ -1530,7 +1550,7 @@
                 serverReward = reward || { rewardIndex: idx };
                 spinState.serverIndex = idx;
                 if (!isBonusSpin && reward && window.BipBreakthrough && typeof window.BipBreakthrough.applySpinResponse === 'function' && typeof currentUser !== 'undefined' && currentUser) {
-                    try { window.BipBreakthrough.applySpinResponse(currentUser, reward); } catch (e) {}
+                    try { window.BipBreakthrough.applySpinResponse(currentUser, reward); window._spinStreakFromResponse = true; } catch (e) {}
                 }
             }).catch(function(err) {
                 spinState.error = err || new Error('unknown');
