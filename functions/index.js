@@ -4542,6 +4542,26 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
     const uid = context.auth.uid;
     const today = new Date().toISOString().split('T')[0];
     const userRef = db.collection('users').doc(uid);
+    // Saved result of today's counted spin. Server-only path (no client rule).
+    const spinResultRef = userRef.collection('spin_results').doc('latest');
+    const replayOnly = !!(data && data.replayOnly === true);
+
+    function savedSpinReplay(savedDoc, userData) {
+        if (!savedDoc || !savedDoc.exists) return null;
+        const saved = savedDoc.data() || {};
+        if (saved.day !== today || !userData || userData.lastSpinDate !== today) return null;
+        const out = Object.assign({}, saved.reward || {});
+        out.replay = true;
+        return out;
+    }
+
+    // Read-only replay: never rolls, never writes, never uses a bonus spin.
+    if (replayOnly) {
+        const [userSnap, savedSnap] = await Promise.all([userRef.get(), spinResultRef.get()]);
+        const replay = savedSpinReplay(savedSnap, userSnap.exists ? userSnap.data() : null);
+        if (!replay) throw new functionsV1.https.HttpsError('not-found', 'No saved spin today');
+        return { success: true, replay: true, reward: replay };
+    }
 
     // Spin outcomes with weights (server-determined)
     const outcomes = [
@@ -4584,12 +4604,17 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         const userDoc = await tx.get(userRef);
         const dailyDoc = await tx.get(dailyRef);
         const ledgerDoc = await tx.get(ledgerRef);
+        const savedSpinDoc = await tx.get(spinResultRef);
         if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
 
         const userData = userDoc.data();
         // Allow if server granted a bonus spin (flag set atomically by useBonusSpin CF)
         const isBonusSpin = !!userData.bonusSpinGranted;
         if (userData.lastSpinDate === today && !isBonusSpin) {
+            // Today's spin is already settled. Hand back the same result so an
+            // interrupted client can finish showing it. Nothing is written or paid.
+            const replay = savedSpinReplay(savedSpinDoc, userData);
+            if (replay) return replay;
             throw new functionsV1.https.HttpsError('already-exists', 'Already spun today');
         }
 
@@ -4731,7 +4756,7 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
                 } : null,
             } : null);
 
-        return {
+        const spinResult = {
             rewardIndex,
             label: reward.label,
             pts: totalPts,
@@ -4746,7 +4771,21 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
             breakthrough: breakthroughPayload,
             forcedTopTier: !!(breakthroughPlan && breakthroughPlan.completes),
         };
+        if (!isBonusSpin) {
+            // Same transaction as the grant, so a saved result always means a paid spin.
+            tx.set(spinResultRef, {
+                day: today,
+                reward: JSON.parse(JSON.stringify(spinResult)),
+                savedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+        return spinResult;
     });
+
+    // A replay already ran its badges and awards on the original spin.
+    if (result && result.replay === true) {
+        return { success: true, replay: true, reward: result };
+    }
 
     try {
         const spinIds = result.countedDay ? familyFor('spinDays').concat(familyFor('spinStreak')) : [];

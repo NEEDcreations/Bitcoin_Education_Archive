@@ -125,10 +125,107 @@
         }, 900);
     }
 
+    // Spin streak line for the Daily Spin modal. Reads the same fields the
+    // server's dailySpin uses for the BIP Breakthrough / Core Contributor gate
+    // (bipBreakthroughStreak, bipBreakthroughLastDay, bipBreakthroughWeekKey).
+    // Eastern days; the streak restarts each Monday 00:00 ET; bonus spins never count.
+    var STREAK_TARGET = 7;
+    var WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    function nyParts(ms) {
+        var out = { y: '', m: '', d: '', wd: '' };
+        try {
+            var parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'
+            }).formatToParts(new Date(ms));
+            parts.forEach(function (p) {
+                if (p.type === 'year') out.y = p.value;
+                else if (p.type === 'month') out.m = p.value;
+                else if (p.type === 'day') out.d = p.value;
+                else if (p.type === 'weekday') out.wd = p.value;
+            });
+        } catch (e) {}
+        return out;
+    }
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+    function nyDayKey(ms) {
+        var p = nyParts(ms);
+        return (p.y && p.m && p.d) ? (p.y + '-' + p.m + '-' + p.d) : '';
+    }
+    function nyWeekInfo(ms) {
+        var p = nyParts(ms);
+        var idx = WEEKDAYS.indexOf(p.wd);
+        if (idx < 0 || !p.y) return { key: '', sinceMonday: 0 };
+        var monday = new Date(Date.UTC(Number(p.y), Number(p.m) - 1, Number(p.d)) - idx * 86400000);
+        return {
+            key: monday.getUTCFullYear() + '-' + pad2(monday.getUTCMonth() + 1) + '-' + pad2(monday.getUTCDate()),
+            sinceMonday: idx
+        };
+    }
+    function dayDiff(a, b) {
+        var x = Date.parse(a + 'T12:00:00Z'), y = Date.parse(b + 'T12:00:00Z');
+        if (!isFinite(x) || !isFinite(y)) return null;
+        return Math.round((y - x) / 86400000);
+    }
+    function spinStreakInfo(user, nowMs) {
+        var now = isFinite(Number(nowMs)) && nowMs ? Number(nowMs) : Date.now();
+        var u = user || {};
+        var today = nyDayKey(now);
+        var week = nyWeekInfo(now);
+        var lastDay = typeof u.bipBreakthroughLastDay === 'string' ? u.bipBreakthroughLastDay : '';
+        var sameWeek = !!week.key && u.bipBreakthroughWeekKey === week.key;
+        var gap = lastDay && today ? dayDiff(lastDay, today) : null;
+        var spunToday = sameWeek && gap === 0;
+        var alive = sameWeek && (gap === 0 || gap === 1);
+        var streak = alive ? Math.max(0, Math.min(STREAK_TARGET, Math.floor(Number(u.bipBreakthroughStreak) || 0))) : 0;
+        var claimed = !!week.key && u.bipBreakthroughClaimedWeek === week.key;
+        var left = Math.max(0, STREAK_TARGET - streak);
+        // Eastern days still open this week for a counted spin, today included if not spun yet.
+        var daysOpen = (STREAK_TARGET - week.sinceMonday) - (spunToday ? 1 : 0);
+        return { streak: streak, target: STREAK_TARGET, left: left, claimed: claimed, spunToday: spunToday, reachable: left <= daysOpen, weekKey: week.key };
+    }
+    function spinStreakText(info) {
+        if (!info) return '';
+        var n = info.streak;
+        var head = '\uD83D\uDD25 Spin streak: ' + n + ' day' + (n === 1 ? '' : 's');
+        if (info.claimed) return head + ' \u00b7 BIP Breakthrough unlocked this week';
+        if (info.left <= 0) return head + ' \u00b7 BIP Breakthrough ready';
+        if (!info.reachable) return head + ' \u00b7 BIP Breakthrough streak restarts Monday';
+        return head + ' \u00b7 ' + info.left + ' more for BIP Breakthrough';
+    }
+    // Paint into the modal's #spinStreakLine. Guests and missing data hide the line.
+    function paintSpinStreak(el, user, nowMs) {
+        if (!el) return null;
+        var signedIn = false;
+        try { signedIn = !!(root.auth && root.auth.currentUser && !root.auth.currentUser.isAnonymous); } catch (e) {}
+        if (!signedIn && typeof auth !== 'undefined') {
+            try { signedIn = !!(auth && auth.currentUser && !auth.currentUser.isAnonymous); } catch (e2) {}
+        }
+        if (!signedIn || !user) { el.hidden = true; el.textContent = ''; return null; }
+        var info = spinStreakInfo(user, nowMs);
+        el.textContent = spinStreakText(info);
+        el.hidden = false;
+        return info;
+    }
+    // Fold a dailySpin response into the user copy so the line updates right after a spin.
+    function applySpinResponse(user, reward, nowMs) {
+        if (!user || !reward || !reward.breakthrough || reward.countedDay === false) return user;
+        var b = reward.breakthrough;
+        if (typeof b.streak === 'number') user.bipBreakthroughStreak = b.streak;
+        if (b.weekKey) user.bipBreakthroughWeekKey = b.weekKey;
+        user.bipBreakthroughLastDay = nyDayKey(isFinite(Number(nowMs)) && nowMs ? Number(nowMs) : Date.now());
+        if (b.unlocked && b.weekKey) user.bipBreakthroughClaimedWeek = b.weekKey;
+        return user;
+    }
+
     root.BipBreakthrough = {
         showPopup: showPopup,
         offerShare: offerShare,
         handleSpinReward: handleSpinReward,
-        shareUrl: shareUrl
+        shareUrl: shareUrl,
+        spinStreakInfo: spinStreakInfo,
+        spinStreakText: spinStreakText,
+        paintSpinStreak: paintSpinStreak,
+        applySpinResponse: applySpinResponse,
+        nyDayKey: nyDayKey
     };
 })(typeof window !== 'undefined' ? window : globalThis);

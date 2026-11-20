@@ -21283,15 +21283,14 @@ document.addEventListener('btcProfileSaved', function() {
         if (!isBonusSpin) {
             var lastSpin = localStorage.getItem('btc_last_spin_date');
             var today = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]); // 5 AM UTC reset — matches getDailyKey
-            if (lastSpin === today) {
-                showToast('🎡 You already spun today! Come back tomorrow!');
-                if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
-                return;
-            }
+            // Still open the modal for an already-counted spin: it can show
+            // the saved reward instead of treating an interrupted animation as an error.
+            var alreadyCountedLocally = lastSpin === today;
         }
         
         var existing = document.getElementById('spinModal');
         if (existing) existing.remove();
+        window._spinStreakFromResponse = false;
         
         var modal = document.createElement('div');
         modal.id = 'spinModal';
@@ -21318,6 +21317,7 @@ document.addEventListener('btcProfileSaved', function() {
                 '<div style="font-size:2.5rem;margin-bottom:8px;">🎡</div>' +
                 '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:4px;">Daily Spin</div>' +
                 '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:20px;">Spin for Orange Tickets, XP, Nacho Closet items, and rare Freeze Tickets!</p>' +
+                '<div id="spinStreakLine" hidden aria-live="polite" style="margin:-12px auto 16px;max-width:300px;padding:6px 10px;border-radius:999px;background:rgba(247,147,26,0.10);border:1px solid rgba(247,147,26,0.30);color:#fbbf24;font-size:0.8rem;font-weight:700;line-height:1.35;"></div>' +
                 '<div id="spinWheelContainer" style="position:relative;width:250px;height:250px;margin:0 auto 20px;">' +
                     '<canvas id="spinCanvas" width="250" height="250" style="border-radius:50%;box-shadow:0 4px 20px rgba(0,0,0,0.4);"></canvas>' +
                     '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:20px solid #ef4444;z-index:10;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></div>' +
@@ -21327,6 +21327,95 @@ document.addEventListener('btcProfileSaved', function() {
             '</div>';
         
         document.body.appendChild(modal);
+
+        // Spin streak (BIP Breakthrough gate data). Hidden for guests or when unavailable.
+        function paintSpinStreakLine() {
+            var line = document.getElementById('spinStreakLine');
+            if (!line || !window.BipBreakthrough || typeof window.BipBreakthrough.paintSpinStreak !== 'function') return;
+            try { window.BipBreakthrough.paintSpinStreak(line, (typeof currentUser !== 'undefined') ? currentUser : null); } catch (e) {}
+        }
+        paintSpinStreakLine();
+        // The profile copy can still be loading when the wheel opens. Read the
+        // server copy once so the streak and an already-counted spin are right.
+        try {
+            if (!isBonusSpin && auth && auth.currentUser && typeof db !== 'undefined') {
+                db.collection('users').doc(auth.currentUser.uid).get().then(function(snap) {
+                    if (!snap || !snap.exists || !document.getElementById('spinModal')) return;
+                    var d = snap.data() || {};
+                    var line = document.getElementById('spinStreakLine');
+                    if (line && window.BipBreakthrough && typeof window.BipBreakthrough.paintSpinStreak === 'function' && !window._spinStreakFromResponse) {
+                        window.BipBreakthrough.paintSpinStreak(line, d);
+                    }
+                    var btn = document.getElementById('spinBtn');
+                    var idle = btn && !btn.disabled && btn.style.display !== 'none';
+                    if (idle && d.lastSpinDate === new Date().toISOString().split('T')[0] && !document.querySelector('#spinResult [data-spin-counted]')) {
+                        showSpinAlreadyCounted();
+                    }
+                }).catch(function() {});
+            }
+        } catch (eSnap) {}
+
+        // Today's counted spin, read back from the server copy. No reward is
+        // granted or mirrored here; this only shows what already happened.
+        function showSpinAlreadyCounted() {
+            var btn = document.getElementById('spinBtn');
+            var out = document.getElementById('spinResult');
+            if (btn) btn.style.display = 'none';
+            var utcDay = new Date().toISOString().split('T')[0];
+            try { localStorage.setItem('btc_last_spin_date', utcDay); } catch (e) {}
+            if (typeof currentUser !== 'undefined' && currentUser) currentUser.lastSpinDate = utcDay;
+            if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
+            function render(detail) {
+                if (!out) return;
+                out.innerHTML = '<div data-spin-counted="1" style="animation:fadeSlideIn 0.4s ease-out;">' +
+                    '<div style="font-size:2.2rem;margin-bottom:6px;">\u2705</div>' +
+                    '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.05rem;margin-bottom:4px;">Your spin already counted today</div>' +
+                    '<div id="spinCountedDetail" style="color:var(--text-muted,#aaa);font-size:0.85rem;line-height:1.4;">' + (detail ? escapeHtml(detail) : 'Your reward is already in your account. Come back tomorrow for the next spin.') + '</div>' +
+                    '<button type="button" onclick="document.getElementById(\'spinModal\').remove()" style="margin-top:12px;padding:10px 24px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Got it</button>' +
+                    '</div>';
+            }
+            render('');
+            function exactReplay(r) {
+                if (!r || r.replay !== true) return false;
+                var t = '';
+                if (r.rare) t = '💎 RARE DROP! ' + (r.rareLabel || 'Rare drop');
+                else if (r.closet) t = '👔 Closet drop!' + (r.pts > 0 ? ' +' + r.pts + ' XP' : '');
+                else if (r.freezes > 0) t = '🧊 Streak freeze x' + r.freezes;
+                else if (r.tickets > 0 && !(r.pts > 0)) t = '🎫 ' + r.tickets + ' Orange Ticket' + (r.tickets > 1 ? 's' : '');
+                else if (r.pts > 0) t = '⭐ ' + r.pts + ' XP' + (r.doubled ? ' (2×)' : '') + (r.tickets > 0 ? ' +' + r.tickets + ' ticket' + (r.tickets > 1 ? 's' : '') : '');
+                else t = String(r.label || 'Spin complete');
+                var el = document.getElementById('spinCountedDetail');
+                if (el) { el.textContent = 'Today\u2019s spin landed on: ' + t + '. It is already in your account.'; el.setAttribute('data-spin-exact', '1'); }
+                return true;
+            }
+            try {
+                if (firebase && firebase.functions) {
+                    firebase.functions().httpsCallable('dailySpin')({ replayOnly: true }).then(function(res) {
+                        var r = res && res.data && res.data.reward;
+                        if (r && window.BipBreakthrough && typeof window.BipBreakthrough.applySpinResponse === 'function' && typeof currentUser !== 'undefined' && currentUser) {
+                            try { window.BipBreakthrough.applySpinResponse(currentUser, r); window._spinStreakFromResponse = true; paintSpinStreakLine(); } catch (eB) {}
+                        }
+                        exactReplay(r);
+                    }).catch(function() {});
+                }
+            } catch (eRp) {}
+            try {
+                var uid = auth && auth.currentUser ? auth.currentUser.uid : '';
+                if (!uid || typeof db === 'undefined') return;
+                var nid = 'rn_' + String(uid).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80) + '_spin_' + utcDay;
+                db.collection('notifications').doc(nid).get().then(function(snap) {
+                    if (!snap || !snap.exists) return;
+                    var d = snap.data() || {};
+                    var msg = String(d.message || '').replace(/\s+/g, ' ').trim();
+                    if (!msg) return;
+                    var el = document.getElementById('spinCountedDetail');
+                    if (el && !el.getAttribute('data-spin-exact')) el.textContent = 'Today\u2019s reward: ' + msg + '.';
+                }).catch(function() {});
+            } catch (e) {}
+        }
+        if (!isBonusSpin && (alreadyCountedLocally || (typeof currentUser !== 'undefined' && currentUser && currentUser.lastSpinDate === new Date().toISOString().split('T')[0]))) {
+            showSpinAlreadyCounted();
+        }
         
         // Draw the wheel
         var canvas = document.getElementById('spinCanvas');
@@ -21412,12 +21501,9 @@ document.addEventListener('btcProfileSaved', function() {
                 spinBtn.style.opacity = '';
                 spinBtn.textContent = 'SPIN! 🎰';
                 var msg = (err && err.message) ? err.message : '';
-                if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1) {
-                    localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0]);
-                    var openModal = document.getElementById('spinModal');
-                    if (openModal) openModal.remove();
-                    if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
-                    if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');
+                var code = (err && err.code) ? String(err.code) : '';
+                if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1 || code.indexOf('already-exists') !== -1) {
+                    showSpinAlreadyCounted();
                 } else if (typeof showToast === 'function') {
                     showToast('❌ Spin failed — try again.');
                 }
@@ -21463,6 +21549,9 @@ document.addEventListener('btcProfileSaved', function() {
                 idx = ((idx % n) + n) % n;
                 serverReward = reward || { rewardIndex: idx };
                 spinState.serverIndex = idx;
+                if (!isBonusSpin && reward && window.BipBreakthrough && typeof window.BipBreakthrough.applySpinResponse === 'function' && typeof currentUser !== 'undefined' && currentUser) {
+                    try { window.BipBreakthrough.applySpinResponse(currentUser, reward); window._spinStreakFromResponse = true; } catch (e) {}
+                }
             }).catch(function(err) {
                 spinState.error = err || new Error('unknown');
             });
@@ -21503,6 +21592,9 @@ document.addEventListener('btcProfileSaved', function() {
 
             function showSpinReward(reward, selectedIndex) {
                 reward = reward || {};
+                // replay: the server handed back today's settled spin. Show it, but
+                // add nothing locally (no mirror, gifts, counters, or closet pick).
+                var isReplay = reward.replay === true;
                 var rewardText = '';
                 var emoji = '🎡';
                 if (reward.rare) {
@@ -21510,7 +21602,7 @@ document.addEventListener('btcProfileSaved', function() {
                     rewardText = '💎 RARE DROP! ' + (reward.rareLabel || 'Rare drop');
                 } else if (reward.closet) {
                     emoji = '👔';
-                    rewardText = closetLine(reward);
+                    rewardText = isReplay ? ('👔 Closet drop!' + ((reward.pts > 0) ? (' +' + reward.pts + ' XP') : '')) : closetLine(reward);
                 } else if (reward.freezes > 0) {
                     emoji = '🧊';
                     rewardText = '🧊 STREAK FREEZE! Your streak is protected for ' + reward.freezes + ' missed day' + (reward.freezes > 1 ? 's' : '') + '.';
@@ -21526,7 +21618,8 @@ document.addEventListener('btcProfileSaved', function() {
                     emoji = (landed && landed.label) ? landed.label.split(' ')[0] : '🎡';
                     rewardText = (reward.label || (landed && landed.label) || 'Spin complete');
                 }
-                mirrorServerSpin(reward);
+                if (!isReplay) mirrorServerSpin(reward);
+                paintSpinStreakLine();
                 if (((reward.tickets || 0) >= 100 || reward.rare) && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('confetti'))) {
                     if (typeof launchConfetti === 'function') launchConfetti();
                     if (typeof playBadgeSound === 'function') playBadgeSound();
@@ -21535,8 +21628,20 @@ document.addEventListener('btcProfileSaved', function() {
                 resultDiv.innerHTML = '<div style="animation:fadeSlideIn 0.5s ease-out;">' +
                     '<div style="font-size:3rem;margin-bottom:8px;">' + emoji + '</div>' +
                     '<div style="color:var(--heading);font-weight:700;font-size:1.1rem;">' + rewardText + '</div>' +
+                    (isReplay ? '<div data-spin-replay="1" style="color:var(--text-muted,#aaa);font-size:0.82rem;margin-top:6px;">This is the spin you already took today. It was added to your account then.</div>' : '') +
                     '<button onclick="document.getElementById(\'spinModal\').remove()" style="margin-top:12px;padding:10px 24px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Awesome! 🎉</button>' +
                 '</div>';
+
+                if (isReplay) {
+                    if (reward.breakthrough && reward.breakthrough.unlocked && window.BipBreakthrough && typeof window.BipBreakthrough.showPopup === 'function') {
+                        setTimeout(function() { window.BipBreakthrough.showPopup(reward.breakthrough); }, 900);
+                    }
+                    var _rdk = new Date().toISOString().split('T')[0];
+                    try { localStorage.setItem('btc_last_spin_date', (typeof getDailyKey === 'function' ? getDailyKey() : _rdk)); } catch (eR) {}
+                    if (typeof currentUser !== 'undefined' && currentUser) currentUser.lastSpinDate = _rdk;
+                    if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
+                    return;
+                }
 
                 if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
 

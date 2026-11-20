@@ -156,7 +156,10 @@ window.initNotifications = function() {
                 }
                 // Partnership level-up popup — fires live when CF writes the notification
                 if (nd.type === 'peer_level_up') {
-                    showPartnershipLevelUpPopup(nd);
+                    var lvlPayload = {};
+                    for (var lvlKey in nd) if (Object.prototype.hasOwnProperty.call(nd, lvlKey)) lvlPayload[lvlKey] = nd[lvlKey];
+                    lvlPayload.id = change.doc.id;
+                    showPartnershipLevelUpPopup(lvlPayload);
                 }
                 // A shared cipher prize. No push. The reveal runs once, then
                 // ackCipherShare sets the server flag so the next visit skips it.
@@ -1187,20 +1190,54 @@ window.notifySelfExploration = function(channelCount, pct) {
 };
 
 // ── Partnership Level-Up Popup ─────────────────────────────────────────────
-// Triggered live when the CF writes a peer_level_up notification to Firestore.
-// Session-guarded so it only fires once per level-up event, not on every reload.
+// Triggered when the CF writes a peer_level_up notification to Firestore.
+// Shows once per user, peer and level. The notification is marked read on the
+// server when it shows (the unread listener then skips it on every reload), and
+// a per-device record covers the case where that write fails or is offline.
 var _shownPartnershipPopups = new Set();
+var PARTNER_SEEN_KEY = 'bq_partner_lvl_seen_v1';
+
+function _partnerSeenList() {
+    try {
+        var raw = JSON.parse(localStorage.getItem(PARTNER_SEEN_KEY) || '[]');
+        return Array.isArray(raw) ? raw : [];
+    } catch (e) { return []; }
+}
+function _partnerSeenKey(uid, peerId, levelNum) {
+    return String(uid || '') + ':' + String(peerId || '') + ':' + String(levelNum || '');
+}
+function _partnerSeenHas(key) {
+    return _partnerSeenList().indexOf(key) !== -1;
+}
+function _partnerSeenAdd(key) {
+    var list = _partnerSeenList().filter(function(k) { return k !== key; });
+    list.push(key);
+    if (list.length > 200) list = list.slice(list.length - 200);
+    try { localStorage.setItem(PARTNER_SEEN_KEY, JSON.stringify(list)); } catch (e) {}
+}
+function _partnerMarkRead(id) {
+    if (!id || typeof db === 'undefined' || !notifSafeId(id, 128)) return;
+    try { db.collection('notifications').doc(id).update({ read: true }).catch(function() {}); } catch (e) {}
+}
+window._partnerPopupSeen = { key: _partnerSeenKey, has: _partnerSeenHas, add: _partnerSeenAdd, storageKey: PARTNER_SEEN_KEY };
 
 window.showPartnershipLevelUpPopup = function(notifData) {
     if (!notifData) return;
     var levelNum  = notifData.levelNum  || 1;
     var levelName = notifData.levelName || 'Opening Channel';
     var peerId    = notifData.peerId    || '';
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : (notifData.recipientId || '');
+    var seenKey = _partnerSeenKey(me, peerId, levelNum);
 
-    // Session guard — prevent double-fire on snapshot replay
-    var guardKey = peerId + '_lvl' + levelNum;
+    // Already shown for this user, peer and level: just make sure the server
+    // copy is read so the next load does not deliver it again.
+    if (notifData.read === true) return;
+    if (_partnerSeenHas(seenKey)) { _partnerMarkRead(notifData.id); return; }
+    var guardKey = seenKey;
     if (_shownPartnershipPopups.has(guardKey)) return;
     _shownPartnershipPopups.add(guardKey);
+    _partnerSeenAdd(seenKey);
+    _partnerMarkRead(notifData.id);
     if (typeof window.claimSessionPopup === 'function') window.claimSessionPopup('levelup');
 
     var LEVEL_META = {
