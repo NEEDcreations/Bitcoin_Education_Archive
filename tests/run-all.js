@@ -40,6 +40,7 @@ const TESTS = [
     { name: 'Proof of Play Timechain games', file: 'test-pop-timechain-games.js' },
     { name: 'Chat CTA links', file: 'test-chat-cta-links.js' },
     { name: 'Rules sheet mobile', file: 'test-rules-sheet-mobile.js' },
+    { name: 'SF tooltip clamp', file: 'test-sf-tooltip-clamp.js' },
     { name: 'Admin home button + panel', file: 'test-admin-home-btn.js' },
     { name: 'Admin claim gates (server)', file: 'test-admin-claim-gates.js' },
     { name: 'Kill switch', file: 'test-kill-switch.js' },
