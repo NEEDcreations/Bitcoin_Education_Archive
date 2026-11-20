@@ -214,7 +214,7 @@ function _popUnbindCloseListeners() {
 function _popBuildArcadeCard(game) {
     game = game || {};
     var card = document.createElement('div');
-    card.className = 'pop-game-card' + (game.hot ? ' hot' : '');
+    card.className = 'pop-game-card' + (game.hot ? ' hot' : (game.isNew ? ' is-new' : ''));
     var url = _popAllowedExternalUrl(game.url);
 
     var thumbUrl = _popAllowedExternalUrl(game.thumb || '');
@@ -364,7 +364,8 @@ var POP_GAMES = [
         thumb: null,
         thumbFallback: '🧱',
         url: 'https://timechainarcade.com/games/breakingoutbitcoin',
-        hot: false
+        hot: false,
+        isNew: true
     },
     {
         slug: 'satoshisscramble',
@@ -424,6 +425,130 @@ var POP_GAMES = [
         thumb: 'https://timechainarcade.com/images/games/bcracers-bb1.png',
         thumbFallback: '🏎️',
         url: 'https://timechainarcade.com/games/bcracers',
+        hot: false,
+        isNew: true
+    },
+    {
+        slug: 'hodlcycle',
+        title: 'HODL Cycle',
+        emoji: '🚴',
+        genre: 'Racing',
+        players: '1P',
+        desc: 'Out-ride Scamcoin, Rugpull and FUD on the grid.',
+        thumb: 'https://timechainarcade.com/images/poster-hodl-cycle.jpg',
+        thumbFallback: '🚴',
+        url: 'https://timechainarcade.com/games/hodlcycle',
+        hot: false,
+        isNew: true
+    },
+    {
+        slug: 'lightningpinball',
+        title: 'Lightning Pinball',
+        emoji: '⚡',
+        genre: 'Action',
+        players: '1P',
+        desc: 'Open channels. Route payments. Light up the network.',
+        thumb: 'https://timechainarcade.com/images/poster-lightning-pinball.jpg',
+        thumbFallback: '⚡',
+        url: 'https://timechainarcade.com/games/lightningpinball',
+        hot: false,
+        isNew: true
+    },
+    {
+        slug: 'robobtc2140',
+        title: 'RoboBTC 2140',
+        emoji: '🤖',
+        genre: 'Action',
+        players: '1P',
+        desc: 'Save the plebs. Smash the surveillance swarm.',
+        thumb: 'https://timechainarcade.com/images/poster-robobtc-2140.jpg',
+        thumbFallback: '🤖',
+        url: 'https://timechainarcade.com/games/robobtc2140',
+        hot: false,
+        isNew: true
+    },
+    {
+        slug: 'fiatfighters',
+        title: 'Fiat Fighters',
+        emoji: '🥊',
+        genre: 'Action',
+        players: '1P',
+        desc: 'Read the tells. Counter the FUD. Win the belt.',
+        thumb: 'https://timechainarcade.com/images/poster-fiat-fighters.jpg',
+        thumbFallback: '🥊',
+        url: 'https://timechainarcade.com/games/fiatfighters',
+        hot: false
+    },
+    {
+        slug: 'nodedefense',
+        title: 'Node Defense',
+        emoji: '🛡️',
+        genre: 'Strategy',
+        players: '1P',
+        desc: 'Hold the network. Nodes keep the rules.',
+        thumb: 'https://timechainarcade.com/images/poster-node-defense.jpg',
+        thumbFallback: '🛡️',
+        url: 'https://timechainarcade.com/games/nodedefense',
+        hot: false
+    },
+    {
+        slug: 'honeybadger',
+        title: 'Honey Badger',
+        emoji: '🦡',
+        genre: 'Action',
+        players: '1P',
+        desc: 'Honey Badger don\'t care.',
+        thumb: 'https://timechainarcade.com/images/poster-honey-badger.jpg',
+        thumbFallback: '🦡',
+        url: 'https://timechainarcade.com/games/honeybadger',
+        hot: false
+    },
+    {
+        slug: 'spamdefense',
+        title: 'Spam Defense',
+        emoji: '🚫',
+        genre: 'Action',
+        players: '1P',
+        desc: 'Hold the mempool. Shoot the spam.',
+        thumb: 'https://timechainarcade.com/images/poster-spam-defense.jpg',
+        thumbFallback: '🚫',
+        url: 'https://timechainarcade.com/games/spamdefense',
+        hot: false
+    },
+    {
+        slug: 'coincontrol',
+        title: 'Coin Control',
+        emoji: '🪙',
+        genre: 'Puzzle',
+        players: '1P',
+        desc: 'Match the coins. Mind your UTXOs.',
+        thumb: 'https://timechainarcade.com/images/poster-coin-control.jpg',
+        thumbFallback: '🪙',
+        url: 'https://timechainarcade.com/games/coincontrol',
+        hot: false
+    },
+    {
+        slug: 'hashcorpminers',
+        title: 'HashCorp Miners',
+        emoji: '⛏️',
+        genre: 'Strategy',
+        players: '1P',
+        desc: 'Build a mining empire from a single CPU.',
+        thumb: 'https://timechainarcade.com/images/poster-hashcorp-miners.jpg',
+        thumbFallback: '⛏️',
+        url: 'https://timechainarcade.com/games/hashcorpminers',
+        hot: false
+    },
+    {
+        slug: 'consensusclash',
+        title: 'Consensus Clash',
+        emoji: '🥋',
+        genre: 'Action',
+        players: '1P',
+        desc: 'Eight fighters. One chain. Reach consensus.',
+        thumb: 'https://timechainarcade.com/images/poster-consensus-clash.jpg',
+        thumbFallback: '🥋',
+        url: 'https://timechainarcade.com/games/consensusclash',
         hot: false
     }
 ];
@@ -508,6 +633,11 @@ function _injectPOPStyles() {
         .pop-game-card.hot::after {
             content: '🔥 HOT'; position: absolute; top: 8px; right: 8px;
             background: #ef4444; color: #fff; font-size: 0.6rem; font-weight: 800;
+            padding: 2px 7px; border-radius: 20px; letter-spacing: 0.5px;
+        }
+        .pop-game-card.is-new::after {
+            content: '✨ NEW'; position: absolute; top: 8px; right: 8px;
+            background: #f7931a; color: #fff; font-size: 0.6rem; font-weight: 800;
             padding: 2px 7px; border-radius: 20px; letter-spacing: 0.5px;
         }
         .pop-game-thumb {

@@ -324,13 +324,13 @@ function openHubOnSatArcade(ctx) {
     return playSatArcade(ctx);
 }
 
-test('SW is v2624 and proof-of-play.js is pinned at 20261119_v2624b', () => {
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2624'"));
+test('SW is v2682 and proof-of-play.js is pinned at 20261119_v2682', () => {
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2682'"));
     assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2630'"));
-    assert.ok(read('app.js').includes('proof-of-play.js?v=20261119_v2624b'));
+    assert.ok(read('app.js').includes('proof-of-play.js?v=20261119_v2682'));
     const html = read('index.html');
-    assert.ok(html.includes('proof-of-play.js?v=20261119_v2624b'));
-    assert.strictEqual((html.match(/proof-of-play\.js\?v=20261119_v2624b/g) || []).length, 2);
+    assert.ok(html.includes('proof-of-play.js?v=20261119_v2682'));
+    assert.strictEqual((html.match(/proof-of-play\.js\?v=20261119_v2682/g) || []).length, 2);
     assert.ok(!html.includes('proof-of-play.js?v=20261119_v2624"') && !html.includes("proof-of-play.js?v=20261119_v2624'"));
     assert.strictEqual(read('404.html'), html);
 });
