@@ -51,14 +51,38 @@
     .patch-header { padding: 16px 14px 14px; gap: 10px; }
   }
   @media print { details.patch > summary::after { display: none; } }
+
+  .pn-back-bar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .pn-back-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 16px; background: var(--accent); color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.9rem; line-height: 1; box-sizing: border-box; }
+  .pn-back-btn:hover, .pn-back-btn:focus-visible { filter: brightness(1.08); }
+  .pn-back-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  details.patch, .patch { scroll-margin-top: 68px; }
 </style>
 </head>
 <body>
+<div class="pn-back-bar">
+  <a href="/" id="pnBackToApp" class="pn-back-btn">← Back to app</a>
+</div>
+<script>
+(function () {
+  var a = document.getElementById('pnBackToApp');
+  if (!a) return;
+  a.addEventListener('click', function (e) {
+    var ref = document.referrer;
+    if (!ref) return;
+    try {
+      if (new URL(ref).origin === location.origin) {
+        e.preventDefault();
+        history.back();
+      }
+    } catch (err) {}
+  });
+})();
+</script>
 <div class="hero">
   <div class="hero-icon">🦌⚡</div>
   <h1>Patch Notes</h1>
   <p class="sub">What changed, one week at a time</p>
-  <a href="/" class="site-link">← Back to App</a>
 </div>
 
 <div class="container">

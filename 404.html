@@ -1784,6 +1784,8 @@
                 </script>
                 </div>
                 <p class="home-subtitle">Play, Learn, and Earn real bitcoin!</p>
+                <span id="homeTopicCount" hidden>145 topics</span>
+                </div>
                 <div id="patchNotesBanner" class="pn-banner" role="region" aria-label="What's new" hidden>
                     <div class="pn-row" id="pnBannerRow">
                         <span class="pn-new" aria-hidden="true">New</span>
@@ -1799,6 +1801,9 @@
                     // (first details.patch: its id, title and .patch-date). Shows for 5 days after
                     // that release. X hides it until the next release; minus collapses it to a
                     // "New" pill. Both are remembered per release in localStorage.
+                    // The latest entry is cached in localStorage for 6h, tagged with the SW
+                    // version. A new SW version (or an expired cache) refetches immediately;
+                    // otherwise the cache is shown first and revalidated in the background.
                     var SHOW_DAYS = 5, STATE_KEY = 'bq_pn_banner', CACHE_KEY = 'bq_pn_latest', CACHE_MS = 6 * 3600 * 1000;
                     var MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
                     var box = document.getElementById('patchNotesBanner');
@@ -1852,20 +1857,43 @@
                     closeBtn.addEventListener('click', function () { save('dismissed'); });
                     link.addEventListener('click', function () { if (window._markPatchSeen) window._markPatchSeen(); });
                     window._bqPatchBanner = { releaseMs: releaseMs, render: render, set: function (v) { latest = v; render(); } };
-                    var cached = getJson(CACHE_KEY);
-                    if (cached && cached.id) { latest = cached; render(); }
-                    if (cached && cached.at && Date.now() - cached.at < CACHE_MS) return;
+                    function currentSw() { return String(window._swVersion || ''); }
                     function load() {
                         if (typeof fetch !== 'function' || typeof DOMParser === 'undefined') return;
                         fetch('/patch-notes.html', { cache: 'no-cache' }).then(function (r) { return r && r.ok ? r.text() : ''; })
-                            .then(function (html) { var v = html && parse(html); if (v) { latest = v; setJson(CACHE_KEY, v); render(); } })
+                            .then(function (html) {
+                                var v = html && parse(html);
+                                if (v) { v.sw = currentSw(); latest = v; setJson(CACHE_KEY, v); render(); }
+                            })
                             .catch(function () {});
                     }
-                    if ('requestIdleCallback' in window) requestIdleCallback(load, { timeout: 4000 }); else setTimeout(load, 1500);
+                    function schedule(immediate) {
+                        if (immediate) { load(); return; }
+                        if ('requestIdleCallback' in window) requestIdleCallback(load, { timeout: 4000 });
+                        else setTimeout(load, 1500);
+                    }
+                    function staleForSw(c) {
+                        var sw = currentSw();
+                        if (sw && (!c || c.sw !== sw)) return true;
+                        if (!c || !c.at || Date.now() - c.at >= CACHE_MS) return true;
+                        return false;
+                    }
+                    var cached = getJson(CACHE_KEY);
+                    if (cached && cached.id) { latest = cached; render(); }
+                    // Always revalidate. Fetch immediately when the SW version changed or
+                    // the 6h cache expired; otherwise refresh in the background.
+                    if (currentSw() || staleForSw(cached)) {
+                        schedule(staleForSw(cached));
+                    } else {
+                        schedule(false);
+                        var _pnTries = 0, _pnWait = setInterval(function () {
+                            _pnTries += 1;
+                            if (currentSw()) { clearInterval(_pnWait); if (staleForSw(cached)) schedule(true); }
+                            else if (_pnTries >= 20) clearInterval(_pnWait);
+                        }, 100);
+                    }
                 })();
                 </script>
-                <span id="homeTopicCount" hidden>145 topics</span>
-                </div>
                 <div id="homeGuestActions">
                     <button type="button" id="homeGuestCta" class="home-guest-cta" onclick="showUsernamePrompt()">Sign up free and earn sats</button>
                     <button type="button" id="homeWatchIntro" class="home-watch-intro" onclick="watchIntroVideo()">Start Here</button>
