@@ -182,12 +182,12 @@ test('TCTV pot info explains the rate and has an Invite friends button', () => {
     assert.ok(src.includes('role="dialog" aria-label="About the pot of sats"'));
 });
 
-test('pins are 20261120_v2685 and SW is v2685', () => {
+test('pins are 20261120_v2688 and SW is v2688', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    ['notifications.js', 'bip-breakthrough.js', 'tctv-drip.js'].forEach((f) => assert.ok(html.includes(f + '?v=20261120_v2685'), f));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261120_v2685/g) || []).length, 2);
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2685'"));
+    ['notifications.js', 'bip-breakthrough.js', 'tctv-drip.js'].forEach((f) => assert.ok(html.includes(f + '?v=20261120_v2688'), f));
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261120_v2688/g) || []).length, 2);
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2688'"));
 });
 
 console.log(passed + ' passed, ' + failed + ' failed');

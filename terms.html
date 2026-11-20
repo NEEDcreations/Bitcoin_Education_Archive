@@ -11,6 +11,7 @@
         h1 { color: #f7931a; font-size: 1.8rem; margin-bottom: 8px; }
         .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 40px; }
         h2 { color: #f7931a; font-size: 1.15rem; margin-top: 32px; margin-bottom: 12px; }
+        h3 { color: #e0e0e0; font-size: 1rem; margin-top: 20px; margin-bottom: 8px; }
         p, li { color: #ccc; font-size: 0.95rem; margin-bottom: 12px; }
         ul { padding-left: 24px; margin-bottom: 16px; }
         li { margin-bottom: 6px; }
@@ -27,7 +28,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Terms of Service</h1>
-    <p class="subtitle">Last updated: November 12, 2026</p>
+    <p class="subtitle">Last updated: November 20, 2026</p>
 
     <h2>1. Acceptance of Terms</h2>
     <p>By accessing or using the Bitcoin Education Archive website at <a href="https://bitcoineducation.quest">bitcoineducation.quest</a> ("the Site"), you agree to be bound by these Terms of Service. If you do not agree, please do not use the Site.</p>
@@ -488,14 +489,73 @@
     </ul>
 
     <h2 id="odds">16g. Odds</h2>
-    <p>These are the current odds. The server rolls every result. Your browser does not choose it.</p>
+    <p>These are the current odds. The server rolls every result. Your browser does not choose it. Free accounts and Premium accounts get the same odds on every roll. You never need to buy anything to get spins, gifts, ciphers, keys, Orange Tickets or raffle entries, and paying never improves your odds. Percentages are rounded.</p>
+    <h3>Daily spin</h3>
+    <p>Each spin, the server makes one roll on the wheel below. Bonus spins use the same wheel.</p>
+    <table class="odds-table" style="border-collapse:collapse;margin:8px 0 12px;">
+        <thead><tr><th style="text-align:left;padding:4px 16px 4px 0;">Prize</th><th style="text-align:left;padding:4px 0;">Chance per spin</th></tr></thead>
+        <tbody>
+        <tr><td>1 Orange Ticket</td><td>25%</td></tr>
+        <tr><td>2 Orange Tickets</td><td>22%</td></tr>
+        <tr><td>10 XP</td><td>18%</td></tr>
+        <tr><td>3 Orange Tickets</td><td>12%</td></tr>
+        <tr><td>25 XP</td><td>8%</td></tr>
+        <tr><td>Closet item, plus 25 XP</td><td>5%</td></tr>
+        <tr><td>Streak freeze</td><td>4%</td></tr>
+        <tr><td>50 XP</td><td>3%</td></tr>
+        <tr><td>5 Orange Tickets</td><td>1.5%</td></tr>
+        <tr><td>Rare prize (see below)</td><td>1.5%</td></tr>
+        </tbody>
+    </table>
+    <p>If the spin lands on Rare, the server makes a second roll for the Rare prize:</p>
+    <table class="odds-table" style="border-collapse:collapse;margin:8px 0 12px;">
+        <thead><tr><th style="text-align:left;padding:4px 16px 4px 0;">Rare prize</th><th style="text-align:left;padding:4px 16px 4px 0;">If Rare</th><th style="text-align:left;padding:4px 0;">On any single spin</th></tr></thead>
+        <tbody>
+        <tr><td>10 Orange Tickets</td><td>60.1%</td><td>about 1 in 111</td></tr>
+        <tr><td>25 Orange Tickets</td><td>30.1%</td><td>about 1 in 222</td></tr>
+        <tr><td>50 Orange Tickets</td><td>6.0%</td><td>about 1 in 1,109</td></tr>
+        <tr><td>100 Orange Tickets</td><td>3.0%</td><td>about 1 in 2,217</td></tr>
+        <tr><td>500 Orange Tickets</td><td>0.6%</td><td>about 1 in 11,087</td></tr>
+        <tr><td>1,000 Orange Tickets</td><td>0.18%</td><td>about 1 in 36,956</td></tr>
+        </tbody>
+    </table>
+    <ul>
+        <li>On the 7th daily spin of a completed BIP Breakthrough week, the spin always lands on Rare. The Rare prize is then rolled as above</li>
+        <li>XP from a spin follows the daily XP limits and Double XP like any other XP. Orange Tickets and streak freezes are never doubled</li>
+        <li>Orange Tickets that Premium members convert from XP beyond the 10 a day every player can convert can't be used for bonus spins, raffle entries, or Nook items that raise your chance in Satoshi's Favor (Hash Booster, Second Mining Rig and Spam Hasher)</li>
+    </ul>
+    <h3>Gift drop</h3>
+    <p>Each daily gift drop gives 2 gifts (15%), 3 gifts (40%), 4 gifts (30%) or 5 gifts (15%). Each gift then gets one roll:</p>
+    <table class="odds-table" style="border-collapse:collapse;margin:8px 0 12px;">
+        <thead><tr><th style="text-align:left;padding:4px 16px 4px 0;">Gift</th><th style="text-align:left;padding:4px 16px 4px 0;">Chance per gift</th><th style="text-align:left;padding:4px 0;">Details</th></tr></thead>
+        <tbody>
+        <tr><td>Orange Tickets</td><td>29.5%</td><td>1 ticket (55%), 2 (30%) or 3 (15%)</td></tr>
+        <tr><td>Locked cipher</td><td>28%</td><td>1 cipher (70%) or 2 (30%)</td></tr>
+        <tr><td>Key</td><td>22%</td><td>Always 1 key</td></tr>
+        <tr><td>XP</td><td>12%</td><td>50 XP (50%), 100 (35%) or 150 (15%)</td></tr>
+        <tr><td>Streak shield</td><td>5%</td><td></td></tr>
+        <tr><td>Closet item</td><td>3%</td><td></td></tr>
+        <tr><td>Nacho shoutout</td><td>0.5%</td><td></td></tr>
+        </tbody>
+    </table>
+    <ul>
+        <li>If you hold locked ciphers with no matching key, about 70% of key drops match one of them. If you hold keys with no matching cipher, about 70% of cipher picks match one of them. This changes which label you get, not the chance of a key or cipher</li>
+    </ul>
+    <h3>Orange Ticket raffle</h3>
+    <ul>
+        <li>One winner is drawn at 18:00 UTC on the 1st of each month using cryptographically secure randomness. Each entry is one equal chance, so your odds are your entries divided by all entries in that draw</li>
+        <li>You can get up to 150 entries per UTC month in Nacho's Nook. Entries go back to zero after each draw</li>
+        <li>Entries are bought only with Orange Tickets earned through play. They can't be bought with money, and Orange Tickets that Premium members convert from XP beyond the 10 a day every player can convert can't be used for entries</li>
+        <li>Accounts that are banned, or have sats or withdrawals turned off, are left out of the draw. If that applies to your account, don't buy entries, because they can't win</li>
+        <li>The prize, eligibility, how winners are told and how to claim are in the <a href="/raffle-rules.html">Orange Ticket Raffle Official Rules</a>, which also apply</li>
+    </ul>
     <h3>Satoshi's Favor</h3>
     <ul>
         <li>Each hash is a random number from 0 to 100,000,000. A hash below the current difficulty of 25,000 solves a block. That is about 1 in 4,000 per hash (about 0.025%). The difficulty is adjusted each time an epoch fills 5 of 5 blocks, aiming for about one epoch every 14 days to fit the monthly payout budget, and moves at most 4× per adjustment. The current value in Satoshi's Favor is the one that applies</li>
+        <li>Hash Booster, Second Mining Rig and Spam Hasher from Nacho's Nook let you make more hashes, which raises your chance of solving a block. They are bought only with Orange Tickets earned through play, never with money, and not with Orange Tickets converted with the Premium perk beyond the free 10 a day</li>
     </ul>
     <h3>Locked cipher sats</h3>
     <p>Each time you open a locked cipher, the server makes one roll. These are the odds of each sats prize on a single open. If no sats prize is rolled, the open pays XP and may include Orange Tickets instead.</p>
-    <p>Locked Cipher rolls and other random rewards use the same odds for free accounts and Premium accounts. Premium does not buy a better chance.</p>
     <table class="odds-table" style="border-collapse:collapse;margin:8px 0 12px;">
         <thead><tr><th style="text-align:left;padding:4px 16px 4px 0;">Prize</th><th style="text-align:left;padding:4px 0;">Odds per open</th></tr></thead>
         <tbody>
@@ -514,8 +574,10 @@
         </tbody>
     </table>
     <ul>
-        <li>Odds can change at any time. We update this section when they do</li>
-        <li>Winning a roll does not guarantee a payout. Payouts depend on the prize pool available at the time, and the sats rules in Section 6 and the eligibility rules in these Terms still apply</li>
+        <li>Odds can change at any time. We update this section before a change takes effect, and a change never affects a roll that has already been made</li>
+        <li>If you win a sats prize, we pay it once we confirm your account is eligible under Section 6 and these Terms, including the age, account and anti-abuse rules. If the prize pool is ever too low to pay a win right away, the win is kept and paid later, in the order it was won, and we will contact you in the app to arrange payment. If the pool is running low, we may lower the odds or pause a reward ahead of time, and we will update this section first</li>
+        <li>Sats prizes are only for eligible accounts and follow the age rules in Section 6. Accounts for players under 18 and Classroom accounts can't win sats. Void where prohibited. You are responsible for any taxes on what you win, and we may ask for tax information, such as a Form W-9, where the law requires it</li>
+        <li>A plain-language summary of these odds, with the reset times, is at <a href="/resets.html#odds">Resets, Timelines &amp; Odds</a></li>
     </ul>
 
     <h2>17. User Profiles & Online Status</h2>
@@ -554,7 +616,7 @@
     </ul>
 
     <h2>20. Giveaways &amp; Raffles</h2>
-    <p>Raffles and giveaways, when offered, are governed by the Official Rules for that raffle or giveaway. Those rules control eligibility, how to enter, the drawing, and prizes. This section only points to them. It is not the Official Rules.</p>
+    <p>Raffles and giveaways, when offered, are governed by the Official Rules for that raffle or giveaway. Those rules control eligibility, how to enter, the drawing, and prizes. This section only points to them. It is not the Official Rules. The monthly Orange Ticket raffle is governed by the <a href="/raffle-rules.html">Orange Ticket Raffle Official Rules</a>, which include a free way to enter by email.</p>
     <p>Each valid entry has an equal chance. Premium does not buy a better chance. You must be 18 or older to enter. Where the law requires no purchase necessary, the Official Rules will include a free way to enter. Buying Premium, sending a tip, or any other payment is not required to enter and does not increase your odds.</p>
     <p>Entries come only from Orange Tickets you earned (also called OrangeTix), including entries you spend those earned tickets on in the in-app shop. Orange Tickets that come from a paid allowance, including any tickets that come with Premium, do not count toward a raffle or giveaway and do not change your odds. Paid money does not buy entries.</p>
     <p>Prizes are discretionary. We may cancel, modify, suspend, or substitute a prize. When a prize is paid, it is sent over the Bitcoin Lightning Network to a Lightning address you provide. You are responsible for any taxes on a prize.</p>

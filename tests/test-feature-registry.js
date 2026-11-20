@@ -485,7 +485,7 @@ test('show/open/enter navigation openers are in the registry', function () {
         'showGuideBanner', 'showGuideReturnBtn', 'showImagePreview', 'showLevelUpCelebration',
         'showMinerModal', 'showOverlayBtn', 'showPWAAuthFallback', 'showPartnershipLevelUpPopup', 'showOptInCard', 'openNotificationSettings',
         'showCipherShareReveal', 'showPostSpinGiftModal', 'showQuestFinalResults', 'showReactPicker', 'showSignInOnly',
-        'showSignInPrompt', 'showSkeletonLoader', 'showSpinReward', 'showToast', 'showTrendingTopics',
+        'showSignInPrompt', 'showSkeletonLoader', 'showSpinReward', 'showSpinAlreadyCounted', 'showToast', 'showTrendingTopics',
         'showTroubleSigningIn', 'showUserProfile', 'showUserProfileByUsername',
         'openCertification',
         'openNow',
