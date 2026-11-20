@@ -8970,9 +8970,31 @@ var FORUM_RULES = [
     { emoji: '👮', title: 'Moderators Have Final Say', desc: 'Posts that violate these rules will be removed without notice. Repeat offenders may be banned. If you see a rule violation, report it.' },
 ];
 
+// Shared rules sheet layout (PlebTalk + LightningMart). The overlay sits above the
+// bottom nav, chat bubble, spin pill and Quest pill, the rules list scrolls, and the
+// Accept button lives in a footer outside the list so it is always visible on phones.
+function _bqEnsureRulesSheetCss() {
+    if (document.getElementById('bqRulesSheetCss')) return;
+    var st = document.createElement('style');
+    st.id = 'bqRulesSheetCss';
+    st.textContent =
+        '.bq-rules-overlay{position:fixed;inset:0;z-index:2100005;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px));background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}' +
+        '.bq-rules-card{--heading:#f8fafc;--text-muted:#94a3b8;--text:#e2e8f0;color:#e2e8f0;display:flex;flex-direction:column;box-sizing:border-box;width:100%;max-width:480px;max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow:hidden;background:rgba(15,23,42,0.96);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;}' +
+        '.bq-rules-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:24px 24px 8px;}' +
+        '.bq-rules-footer{flex:0 0 auto;padding:12px 24px max(16px,env(safe-area-inset-bottom,0px));border-top:1px solid rgba(255,255,255,0.08);background:rgba(15,23,42,1);}' +
+        '.bq-rules-accept{display:block;width:100%;min-height:48px;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;}' +
+        'body:has(.bq-rules-overlay) #spinReminderFab,body:has(.bq-rules-overlay) .fab-btn,body:has(.bq-rules-overlay) #fabExpandBtn,' +
+        'body:has(.bq-rules-overlay) #nachoQuestPill,body:has(.bq-rules-overlay) #nachoHideBtn,body:has(.bq-rules-overlay) #sfFloatWidget,' +
+        'body:has(.bq-rules-overlay) #backToTop,body:has(.bq-rules-overlay) #scrollToBottom,body:has(.bq-rules-overlay) #mobileSignUpPill,' +
+        'body:has(.bq-rules-overlay) #invitePill,body:has(.bq-rules-overlay) #inviteGuestPill{visibility:hidden !important;pointer-events:none !important;}';
+    document.head.appendChild(st);
+}
+window._bqEnsureRulesSheetCss = _bqEnsureRulesSheetCss;
+
 function showForumRules(force) {
-    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){acceptForumRules()}">' +
-        '<div style="background:rgba(15,23,42,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;-webkit-overflow-scrolling:touch;">' +
+    if (typeof window._bqEnsureRulesSheetCss === 'function') window._bqEnsureRulesSheetCss();
+    var html = '<div class="bq-rules-overlay" role="dialog" aria-modal="true" onclick="if(event.target===this){acceptForumRules()}">' +
+        '<div class="bq-rules-card"><div class="bq-rules-scroll">' +
             '<div style="text-align:center;margin-bottom:16px;">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">📜</div>' +
                 '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 4px;">PlebTalk Rules</h2>' +
@@ -8990,7 +9012,7 @@ function showForumRules(force) {
         '</div>';
     }
 
-    html += '<button onclick="acceptForumRules()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;touch-action:manipulation;">I Understand — Let\'s Discuss Bitcoin! 🦌</button>';
+    html += '</div><div class="bq-rules-footer"><button type="button" class="bq-rules-accept" onclick="acceptForumRules()">I Understand — Let\'s Discuss Bitcoin! 🦌</button></div>';
     html += '</div></div>';
 
     var div = document.createElement('div');
@@ -11580,8 +11602,9 @@ var MARKETPLACE_RULES = [
 ];
 
 function showMarketRules(force) {
-    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
-        '<div style="background:rgba(15,23,42,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;-webkit-overflow-scrolling:touch;">' +
+    if (typeof window._bqEnsureRulesSheetCss === 'function') window._bqEnsureRulesSheetCss();
+    var html = '<div class="bq-rules-overlay" role="dialog" aria-modal="true" onclick="if(event.target===this){this.parentNode&&this.parentNode.remove()}">' +
+        '<div class="bq-rules-card"><div class="bq-rules-scroll">' +
             '<div style="text-align:center;margin-bottom:16px;">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">⚡</div>' +
                 '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 4px;">LightningMart Rules</h2>' +
@@ -11599,7 +11622,7 @@ function showMarketRules(force) {
         '</div>';
     }
 
-    html += '<button onclick="acceptMarketRules()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;touch-action:manipulation;">I Understand — Let\'s Trade! ⚡</button>';
+    html += '</div><div class="bq-rules-footer"><button type="button" class="bq-rules-accept" onclick="acceptMarketRules()">I Understand — Let\'s Trade! ⚡</button></div>';
     html += '</div></div>';
 
     var div = document.createElement('div');
