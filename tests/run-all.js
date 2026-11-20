@@ -23,6 +23,7 @@ const TESTS = [
     { name: '5-tier badges', file: 'test-badge-tiers.js' },
     { name: 'Nov 4 batch', file: 'test-nov4-batch.js' },
     { name: 'Chat easter eggs', file: 'test-chat-easter-eggs.js' },
+    { name: 'Chat GIFs (Global chat + DMs)', file: 'test-chat-gifs.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
     { name: 'Auth display snapshot', file: 'test-auth-display.js' },
     { name: 'XP line opens leaderboard', file: 'test-xp-leaderboard-link.js' },

@@ -8874,8 +8874,9 @@ exports.searchGifs = functionsV1.https.onCall(async (data, context) => {
     if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Sign in required');
     }
-    const query = (data.query || '').trim().slice(0, 100);
-    const limit = Math.min(Math.max(parseInt(data.limit) || 20, 1), 50);
+    const gifSearch = require('./src/gifSearch');
+    const query = gifSearch.clampQuery(data && data.query);
+    const limit = gifSearch.clampLimit(data && data.limit);
     if (!query) return { results: [] };
 
     // Giphy API (replaces discontinued Tenor v1 / blocked Tenor v2 key)
@@ -8884,24 +8885,14 @@ exports.searchGifs = functionsV1.https.onCall(async (data, context) => {
         + '?api_key=' + GIPHY_KEY
         + '&q=' + encodeURIComponent(query)
         + '&limit=' + limit
-        + '&rating=pg-13'
+        + '&rating=' + gifSearch.GIPHY_RATING
         + '&lang=en';
 
     try {
         const resp = await fetch(url);
         const json = await resp.json();
-        if (!json.data || !Array.isArray(json.data)) return { results: [] };
-        // Map Giphy response to same {thumb, full} shape the client expects
-        const results = json.data.map(function(gif) {
-            const images = gif.images || {};
-            const thumb = (images.fixed_height_small && images.fixed_height_small.url)
-                       || (images.fixed_height && images.fixed_height.url)
-                       || '';
-            const full  = (images.original && images.original.url)
-                       || (images.fixed_height && images.fixed_height.url)
-                       || thumb;
-            return { thumb, full };
-        }).filter(function(r) { return r.thumb; });
+        // Smaller renditions only, Giphy media hosts only. See src/gifSearch.js.
+        const results = gifSearch.mapGiphyResults(json);
         return { results };
     } catch (e) {
         console.error('[searchGifs]', e.message);
