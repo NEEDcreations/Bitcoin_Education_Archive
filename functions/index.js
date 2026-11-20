@@ -2015,8 +2015,9 @@ exports.claimSats = functionsV1.runWith({
 
             const authCreation = new Date(userRecord.metadata.creationTime);
             const accountDays = Math.max(1, Math.floor((Date.now() - authCreation.getTime()) / 86400000));
-            const maxReasonablePoints = (accountDays * 500) + 2100;
-            if (userPoints > maxReasonablePoints) {
+            const maxReasonablePoints = faucetGuard.maxReasonablePoints(accountDays);
+            const suspiciousPoints = userPoints > maxReasonablePoints;
+            if (suspiciousPoints) {
                 console.error('[FAUCET] SUSPICIOUS (allowed): uid=' + uid + ' has ' + userPoints + ' pts but max reasonable=' + maxReasonablePoints + ' for ' + accountDays + ' day account');
             }
 
@@ -2215,7 +2216,7 @@ exports.claimSats = functionsV1.runWith({
                     lockedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
             }
-            t.set(signalRef, {
+            const signalData = {
                 uid: uid,
                 displayName: displayName,
                 fingerprint: fpId,
@@ -2224,7 +2225,14 @@ exports.claimSats = functionsV1.runWith({
                 lightningAddress: lnNorm,
                 updatedAtMs: nowMs,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
+            };
+            if (suspiciousPoints) {
+                signalData.suspiciousPoints = true;
+                signalData.suspiciousPointsAt = nowMs;
+                signalData.suspiciousPointsThreshold = maxReasonablePoints;
+                signalData.suspiciousPointsValue = userPoints;
+            }
+            t.set(signalRef, signalData, { merge: true });
         });
     } catch (e) {
         const raw = e && e.message ? String(e.message) : '';

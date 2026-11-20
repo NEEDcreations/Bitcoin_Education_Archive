@@ -17,6 +17,14 @@ const SUPPORT_EMAIL = 'info.603btc@gmail.com';
 const LN_LOCK_COPY = 'You can only add one lightning address to your account, and it can\'t be changed later. If you ever need to change it, email support at ' + SUPPORT_EMAIL + '.';
 const SATS_DISABLED_ERROR = 'Sats withdrawals are disabled on this account. Contact support if you believe this is an error.';
 
+// Reasonable points ceiling for an account of a given age, used to flag (not
+// block) accounts minting points faster than the ~500/day expected pace.
+// 2100 is the allowance before the daily cadence is established.
+function maxReasonablePoints(accountDays) {
+    const days = Math.max(1, Math.floor(Number(accountDays) || 1));
+    return (days * 500) + 2100;
+}
+
 function supportError(lead) {
     return lead + ' Email support at ' + SUPPORT_EMAIL + '.';
 }
@@ -548,6 +556,7 @@ module.exports = {
     validLightningAddress: validLightningAddress,
     requireLightningAddress: requireLightningAddress,
     assessClaimAmount: assessClaimAmount,
+    maxReasonablePoints: maxReasonablePoints,
     publicDisplayName: publicDisplayName,
     assessBan: assessBan,
     assessAddressLock: assessAddressLock,
