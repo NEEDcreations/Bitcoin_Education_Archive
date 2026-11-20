@@ -198,11 +198,12 @@ var REACT_EMOJIS_EXPANDED = ['👍','👎','❤️','😂','🔥','⚡','🤔','
 var _reactExpanded = false;
 var IMG_REGEX = /https?:\/\/[^\s<]+\.(?:gif|png|jpg|jpeg|webp)(\?[^\s<]*)?/i;
 // Allowlist for externally-supplied media URLs (pasted GIFs, images).
-// Only Firebase Storage and the Tenor CDN (GIF search results) are permitted.
+// Only Firebase Storage and the GIF search CDNs (Giphy, Tenor) are permitted.
 // This blocks trackers, lookalike domains, and large/arbitrary hosts.
-var ALLOWED_MEDIA_HOSTS = /^https:\/\/(?:firebasestorage\.googleapis\.com|[^/]*\.firebasestorage\.app|media\.tenor\.com|c\.tenor\.com)\//i;
+var ALLOWED_MEDIA_HOSTS = /^https:\/\/(?:firebasestorage\.googleapis\.com|[a-z0-9-]+\.firebasestorage\.app|media[0-9]?\.giphy\.com|i\.giphy\.com|media\.tenor\.com|c\.tenor\.com)\//i;
 function isAllowedChatMediaUrl(url) {
     if (!url || typeof url !== 'string') return false;
+    if (window.bqGif && typeof window.bqGif.hostOk === 'function') return window.bqGif.hostOk(url);
     if (!url.match(/^https:\/\//i)) return false;
     return ALLOWED_MEDIA_HOSTS.test(url);
 }
@@ -669,7 +670,15 @@ function renderChatMessages(msgs) {
             html += '</div>';
         }
         if (m.isGif && m.text && (IMG_REGEX.test(m.text) || /^data:image\/(jpeg|jpg|png|gif|webp);base64,/.test(m.text))) {
-            html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
+            if (/^data:image\//.test(m.text)) {
+                html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
+            } else if (window.bqGif && window.bqGif.isGifUrl(m.text)) {
+                html += window.bqGif.html(m.text, { maxHeight: 200 });
+            } else if (isAllowedChatMediaUrl(m.text)) {
+                html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">';
+            } else {
+                html += '<div style="color:var(--text-faint);font-size:0.72rem;font-style:italic;margin-top:2px;">GIF hidden (unsupported source)</div>';
+            }
             if (m.caption) html += isOfficialUpdatesSender(m) ? officialChatBodyMarkup('margin-top:4px;') : '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-top:4px;">' + formatChatText(esc(m.caption), m.mentionUid) + '</div>';
         } else if (m.imageUrl || m.gifUrl) {
             var mediaSrc = m.imageUrl || m.gifUrl;
@@ -677,6 +686,8 @@ function renderChatMessages(msgs) {
             if (m.gifUrl && /\.mp4(\?|$)/i.test(mediaSrc)) {
                 // Telegram MP4 animations need a video element, not img
                 html += '<video src="' + esc(mediaSrc) + '" autoplay loop muted playsinline style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;" onerror="this.style.display=\'none\'"></video>';
+            } else if (window.bqGif && window.bqGif.isGifUrl(mediaSrc)) {
+                html += window.bqGif.html(mediaSrc, { maxHeight: 200 });
             } else {
                 html += '<img src="' + esc(mediaSrc) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy" onerror="this.style.display=\'none\'">';
             };
@@ -1313,6 +1324,17 @@ window.cancelReply = function() {
     if (banner) banner.style.display = 'none';
 };
 
+// Same content rules as a text message (profanity, links, spam, phone/email).
+function _gcCaptionProblem(caption) {
+    var t = String(caption || '');
+    if (typeof containsProfanity === 'function' && containsProfanity(t)) return '🚫 Caption contains inappropriate language.';
+    if (/https?:\/\/\S+|www\.\S+|\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\b/i.test(t)) return '🔗 Links are not allowed in chat.';
+    if (typeof isSpammy === 'function' && isSpammy(t)) return '🚫 Caption flagged as spam. Please write normally.';
+    if (/\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/.test(t) || /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(t)) return '🔒 Phone numbers and email addresses are not allowed in public chat.';
+    return '';
+}
+window._gcCaptionProblem = _gcCaptionProblem;
+
 // ---- Paste Image Handling ----
 function handlePaste(e) {
     var items = (e.clipboardData || e.originalEvent.clipboardData).items;
@@ -1427,6 +1449,11 @@ window.sendGlobalChat = function() {
         var isGif = window._chatPendingIsGif;
         var captionInput = _gcActiveInput();
         var caption = captionInput ? captionInput.value.trim() : '';
+        // A caption on a GIF or image gets the same checks as a text message.
+        if (caption && window._isAdminClaim !== true) {
+            var _capErr = _gcCaptionProblem(caption);
+            if (_capErr) { if (typeof showToast === 'function') showToast(_capErr, 5000); return; }
+        }
         window._chatPendingImage = null;
         window._chatPendingImageBlob = null;
         window._chatPendingImageType = null;
@@ -2581,8 +2608,8 @@ window.searchGifs = function(query) {
                 for (var i = 0; i < results.length; i++) {
                     var url = results[i].thumb;
                     var fullUrl = results[i].full || url;
-                    if (!url) continue;
-                    html += '<img src="' + url + '" onclick="previewGifBeforeSend(\'' + fullUrl.replace(/[\\'"]/g, "") + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
+                    if (!url || !isAllowedChatMediaUrl(url) || !isAllowedChatMediaUrl(fullUrl)) continue;
+                    html += '<img src="' + esc(url) + '" alt="GIF" referrerpolicy="no-referrer" onclick="previewGifBeforeSend(\'' + fullUrl.replace(/[\\'"]/g, "") + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
                 }
                 el.innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No GIFs found</div>';
             })
@@ -2594,6 +2621,7 @@ window.searchGifs = function(query) {
 
 window.previewGifBeforeSend = function(url) {
     if (!url) return;
+    if (!isAllowedChatMediaUrl(url)) { if (typeof showToast === 'function') showToast('GIF source not allowed'); return; }
     // Close the GIF picker
     var picker = document.getElementById('gifPicker');
     if (picker) picker.remove();
@@ -2606,7 +2634,7 @@ window.previewGifBeforeSend = function(url) {
     preview.id = 'chatImagePreview';
     preview.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.3);border-radius:10px;margin-bottom:6px;';
     preview.innerHTML =
-        '<img src="' + url + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">' +
+        '<img src="' + esc(url) + '" referrerpolicy="no-referrer" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">' +
         '<div style="flex:1;min-width:0;"><div style="color:var(--text);font-size:0.8rem;font-weight:600;">GIF ready</div><div style="color:var(--text-faint);font-size:0.7rem;">Press Send to share</div></div>' +
         '<button onclick="cancelImagePreview()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;">✕</button>';
     var containers = document.querySelectorAll('#globalChatInput');
@@ -2955,9 +2983,22 @@ function compressAndPreview(file) {
 function readAndPreview(file) {
     // Used for GIFs/PNGs where we don't recompress. Keep the original File for upload.
     if (file.size > 5 * 1024 * 1024) {
-        if (typeof showToast === 'function') showToast('Image too large. Max 5MB.');
+        if (typeof showToast === 'function') showToast(file.type === 'image/gif' ? 'GIF too large. Max 5MB.' : 'Image too large. Max 5MB.');
         return;
     }
+    // GIFs keep their animation (no canvas recompress). Check the bytes really are a GIF first.
+    if (file.type === 'image/gif' && window.bqGif && file.slice && typeof Blob !== 'undefined' && Blob.prototype.arrayBuffer) {
+        file.slice(0, 4).arrayBuffer().then(function(buf) {
+            var err = window.bqGif.fileCheck(file, new Uint8Array(buf));
+            if (err) { if (typeof showToast === 'function') showToast(err); return; }
+            _readAndPreviewOk(file);
+        }).catch(function() { _readAndPreviewOk(file); });
+        return;
+    }
+    _readAndPreviewOk(file);
+}
+
+function _readAndPreviewOk(file) {
     var reader = new FileReader();
     reader.onload = function(e) {
         var dataUrl = e.target.result;

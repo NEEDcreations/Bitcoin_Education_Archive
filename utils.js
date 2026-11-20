@@ -266,3 +266,93 @@ function censorText(text) {
         try { _log.apply(console, arguments); } catch (e) {}
     };
 })();
+
+// ---- Chat GIFs (Global chat + DMs) ------------------------------------------
+// BQ_GIF_START
+// Shared rules for showing GIFs in chat. A GIF is shown only from our own
+// Storage or the GIF search CDNs. It lazy-loads, has a tap-to-pause button,
+// and with reduced motion on it waits for a tap before it plays.
+(function (root) {
+    var GIF_MAX_BYTES = 5 * 1024 * 1024;
+    var GIF_HOSTS = /^https:\/\/(?:firebasestorage\.googleapis\.com|[a-z0-9-]+\.firebasestorage\.app|media[0-9]?\.giphy\.com|i\.giphy\.com|media\.tenor\.com|c\.tenor\.com)\/[^\s"'<>]+$/i;
+    function hostOk(url) {
+        return typeof url === 'string' && url.length <= 2048 && GIF_HOSTS.test(url);
+    }
+    function isGifUrl(url) {
+        if (!hostOk(url)) return false;
+        return /\.gif(?:\?|$)/i.test(url) || /%2F[^/?]*\.gif(?:\?|$)/i.test(url) || /^https:\/\/(?:media[0-9]?\.giphy\.com|i\.giphy\.com|media\.tenor\.com|c\.tenor\.com)\//i.test(url);
+    }
+    // A file is a GIF only when the type says so and its bytes start with GIF8.
+    function fileCheck(file, headBytes) {
+        if (!file) return 'No file';
+        if (file.type !== 'image/gif') return 'Not a GIF';
+        if (!(file.size > 0)) return 'Empty file';
+        if (file.size > GIF_MAX_BYTES) return 'GIF too large (max 5MB)';
+        if (headBytes) {
+            var b = headBytes;
+            if (b.length < 4 || b[0] !== 0x47 || b[1] !== 0x49 || b[2] !== 0x46 || b[3] !== 0x38) return 'Not a GIF';
+        }
+        return '';
+    }
+    function escAttr(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function reducedMotion() {
+        try { return !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+    }
+    // HTML for one GIF. Returns '' for a URL we will not load.
+    function html(url, opts) {
+        if (!hostOk(url)) return '';
+        opts = opts || {};
+        var maxH = Math.max(80, Math.min(320, parseInt(opts.maxHeight, 10) || 200));
+        var src = escAttr(url);
+        var wrap = '<span class="bq-gif" data-bq-gif style="position:relative;display:inline-block;max-width:100%;margin-top:2px;">';
+        var btnCss = 'position:absolute;left:6px;bottom:6px;padding:2px 7px;border-radius:8px;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:0.62rem;font-weight:800;letter-spacing:0.5px;cursor:pointer;font-family:inherit;';
+        var imgCss = 'max-width:100%;max-height:' + maxH + 'px;border-radius:8px;display:block;cursor:pointer;';
+        var open = ' onclick="if(typeof enlargeChatImage===\'function\')enlargeChatImage(this.src);else window.open(this.src,\'_blank\',\'noopener\')"';
+        if (opts.reducedMotion === true || (opts.reducedMotion !== false && reducedMotion())) {
+            return wrap + '<button type="button" data-gif-src="' + src + '" onclick="bqGifToggle(this)" aria-label="Play GIF" style="padding:18px 26px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:800;cursor:pointer;font-family:inherit;">▶ GIF</button></span>';
+        }
+        return wrap + '<img src="' + src + '" alt="GIF" loading="lazy" decoding="async" referrerpolicy="no-referrer"' + open + ' onerror="this.parentNode.style.display=\'none\'" style="' + imgCss + '">' +
+            '<button type="button" onclick="event.stopPropagation();bqGifToggle(this)" aria-label="Pause GIF" style="' + btnCss + '">❚❚</button></span>';
+    }
+    // Tap to pause/play. Pause freezes the current frame onto a canvas.
+    function toggle(btn) {
+        if (!btn || !btn.parentNode) return;
+        var box = btn.parentNode;
+        var pending = btn.getAttribute('data-gif-src');
+        if (pending) {
+            var tmp = root.document.createElement('span');
+            tmp.innerHTML = html(pending, { reducedMotion: false });
+            var fresh = tmp.firstChild;
+            if (fresh && box.parentNode) box.parentNode.replaceChild(fresh, box);
+            return;
+        }
+        var img = box.querySelector('img');
+        var frozen = box.querySelector('canvas');
+        if (!img) return;
+        if (frozen) {
+            frozen.parentNode.removeChild(frozen);
+            img.style.visibility = '';
+            btn.textContent = '❚❚';
+            btn.setAttribute('aria-label', 'Pause GIF');
+            return;
+        }
+        try {
+            var c = root.document.createElement('canvas');
+            c.width = img.naturalWidth || img.width;
+            c.height = img.naturalHeight || img.height;
+            c.style.cssText = 'position:absolute;left:0;top:0;width:' + img.offsetWidth + 'px;height:' + img.offsetHeight + 'px;border-radius:8px;pointer-events:none;';
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            box.insertBefore(c, btn);
+            img.style.visibility = 'hidden';
+            btn.textContent = '▶';
+            btn.setAttribute('aria-label', 'Play GIF');
+        } catch (e) {}
+    }
+    var api = { MAX_BYTES: GIF_MAX_BYTES, hostOk: hostOk, isGifUrl: isGifUrl, fileCheck: fileCheck, html: html, toggle: toggle };
+    root.bqGif = api;
+    root.bqGifToggle = toggle;
+    if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window !== 'undefined' ? window : this);
+// BQ_GIF_END

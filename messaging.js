@@ -940,6 +940,26 @@ function checkRateLimit() {
     return _msgSentTimestamps.length < MSG_CONFIG.maxMsgsPerHour;
 }
 
+// Images and GIFs in DMs count against the same limits as text:
+// block list, hourly rate limit and the new-recipient daily cap.
+function _dmMediaGuard(recipientUid) {
+    if (typeof isUserBlocked === 'function' && isUserBlocked(recipientUid)) {
+        if (typeof showToast === 'function') showToast('🚫 You have blocked this user');
+        return false;
+    }
+    if (!_canStartNewConvo(recipientUid)) {
+        if (typeof showToast === 'function') showToast('⏳ Daily limit for new conversations reached');
+        return false;
+    }
+    if (!checkRateLimit()) {
+        if (typeof showToast === 'function') showToast('⏳ Slow down! Max ' + MSG_CONFIG.maxMsgsPerHour + ' messages per hour.');
+        return false;
+    }
+    _msgSentTimestamps.push(Date.now());
+    _logNewConvo(recipientUid);
+    return true;
+}
+
 // Get or create a conversation between two users
 function getConversationId(uid1, uid2) {
     // Deterministic: always sort UIDs so both users get same convo ID
@@ -1148,7 +1168,9 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 var msgText = linkifyText(escapeHtml(m.text)).replace(/\n/g, '<br>');
                 // Image support
                 var imgHtml = '';
-                if (m.imageUrl) {
+                if (m.imageUrl && window.bqGif && (m.isGif === true || window.bqGif.isGifUrl(m.imageUrl)) && window.bqGif.hostOk(m.imageUrl)) {
+                    imgHtml = '<div style="margin:' + (m.text ? '6px 0 0' : '0') + ';">' + window.bqGif.html(m.imageUrl, { maxHeight: 250 }) + '</div>';
+                } else if (m.imageUrl) {
                     imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
                 }
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
@@ -1219,7 +1241,7 @@ window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
         return;
     }
     if (file.size > 5 * 1024 * 1024) {
-        if (typeof showToast === 'function') showToast('Image too large (max 5MB)');
+        if (typeof showToast === 'function') showToast(file.type === 'image/gif' ? 'GIF too large (max 5MB)' : 'Image too large (max 5MB)');
         return;
     }
 
@@ -1227,6 +1249,19 @@ window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
         if (typeof showToast === 'function') showToast('Sign in to send images');
         return;
     }
+    // GIFs upload as-is so they keep their animation. Check the bytes first.
+    if (file.type === 'image/gif' && window.bqGif && !input._gifChecked && file.slice && typeof Blob !== 'undefined' && Blob.prototype.arrayBuffer) {
+        file.slice(0, 4).arrayBuffer().then(function(buf) {
+            var err = window.bqGif.fileCheck(file, new Uint8Array(buf));
+            if (err) { if (typeof showToast === 'function') showToast(err); return; }
+            handleDMImage({ files: [file], value: '', _gifChecked: true }, convoId, recipientUid, recipientName);
+        }).catch(function() {
+            handleDMImage({ files: [file], value: '', _gifChecked: true }, convoId, recipientUid, recipientName);
+        });
+        return;
+    }
+    if (!_dmMediaGuard(recipientUid)) return;
+    var _isGifFile = file.type === 'image/gif';
 
     var storage = null;
     try { storage = firebase.storage(); } catch(e) {}
@@ -1272,9 +1307,10 @@ window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
                 imageUrl: url,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
+            if (_isGifFile) msgData.isGif = true;
 
             var convoUpdateData = {
-                lastMessage: '📷 Image',
+                lastMessage: _isGifFile ? 'GIF' : '📷 Image',
                 lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
                 lastSenderUid: uid
             };
@@ -1282,14 +1318,14 @@ window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
 
             // Notify recipient
             if (typeof sendNotification === 'function') {
-                sendNotification(recipientUid, 'dm', '📷 Image from @' + myName, 'dm', convoId);
+                sendNotification(recipientUid, 'dm', (_isGifFile ? 'GIF from @' : '📷 Image from @') + myName, 'dm', convoId);
             }
 
             return convoRef.update(convoUpdateData).catch(function(err) {
                 if (err.code === 'not-found' || err.message.indexOf('NOT_FOUND') !== -1) {
                     var createData = {
                         participants: [uid, recipientUid],
-                        lastMessage: '📷 Image',
+                        lastMessage: _isGifFile ? 'GIF' : '📷 Image',
                         lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
                         lastSenderUid: uid
                     };
@@ -1303,7 +1339,7 @@ window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
             }).then(function() {
                 return convoRef.collection('messages').add(msgData);
             }).then(function() {
-                if (typeof showToast === 'function') showToast('📷 Image sent!');
+                if (typeof showToast === 'function') showToast(_isGifFile ? 'GIF sent!' : '📷 Image sent!');
                 if (container && document.getElementById('dmMessages')) {
                     loadDMMessages(convoId, uid, recipientUid, recipientName);
                 }
@@ -1382,8 +1418,8 @@ window.searchDMGifs = function(query) {
                 for (var i = 0; i < results.length; i++) {
                     var url = results[i].thumb;
                     var fullUrl = results[i].full || url;
-                    if (!url) continue;
-                    html += '<img src="' + url + '" onclick="sendDMGif(\'' + fullUrl.replace(/[\\'"]/g, '') + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
+                    if (!url || !window.bqGif || !window.bqGif.hostOk(url) || !window.bqGif.hostOk(fullUrl)) continue;
+                    html += '<img src="' + escapeHtml(url) + '" alt="GIF" referrerpolicy="no-referrer" onclick="sendDMGif(\'' + fullUrl.replace(/[\\'"]/g, '') + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
                 }
                 el.innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No GIFs found</div>';
             })
@@ -1404,6 +1440,15 @@ window.sendDMGif = function(gifUrl) {
     if (!gifUrl) return;
     var convo = window._dmGifConvo;
     if (!convo) { if (typeof showToast === 'function') showToast('Error: no conversation context'); return; }
+    if (!window.bqGif || !window.bqGif.hostOk(gifUrl) || !/^https:\/\/(?:media[0-9]?\.giphy\.com|i\.giphy\.com|media\.tenor\.com|c\.tenor\.com)\//i.test(gifUrl)) {
+        if (typeof showToast === 'function') showToast('GIF source not allowed. Search for a GIF or upload one with 📷');
+        return;
+    }
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('Sign in to send GIFs');
+        return;
+    }
+    if (!_dmMediaGuard(convo.recipientUid)) return;
 
     // Close picker
     var picker = document.getElementById('dmGifPicker');
