@@ -35,6 +35,38 @@ function safeJSON(key, fallback) {
     }
 }
 
+// Join dates may be a Timestamp, a {seconds} object, an ISO string, or a Date.
+// A FieldValue sentinel or other placeholder must not become "Invalid Date".
+window.BQ_QUESTIONS_FIRST_SHIP_MS = window.BQ_QUESTIONS_FIRST_SHIP_MS || Date.UTC(2026, 10, 20, 0, 7, 0);
+function bqJoinDateMs(raw) {
+    if (raw == null || raw === '') return 0;
+    var ms = 0;
+    try {
+        if (raw instanceof Date) ms = raw.getTime();
+        else if (typeof raw === 'number' && isFinite(raw)) ms = raw < 1e12 ? raw * 1000 : raw;
+        else if (typeof raw === 'string') {
+            var n = Number(raw);
+            if (isFinite(n) && String(raw).trim() !== '' && /^\s*-?\d+(\.\d+)?\s*$/.test(raw)) ms = n < 1e12 ? n * 1000 : n;
+            else ms = Date.parse(raw);
+        } else if (typeof raw.toMillis === 'function') ms = raw.toMillis();
+        else if (typeof raw.toDate === 'function') {
+            var d = raw.toDate();
+            ms = d && typeof d.getTime === 'function' ? d.getTime() : 0;
+        } else if (typeof raw === 'object') {
+            if (typeof raw.seconds === 'number') ms = raw.seconds * 1000 + (typeof raw.nanoseconds === 'number' ? Math.floor(raw.nanoseconds / 1e6) : 0);
+            else if (typeof raw._seconds === 'number') ms = raw._seconds * 1000;
+        }
+    } catch (e) { ms = 0; }
+    return (typeof ms === 'number' && isFinite(ms) && ms > 0) ? ms : 0;
+}
+function bqFormatJoinDate(raw) {
+    var ms = bqJoinDateMs(raw);
+    if (!ms) return '';
+    try { return new Date(ms).toLocaleDateString(); } catch (e) { return ''; }
+}
+window.bqJoinDateMs = bqJoinDateMs;
+window.bqFormatJoinDate = bqFormatJoinDate;
+
 function mergeStoredStoryDays(serverDays) {
     try {
         var localDays = [];
@@ -1150,7 +1182,7 @@ function initRanking() {
                                 console.log('[Auth] No real user after 8s - loading anon');
                                 _pendingRedirect = false;
                                 clearAuthDisplay();
-                                loadUserLocal(user.uid);
+                                hydrateAnonymousUser(user.uid);
                             }
                             localStorage.removeItem('btc_anon_uid');
                             localStorage.removeItem('btc_anon_data');
@@ -1162,7 +1194,7 @@ function initRanking() {
                             if (redirectUser) { clearTimeout(_redirectTimeout); return; }
                         });
                     } else {
-                        loadUserLocal(user.uid);
+                        hydrateAnonymousUser(user.uid);
                     }
                 } else {
                     // null user - WAIT for getRedirectResult before signing in anonymously
@@ -1209,7 +1241,7 @@ function initRanking() {
                 if (user.isAnonymous) {
                     clearAuthDisplay();
                     if (typeof stashGuestLink === 'function') stashGuestLink();
-                    loadUserLocal(user.uid);
+                    hydrateAnonymousUser(user.uid);
                 } else {
                     loadUser(user.uid);
                 }
@@ -3547,6 +3579,23 @@ async function sendMagicLink(email, opts) {
 }
 
 // Load anonymous user from localStorage only - no Firestore reads
+function hydrateAnonymousUser(uid) {
+    return Promise.resolve(loadUser(uid)).then(function () {
+        if (!currentUser || currentUser.uid !== uid || currentUser._isLocal) {
+            loadUserLocal(uid);
+            return;
+        }
+        if (currentUser.username || currentUser.introSeen === true) {
+            if (window.btcOnboardingQueue) {
+                try { window.btcOnboardingQueue.onSignedIn(); } catch (eQueue) {}
+            }
+        }
+    }).catch(function () {
+        loadUserLocal(uid);
+    });
+}
+window.hydrateAnonymousUser = hydrateAnonymousUser;
+
 function loadUserLocal(uid) {
     var localPoints = parseInt(localStorage.getItem('btc_points') || '0');
     var localChannels = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
@@ -3940,14 +3989,19 @@ async function loadUser(uid, prefetchedDoc) {
                 var merged = [...new Set([...existing, ...currentUser.visibleBadges])];
                 localStorage.setItem('btc_badges', JSON.stringify(merged));
             }
-            // Mark onboarding complete for existing users on new devices.
-            // An existing user has a username in Firestore - they clearly already onboarded.
-            // This prevents the onboarding wizard from firing on every new device login.
-            if (currentUser.username || currentUser.introSeen) {
+            // Mark onboarding complete when the server flag is set, or when this
+            // account was created before the questions-first release.
+            if (currentUser.introSeen) {
                 try {
                     localStorage.setItem('btc_onboarding_done', 'true');
                     localStorage.setItem('btc_intro_seen', '1');
                 } catch(e) {}
+            } else if (typeof bqJoinDateMs === 'function' && bqJoinDateMs(currentUser.created) && bqJoinDateMs(currentUser.created) < (window.BQ_QUESTIONS_FIRST_SHIP_MS || Date.UTC(2026, 10, 20, 0, 7, 0))) {
+                try {
+                    localStorage.setItem('btc_onboarding_done', 'true');
+                    localStorage.setItem('btc_intro_seen', '1');
+                } catch(e) {}
+                try { firebase.functions().httpsCallable('markIntroSeen')({}).catch(function () {}); } catch (eMark) {}
             }
             if (typeof tryLinkGuest === 'function') { tryLinkGuest().catch(function () {}); }
             if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
@@ -5266,6 +5320,10 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     // Increment global registered user count
     try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
     currentUser = { uid, ...userData };
+    if (!bqJoinDateMs(currentUser.created)) {
+        var born = (auth.currentUser && auth.currentUser.metadata && auth.currentUser.metadata.creationTime) ? new Date(auth.currentUser.metadata.creationTime) : new Date();
+        currentUser.created = born;
+    }
     rankingReady = true;
     window._badgesReady = true;
         if (typeof markVisibleBadgesReady === "function") markVisibleBadgesReady(); window._hiddenBadgesReady = true;
@@ -5274,6 +5332,20 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();
     hideUsernamePrompt();
+    if (window.btcOnboardingQueue) {
+        try {
+            if (typeof window.btcOnboardingQueue.skip === 'function') {
+                window.btcOnboardingQueue.skip('terms');
+                if (typeof window.btcOnboardingQueue.stateOf === 'function' && window.btcOnboardingQueue.stateOf('gift') === 'pending') {
+                    window.btcOnboardingQueue.skip('gift');
+                }
+            }
+            window.btcOnboardingQueue.onSignedIn();
+        } catch (eQueue) {}
+    }
+    if (typeof window.btcBeginSignedInOnboarding === 'function') {
+        try { window.btcBeginSignedInOnboarding(); } catch (eOnb) {}
+    }
     if (_signupLn) setTimeout(function() { showToast('Lightning address saved to your profile.'); }, 1200);
     if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
 
@@ -9168,9 +9240,9 @@ function showSettingsPage(tab) {
         _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Sign-in method</span><span style="color:var(--text);font-size:0.85rem;">' + provider + '</span></div>';
 
         // Account created
-        if (currentUser && currentUser.created) {
-            const created = currentUser.created.toDate ? currentUser.created.toDate().toLocaleDateString() : new Date(currentUser.created).toLocaleDateString();
-            _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Member since</span><span style="color:var(--text);font-size:0.85rem;">' + created + '</span></div>';
+        if (currentUser) {
+            const created = (typeof bqFormatJoinDate === 'function' ? bqFormatJoinDate(currentUser.created) : '') || (auth && auth.currentUser && auth.currentUser.metadata && auth.currentUser.metadata.creationTime ? bqFormatJoinDate(auth.currentUser.metadata.creationTime) : '');
+            if (created) _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Member since</span><span style="color:var(--text);font-size:0.85rem;">' + created + '</span></div>';
         }
         _acctDetailsHtml += '</div>';
 

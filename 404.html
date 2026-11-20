@@ -2317,7 +2317,7 @@
     <script src="/popup-stack.js?v=20261119_v2681" defer></script>
 
     <script src="/kill-switch.js?v=20261111_v2551" defer></script>
-    <script src="/ranking.js?v=20261119_v2665" defer></script>    <!-- Critical: needed for initial page render -->
+    <script src="/ranking.js?v=20261119_v2683" defer></script>    <!-- Critical: needed for initial page render -->
     <script src="/bundle.min.js?v=20261119_v2682b" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
@@ -2335,7 +2335,7 @@
     <script src="/miniapp-share.js?v=20261107_v2526" defer></script>
     <script src="/pvp-lobby-alert.js?v=20261118_v2605" defer></script>
     <script src="/patches.js?v=20261026_v2385" defer></script>
-    <script src="/onboarding.js?v=20261119_v2681" defer></script>
+    <script src="/onboarding.js?v=20261119_v2683" defer></script>
     <script src="/learning-quests.js?v=20261026_v2377" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
@@ -2705,20 +2705,42 @@ if ('serviceWorker' in navigator) {
             banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? 'var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px))' : '70px') + ';left:16px;right:' + (_isMobUpd ? 'calc(12px + env(safe-area-inset-right, 0px))' : '16px') + ';z-index:200010;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);font-family:inherit;animation:fadeSlideIn 0.3s ease;';
             banner.innerHTML = '<div style="font-weight:700;font-size:0.9rem;">🆕 Update ready</div><button id="_swRefreshBtn" style="padding:8px 18px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;white-space:nowrap;">Update</button>';
             document.body.appendChild(banner);
+            function _onboardingChromeOpen() {
+                try {
+                    var modal = document.getElementById('usernameModal');
+                    if (modal && modal.classList && modal.classList.contains('open')) return true;
+                    var tos = document.getElementById('tosModal');
+                    if (tos && tos.classList && tos.classList.contains('open')) return true;
+                    if (document.getElementById('btcIntroOverlay')) return true;
+                    if (document.getElementById('nachoQuestOverlay')) return true;
+                } catch (e) {}
+                return false;
+            }
+            function _reloadWhenIdle() {
+                if (!_onboardingChromeOpen()) { _reloadOnce(); return; }
+                if (window._bqSwReloadWait) return;
+                window._bqSwReloadWait = setInterval(function () {
+                    if (_onboardingChromeOpen()) return;
+                    clearInterval(window._bqSwReloadWait);
+                    window._bqSwReloadWait = null;
+                    _reloadOnce();
+                }, 500);
+            }
             document.getElementById('_swRefreshBtn').addEventListener('click', function() {
                 var btn = document.getElementById('_swRefreshBtn');
                 if (btn) { btn.textContent = 'Updating…'; btn.disabled = true; }
                 // Activate a waiting worker, then reload this page once.
                 // Navigating to "/" was a second round trip and could show the banner again.
+                // Do not reload while signup or onboarding is on screen.
                 navigator.serviceWorker.getRegistration().then(function(reg) {
                     var waiting = reg && reg.waiting;
-                    if (!waiting) { _reloadOnce(); return; }
+                    if (!waiting) { _reloadWhenIdle(); return; }
                     navigator.serviceWorker.addEventListener('controllerchange', function onChange() {
                         navigator.serviceWorker.removeEventListener('controllerchange', onChange);
-                        _reloadOnce();
+                        _reloadWhenIdle();
                     });
                     waiting.postMessage({ type: 'SKIP_WAITING' });
-                }).catch(function() { _reloadOnce(); });
+                }).catch(function() { _reloadWhenIdle(); });
             });
         }
 
