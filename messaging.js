@@ -901,13 +901,27 @@ window._sendPeerRequest = async function(btnEl, targetUid) {
     btnEl.style.opacity = '1';
     btnEl.style.cursor = 'default';
     if (typeof showToast === 'function') showToast('Peer request sent! 🧡');
+    var fn = null;
     try {
-        var fn = firebase.functions().httpsCallable('managePeer');
+        fn = firebase.functions().httpsCallable('managePeer');
         await fn({ action: 'send', targetUid: targetUid });
     } catch(e) {
         var code = (e && e.code) ? String(e.code) : '';
         var msg = (e && e.message) ? String(e.message) : 'Error';
-        if (code.indexOf('already-exists') !== -1 || msg.indexOf('already-exists') !== -1) return;
+        // They already sent us a request: both people want this, so accept theirs.
+        if (/already sent you a request/i.test(msg)) {
+            try {
+                await fn({ action: 'accept', targetUid: targetUid });
+                window._myPeers = window._myPeers || new Set();
+                if (typeof window._myPeers.add === 'function') window._myPeers.add(targetUid);
+                btnEl.textContent = '🧡 Peers';
+                if (typeof showToast === 'function') showToast('They already sent you a request, so you are peers now! 🧡');
+                if (typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
+                return;
+            } catch (acceptErr) {
+                msg = (acceptErr && acceptErr.message) ? String(acceptErr.message) : msg;
+            }
+        } else if (code.indexOf('already-exists') !== -1 || msg.indexOf('already-exists') !== -1) return;
         btnEl.disabled = false;
         btnEl.removeAttribute('data-peer-busy');
         btnEl.textContent = prev.text || '🧡 Add Peer';
