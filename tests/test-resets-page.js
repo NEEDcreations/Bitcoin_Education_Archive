@@ -67,7 +67,12 @@ test('cipher odds rows match cipherReward', () => {
         assert.ok(html.includes(row), row);
         n++;
     }
-    assert.strictEqual(n, 12);
+    assert.strictEqual(n, 14);
+    assert.ok(html.includes('10,000,000 sats'));
+    assert.ok(html.includes('1 in 1,000,000,000,000'));
+    assert.ok(html.includes('1,000,000 sats'));
+    assert.ok(html.includes('1 in 1,000,000,000'));
+    assert.ok(html.includes('about 66.9%'));
 });
 
 test('spin wheel weights match dailySpin', () => {
