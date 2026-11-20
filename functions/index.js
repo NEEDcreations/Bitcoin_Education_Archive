@@ -8885,7 +8885,7 @@ exports.searchGifs = functionsV1.https.onCall(async (data, context) => {
         + '?api_key=' + GIPHY_KEY
         + '&q=' + encodeURIComponent(query)
         + '&limit=' + limit
-        + '&rating=pg-13'
+        + '&rating=' + gifSearch.GIPHY_RATING
         + '&lang=en';
 
     try {

@@ -42,4 +42,7 @@ function clampLimit(n) {
     return Math.min(Math.max(parseInt(n, 10) || 20, 1), 50);
 }
 
-module.exports = { mapGiphyResults, clampQuery, clampLimit, okUrl, MAX_FULL_BYTES };
+// Content rating sent to Giphy. Phil, Nov 20: "A: Giphy rating PG".
+const GIPHY_RATING = 'pg';
+
+module.exports = { GIPHY_RATING, mapGiphyResults, clampQuery, clampLimit, okUrl, MAX_FULL_BYTES };

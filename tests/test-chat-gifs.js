@@ -153,6 +153,13 @@ test('Giphy mapping prefers downsized and drops other hosts', () => {
     assert.deepStrictEqual(gs.mapGiphyResults({}), []);
     assert.deepStrictEqual(gs.mapGiphyResults(null), []);
 });
+test('Giphy rating is pg and searchGifs uses it', () => {
+    assert.strictEqual(gs.GIPHY_RATING, 'pg');
+    const idx = read('functions/index.js');
+    const fn = idx.slice(idx.indexOf('exports.searchGifs'), idx.indexOf('exports.searchGifs') + 2500);
+    assert.ok(/'&rating=' \+ gifSearch\.GIPHY_RATING/.test(fn));
+    assert.ok(!/rating=pg-13/.test(fn));
+});
 test('query and limit are clamped', () => {
     assert.strictEqual(gs.clampQuery('  hi\u0000there  '), 'hi there');
     assert.strictEqual(gs.clampQuery('x'.repeat(300)).length, 100);
