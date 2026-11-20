@@ -46,7 +46,11 @@
   .callout p + p { margin-top:6px; }
   .note a, .callout a { color:var(--accent); }
   .thisweek td { background:rgba(247,147,26,.08); }
+  details.past { margin:0 0 8px; }
+  details.past summary { cursor:pointer; color:var(--accent); font-weight:700; font-size:.84rem; padding:6px 0; }
+  details.past summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .pill { display:inline-block; background:var(--accent); color:#111; font-size:.66rem; font-weight:800; border-radius:999px; padding:1px 7px; margin-left:6px; vertical-align:middle; }
+  .pill.past { background:var(--border); color:var(--text); }
   @media (max-width:640px) {
     td.when { white-space:normal; }
     th:nth-child(4), td:nth-child(4) { display:none; }
@@ -162,23 +166,36 @@
     <p><strong>How to complete a week:</strong> use your daily spin on 7 Eastern calendar days in a row inside the same week, Monday through Sunday. Only the free daily spin counts. Bonus spins do not. Miss a day and that week cannot be completed, and the count starts over the next Monday.</p>
     <p><strong>Day 7 reward:</strong> the 7th spin lands on the 💎 Rare prize for sure, you collect that week's BIP badge (one per BIP), and you wear the Core Contributor chat title for 7 days.</p>
   </div>
+  <details class="past" id="bipPast">
+    <summary>Show previous weeks (<span id="bipPastCount">2</span>)</summary>
+    <div class="tbl">
+    <table id="bipPastSchedule">
+      <caption>Previous featured BIPs, newest first, back to launch week (BIP Breakthrough went live Thursday, November 5, 2026).</caption>
+      <thead><tr><th scope="col">Week of (Monday, ET)</th><th scope="col">BIP</th><th scope="col">What it is</th></tr></thead>
+      <tbody id="bipPastRows">
+        <tr><td class="when">2026-11-09<span class="pill past">Previous</span><small>Cycle 1 · 1 of 12</small></td><td>BIP 360 · P2MR</td><td>Pay-to-Merkle-Root</td></tr>
+        <tr><td class="when">2026-11-02<span class="pill past">Previous</span><small>Launch week</small></td><td>BIP 85 · BIP85</td><td>Deterministic Entropy From BIP32</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </details>
   <div class="tbl">
   <table id="bipSchedule">
-    <caption>Featured BIP by week. Picked from the same list and the same weekly rule the server uses.</caption>
+    <caption>Featured BIP by week. The server goes through every BIP on the list once, in a fixed order, then the cycle starts over.</caption>
     <thead><tr><th scope="col">Week of (Monday, ET)</th><th scope="col">BIP</th><th scope="col">What it is</th></tr></thead>
     <tbody id="bipScheduleRows">
-      <tr><td class="when">2026-11-16</td><td>BIP 119 · CTV</td><td>OP_CHECKTEMPLATEVERIFY</td></tr>
-      <tr><td class="when">2026-11-23</td><td>BIP 347 · OP_CAT</td><td>OP_CAT</td></tr>
-      <tr><td class="when">2026-11-30</td><td>BIP 118 · ANYPREVOUT</td><td>SIGHASH_ANYPREVOUT</td></tr>
-      <tr><td class="when">2026-12-07</td><td>BIP 324 · P2Pv2</td><td>Version 2 P2P Encrypted Transport</td></tr>
-      <tr><td class="when">2026-12-14</td><td>BIP 85 · BIP85</td><td>Deterministic Entropy From BIP32</td></tr>
-      <tr><td class="when">2026-12-21</td><td>BIP 86 · P2TR Keys</td><td>Key Derivation for Single-Key P2TR</td></tr>
-      <tr><td class="when">2026-12-28</td><td>BIP 119 · CTV</td><td>OP_CHECKTEMPLATEVERIFY</td></tr>
-      <tr><td class="when">2027-01-04</td><td>BIP 347 · OP_CAT</td><td>OP_CAT</td></tr>
+      <tr class="thisweek"><td class="when">2026-11-16<span class="pill">This week</span><small>Cycle 1 · 2 of 12</small></td><td>BIP 119 · CTV</td><td>OP_CHECKTEMPLATEVERIFY</td></tr>
+      <tr><td class="when">2026-11-23<small>Cycle 1 · 3 of 12</small></td><td>BIP 347 · OP_CAT</td><td>OP_CAT</td></tr>
+      <tr><td class="when">2026-11-30<small>Cycle 1 · 4 of 12</small></td><td>BIP 118 · ANYPREVOUT</td><td>SIGHASH_ANYPREVOUT</td></tr>
+      <tr><td class="when">2026-12-07<small>Cycle 1 · 5 of 12</small></td><td>BIP 324 · P2Pv2</td><td>Version 2 P2P Encrypted Transport</td></tr>
+      <tr><td class="when">2026-12-14<small>Cycle 1 · 6 of 12</small></td><td>BIP 85 · BIP85</td><td>Deterministic Entropy From BIP32</td></tr>
+      <tr><td class="when">2026-12-21<small>Cycle 1 · 7 of 12</small></td><td>BIP 86 · P2TR Keys</td><td>Key Derivation for Single-Key P2TR</td></tr>
+      <tr><td class="when">2026-12-28<small>Cycle 1 · 8 of 12</small></td><td>BIP 352 · Silent Payments</td><td>Silent Payments</td></tr>
+      <tr><td class="when">2027-01-04<small>Cycle 1 · 9 of 12</small></td><td>BIP 348 · CSFS</td><td>OP_CHECKSIGFROMSTACK</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="note">A BIP can come around again, so some weeks repeat. Read each proposal at <a href="https://github.com/bitcoin/bips" rel="noopener" target="_blank">github.com/bitcoin/bips</a>.</p>
+  <p class="note">Each cycle features all 12 BIPs, one per week, so you can collect every BIP badge in a cycle. After the last one, the cycle starts over from the top for more 7-day spin streaks. Read each proposal at <a href="https://github.com/bitcoin/bips" rel="noopener" target="_blank">github.com/bitcoin/bips</a>.</p>
 
   <h2 class="sec" id="odds">Odds</h2>
   <p class="note">The server rolls every result. Your browser does not choose it, and Premium does not change any odds. Percentages are rounded. The official odds and rules are in the <a href="/terms.html#odds">Terms, section 16g</a>.</p>
@@ -268,8 +285,9 @@
   </div>
 </main>
 <script>
-// Rolls the BIP Breakthrough table forward. Must match functions/src/bipBreakthrough.js
-// (BIP_CATALOG order and bipForWeek). tests/test-resets-page.js checks both.
+// Rolls the BIP Breakthrough tables. Must match functions/src/bipBreakthrough.js
+// (BIP_CATALOG order, LAUNCH_WEEK, CYCLE_ANCHOR_WEEK, CYCLE_ORDER and bipForWeek).
+// tests/test-resets-page.js checks both.
 (function () {
   var BIPS = [
     [360, 'P2MR', 'Pay-to-Merkle-Root'], [119, 'CTV', 'OP_CHECKTEMPLATEVERIFY'], [347, 'OP_CAT', 'OP_CAT'],
@@ -277,12 +295,20 @@
     [349, 'INTERNALKEY', 'OP_INTERNALKEY'], [443, 'CCV', 'OP_CHECKCONTRACTVERIFY'], [353, 'DNS Payments', 'DNS Payment Instructions'],
     [324, 'P2Pv2', 'Version 2 P2P Encrypted Transport'], [85, 'BIP85', 'Deterministic Entropy From BIP32'], [86, 'P2TR Keys', 'Key Derivation for Single-Key P2TR']
   ];
+  var LAUNCH_WEEK = '2026-11-02', LAUNCH_BIP = 85, ANCHOR = '2026-11-09';
+  var ORDER = [360, 119, 347, 118, 324, 85, 86, 352, 348, 349, 443, 353];
+  var WEEK = 7 * 86400000;
+  function byNum(n) { for (var i = 0; i < BIPS.length; i++) if (BIPS[i][0] === n) return BIPS[i]; return null; }
+  function cycleInfo(key) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return null;
+    var w = Math.round((Date.parse(key + 'T12:00:00Z') - Date.parse(ANCHOR + 'T12:00:00Z')) / WEEK);
+    if (!(w >= 0)) return null;
+    return { cycle: Math.floor(w / ORDER.length) + 1, position: (w % ORDER.length) + 1, length: ORDER.length };
+  }
   function bipForWeek(key) {
-    var hash = 0;
-    for (var i = 0; i < key.length; i++) hash = ((hash * 33) + key.charCodeAt(i)) >>> 0;
-    var digits = key.replace(/\D/g, '');
-    var extra = parseInt(digits.slice(-6) || '0', 10) || 0;
-    return BIPS[(hash + extra) % BIPS.length];
+    if (key === LAUNCH_WEEK) return byNum(LAUNCH_BIP);
+    var c = cycleInfo(key);
+    return c ? byNum(ORDER[c.position - 1]) : null;
   }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function etMondayUtc(ms) {
@@ -294,19 +320,40 @@
     return Date.UTC(+p.year, +p.month - 1, +p.day) - since * 86400000;
   }
   function keyOf(utcMs) { var d = new Date(utcMs); return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()); }
+  function row(key, cls, pill) {
+    var b = bipForWeek(key);
+    if (!b) return '';
+    var c = cycleInfo(key);
+    var sub = c ? ('Cycle ' + c.cycle + ' · ' + c.position + ' of ' + c.length) : 'Launch week';
+    return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td class="when">' + key + pill + '<small>' + sub + '</small>' +
+      '</td><td>BIP ' + b[0] + ' · ' + b[1] + '</td><td>' + b[2] + '</td></tr>';
+  }
   window.__bqBipForWeek = bipForWeek;
+  window.__bqBipCycleInfo = cycleInfo;
   var body = document.getElementById('bipScheduleRows');
   if (!body || typeof Intl === 'undefined') return;
   try {
     var start = etMondayUtc(Date.now());
     var html = '';
     for (var w = 0; w < 8; w++) {
-      var key = keyOf(start + w * 7 * 86400000);
-      var b = bipForWeek(key);
-      html += '<tr' + (w === 0 ? ' class="thisweek"' : '') + '><td class="when">' + key + (w === 0 ? '<span class="pill">This week</span>' : '') +
-        '</td><td>BIP ' + b[0] + ' · ' + b[1] + '</td><td>' + b[2] + '</td></tr>';
+      var key = keyOf(start + w * WEEK);
+      html += row(key, w === 0 ? 'thisweek' : '', w === 0 ? '<span class="pill">This week</span>' : '');
     }
     body.innerHTML = html;
+    var past = document.getElementById('bipPastRows');
+    if (past) {
+      var launch = Date.parse(LAUNCH_WEEK + 'T00:00:00Z');
+      var ph = '', n = 0;
+      for (var t = start - WEEK; t >= launch; t -= WEEK) {
+        ph += row(keyOf(t), '', '<span class="pill past">Previous</span>');
+        n++;
+      }
+      past.innerHTML = ph;
+      var cnt = document.getElementById('bipPastCount');
+      if (cnt) cnt.textContent = String(n);
+      var det = document.getElementById('bipPast');
+      if (det && !n) det.hidden = true;
+    }
   } catch (e) {}
 })();
 </script>

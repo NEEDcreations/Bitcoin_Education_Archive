@@ -36,6 +36,68 @@ function testSameBipPerWeek() {
     assert.ok(c && c.id);
 }
 
+function weekKeys(fromKey, count) {
+    const out = [];
+    const t0 = Date.parse(fromKey + 'T12:00:00Z');
+    for (let i = 0; i < count; i++) out.push(new Date(t0 + i * 7 * 86400000).toISOString().slice(0, 10));
+    return out;
+}
+
+function testCycleCoversEveryBipBeforeRepeat() {
+    const ids = bip.BIP_CATALOG.map((r) => r.id).sort();
+    assert.deepStrictEqual(bip.CYCLE_ORDER.slice().sort(), ids, 'CYCLE_ORDER is every catalog BIP exactly once');
+    const n = bip.CYCLE_ORDER.length;
+    const keys = weekKeys(bip.CYCLE_ANCHOR_WEEK, n * 30);
+    for (let c = 0; c < 30; c++) {
+        const seen = new Set();
+        for (let p = 0; p < n; p++) {
+            const k = keys[c * n + p];
+            const b = bip.bipForWeek(k);
+            assert.ok(b && !seen.has(b.id), 'no repeat inside cycle ' + (c + 1) + ' at ' + k);
+            seen.add(b.id);
+            assert.deepStrictEqual(bip.cycleInfo(k), { cycle: c + 1, position: p + 1, length: n });
+        }
+        assert.strictEqual(seen.size, ids.length, 'cycle ' + (c + 1) + ' covers all');
+    }
+}
+
+function testCycleResets() {
+    const n = bip.CYCLE_ORDER.length;
+    const keys = weekKeys(bip.CYCLE_ANCHOR_WEEK, n * 3 + 1);
+    assert.strictEqual(bip.bipForWeek(keys[n]).id, bip.bipForWeek(keys[0]).id);
+    assert.strictEqual(bip.cycleInfo(keys[n]).cycle, 2);
+    assert.strictEqual(bip.cycleInfo(keys[n]).position, 1);
+    assert.strictEqual(bip.bipForWeek(keys[n - 1]).id, bip.CYCLE_ORDER[n - 1]);
+    assert.strictEqual(bip.cycleInfo('2027-01-25').position, n);
+    assert.strictEqual(bip.cycleInfo('2027-02-01').cycle, 2);
+}
+
+function testPublishedWeeksUnchanged() {
+    // Weeks players already saw (live page / server since launch).
+    const expected = {
+        '2026-11-02': 85, '2026-11-09': 360, '2026-11-16': 119,
+        '2026-11-23': 347, '2026-11-30': 118, '2026-12-07': 324, '2026-12-14': 85, '2026-12-21': 86,
+    };
+    Object.keys(expected).forEach((k) => assert.strictEqual(bip.bipForWeek(k).number, expected[k], k));
+    assert.strictEqual(bip.cycleInfo(bip.LAUNCH_WEEK), null);
+    assert.strictEqual(bip.bipForWeek('2026-10-26'), null);
+    assert.strictEqual(bip.bipForWeek(''), null);
+    assert.strictEqual(bip.bipForWeek('nope'), null);
+    // This week's streak plan still points at BIP 119 (Thu Nov 19, 2026 1pm ET).
+    const plan = bip.planStreak({}, Date.parse('2026-11-19T18:00:00Z'));
+    assert.strictEqual(plan.weekKey, '2026-11-16');
+    assert.strictEqual(plan.bip.id, 'bip_119');
+    assert.strictEqual(plan.update.bipBreakthroughBipId, 'bip_119');
+}
+
+function testDstWeeksStayAligned() {
+    // Monday keys across the Mar/Nov 2027 clock changes still map 1 week = 1 step.
+    ['2027-03-08', '2027-03-15', '2027-11-01', '2027-11-08'].forEach((k) => {
+        const w = Math.round((Date.parse(k + 'T12:00:00Z') - Date.parse(bip.CYCLE_ANCHOR_WEEK + 'T12:00:00Z')) / (7 * 86400000));
+        assert.strictEqual(bip.bipForWeek(k).id, bip.CYCLE_ORDER[w % bip.CYCLE_ORDER.length], k);
+    });
+}
+
 function testNyDateKey() {
     const key = bip.nyDateKey(Date.parse('2026-11-05T18:00:00Z')); // 1pm ET
     assert.strictEqual(key, '2026-11-05');
@@ -67,7 +129,8 @@ function testStreakAndClaim() {
     assert.strictEqual(last.streak, 7);
     assert.ok(last.bip && last.bip.number);
     assert.strictEqual(user.bipBreakthroughClaimedWeek, week);
-    assert.ok(user.coreContributorUntil > Date.now() - 1000);
+    // Was > Date.now(), which broke once the fixed Nov 2026 test week aged out.
+    assert.strictEqual(user.coreContributorUntil, Date.parse(start + 'T17:00:00Z') + 6 * 86400000 + bip.TITLE_DAYS_MS);
 
     // Idempotent: another spin same day does not re-complete
     const again = bip.planStreak(user, Date.parse(start + 'T17:00:00Z') + 6 * 86400000);
@@ -104,6 +167,10 @@ function testIndexWiresBreakthrough() {
 
 testCatalog();
 testSameBipPerWeek();
+testCycleCoversEveryBipBeforeRepeat();
+testCycleResets();
+testPublishedWeeksUnchanged();
+testDstWeeksStayAligned();
 testNyDateKey();
 testStreakAndClaim();
 testMissedDayBreaks();

@@ -28,20 +28,41 @@ test('page BIP list matches BIP_CATALOG order', () => {
     });
 });
 
-test('page picks the same BIP as the server for 160 weeks', () => {
-    const start = Date.parse('2026-11-18T17:00:00Z');
-    for (let w = 0; w < 160; w++) {
+test('page picks the same BIP and cycle as the server from launch for 520 weeks', () => {
+    const pageCycle = sandbox.window.__bqBipCycleInfo;
+    const start = Date.parse('2026-11-04T17:00:00Z');
+    for (let w = 0; w < 520; w++) {
         const key = questBoard.weekKey(start + w * 7 * 86400000);
         assert.strictEqual(pageBip(key)[0], bip.bipForWeek(key).number, key);
+        assert.deepStrictEqual(JSON.parse(JSON.stringify(pageCycle(key))), bip.cycleInfo(key), key);
     }
+    assert.strictEqual(pageBip('2026-10-26'), null);
+    assert.strictEqual(bip.bipForWeek('2026-10-26'), null);
+});
+
+test('page rotation constants match the server', () => {
+    const m = script.match(/var ORDER = (\[[^\]]*\]);/);
+    const order = vm.runInNewContext(m[1]);
+    assert.strictEqual(JSON.stringify(order), JSON.stringify(bip.CYCLE_ORDER.map((id) => bip.bipById(id).number)));
+    assert.ok(script.includes("LAUNCH_WEEK = '" + bip.LAUNCH_WEEK + "'"));
+    assert.ok(script.includes("ANCHOR = '" + bip.CYCLE_ANCHOR_WEEK + "'"));
+    assert.ok(script.includes('LAUNCH_BIP = ' + bip.bipById(bip.LAUNCH_WEEK_BIP_ID).number));
 });
 
 test('static fallback rows match the server', () => {
-    const rows = html.match(/<tbody id="bipScheduleRows">([\s\S]*?)<\/tbody>/)[1];
-    const re = /<td class="when">(\d{4}-\d{2}-\d{2})<\/td><td>BIP (\d+) /g;
-    let m, n = 0;
-    while ((m = re.exec(rows))) { assert.strictEqual(Number(m[2]), bip.bipForWeek(m[1]).number, m[1]); n++; }
-    assert.ok(n >= 6);
+    const re = /<td class="when">(\d{4}-\d{2}-\d{2})[\s\S]*?<small>([^<]*)<\/small><\/td><td>BIP (\d+) /g;
+    ['bipScheduleRows', 'bipPastRows'].forEach((id) => {
+        const rows = html.match(new RegExp('<tbody id="' + id + '">([\\s\\S]*?)<\\/tbody>'))[1];
+        let m, n = 0;
+        while ((m = re.exec(rows))) {
+            assert.strictEqual(Number(m[3]), bip.bipForWeek(m[1]).number, m[1]);
+            const c = bip.cycleInfo(m[1]);
+            assert.strictEqual(m[2], c ? ('Cycle ' + c.cycle + ' · ' + c.position + ' of ' + c.length) : 'Launch week', m[1]);
+            n++;
+        }
+        assert.ok(n >= 2, id);
+    });
+    assert.ok(html.includes('2026-11-02<span class="pill past">Previous</span>'));
 });
 
 test('streak target and title length match the page', () => {

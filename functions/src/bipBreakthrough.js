@@ -152,18 +152,48 @@ function weekKeyAt(ms) {
     return questBoard.weekKey(Number.isFinite(Number(ms)) ? Number(ms) : Date.now());
 }
 
-function bipForWeek(weekKey) {
-    const list = BIP_CATALOG;
-    if (!list.length) return null;
+// Weekly pick (changed Nov 20, 2026; was a hash of the week key that
+// repeated some BIPs early and skipped others for months): a fixed rotation.
+// Every BIP in BIP_CATALOG is featured exactly once per cycle, in
+// CYCLE_ORDER, then the cycle starts over. Cycle 1 starts the week of
+// CYCLE_ANCHOR_WEEK. The launch week (LAUNCH_WEEK, BIP Breakthrough went live
+// Thu Nov 5, 2026) sits before cycle 1 and keeps the BIP it actually had.
+// CYCLE_ORDER is chosen so every week already shown to players (launch week,
+// 2026-11-09, this week 2026-11-16 and the next five on the live schedule)
+// keeps the same BIP. resets.html mirrors this; tests/test-resets-page.js and
+// tests/test-bip-breakthrough.js check both.
+const LAUNCH_WEEK = '2026-11-02';
+const LAUNCH_WEEK_BIP_ID = 'bip_85';
+const CYCLE_ANCHOR_WEEK = '2026-11-09';
+const CYCLE_ORDER = [
+    'bip_360', 'bip_119', 'bip_347', 'bip_118', 'bip_324', 'bip_85',
+    'bip_86', 'bip_352', 'bip_348', 'bip_349', 'bip_443', 'bip_353',
+];
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function weekIndexFromAnchor(weekKey) {
     const key = String(weekKey || '');
-    let hash = 0;
-    for (let i = 0; i < key.length; i++) {
-        hash = ((hash * 33) + key.charCodeAt(i)) >>> 0;
-    }
-    const digits = key.replace(/\D/g, '');
-    const extra = parseInt(digits.slice(-6) || '0', 10) || 0;
-    const idx = (hash + extra) % list.length;
-    return Object.assign({}, list[idx]);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return null;
+    const t = Date.parse(key + 'T12:00:00Z');
+    const a = Date.parse(CYCLE_ANCHOR_WEEK + 'T12:00:00Z');
+    if (!Number.isFinite(t)) return null;
+    return Math.round((t - a) / WEEK_MS);
+}
+
+/** { cycle, position (1-based), length } for a week, or null before cycle 1. */
+function cycleInfo(weekKey) {
+    const w = weekIndexFromAnchor(weekKey);
+    if (w == null || w < 0) return null;
+    const n = CYCLE_ORDER.length;
+    return { cycle: Math.floor(w / n) + 1, position: (w % n) + 1, length: n };
+}
+
+function bipForWeek(weekKey) {
+    const key = String(weekKey || '');
+    if (key === LAUNCH_WEEK) return bipById(LAUNCH_WEEK_BIP_ID);
+    const info = cycleInfo(key);
+    if (!info) return null;
+    return bipById(CYCLE_ORDER[info.position - 1]);
 }
 
 function nyDaysBetween(earlierKey, laterKey) {
@@ -286,6 +316,11 @@ module.exports = {
     previousNyDateKey: previousNyDateKey,
     weekKeyAt: weekKeyAt,
     bipForWeek: bipForWeek,
+    cycleInfo: cycleInfo,
+    LAUNCH_WEEK: LAUNCH_WEEK,
+    LAUNCH_WEEK_BIP_ID: LAUNCH_WEEK_BIP_ID,
+    CYCLE_ANCHOR_WEEK: CYCLE_ANCHOR_WEEK,
+    CYCLE_ORDER: CYCLE_ORDER,
     planStreak: planStreak,
     claimFields: claimFields,
     publicProgress: publicProgress,
