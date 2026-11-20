@@ -20,6 +20,8 @@ const { updatePeerLevelAfterGift } = require('./peerLevel');
 const faucetGuard = require('./faucetGuard');
 const payFailGuard = require('./payFailGuard');
 const { rollCipherReward, satsDisposition, ALLOWED_SATS_AMOUNTS, ROLL_SPACE, ROLL_SCHEMA, verifyCipherPrize } = require('./cipherReward');
+const { cipherRollSecret, cipherRollKey, secretReady } = require('./cipherRollSecret');
+const { openCipherReward, auditOpen, listPeriodPublic, publicProof } = require('./cipherRollProof');
 const {
     creditDocId,
     planCipherSatsClaim,
@@ -721,7 +723,10 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
 
 // ─── Open a cipher with a matching key (own or peer-sent) ────────────────────
 
-const decryptCipher = functionsV1.https.onCall(async (data, context) => {
+const decryptCipher = functionsV1.runWith({
+    secrets: [cipherRollSecret],
+    serviceAccount: runtimeSa('decryptCipher'),
+}).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
@@ -735,7 +740,18 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
     const keyRef = db.collection('keys').doc(keyId);
     const userRef = db.collection('users').doc(uid);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
-    const reward = rollCipherReward();
+    const rollSecret = cipherRollKey();
+    if (!secretReady(rollSecret)) {
+        throw httpsError('failed-precondition', 'Cipher opens are paused. Try again later.');
+    }
+    const opened = openCipherReward(rollSecret, {
+        cipherId: cipherId,
+        openerUid: uid,
+        keyId: keyId,
+        nowMs: Date.now(),
+    });
+    if (!opened || !opened.reward) throw httpsError('internal', 'Bad reward roll');
+    const reward = opened.reward;
     // Allowed sats amounts: 10000000, 1000000, 100000, 50000, 10000, 5000, 1000, 500, 250, 100, 50, 25, 10, 5.
     if (reward.rewardType === 'sats' && ALLOWED_SATS_AMOUNTS.indexOf(reward.satsAmount) === -1) {
         throw httpsError('internal', 'Bad reward roll');
@@ -930,6 +946,11 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 roll: reward.roll,
                 rollSpace: ROLL_SPACE,
                 rollSchema: ROLL_SCHEMA,
+                periodId: reward.periodId,
+                commitment: reward.commitment,
+                receiptMac: reward.receiptMac,
+                rolledXp: reward.rolledXp || 0,
+                rolledTickets: reward.rolledTickets || 0,
                 rewardType: 'sats',
                 status: satsStatus,
                 announced: false,
@@ -946,6 +967,11 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 roll: reward.roll,
                 rollSpace: ROLL_SPACE,
                 rollSchema: ROLL_SCHEMA,
+                periodId: reward.periodId,
+                commitment: reward.commitment,
+                receiptMac: reward.receiptMac,
+                rolledXp: reward.rolledXp || 0,
+                rolledTickets: reward.rolledTickets || 0,
                 rewardType: 'sats',
                 createdAt: now,
             });
@@ -988,6 +1014,11 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                     roll: reward.roll,
                     rollSpace: ROLL_SPACE,
                     rollSchema: ROLL_SCHEMA,
+                    periodId: reward.periodId,
+                    commitment: reward.commitment,
+                    receiptMac: reward.receiptMac,
+                    rolledXp: reward.rolledXp || 0,
+                    rolledTickets: reward.rolledTickets || 0,
                     rewardType: 'sats',
                     createdAt: now,
                 });
@@ -1008,6 +1039,11 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                     roll: reward.roll,
                     rollSpace: ROLL_SPACE,
                     rollSchema: ROLL_SCHEMA,
+                    periodId: reward.periodId,
+                    commitment: reward.commitment,
+                    receiptMac: reward.receiptMac,
+                    rolledXp: reward.rolledXp || 0,
+                    rolledTickets: reward.rolledTickets || 0,
                     rewardType: 'sats',
                     status: credit.satsStatus,
                     announced: false,
@@ -1032,6 +1068,11 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 roll: reward.roll,
                 rollSpace: ROLL_SPACE,
                 rollSchema: ROLL_SCHEMA,
+                periodId: reward.periodId,
+                commitment: reward.commitment,
+                receiptMac: reward.receiptMac,
+                rolledXp: reward.rolledXp || 0,
+                rolledTickets: reward.rolledTickets || 0,
                 revealed: false,
                 createdAt: now,
             });
@@ -1050,6 +1091,11 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             roll: reward.roll,
             rollSpace: ROLL_SPACE,
             rollSchema: ROLL_SCHEMA,
+            periodId: reward.periodId,
+            commitment: reward.commitment,
+            receiptMac: reward.receiptMac,
+            rolledXp: reward.rolledXp || 0,
+            rolledTickets: reward.rolledTickets || 0,
             rewardType: reward.rewardType,
             satsAmount: reward.satsAmount || 0,
             xpAmount: reward.xpAmount || 0,
@@ -1513,7 +1559,7 @@ async function readAllDocs(refs) {
 
 function cipherWinAudit(w) {
     if (w && w.source === 'faction_race') {
-        return { rollOk: null, rollReason: 'faction' };
+        return { rollOk: null, rollReason: 'faction', receiptOk: null };
     }
     const check = verifyCipherPrize({
         roll: w && w.roll,
@@ -1521,15 +1567,29 @@ function cipherWinAudit(w) {
         rewardType: (w && w.rewardType) || (w && (w.amount || w.satsAmount) ? 'sats' : ''),
         satsAmount: w && (w.satsAmount != null ? w.satsAmount : w.amount),
     });
-    return {
+    const result = {
         rollOk: check.ok,
         rollReason: check.ok ? 'ok' : (check.reason || 'mismatch'),
         expectedType: (check.expected && check.expected.rewardType) || '',
         expectedAmount: (check.expected && check.expected.satsAmount) || 0,
+        receiptOk: null,
     };
+    const secret = cipherRollKey();
+    if (secretReady(secret) && w && (w.receiptMac || w.periodId || Number(w.rollSchema) >= 3)) {
+        const audited = auditOpen(secret, w, Date.now());
+        result.receiptOk = audited.ok;
+        if (!audited.ok) {
+            result.rollOk = false;
+            result.rollReason = 'receipt-mismatch';
+        }
+    }
+    return result;
 }
 
-const adminListCipherWins = functionsV1.https.onCall(async (data, context) => {
+const adminListCipherWins = functionsV1.runWith({
+    secrets: [cipherRollSecret],
+    serviceAccount: runtimeSa('adminListCipherWins'),
+}).https.onCall(async (data, context) => {
     requireAdmin(context);
     const wantId = data && data.cipherId ? String(data.cipherId).trim().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 128) : '';
     const snap = await db.collection('cipher_wins').orderBy('createdAt', 'desc').limit(100).get();
@@ -1551,9 +1611,12 @@ const adminListCipherWins = functionsV1.https.onCall(async (data, context) => {
             roll: w.roll,
             rollSpace: w.rollSpace,
             rollSchema: w.rollSchema,
+            periodId: w.periodId || '',
+            commitment: w.commitment || '',
             rewardType: w.rewardType || '',
             rollOk: audit.rollOk,
             rollReason: audit.rollReason,
+            receiptOk: audit.receiptOk,
             expectedType: audit.expectedType,
             expectedAmount: audit.expectedAmount,
             announced: w.announced === true,
@@ -1588,12 +1651,15 @@ const adminListCipherWins = functionsV1.https.onCall(async (data, context) => {
                 roll: c.roll,
                 rollSpace: c.rollSpace,
                 rollSchema: c.rollSchema,
+                periodId: c.periodId || '',
+                commitment: c.commitment || '',
                 rewardType: c.rewardType || '',
                 satsAmount: c.satsAmount || 0,
                 xpAmount: c.xpAmount || 0,
                 ticketCount: c.ticketCount || 0,
                 rollOk: audit.rollOk,
                 rollReason: audit.rollReason,
+                receiptOk: audit.receiptOk,
                 expectedType: audit.expectedType,
                 expectedAmount: audit.expectedAmount,
             };
@@ -1647,7 +1713,10 @@ const adminListCipherWins = functionsV1.https.onCall(async (data, context) => {
     return { wins: wins };
 });
 
-const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) => {
+const adminMarkCipherWinPaid = functionsV1.runWith({
+    secrets: [cipherRollSecret],
+    serviceAccount: runtimeSa('adminMarkCipherWinPaid'),
+}).https.onCall(async (data, context) => {
     requireAdmin(context);
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
@@ -2305,6 +2374,36 @@ const adminResolveCipherSatsClaim = functionsV1.runWith({
     return { success: true, resolution: resolution };
 });
 
+
+const getCipherRollCommitments = functionsV1.runWith({
+    secrets: [cipherRollSecret],
+    serviceAccount: runtimeSa('getCipherRollCommitments'),
+}).https.onCall(async (data, context) => {
+    const secret = cipherRollKey();
+    if (!secretReady(secret)) throw httpsError('failed-precondition', 'Unavailable.');
+    return { periods: listPeriodPublic(secret, Date.now(), { back: 30, forward: 14 }) };
+});
+
+const getCipherOpenProof = functionsV1.runWith({
+    secrets: [cipherRollSecret],
+    serviceAccount: runtimeSa('getCipherOpenProof'),
+}).https.onCall(async (data, context) => {
+    const uid = requireUser(context);
+    const cipherId = (data && data.cipherId || '').toString().trim().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 128);
+    if (!cipherId) throw httpsError('invalid-argument', 'Invalid cipher');
+    const secret = cipherRollKey();
+    if (!secretReady(secret)) throw httpsError('failed-precondition', 'Unavailable.');
+    const isAdmin = !!(context.auth && context.auth.token && context.auth.token.admin === true);
+    const cipherSnap = await db.collection('locked_ciphers').doc(cipherId).get();
+    if (!cipherSnap.exists) throw httpsError('not-found', 'Not found');
+    const cipher = cipherSnap.data() || {};
+    const owner = cipher.ownerId || '';
+    const opener = cipher.openedBy || owner;
+    if (!isAdmin && uid !== owner && uid !== opener) throw httpsError('not-found', 'Not found');
+    const record = Object.assign({ cipherId: cipherId }, cipher);
+    return publicProof(secret, record, Date.now());
+});
+
 module.exports = {
     awardDailyGifts: awardDailyGifts,
     openGift: openGift,
@@ -2317,4 +2416,6 @@ module.exports = {
     listMyCipherWins: listMyCipherWins,
     adminListCipherWins: adminListCipherWins,
     adminMarkCipherWinPaid: adminMarkCipherWinPaid,
+    getCipherRollCommitments: getCipherRollCommitments,
+    getCipherOpenProof: getCipherOpenProof,
 };

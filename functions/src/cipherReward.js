@@ -4,7 +4,8 @@
 // Sats tiers are disjoint so the stated odds are exact and a single open
 // can pay at most one sats amount. Anything else is XP plus tickets.
 //
-// Schema 2 (current, ROLL_SPACE = 1,000,000,000,000):
+// Schema 3 (current, ROLL_SPACE = 1,000,000,000,000). The slot map is the same
+// as the unshipped schema 2 table; only how the roll is produced changed:
 //   roll 0                                      1/1,000,000,000,000 → 10,000,000 sats
 //   roll 1–1,000                                1/1,000,000,000     → 1,000,000
 //   roll 1,001–101,000                          1/10,000,000        → 100,000
@@ -28,7 +29,10 @@
 
 const crypto = require('crypto');
 
-const ROLL_SCHEMA = 2;
+// Schema 3 is commit-reveal (see cipherRollProof.js). Schema 2 (1e12 space
+// with crypto.randomInt) was never shipped. Schema 1 is live until this ships:
+// 10,000,000 space and no jackpot tiers.
+const ROLL_SCHEMA = 3;
 const ROLL_SPACE = 1000000000000;
 const LEGACY_ROLL_SCHEMA = 1;
 const LEGACY_ROLL_SPACE = 10000000;

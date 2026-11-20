@@ -11,6 +11,7 @@ const names = [
     'BRIDGE_SECRET',
     'CF_AI_TOKEN',
     'CF_API_TOKEN',
+    'CIPHER_ROLL_SECRET',
     'NWC_URL',
     'STRAVA_CLIENT_SECRET',
     'TG_BOT_TOKEN',
@@ -43,13 +44,14 @@ function secretLines(src) {
 test('used names are defineSecret params and CF_API_TOKEN is not', function () {
     const src = read('src/sensitiveSecrets.js');
     names.forEach(function (name) {
-        if (name === 'CF_API_TOKEN' || name === 'NWC_URL') {
+        if (name === 'CF_API_TOKEN' || name === 'NWC_URL' || name === 'CIPHER_ROLL_SECRET') {
             assert.ok(!src.includes("defineSecret('" + name + "')"), name);
         } else {
             assert.ok(src.includes("defineSecret('" + name + "')"), name);
         }
     });
     assert.ok(read('src/nwcSecret.js').includes("defineSecret('NWC_URL')"));
+    assert.ok(read('src/cipherRollSecret.js').includes("defineSecret(key.SECRET_ENV)") || read('src/cipherRollSecret.js').includes("defineSecret('CIPHER_ROLL_SECRET')"));
     const mod = require(path.join(root, 'src', 'sensitiveSecrets.js'));
     assert.strictEqual(mod.adminTokenSecret.name, 'ADMIN_TOKEN');
     assert.strictEqual(mod.bridgeSecretParam.name, 'BRIDGE_SECRET');
@@ -90,6 +92,8 @@ test('plain process.env.NAME reads stay in the secret modules', function () {
     const allowed = new Set([
         path.join(root, 'src', 'sensitiveSecrets.js'),
         path.join(root, 'src', 'nwcSecret.js'),
+        path.join(root, 'src', 'cipherRollKey.js'),
+        path.join(root, 'src', 'cipherRollSecret.js'),
     ]);
     const re = new RegExp('process\\.env\\.(?:' + names.join('|') + ')\\b|process\\.env\\[[\'"](?:' + names.join('|') + ')[\'"]\\]');
     const offenders = walk(root, []).filter(function (p) {

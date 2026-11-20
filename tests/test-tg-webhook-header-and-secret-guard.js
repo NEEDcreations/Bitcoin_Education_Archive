@@ -1,5 +1,5 @@
 // setTelegramWebhook takes the admin token from the x-admin-token header only,
-// and the functions predeploy guard refuses to deploy unless all 10 bound
+// and the functions predeploy guard refuses to deploy unless all 11 bound
 // Secret Manager secrets exist. Fake values only; no network.
 const assert = require('assert');
 const fs = require('fs');
@@ -17,7 +17,7 @@ function test(name, fn) {
     );
 }
 
-const TEN = ['ADMIN_TOKEN', 'BRIDGE_SECRET', 'CF_AI_TOKEN', 'STRAVA_CLIENT_SECRET', 'TG_BOT_TOKEN',
+const TEN = ['ADMIN_TOKEN', 'BRIDGE_SECRET', 'CF_AI_TOKEN', 'CIPHER_ROLL_SECRET', 'STRAVA_CLIENT_SECRET', 'TG_BOT_TOKEN',
     'TURNSTILE_SECRET_KEY', 'X_ACCESS_SECRET', 'X_ACCESS_TOKEN', 'X_API_KEY', 'X_API_SECRET'];
 const FAKE_ADMIN = 'fake-admin-token-for-test-0123456789';
 
@@ -103,15 +103,15 @@ function fakeFetch(states) {
 }
 function allEnabled() { const s = {}; TEN.forEach(function (n) { s[n] = 'ENABLED'; }); return s; }
 
-test('required list is exactly the 10 bound secrets (no CF_API_TOKEN, no NWC_URL)', function () {
+test('required list is exactly the 11 bound secrets (no CF_API_TOKEN, no NWC_URL)', function () {
     assert.deepStrictEqual(REQUIRED_SECRET_NAMES, TEN);
 });
 
-test('all 10 enabled -> ok, metadata URLs only (never :access)', async function () {
+test('all 11 enabled -> ok, metadata URLs only (never :access)', async function () {
     const f = fakeFetch(allEnabled());
     const r = await guard.checkSecrets({ project: 'demo-test', fetch: f, getToken: async function () { return 'tok'; } });
     assert.strictEqual(r.ok, true);
-    assert.strictEqual(f.calls.length, 10);
+    assert.strictEqual(f.calls.length, 11);
     f.calls.forEach(function (c) {
         assert.ok(/\/versions\/latest$/.test(c.url), c.url);
         assert.ok(!c.url.includes(':access'));
@@ -132,7 +132,7 @@ test('one missing and one disabled -> blocked, names listed', async function () 
 test('no credentials or no project fails closed', async function () {
     let r = await guard.checkSecrets({ project: 'demo-test', fetch: fakeFetch(allEnabled()), getToken: async function () { throw new Error('no adc'); } });
     assert.strictEqual(r.ok, false);
-    assert.strictEqual(r.missing.length, 10);
+    assert.strictEqual(r.missing.length, 11);
     r = await guard.checkSecrets({ project: '', fetch: fakeFetch(allEnabled()), getToken: async function () { return 'tok'; } });
     assert.strictEqual(r.ok, false);
 });
@@ -141,7 +141,7 @@ test('network error on a secret blocks deploy', async function () {
     const r = await guard.checkSecrets({ project: 'demo-test', getToken: async function () { return 'tok'; },
         fetch: async function () { throw new Error('ECONNRESET'); } });
     assert.strictEqual(r.ok, false);
-    assert.strictEqual(r.missing.length, 10);
+    assert.strictEqual(r.missing.length, 11);
 });
 
 test('project id: --project, then GCLOUD_PROJECT, then .firebaserc default', function () {

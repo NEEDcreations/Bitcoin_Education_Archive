@@ -24,10 +24,10 @@ const names = Object.keys(endpoints);
 const secretBound = names.filter(function (n) { return endpoints[n].secrets.length > 0; }).sort();
 const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
 
-test('manifest lists exactly the secret-bound exports (59)', function () {
+test('manifest lists exactly the secret-bound exports (64)', function () {
     assert.deepStrictEqual(manifest, secretBound);
-    assert.strictEqual(manifest.length, 59);
-    assert.strictEqual(secretBound.length, 59);
+    assert.strictEqual(manifest.length, 64);
+    assert.strictEqual(secretBound.length, 64);
 });
 
 const HOLDOVER = ['regenerateRecoveryCodes', 'totpCheck', 'totpSetup', 'totpStepUp'];

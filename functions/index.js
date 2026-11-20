@@ -9722,6 +9722,8 @@ const {
     listMyCipherWins,
     adminListCipherWins,
     adminMarkCipherWinPaid,
+    getCipherRollCommitments,
+    getCipherOpenProof,
 } = require('./src/gifting');
 exports.awardDailyGifts = awardDailyGifts;
 exports.openGift = openGift;
@@ -9734,6 +9736,8 @@ exports.adminResolveCipherSatsClaim = adminResolveCipherSatsClaim;
 exports.listMyCipherWins = listMyCipherWins;
 exports.adminListCipherWins = adminListCipherWins;
 exports.adminMarkCipherWinPaid = adminMarkCipherWinPaid;
+exports.getCipherRollCommitments = getCipherRollCommitments;
+exports.getCipherOpenProof = getCipherOpenProof;
 
 // Daily say-hi. App Check is required, same as claimSats. The handlers
 // grant XP and tickets only inside a transaction keyed by uid + server day.

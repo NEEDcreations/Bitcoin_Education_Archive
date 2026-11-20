@@ -229,9 +229,13 @@ test('claim source does not read or write the faucet clock, and the faucet does 
     assert.ok(decrypt.includes('cipherSatsBalance'));
     assert.ok(decrypt.includes("sats added to your cipher balance"));
     assert.ok(decrypt.includes('verifyCipherPrize'));
+    assert.ok(decrypt.includes('openCipherReward'));
+    assert.ok(decrypt.includes('cipherRollKey'));
     assert.ok(decrypt.includes('rollSpace: ROLL_SPACE'));
     assert.ok(decrypt.includes('rollSchema: ROLL_SCHEMA'));
+    assert.ok(decrypt.includes('receiptMac: reward.receiptMac'));
     assert.ok(decrypt.includes('openedWithKeyId: keyId'));
+    assert.ok(decrypt.includes("secrets: [cipherRollSecret]"));
     assert.deepStrictEqual(reward.ALLOWED_SATS_AMOUNTS, [10000000, 1000000, 100000, 50000, 10000, 5000, 1000, 500, 250, 100, 50, 25, 10, 5]);
 });
 
@@ -246,6 +250,10 @@ test('jackpot cipher wins stay manual, are recorded, and cannot be paid if the r
     const list = gifting.slice(gifting.indexOf('function cipherWinAudit'), gifting.indexOf('const adminMarkCipherWinPaid'));
     assert.ok(list.includes('data.cipherId'));
     assert.ok(list.includes("collection('locked_ciphers')"));
+    assert.ok(list.includes('auditOpen'));
+    assert.ok(gifting.includes('getCipherRollCommitments'));
+    assert.ok(gifting.includes('getCipherOpenProof'));
+    assert.ok(gifting.includes('listPeriodPublic'));
     const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
     const ciphers = rules.slice(rules.indexOf('match /locked_ciphers/{cipherId}'), rules.indexOf('match /key_send_pairs/{pairId}'));
     assert.ok(ciphers.includes('allow write: if false'));

@@ -42,7 +42,9 @@
 
 const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     adminBanUser: { id: 'fn-admin-ban-user', extra: [] },
+    adminListCipherWins: { id: 'fn-admin-list-cipher-wins', extra: [] },
     adminLookupUser: { id: 'fn-admin-lookup-user', extra: [] },
+    adminMarkCipherWinPaid: { id: 'fn-admin-mark-cipher-win', extra: [] },
     adminQueryUsers: { id: 'fn-admin-query-users', extra: [] },
     adminResetSecondFactor: { id: 'fn-admin-reset-second', extra: ['auth'] },
     adminResolveCipherSatsClaim: { id: 'fn-admin-resolve-cipher-claim', extra: [] },
@@ -61,7 +63,10 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     confirmTipSent: { id: 'fn-confirm-tip-sent', extra: ['fcm'] },
     dailyActiveUsers: { id: 'fn-daily-active-users', extra: ['auth'] },
     deleteAccount: { id: 'fn-delete-account', extra: ['auth', 'storage'] },
+    decryptCipher: { id: 'fn-decrypt-cipher', extra: ['auth'] },
     flushTelegramMirror: { id: 'fn-flush-telegram-mirror', extra: [] },
+    getCipherOpenProof: { id: 'fn-get-cipher-open-proof', extra: [] },
+    getCipherRollCommitments: { id: 'fn-get-cipher-roll-commits', extra: [] },
     getFaucetStats: { id: 'fn-get-faucet-stats', extra: [] },
     handleTelegramWebhook: { id: 'fn-handle-telegram-webhook', extra: [] },
     investigateUsers: { id: 'fn-investigate-users', extra: ['auth'] },
