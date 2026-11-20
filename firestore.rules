@@ -2000,6 +2000,15 @@ service cloud.firestore {
     // GLOBAL CHAT
     // =============================================
     match /global_chat/{msgId} {
+      // Own upload in this project's Storage (live or staging bucket), as written
+      // by getDownloadURL(), or a Giphy/Tenor CDN GIF from the GIF picker.
+      function globalChatGifUrlOk(u) {
+        return u is string
+          && u.size() <= 500
+          && (u.matches('^https://firebasestorage[.]googleapis[.]com/v0/b/(bitcoin-education-archive|bitcoin-quest-staging)[.]firebasestorage[.]app/o/chat-images%2F'
+                        + request.auth.uid.replace(':', '%3A') + '%2F[A-Za-z0-9._%-]+[?]alt=media&token=[A-Za-z0-9-]+$')
+              || u.matches('^https://(media[0-9]?[.]giphy[.]com|i[.]giphy[.]com|media[.]tenor[.]com|c[.]tenor[.]com)/[^\\s"<>]+$'));
+      }
       // Flair on a message must be the flair the server equipped on the sender's
       // profile, or the plain Nook flame for a chat_flair owner.
       function chatFlairOk(u) {
@@ -2054,6 +2063,11 @@ service cloud.firestore {
                             && request.resource.data.text.size() <= 2000))
                     && request.resource.data.name is string
                     && request.resource.data.ts == request.time
+                    // A user's GIF/image post must point at their own chat upload or the
+                    // GIF search CDNs (same sources the DM rules allow).
+                    && (request.resource.data.get('isGif', false) != true
+                        || request.resource.data.uid != request.auth.uid
+                        || globalChatGifUrlOk(request.resource.data.text))
                     // Reply fields: length-cap so they can't carry large payloads
                     && (!('replyToName' in request.resource.data) || (request.resource.data.replyToName is string && request.resource.data.replyToName.size() <= 60))
                     && (!('replyToText' in request.resource.data) || (request.resource.data.replyToText is string && request.resource.data.replyToText.size() <= 300))
