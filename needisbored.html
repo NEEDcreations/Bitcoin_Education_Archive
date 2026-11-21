@@ -53,6 +53,18 @@
       font-size: clamp(.7rem, 1.6vw, .85rem);
       margin-bottom: clamp(1.2rem, 5vh, 2.4rem);
     }
+    .brand a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .brand a:hover {
+      opacity: .85;
+    }
+    .brand a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
     .row {
       display: flex;
       align-items: center;
@@ -138,7 +150,7 @@
 </head>
 <body>
   <main>
-    <p class="brand">Bitcoin Quest</p>
+    <p class="brand"><a href="https://bitcoineducation.quest/?ref=s2rP0nRE">Bitcoin Quest</a></p>
     <div id="live">
       <div class="row">
         <div class="clock" aria-live="polite">
