@@ -121,6 +121,16 @@ test('on phones the Experience bar moves below the Invite and Quest pills', func
     });
 });
 
+test('the account and Settings sheet starts below the phone status bar', function () {
+    ['index.html', '404.html'].forEach(function (name) {
+        const html = read(name);
+        const m = /#usernameModal \{[^}]*\}/.exec(html);
+        assert.ok(m, name + ' sheet style');
+        assert.ok(/padding:\s*env\(safe-area-inset-top, 0px\)/.test(m[0]), name + ' top inset');
+        assert.ok(m[0].includes('box-sizing: border-box'), name + ' box sizing');
+    });
+});
+
 Promise.all(pending).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     if (failed) process.exit(1);
