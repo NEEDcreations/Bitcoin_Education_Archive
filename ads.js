@@ -7,9 +7,9 @@
  * no paid ads, no ad breaks, nothing overlaying or pausing the player.
  *
  * Kids, Classroom, and Premium accounts never see ads.
- * A configurable ad-free holdout (default 10%) is assigned stably per
- * user id or, for guests, a persistent device id. It may become 20%
- * pending Phil; change BQ_ADS_HOLDOUT_PCT only.
+ * A configurable ad-free holdout (default 20%; Phil, Nov 25: "A. Make
+ * the ad-free group 20%") is assigned stably per user id or, for guests,
+ * a persistent device id. Change BQ_ADS_HOLDOUT_PCT only.
  *
  * Holdout vs ads is recorded as aggregate daily-active and next-day-return
  * counts only (ads_holdout_stats/{YYYY-MM-DD}). No per-user export.
@@ -17,7 +17,7 @@
 (function (root) {
     'use strict';
 
-    var HOLDOUT_PCT = 10;
+    var HOLDOUT_PCT = 20;
     var AADS_UNIT = '2463147';
     var AADS_SRC = 'https://acceptable.a-ads.com/2463147/?size=Adaptive';
     var ADSENSE_CLIENT = 'ca-pub-7244515226002177';
@@ -31,10 +31,31 @@
         'proof-of-play': true,
         arcade: true
     };
+    var ADSENSE_SURFACES = {
+        'learning-quests': true,
+        'proof-of-play': true,
+        arcade: true
+    };
     var TCTV_SURFACES = {
         'timechain-tv': true,
         tv: true,
         tctv: true
+    };
+    var KIDS_SURFACES = {
+        kids: true,
+        'kids-family': true,
+        'kids-and-family': true
+    };
+    var SENSITIVE_SURFACES = {
+        claim: true,
+        withdraw: true,
+        wallet: true,
+        nwc: true,
+        login: true,
+        signin: true,
+        'sign-in': true,
+        admin: true,
+        faucet: true
     };
 
     function holdoutPct() {
@@ -145,18 +166,102 @@
         ).toLowerCase();
     }
 
+    function ageBandOf(user) {
+        if (!user) return '';
+        return String(user.ageBand || user.age_band || '').toLowerCase();
+    }
+
     function isKidsAccount(user) {
         if (!user) return false;
+        // Fields used by premium checkout and the upcoming Family/Classroom seats:
+        // isMinor, under13, and ageBand ('under13' | 'minor').
+        if (user.isMinor === true || user.under13 === true) return true;
         if (user.kids === true || user.isKids === true || user.kidsMode === true) return true;
+        var band = ageBandOf(user);
+        if (band === 'under13' || band === 'minor' || band === 'child' || band === 'kids' || band === 'kid') return true;
         var t = accountLabel(user);
         return t === 'kids' || t === 'kid' || t === 'child' || t === 'family-child' || t === 'minor';
+    }
+
+    function premiumPlanId(user) {
+        if (!user || !user.premium) return '';
+        return String(user.premium.plan || user.premium.planId || user.premium.planType || '').toLowerCase();
+    }
+
+    function isFamilyOrClassroomPlan(user) {
+        if (!user) return false;
+        if (user.premium && user.premium.family === true) return true;
+        var plan = premiumPlanId(user);
+        if (!plan) return false;
+        if (plan === 'family_monthly' || plan === 'family_months' || plan === 'family' || plan === 'classroom') return true;
+        return plan.indexOf('family') === 0 || plan.indexOf('classroom') === 0;
     }
 
     function isClassroomAccount(user) {
         if (!user) return false;
         if (user.classroom === true || user.isClassroom === true || user.classroomMode === true) return true;
+        if (isFamilyOrClassroomPlan(user)) return true;
         var t = accountLabel(user);
-        return t === 'classroom' || t === 'student' || t === 'school';
+        return t === 'classroom' || t === 'student' || t === 'school' || t === 'family' || t === 'family-classroom';
+    }
+
+    function normalizeToken(value) {
+        return String(value || '').toLowerCase().replace(/_/g, '-');
+    }
+
+    function tokenLooksLikeKids(value) {
+        var s = normalizeToken(value);
+        if (!s) return false;
+        if (KIDS_SURFACES[s]) return true;
+        if (s === 'kids-family' || s.indexOf('kids-family') !== -1) return true;
+        return /(^|[\/?#&=-])kids([\/?#&=-]|$)/.test(s);
+    }
+
+    function isKidsSurface(ctx) {
+        ctx = ctx || {};
+        if (tokenLooksLikeKids(ctx.surface) || tokenLooksLikeKids(ctx.page) || tokenLooksLikeKids(ctx.category) || tokenLooksLikeKids(ctx.channel) || tokenLooksLikeKids(ctx.topic) || tokenLooksLikeKids(ctx.section)) return true;
+        var path = pathOf(ctx);
+        var extra = '';
+        if (ctx.hash) extra = String(ctx.hash);
+        else if (typeof location !== 'undefined') extra = String(location.hash || '') + String(location.search || '');
+        if (tokenLooksLikeKids(path) || tokenLooksLikeKids(extra)) return true;
+        if (/(marketplace\/kids|\/kids-family\b|[?&#]category=kids\b|[?&#]channel=kids-family\b)/i.test(path + extra)) return true;
+        if (typeof currentPage !== 'undefined' && tokenLooksLikeKids(currentPage)) return true;
+        if (root && (tokenLooksLikeKids(root._mktCategory) || tokenLooksLikeKids(root._tctvChannel) || tokenLooksLikeKids(root._lqTopic))) return true;
+        return false;
+    }
+
+    function isSensitiveSurface(ctx) {
+        ctx = ctx || {};
+        var surface = normalizeToken(ctx.surface || ctx.page || '');
+        if (SENSITIVE_SURFACES[surface]) return true;
+        if (typeof currentPage !== 'undefined' && SENSITIVE_SURFACES[normalizeToken(currentPage)]) return true;
+        var path = normalizeToken(pathOf(ctx));
+        if (/\/(claim|withdraw|wallet|nwc|admin|login|sign-in|signin|faucet)(\/|$)/.test(path)) return true;
+        return false;
+    }
+
+    function sensitiveUiOpen() {
+        if (typeof document === 'undefined') return false;
+        var ids = ['claimModal', 'withdrawModal', 'walletModal', 'nwcModal', 'adminPanel', 'admin-panel', 'loginModal', 'usernamePrompt', 'btcClaimSessionPopup'];
+        var i, el;
+        for (i = 0; i < ids.length; i++) {
+            el = document.getElementById(ids[i]);
+            if (el && !el.hidden && !el.classList.contains('hidden')) return true;
+        }
+        return !!(document.querySelector('.bq-claim-modal:not(.hidden), .bq-wallet-modal:not(.hidden), .bq-admin-panel:not(.hidden)'));
+    }
+
+    function isUserUnknown(input) {
+        input = input || {};
+        if (Object.prototype.hasOwnProperty.call(input, 'user')) return false;
+        if (input.userUnknown === true) return true;
+        if (input.userUnknown === false) return false;
+        if (root && root._bqAdsUserUnknown === true) return true;
+        if (root && root._bqAdsAuthReady === true) return false;
+        // In the browser, ads stay off until auth (and the user doc, when signed in) is ready.
+        if (typeof document !== 'undefined' && !(root && root._bqAdsAuthReady === true)) return true;
+        return false;
     }
 
     function pathOf(ctx) {
@@ -211,16 +316,21 @@
         if (user === undefined && typeof currentUser !== 'undefined') user = currentUser;
         var surface = currentSurface(input);
         var tctv = isTimechainTvSurface(input) || surface === 'timechain-tv';
+        var kidsSurface = isKidsSurface(input);
+        var sensitive = isSensitiveSurface(input);
         var pct = input.holdoutPct != null ? Number(input.holdoutPct) : holdoutPct();
         if (!isFinite(pct) || pct < 0) pct = HOLDOUT_PCT;
         if (pct > 100) pct = 100;
-        var id = assignmentId(user);
-        var holdout = inHoldout(id, pct);
+        var unknown = isUserUnknown(input);
+        var id = unknown ? null : assignmentId(user);
+        var holdout = !unknown && inHoldout(id, pct);
         var reason = null;
         var experimentGroup = null;
         var show = false;
 
-        if (tctv) {
+        if (unknown) {
+            reason = 'unknown';
+        } else if (tctv) {
             reason = 'tctv';
         } else if (isKidsAccount(user)) {
             reason = 'kids';
@@ -228,6 +338,10 @@
             reason = 'classroom';
         } else if (isPremiumAccount(user)) {
             reason = 'premium';
+        } else if (kidsSurface) {
+            reason = 'kids-surface';
+        } else if (sensitive) {
+            reason = 'sensitive';
         } else if (holdout) {
             reason = 'holdout';
             experimentGroup = 'holdout';
@@ -241,10 +355,10 @@
         // Eligible (not kids/classroom/premium, not on TCTV) users in the
         // experiment still belong to holdout or ads even when the current
         // surface has no slot, so daily-active return can be compared later.
-        if (!tctv && !isKidsAccount(user) && !isClassroomAccount(user) && !isPremiumAccount(user)) {
+        if (!unknown && !tctv && !isKidsAccount(user) && !isClassroomAccount(user) && !isPremiumAccount(user)) {
             experimentGroup = holdout ? 'holdout' : 'ads';
             if (holdout) reason = 'holdout';
-            else if (!show) reason = reason || 'surface';
+            else if (!show) reason = reason || (kidsSurface ? 'kids-surface' : (sensitive ? 'sensitive' : 'surface'));
         }
 
         return {
@@ -254,7 +368,7 @@
             experimentGroup: experimentGroup,
             assignmentId: id,
             holdoutPct: pct,
-            bucket: bucket(id)
+            bucket: unknown ? null : bucket(id)
         };
     }
 
@@ -264,8 +378,17 @@
 
     function aadsIframeHtml() {
         return '<iframe data-aa="' + AADS_UNIT + '" src="' + AADS_SRC + '"' +
+            ' sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"' +
+            ' referrerpolicy="no-referrer"' +
             ' style="border:0;padding:0;width:100%;height:auto;overflow:hidden;display:block;max-width:100%;position:relative;z-index:0;"' +
             ' title="Advertisement" loading="lazy"></iframe>';
+    }
+
+    function adsenseAllowed(decision, input) {
+        if (!decision || decision.show !== true) return false;
+        if (!ADSENSE_SURFACES[decision.surface]) return false;
+        if (isSensitiveSurface(input) || sensitiveUiOpen()) return false;
+        return true;
     }
 
     function ensureHomeSlot() {
@@ -453,7 +576,9 @@
         } else if (decision.surface === 'learning-quests') {
             var hub = typeof document !== 'undefined' ? document.getElementById('lqHub') : null;
             var host = hub && (hub.querySelector('div') || hub);
-            fillAdsense(ensureSurfaceSlot('bqAdsenseLearn', host));
+            var learnSlot = ensureSurfaceSlot('bqAdsenseLearn', host);
+            if (adsenseAllowed(decision, input)) fillAdsense(learnSlot);
+            else fillAads(learnSlot);
             clearSlot(typeof document !== 'undefined' ? document.getElementById('bqAadsHome') : null);
             clearSlot(typeof document !== 'undefined' ? document.getElementById('bqAdsenseArcade') : null);
         } else if (decision.surface === 'proof-of-play' || decision.surface === 'arcade') {
@@ -464,7 +589,9 @@
                 var body = overlay.querySelector('#popBody') || overlay;
                 popHost = body.parentNode || overlay;
             }
-            fillAdsense(ensureSurfaceSlot('bqAdsenseArcade', popHost || overlay));
+            var arcadeSlot = ensureSurfaceSlot('bqAdsenseArcade', popHost || overlay);
+            if (adsenseAllowed(decision, input)) fillAdsense(arcadeSlot);
+            else fillAads(arcadeSlot);
             clearSlot(typeof document !== 'undefined' ? document.getElementById('bqAadsHome') : null);
             clearSlot(typeof document !== 'undefined' ? document.getElementById('bqAdsenseLearn') : null);
         } else {
@@ -490,14 +617,63 @@
         obj[name] = wrapped;
     }
 
+    function markUserKnown() {
+        if (root) {
+            root._bqAdsAuthReady = true;
+            root._bqAdsUserUnknown = false;
+        }
+        sync();
+    }
+
+    function markUserUnknown() {
+        if (root) {
+            root._bqAdsUserUnknown = true;
+        }
+        hideAllSlots();
+    }
+
+    function userDocLooksLoaded(user, uid) {
+        if (!user || !uid || user.uid !== uid) return false;
+        return user.premium !== undefined || user.isMinor !== undefined || user.ageBand !== undefined || user.under13 !== undefined || user.username !== undefined || user.points !== undefined || user.displayName !== undefined;
+    }
+
+    function hookAuth() {
+        if (typeof window === 'undefined' || window._bqAdsAuthHooked) return;
+        var authObj = null;
+        try {
+            if (typeof firebase !== 'undefined' && firebase.auth) authObj = firebase.auth();
+        } catch (e) { authObj = null; }
+        if (!authObj && typeof auth !== 'undefined') authObj = auth;
+        if (!authObj || typeof authObj.onAuthStateChanged !== 'function') return;
+        window._bqAdsAuthHooked = true;
+        authObj.onAuthStateChanged(function (signed) {
+            if (!signed || signed.isAnonymous === true) {
+                markUserKnown();
+                return;
+            }
+            if (typeof currentUser !== 'undefined' && userDocLooksLoaded(currentUser, signed.uid)) {
+                markUserKnown();
+                return;
+            }
+            if (root) {
+                root._bqAdsAuthReady = true;
+                root._bqAdsUserUnknown = true;
+            }
+            sync({ userUnknown: true });
+        });
+        hookFn(window, 'loadUser', function () { markUserKnown(); });
+    }
+
     function hookNavigation() {
         if (typeof window === 'undefined') return;
+        hookAuth();
         hookFn(window, 'go', function () { sync(); });
         hookFn(window, 'enterProofOfPlay', function () { sync({ surface: 'proof-of-play' }); });
         hookFn(window, 'exitProofOfPlay', function () { sync(); });
         hookFn(window, 'renderLearningQuestHub', function () { sync({ surface: 'learning-quests' }); });
         hookFn(window, 'leaveTimechainTV', function () { sync(); });
         hookFn(window, 'renderTimechainTV', function () { hideAllSlots(); });
+        hookFn(window, 'renderMarketplace', function () { sync({ surface: 'marketplace' }); });
         if (!window._bqAdsPopstate) {
             window._bqAdsPopstate = true;
             window.addEventListener('popstate', function () { sync(); });
@@ -512,6 +688,9 @@
 
     function boot() {
         if (root && root.BQ_ADS_NO_BOOT) return;
+        if (root && root._bqAdsAuthReady !== true) {
+            root._bqAdsUserUnknown = true;
+        }
         hookNavigation();
         sync();
         if (typeof setInterval === 'function') {
@@ -540,6 +719,11 @@
         isPremiumAccount: isPremiumAccount,
         isKidsAccount: isKidsAccount,
         isClassroomAccount: isClassroomAccount,
+        isFamilyOrClassroomPlan: isFamilyOrClassroomPlan,
+        isKidsSurface: isKidsSurface,
+        isSensitiveSurface: isSensitiveSurface,
+        isUserUnknown: isUserUnknown,
+        adsenseAllowed: adsenseAllowed,
         isTimechainTvSurface: isTimechainTvSurface,
         currentSurface: currentSurface,
         isAllowedSurface: isAllowedSurface,

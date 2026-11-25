@@ -87,16 +87,16 @@ function test(name, fn) {
     }
 }
 
-test('default holdout percentage is one config value at 10', function () {
+test('default holdout percentage is one config value at 20', function () {
     const ads = loadAds();
-    assert.strictEqual(ads.HOLDOUT_PCT, 10);
-    assert.strictEqual(ads.holdoutPct(), 10);
+    assert.strictEqual(ads.HOLDOUT_PCT, 20);
+    assert.strictEqual(ads.holdoutPct(), 20);
 });
 
 test('holdout percentage can be overridden from one config hook', function () {
-    const ads = loadAds({ holdoutPct: 20 });
-    assert.strictEqual(ads.holdoutPct(), 20);
-    assert.strictEqual(ads.HOLDOUT_PCT, 10);
+    const ads = loadAds({ holdoutPct: 10 });
+    assert.strictEqual(ads.holdoutPct(), 10);
+    assert.strictEqual(ads.HOLDOUT_PCT, 20);
 });
 
 test('holdout assignment is stable for the same user', function () {
@@ -127,6 +127,16 @@ test('a 10% holdout buckets roughly one in ten ids', function () {
     assert.ok(rate > 0.06 && rate < 0.14, 'got ' + rate);
 });
 
+test('the default 20% holdout buckets roughly one in five ids', function () {
+    const ads = loadAds();
+    let held = 0;
+    for (let i = 0; i < 2000; i++) {
+        if (ads.inHoldout('uid-' + i)) held++;
+    }
+    const rate = held / 2000;
+    assert.ok(rate > 0.15 && rate < 0.25, 'got ' + rate);
+});
+
 test('changing the config value changes the cutoff, not the hash', function () {
     const ads = loadAds();
     const id = 'uid-reconfig-check';
@@ -152,10 +162,10 @@ test('Kids, Classroom, and Premium accounts never see ads', function () {
 test('HARD RULE: Timechain TV never gets ads, even for eligible users', function () {
     const ads = loadAds();
     const user = { uid: 'eligible-not-holdout-please' };
-    // Find a user that is NOT in the 10% holdout so surface is the only gate.
+    // Find a user that is NOT in the default holdout so surface is the only gate.
     let uid = 'eligible-0';
     for (let i = 0; i < 200; i++) {
-        if (!ads.inHoldout('u' + i, 10)) { uid = 'u' + i; break; }
+        if (!ads.inHoldout('u' + i)) { uid = 'u' + i; break; }
     }
     const d = ads.decide({ user: { uid: uid }, surface: 'timechain-tv', path: '/timechain-tv' });
     assert.strictEqual(d.show, false);
@@ -168,7 +178,7 @@ test('ads are allowed only on homepage, Learn, and arcade for eligible users', f
     const ads = loadAds();
     let uid = 'ok';
     for (let i = 0; i < 400; i++) {
-        if (!ads.inHoldout('ok' + i, 10)) { uid = 'ok' + i; break; }
+        if (!ads.inHoldout('ok' + i)) { uid = 'ok' + i; break; }
     }
     const user = { uid: uid };
     assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'home', path: '/' }), true);
@@ -198,7 +208,7 @@ test('aggregate recorder writes only holdout vs ads counts, never a user or devi
     const ads = loadAds();
     let uid = 'agg-user';
     for (let i = 0; i < 400; i++) {
-        if (!ads.inHoldout('agg' + i, 10)) { uid = 'agg' + i; break; }
+        if (!ads.inHoldout('agg' + i)) { uid = 'agg' + i; break; }
     }
     const now = new Date('2026-11-25T18:00:00-05:00');
     const decision = ads.decide({ user: { uid: uid }, surface: 'home' });
@@ -228,7 +238,7 @@ test('next-day return increments the previous day cohort across all daily active
     const ads = loadAds();
     let uid = 'ret-user';
     for (let i = 0; i < 400; i++) {
-        if (ads.inHoldout('ret' + i, 10)) { uid = 'ret' + i; break; }
+        if (ads.inHoldout('ret' + i)) { uid = 'ret' + i; break; }
     }
     const day1 = new Date('2026-11-25T12:00:00-05:00');
     const day2 = new Date('2026-11-26T09:00:00-05:00');
@@ -287,13 +297,94 @@ test('index.html and 404.html include ads.js, the homepage slot, and the AdSense
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const html404 = fs.readFileSync(path.join(root, '404.html'), 'utf8');
     assert.strictEqual(html, html404, '404.html must match index.html');
-    assert.ok(html.includes('src="/ads.js?v=20261125_v2691"'));
+    assert.ok(html.includes('src="/ads.js?v=20261125_v2692"'));
     assert.ok(html.includes('defer') && html.includes('ads.js'));
     assert.ok(html.includes('id="bqAadsHome"'));
     assert.ok(html.includes('name="google-adsense-account"'));
     assert.ok(html.includes('ca-pub-7244515226002177'));
     assert.ok(!html.includes('z-index: 99998'));
     assert.ok(!html.includes("z-index:99998"));
+});
+
+
+test('Kids accounts match isMinor, under13, and ageBand fields used by premium checkout', function () {
+    const ads = loadAds();
+    const home = { surface: 'home', path: '/' };
+    assert.strictEqual(ads.isKidsAccount({ uid: 'a', isMinor: true }), true);
+    assert.strictEqual(ads.isKidsAccount({ uid: 'b', under13: true }), true);
+    assert.strictEqual(ads.isKidsAccount({ uid: 'c', ageBand: 'under13' }), true);
+    assert.strictEqual(ads.isKidsAccount({ uid: 'd', ageBand: 'minor' }), true);
+    assert.strictEqual(ads.shouldShowAds(Object.assign({ user: { uid: 'a', isMinor: true } }, home)), false);
+    assert.strictEqual(ads.decide(Object.assign({ user: { uid: 'c', ageBand: 'under13' } }, home)).reason, 'kids');
+    assert.strictEqual(ads.decide(Object.assign({ user: { uid: 'd', ageBand: 'minor' } }, home)).experimentGroup, null);
+});
+
+test('Classroom and Family plans match premium.plan family_monthly and family_months', function () {
+    const ads = loadAds();
+    const home = { surface: 'home', path: '/' };
+    assert.strictEqual(ads.isClassroomAccount({ uid: 'f', premium: { plan: 'family_monthly' } }), true);
+    assert.strictEqual(ads.isFamilyOrClassroomPlan({ uid: 'f', premium: { plan: 'family_months' } }), true);
+    assert.strictEqual(ads.isFamilyOrClassroomPlan({ uid: 'f', premium: { family: true } }), true);
+    assert.strictEqual(ads.shouldShowAds(Object.assign({ user: { uid: 'f', premium: { plan: 'family_monthly' } } }, home)), false);
+    assert.strictEqual(ads.decide(Object.assign({ user: { uid: 'f', premium: { plan: 'family_months' } } }, home)).reason, 'classroom');
+    assert.strictEqual(ads.decide(Object.assign({ user: { uid: 'f', premium: { family: true } } }, home)).experimentGroup, null);
+});
+
+test('Kids section and topic pages are never an ad surface', function () {
+    const ads = loadAds();
+    let uid = 'ok';
+    for (let i = 0; i < 400; i++) {
+        if (!ads.inHoldout('ks' + i)) { uid = 'ks' + i; break; }
+    }
+    const user = { uid: uid };
+    assert.strictEqual(ads.isKidsSurface({ surface: 'marketplace', category: 'kids' }), true);
+    assert.strictEqual(ads.isKidsSurface({ surface: 'timechain-tv', channel: 'kids-family' }), true);
+    assert.strictEqual(ads.isKidsSurface({ path: '/marketplace', hash: '#category=kids' }), true);
+    assert.strictEqual(ads.isKidsSurface({ surface: 'home', path: '/' }), false);
+    assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'marketplace', category: 'kids', path: '/marketplace' }), false);
+    assert.strictEqual(ads.decide({ user: user, surface: 'marketplace', category: 'kids' }).reason, 'kids-surface');
+    assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'learning-quests', topic: 'kids-family' }), false);
+});
+
+test('decide defaults to no ads while the user is unknown and does not record a cohort', function () {
+    const ads = loadAds();
+    const d = ads.decide({ userUnknown: true, surface: 'home', path: '/' });
+    assert.strictEqual(d.show, false);
+    assert.strictEqual(d.reason, 'unknown');
+    assert.strictEqual(d.experimentGroup, null);
+    assert.strictEqual(ads.shouldShowAds({ userUnknown: true, surface: 'home' }), false);
+    const knownGuest = ads.decide({ user: null, surface: 'home', path: '/' });
+    assert.notStrictEqual(knownGuest.reason, 'unknown');
+});
+
+test('A-ADS iframe is sandboxed without top navigation and sends no referrer', function () {
+    const ads = loadAds();
+    const html = ads.aadsIframeHtml();
+    assert.ok(html.indexOf('sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"') >= 0);
+    assert.ok(html.indexOf('referrerpolicy="no-referrer"') >= 0);
+    assert.ok(html.indexOf('allow-top-navigation') < 0);
+});
+
+test('claim, withdraw, wallet, login, and admin are not ad surfaces', function () {
+    const ads = loadAds();
+    let uid = 'ok';
+    for (let i = 0; i < 400; i++) {
+        if (!ads.inHoldout('sens' + i)) { uid = 'sens' + i; break; }
+    }
+    const user = { uid: uid };
+    ['claim', 'withdraw', 'wallet', 'nwc', 'login', 'admin'].forEach(function (surface) {
+        assert.strictEqual(ads.isSensitiveSurface({ surface: surface }), true, surface);
+        assert.strictEqual(ads.shouldShowAds({ user: user, surface: surface }), false, surface);
+        assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: surface }), { user: user, surface: surface }), false, surface);
+    });
+});
+
+test('holdout rules text limits writable days to a today/yesterday window', function () {
+    const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+    assert.ok(rules.indexOf('function adsHoldoutDayOk') >= 0);
+    assert.ok(rules.indexOf('adsHoldoutDayOk(day)') >= 0);
+    assert.ok(rules.indexOf("duration.value(1, 'd')") >= 0);
+    assert.ok(rules.indexOf("duration.value(2, 'd')") >= 0);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

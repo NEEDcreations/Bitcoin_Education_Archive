@@ -714,20 +714,41 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // UTC calendar day as YYYY-MM-DD. Timestamp parts are UTC.
+    function adsHoldoutUtcYmd(ts) {
+      return string(ts.year())
+        + '-' + (ts.month() < 10 ? '0' : '') + string(ts.month())
+        + '-' + (ts.day() < 10 ? '0' : '') + string(ts.day());
+    }
+
+    // Client keys are America/New_York days. ET is UTC-5/-4, so "today or
+    // yesterday" in ET can fall on UTC today, yesterday, or two days ago.
+    // Writes for any other day (further past or future) are denied.
+    function adsHoldoutDayOk(day) {
+      return day is string
+        && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && (
+          day == adsHoldoutUtcYmd(request.time)
+          || day == adsHoldoutUtcYmd(request.time - duration.value(1, 'd'))
+          || day == adsHoldoutUtcYmd(request.time - duration.value(2, 'd'))
+        );
+    }
+
     // Ad holdout vs ads experiment (RLDA-40). Aggregate daily-active and
     // next-day-return counts only. Clients may increment exactly one of
     // holdoutDau, adsDau, holdoutReturned, adsReturned by +1. No user or
     // device ids are stored. Cosmetic/directional metrics; no sats or access.
+    // Day must be today or yesterday (ET), enforced via a UTC 3-day window.
     match /ads_holdout_stats/{day} {
       allow read: if request.auth != null;
       allow create: if clientWritesOk()
-                    && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                    && adsHoldoutDayOk(day)
                     && request.resource.data.keys().hasOnly(['holdoutDau','adsDau','holdoutReturned','adsReturned'])
                     && request.resource.data.keys().size() == 1
                     && request.resource.data.values()[0] is int
                     && request.resource.data.values()[0] == 1;
       allow update: if clientWritesOk()
-                    && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                    && adsHoldoutDayOk(day)
                     && request.resource.data.diff(resource.data).affectedKeys().size() == 1
                     && (
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['holdoutDau'])
