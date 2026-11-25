@@ -131,6 +131,30 @@ test('the account and Settings sheet starts below the phone status bar', functio
     });
 });
 
+function siteCsp() {
+    const src = read('workers/seo-router/worker.js');
+    const sandbox = {};
+    vm.createContext(sandbox);
+    vm.runInContext(fnSource(src, 'buildCSP') + '\nthis._csp = buildCSP;', sandbox);
+    const csp = sandbox._csp('testnonce', {});
+    const out = {};
+    String(csp).split(';').forEach(function (part) {
+        const bits = part.trim().split(/\s+/);
+        if (bits[0]) out[bits[0]] = bits.slice(1);
+    });
+    return out;
+}
+
+test('the site policy lets the language switch load Google Translate', function () {
+    const csp = siteCsp();
+    // translate.google.com serves element.js, which then loads its main
+    // script, language list and stylesheet from these hosts.
+    ['https://translate.google.com', 'https://translate.googleapis.com', 'https://translate-pa.googleapis.com'].forEach(function (host) {
+        assert.ok(csp['script-src'].includes(host), 'script-src ' + host);
+    });
+    assert.ok(csp['style-src'].includes('https://www.gstatic.com'), 'style-src gstatic');
+});
+
 Promise.all(pending).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     if (failed) process.exit(1);
