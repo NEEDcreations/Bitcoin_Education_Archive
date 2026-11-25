@@ -107,6 +107,7 @@ const TESTS = [
     { name: 'Timechain TV Leave', file: 'test-tctv-leave.js' },
     { name: 'Timechain TV Views', file: 'test-tctv-views.js' },
     { name: 'Timechain TV Daily Watch', file: 'test-tctv-watch.js' },
+    { name: 'Timechain TV player fallback', file: 'test-tctv-player-fallback.js' },
     { name: 'Hot Topics', file: 'test-hot-topics.js' },
     { name: 'Signal ticker refresh', file: 'test-update-ticker.js' },
     { name: 'Signal ticker worker', file: 'test-signal-ticker-worker.js' },

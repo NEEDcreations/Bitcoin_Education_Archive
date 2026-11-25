@@ -388,7 +388,8 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('achievement-share.js?v=20261031_v2447'));
-    assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
+    assert.ok(html.includes('timechain-tv.js?v=20261125_v2691'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261105_v2502'));
     assert.ok(html.includes('features.registry.js?v=20261104_v2482'));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
@@ -399,7 +400,8 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(!notes.includes('Latest: ' + SHARE_NOTE));
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2691'"));
+    assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2455'"));
     assert.ok(!read('sw.js').includes('btc-archive-v2438'));
     assert.ok(!read('sw.js').includes('btc-archive-v2437'));
     assert.ok(!read('sw.js').includes('btc-archive-v2436'));

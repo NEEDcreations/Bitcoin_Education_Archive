@@ -177,6 +177,11 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(src.includes('td-bubble-share'), 'share visible when minimized');
     assert.ok(src.includes('more min to qualify') && src.includes('qualifySeconds'), 'Your Share says how long until it qualifies');
     assert.ok(/if \(inflight && answer\) \{ answerQueued = true; return; \}/.test(src), 'a Still watching? tap is never dropped by an in-flight check-in');
+    assert.ok(src.includes('window._btcAppCheckForClaim(8000)'), 'check-in waits for App Check like claimSats');
+    assert.ok(src.includes("Can't verify this browser, rewards paused"));
+    assert.ok(src.includes("console.warn('[TCTV] tctvDripCheckin failed'"));
+    assert.ok(!src.includes('}).catch(function () {}).then(function () {\n                inflight = false;'), 'check-in no longer swallows errors');
+
     assert.ok(!/addDoc|\.set\(|\.update\(/.test(src.replace(/localStorage\.setItem/g, '')), 'client never writes pot data');
     const D = L.readConfig({});
     assert.strictEqual(D.promptMinMinutes, 15); assert.strictEqual(D.promptMaxMinutes, 40); assert.strictEqual(D.promptAnswerSeconds, 120);

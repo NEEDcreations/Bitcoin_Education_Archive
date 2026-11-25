@@ -222,6 +222,83 @@
         return window._tctvWatchDoneToday === true && lifeCapped;
     }
 
+
+    function thenable(value) {
+        return {
+            then: function (ok, err) {
+                try {
+                    var next = ok ? ok(value) : value;
+                    if (next && typeof next.then === 'function') return next;
+                    return thenable(next);
+                } catch (e) {
+                    if (err) return thenable(err(e));
+                    throw e;
+                }
+            },
+            catch: function (err) { return this.then(null, err); }
+        };
+    }
+
+    function appCheckToken() {
+        if (typeof window._btcAppCheckForClaim === 'function') {
+            return window._btcAppCheckForClaim(8000);
+        }
+        return thenable('skip');
+    }
+
+    function isAppCheckFail(err) {
+        if (!err) return false;
+        var code = String(err.code || '');
+        var msg = String(err.message || err || '');
+        return /app-check|appCheck|recaptcha/i.test(code + ' ' + msg);
+    }
+
+    function appCheckErrorCode(err) {
+        if (err && err.code) return String(err.code);
+        if (err && err.message) return String(err.message);
+        return 'unknown';
+    }
+
+    // Small note below the player, never over the video (no overlay, no pause).
+    window._tctvRewardNote = function (opts) {
+        opts = opts || {};
+        var host = document.getElementById('tctv-video-container');
+        var el = document.getElementById('tctv-reward-note');
+        if (!opts.text) {
+            if (el) el.remove();
+            return;
+        }
+        if (!host || !host.parentNode) return;
+        if (!el) {
+            el = document.createElement('button');
+            el.id = 'tctv-reward-note';
+            el.type = 'button';
+            el.style.cssText = 'display:block;margin:8px auto 0;max-width:1100px;padding:8px 12px;border-radius:8px;background:rgba(17,12,4,.92);color:#ffcf6b;border:1px solid rgba(247,147,26,.55);font:700 0.8rem/1.35 inherit;text-align:center;cursor:pointer;';
+            host.parentNode.insertBefore(el, host.nextSibling);
+        }
+        el.textContent = opts.text;
+        el.onclick = function () {
+            if (typeof opts.onRetry === 'function') opts.onRetry();
+            else if (typeof window._tctvRetryPlayer === 'function') window._tctvRetryPlayer();
+        };
+    };
+
+    function showAppCheckNote() {
+        if (typeof window._tctvRewardNote === 'function') {
+            window._tctvRewardNote({
+                text: "Can't verify this browser, rewards paused",
+                onRetry: function () { sendHeartbeat(); }
+            });
+        }
+    }
+
+    function clearAppCheckNote() {
+        var el = document.getElementById('tctv-reward-note');
+        if (el && el.textContent.indexOf("Can't verify this browser") !== -1) {
+            window._tctvRewardNote({ text: '' });
+        }
+    }
+
     function sendHeartbeat() {
         if (inflight || heartbeatsDone()) return;
         if (document.visibilityState !== 'visible') return;
@@ -229,12 +306,26 @@
         if (typeof firebase === 'undefined' || !firebase.functions) return;
         inflight = true;
         try {
-            var call = firebase.functions().httpsCallable('tctvWatchHeartbeat');
-            call({}).then(function (res) {
-                applyResult(res);
-            }).catch(function () {}).then(function () {
+            function fail(err) {
+                var code = appCheckErrorCode(err);
+                console.warn('[TCTV] tctvWatchHeartbeat failed', code, err);
+                if (isAppCheckFail(err)) showAppCheckNote();
                 inflight = false;
-            });
+            }
+            appCheckToken().then(function (token) {
+                if (!token) {
+                    var missing = new Error('app-check');
+                    missing.code = 'app-check';
+                    fail(missing);
+                    return;
+                }
+                return firebase.functions().httpsCallable('tctvWatchHeartbeat')({}).then(function (res) {
+                    clearAppCheckNote();
+                    applyResult(res);
+                }, fail);
+            }, fail).then(function () {
+                if (inflight) inflight = false;
+            }, fail);
         } catch (e) {
             inflight = false;
         }

@@ -1,7 +1,7 @@
-// Cache-buster pin. Patch notes banner refresh + Back to app is btc-archive-v2690 (index.html, 404.html, patch-notes.html; no JS pins). Patch notes Faster Loads + Timelines is btc-archive-v2687 (patch-notes.html; no JS pins). Terms 16g + raffle Official Rules is btc-archive-v2686 (terms.html, raffle-rules.html, resets.html, quests.js 20261120_v2686). Timelines & Odds page + what's-new banner is btc-archive-v2684 (resets.html, index.html, 404.html, patch-notes.html; no JS pins). Guest onboarding fixes are btc-archive-v2683 (ranking.js, onboarding.js 20261119_v2683). Proof of Play + chat CTA links + 10 Timechain games is btc-archive-v2682 (proof-of-play.js, global-chat.js, bundle.min.js 20261119_v2682). Onboarding questions-first is btc-archive-v2681 (popup-stack.js, features.registry.js 20261119_v2681). Dry run v3 step 3 is btc-archive-v2667 (article; bundle.min.js 20261119_v2667). Step 2 v2666: beats.js, lightning-tips.js. Step 1 v2665: global-chat.js, ranking.js.
+// Cache-buster pin. TCTV watch-timer fallback + App Check notices is btc-archive-v2691 (tctv-watch.js, tctv-drip.js, timechain-tv.js, sw.js). Patch notes banner refresh + Back to app is btc-archive-v2690 (index.html, 404.html, patch-notes.html; no JS pins). Patch notes Faster Loads + Timelines is btc-archive-v2687 (patch-notes.html; no JS pins). Terms 16g + raffle Official Rules is btc-archive-v2686 (terms.html, raffle-rules.html, resets.html, quests.js 20261120_v2686). Timelines & Odds page + what's-new banner is btc-archive-v2684 (resets.html, index.html, 404.html, patch-notes.html; no JS pins). Guest onboarding fixes are btc-archive-v2683 (ranking.js, onboarding.js 20261119_v2683). Proof of Play + chat CTA links + 10 Timechain games is btc-archive-v2682 (proof-of-play.js, global-chat.js, bundle.min.js 20261119_v2682). Onboarding questions-first is btc-archive-v2681 (popup-stack.js, features.registry.js 20261119_v2681). Dry run v3 step 3 is btc-archive-v2667 (article; bundle.min.js 20261119_v2667). Step 2 v2666: beats.js, lightning-tips.js. Step 1 v2665: global-chat.js, ranking.js.
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
-// timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
+// timechain-tv.js is 20261125_v2691. scholar.js is 20261105_v2490.
 // patches.js stays 20261026_v2385. bundle.min.js is 20261119_v2665.
 // earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261031_v2446.
 // modules.js and learning-quests.js stay 20261026_v2377.
@@ -15,7 +15,7 @@
 // notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
 // beats.js and proof-of-play.js stay 20261031_v2447. pvp.js and pvp-lobby-alert.js are 20261118_v2605. ranking.js is 20261119_v2641. shareable-certs.js is 20261028_v2410. guide.js stays 20261026_v2382.
-// tctv-watch.js is 20261031_v2448.
+// tctv-watch.js is 20261125_v2691.
 // learning-quests.js and modules.js stay 20261026_v2377. scholar.js is 20261105_v2490.
 // lightning.js stays 20261023_v2323.
 // index.html and 404.html must stay identical. The precache keeps the
@@ -51,9 +51,10 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     assert.ok(!html.includes('features.registry.js?v=20261109_v2538'));
 });
 
-test('service worker cache is v2690', () => {
+test('service worker cache is v2691', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2690'"))
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2691'"))
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2690'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2687'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2686'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2684'"));
@@ -339,7 +340,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261116_v2581'));
     assert.ok(!html.includes('ranking.js?v=20261114_v2565'));
     assert.ok(!html.includes('ranking.js?v=20261104_v2483'));
-    assert.ok(html.includes('/tctv-drip.js?v=20261117_v2588'));
+    assert.ok(html.includes('/tctv-drip.js?v=20261125_v2691'));
+    assert.ok(!html.includes('tctv-drip.js?v=20261117_v2588'));
     assert.ok(!html.includes('tctv-drip.js?v=20261114_v2573'));
     assert.ok(!html.includes('tctv-drip.js?v=20261114_v2572'));
     assert.ok(!html.includes('tctv-drip.js?v=20261114_v2571'));
@@ -638,7 +640,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes("fetch('/sw.js'"));
     assert.ok(!html.includes("const CACHE_NAME = 'btc-archive-v2279'"));
     var swVersion = read('sw.js').match(/CACHE_NAME\s*=\s*'btc-archive-(v\d+)'/);
-    assert.ok(html.includes('tctv-watch.js?v=20261102_v2464'));
+    assert.ok(html.includes('tctv-watch.js?v=20261125_v2691'));
+    assert.ok(!html.includes('tctv-watch.js?v=20261102_v2464'));
     assert.ok(!html.includes('tctv-watch.js?v=20261031_v2448'));
     assert.ok(!html.includes('tctv-watch.js?v=20261023_v2340'));
     assert.ok(!html.includes('tctv-watch.js?v=20261028_v2414'));
@@ -717,13 +720,15 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('patches.js?v=20261023_v2349'));
     assert.ok(!html.includes('patches.js?v=20261022_v2263'));
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
-    assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
+    assert.ok(html.includes('timechain-tv.js?v=20261125_v2691'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261105_v2502'));
     assert.ok(!html.includes('timechain-tv.js?v=20261031_v2447'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2383'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2690');
+    assert.ok(swVersion && swVersion[1] === 'v2691');
+    assert.notStrictEqual(swVersion[1], 'v2690');
     assert.notStrictEqual(swVersion[1], 'v2687');
     assert.notStrictEqual(swVersion[1], 'v2682');
     assert.notStrictEqual(swVersion[1], 'v2656');

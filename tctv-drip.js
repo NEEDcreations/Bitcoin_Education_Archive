@@ -533,14 +533,41 @@
         if (!vis || !play) return;
         inflight = true;
         try {
-            firebase.functions().httpsCallable('tctvDripCheckin')({
-                deviceId: deviceId(), visible: vis, playing: play,
-                promptToken: answer ? promptToken : ''
+            var ready = (typeof window._btcAppCheckForClaim === 'function')
+                ? window._btcAppCheckForClaim(8000)
+                : { then: function (ok) { return ok('skip'); } };
+            ready.then(function (token) {
+                if (!token) {
+                    var missing = new Error('app-check');
+                    missing.code = 'app-check';
+                    throw missing;
+                }
+                return firebase.functions().httpsCallable('tctvDripCheckin')({
+                    deviceId: deviceId(), visible: vis, playing: play,
+                    promptToken: answer ? promptToken : ''
+                });
             }).then(function (res) {
                 var d = (res && res.data) || {};
                 var el = document.getElementById('tctv-drip');
                 if (d.prompt && el) { promptToken = d.promptToken || ''; showPrompt(el); }
-            }).catch(function () {}).then(function () {
+                if (typeof window._tctvRewardNote === 'function') {
+                    var note = document.getElementById('tctv-reward-note');
+                    if (note && note.textContent.indexOf("Can't verify this browser") !== -1) {
+                        window._tctvRewardNote({ text: '' });
+                    }
+                }
+            }).catch(function (err) {
+                var code = (err && (err.code || err.message)) || 'unknown';
+                console.warn('[TCTV] tctvDripCheckin failed', code, err);
+                if (err && /app-check|appCheck|recaptcha/i.test(String((err.code || '') + ' ' + (err.message || '')))) {
+                    if (typeof window._tctvRewardNote === 'function') {
+                        window._tctvRewardNote({
+                            text: "Can't verify this browser, rewards paused",
+                            onRetry: function () { checkin(answer); }
+                        });
+                    }
+                }
+            }).then(function () {
                 inflight = false;
                 if (answerQueued) { answerQueued = false; checkin(true); }
             });
