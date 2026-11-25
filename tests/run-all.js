@@ -190,6 +190,8 @@ const TESTS = [
     { name: 'Spin Reminder', file: 'test-spin-reminder.js' },
     { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },
     { name: 'Popup queue', file: 'test-popup-queue.js' },
+    { name: 'Guest onboarding', file: 'test-onboarding-guest-1120.js' },
+    { name: 'New-user fixes (Week 1)', file: 'test-onboarding-w1-1125.js' },
     { name: 'Username repick', file: 'test-username-repick.js' },
     { name: 'Favor display name', file: 'test-favor-display-name.js' },
     { name: 'Username spaces', file: 'test-username-spaces.js' },
