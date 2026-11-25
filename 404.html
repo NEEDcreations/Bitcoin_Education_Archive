@@ -766,6 +766,13 @@
                 top: clamp(calc(160px + env(safe-area-inset-top, 0px)), calc(50dvh - 22px), calc(100dvh - 340px - env(safe-area-inset-bottom, 0px)));
             }
         }
+        /* Phones, signed-in home: the pill band starts where the wallet strip
+           ends, so the Experience bar sat under the Invite and Quest pills.
+           Move the bar below the band while a pill is up. */
+        @media (max-width: 900px) {
+            body.home-signed-in:has(#inviteCard[data-show="1"][data-state="min"]) #bqHomeModeBar,
+            body.home-signed-in:has(#nachoQuestPill) #bqHomeModeBar { margin-top: 52px; }
+        }
         body:has(#searchOverlay[data-open="1"]) .invite-card,
         body:has(#searchOverlay[data-open="1"]) #inviteGuestPill { display: none !important; }
         body:has(#usernameModal.open) .invite-card[data-state="min"],

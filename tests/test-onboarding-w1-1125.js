@@ -108,6 +108,19 @@ test('the username step sits above the onboarding questions', function () {
     assert.ok(Number(m[1]) > Math.max.apply(null, tops), 'username step z-index ' + m[1]);
 });
 
+test('on phones the Experience bar moves below the Invite and Quest pills', function () {
+    ['index.html', '404.html'].forEach(function (name) {
+        const html = read(name);
+        const at = html.indexOf('body.home-signed-in:has(#inviteCard[data-show="1"][data-state="min"]) #bqHomeModeBar');
+        assert.ok(at !== -1, name + ' invite rule');
+        const block = html.slice(html.lastIndexOf('@media (max-width: 900px)', at), html.indexOf('}', html.indexOf('{', at)) + 1);
+        assert.ok(block.includes('body.home-signed-in:has(#nachoQuestPill) #bqHomeModeBar'), name + ' quest rule');
+        const m = /margin-top:\s*(\d+)px/.exec(block);
+        // The pills are about 35px tall in a band that starts where the wallet strip ends.
+        assert.ok(m && Number(m[1]) >= 44, name + ' clearance');
+    });
+});
+
 Promise.all(pending).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     if (failed) process.exit(1);
