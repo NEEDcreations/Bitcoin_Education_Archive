@@ -24,6 +24,7 @@ const TESTS = [
     { name: 'Nov 4 batch', file: 'test-nov4-batch.js' },
     { name: 'Chat easter eggs', file: 'test-chat-easter-eggs.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
+    { name: 'Ads gating and holdout', file: 'test-ads.js' },
     { name: 'Auth display snapshot', file: 'test-auth-display.js' },
     { name: 'XP line opens leaderboard', file: 'test-xp-leaderboard-link.js' },
     { name: 'Nook shop pricing + caps', file: 'test-nook-shop.js' },

@@ -714,6 +714,36 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Ad holdout vs ads experiment (RLDA-40). Aggregate daily-active and
+    // next-day-return counts only. Clients may increment exactly one of
+    // holdoutDau, adsDau, holdoutReturned, adsReturned by +1. No user or
+    // device ids are stored. Cosmetic/directional metrics; no sats or access.
+    match /ads_holdout_stats/{day} {
+      allow read: if request.auth != null;
+      allow create: if clientWritesOk()
+                    && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                    && request.resource.data.keys().hasOnly(['holdoutDau','adsDau','holdoutReturned','adsReturned'])
+                    && request.resource.data.keys().size() == 1
+                    && request.resource.data.values()[0] is int
+                    && request.resource.data.values()[0] == 1;
+      allow update: if clientWritesOk()
+                    && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                    && request.resource.data.diff(resource.data).affectedKeys().size() == 1
+                    && (
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['holdoutDau'])
+                        && request.resource.data.holdoutDau == resource.data.get('holdoutDau', 0) + 1)
+                      ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adsDau'])
+                        && request.resource.data.adsDau == resource.data.get('adsDau', 0) + 1)
+                      ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['holdoutReturned'])
+                        && request.resource.data.holdoutReturned == resource.data.get('holdoutReturned', 0) + 1)
+                      ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adsReturned'])
+                        && request.resource.data.adsReturned == resource.data.get('adsReturned', 0) + 1)
+                    );
+    }
+
     // Active predictions (for server-side resolution)
     // [AUDIT FIX L-NEW-11] Prevent backdating predictions.
     // hasOnly rejects a client-supplied serverStartPrice, void, or any other key.

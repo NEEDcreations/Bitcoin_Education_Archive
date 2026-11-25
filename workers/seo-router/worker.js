@@ -173,7 +173,10 @@ function buildCSP(nonce, opts) {
             " https://cdnjs.cloudflare.com" +
             " https://translate.google.com" +
             " https://www.google.com" +          // reCAPTCHA v3 (App Check token generation)
-            " https://www.youtube.com",
+            " https://www.youtube.com" +
+            " https://pagead2.googlesyndication.com" +  // AdSense (RLDA-40)
+            " https://www.googletagservices.com" +
+            " https://adservice.google.com",
 
         // connect-src: every outbound fetch / WebSocket the app makes
         "connect-src 'self'" +
@@ -197,7 +200,13 @@ function buildCSP(nonce, opts) {
             " https://*.needcreations.workers.dev" + // CF Workers (search, embed-proxy, pleb-sync)
             " https://us-central1-bitcoin-education-archive.cloudfunctions.net" +
             " https://ppq.ai" +                                          // PPQ AI Tools embed
-            " https://*.ppq.ai",                                          // PPQ AI subdomains
+            " https://*.ppq.ai" +                                          // PPQ AI subdomains
+            " https://pagead2.googlesyndication.com" +  // AdSense (RLDA-40)
+            " https://googleads.g.doubleclick.net" +
+            " https://*.googlesyndication.com" +
+            " https://*.doubleclick.net" +
+            " https://adservice.google.com" +
+            " https://acceptable.a-ads.com",
 
         "img-src 'self' data: blob: https:",         // Broad: GIF picker, user avatars, YouTube thumbs
 
@@ -233,6 +242,10 @@ function buildCSP(nonce, opts) {
             " https://scarce.city" +                 // Lightning Mart: Scarce City
             " https://shop.conduit.market" +         // Lightning Mart: Conduit Market
             " https://citadelwire.com" +             // Citadel Wire embed under Hot Topics
+            " https://acceptable.a-ads.com" +          // A-ADS homepage banner (RLDA-40)
+            " https://googleads.g.doubleclick.net" +   // AdSense
+            " https://tpc.googlesyndication.com" +
+            " https://pagead2.googlesyndication.com" +
             (allowSubstackSubscribe ? " https://603btc.substack.com" : ""), // waitlist browser subscribe iframe
 
         "font-src 'self' https://fonts.gstatic.com",
