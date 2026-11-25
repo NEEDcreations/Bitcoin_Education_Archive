@@ -2015,7 +2015,7 @@
                         <div id="todayMorePanel" hidden>
                             <div role="group" aria-label="More quests">
                                 <button type="button" class="today-more-item" onclick="if(window.openTodayQuest)window.openTodayQuest('raid')"><span aria-hidden="true">⚔️</span><span class="today-more-name">Raid</span><span class="today-more-cadence" id="todayCadenceRaid">Monthly</span><span id="todayDotRaid" class="today-dot" hidden></span></button>
-                                <button type="button" class="today-more-item" onclick="if(window.openTodayQuest)window.openTodayQuest('citadel')"><span aria-hidden="true">🏰</span><span class="today-more-name">Citadel</span><span class="today-more-cadence" id="todayCadenceCitadel">Ongoing</span><span id="todayDotCitadel" class="today-dot" hidden></span></button>
+                                <button type="button" id="todayCitadelBtn" class="today-more-item" onclick="if(window.openTodayQuest)window.openTodayQuest('citadel')"><span aria-hidden="true">🏰</span><span class="today-more-name">Citadel</span><span class="today-more-cadence" id="todayCadenceCitadel">Ongoing</span><span id="todayDotCitadel" class="today-dot" hidden></span></button>
                                 <button type="button" class="today-more-item" onclick="if(window.openTodayQuest)window.openTodayQuest('charity')"><span aria-hidden="true">❤️</span><span class="today-more-name">Charity</span><span class="today-more-cadence" id="todayCadenceCharity">Ongoing</span><span id="todayDotCharity" class="today-dot" hidden></span></button>
                                 <button type="button" class="today-more-item" onclick="if(window.openTodayQuest)window.openTodayQuest('community')"><span aria-hidden="true">🤝</span><span class="today-more-name">Community</span><span class="today-more-cadence" id="todayCadenceCommunity">Weekly</span><span id="todayDotCommunity" class="today-dot" hidden></span></button>
                                 <button type="button" id="todayNookBtn" class="today-more-item" aria-label="Nook / Inventory" onclick="if(window.openTodayQuest)window.openTodayQuest('nook')"><span aria-hidden="true">🦌</span><span class="today-more-name">Nook/Inventory</span><span class="today-more-cadence" id="todayCadenceNook">Ongoing</span><span id="todayDotNook" class="today-dot" hidden></span></button>
@@ -2445,6 +2445,7 @@
     <script src="/tctv-drip.js?v=20261117_v2588" defer></script>
 
     <script src="/today-card.js?v=20261109_v2538" defer></script>
+    <script src="/citadel-spark.js?v=20261125_v2695" defer></script>
     <script src="/achievement-share.js?v=20261109_v2536" defer></script>
 
     <script src="/bip-breakthrough.js?v=20261105_v2499" defer></script>
@@ -2468,7 +2469,7 @@
             'satoshi-favor.js?v=20261119_v2682b'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261120_v2686',
+            'quests.js?v=20261125_v2695',
             'hot-topics.js?v=20261114_citadelwire3',
             'pvp.js?v=20261118_v2605','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261105_v2506',
             'scholar.js?v=20261105_v2490','beats.js?v=20261119_v2666',
@@ -2744,9 +2745,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261106_v2512'],
             'learning-quests': ['learning-quests.js?v=20261026_v2377'],
-            'quests':        ['quests.js?v=20261120_v2686'],
-            'questhub':      ['quests.js?v=20261120_v2686'],
-            'app':           ['quests.js?v=20261120_v2686'],
+            'quests':        ['quests.js?v=20261125_v2695'],
+            'questhub':      ['quests.js?v=20261125_v2695'],
+            'app':           ['quests.js?v=20261125_v2695'],
             'timechain-tv':  ['timechain-tv.js?v=20261105_v2502'],
             'tv':            ['timechain-tv.js?v=20261105_v2502'],
             'cert':          ['shareable-certs.js?v=20261028_v2410']
