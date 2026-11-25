@@ -976,9 +976,9 @@ function initRanking() {
                 var _redirName = localStorage.getItem('btc_pending_username') || '';
                 if (_redirName) {
                     try { await applyServerUsername(_redirName); }
-                    catch (nameErr) { if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 400); }
-                } else if (typeof showUsernamePrompt === 'function') {
-                    setTimeout(showUsernamePrompt, 400);
+                    catch (nameErr) { setTimeout(showNewAccountNamePrompt, 400); }
+                } else {
+                    setTimeout(showNewAccountNamePrompt, 400);
                 }
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
                 if (typeof attachReferral === 'function') attachReferral(user.uid);
@@ -2380,7 +2380,7 @@ async function finishEmailSignIn(email, _signInUrl) {
                 try { await applyServerUsername(pendingUsername); }
                 catch (nameErr) {
                     showToast(nameErr.message || 'Pick a different username.');
-                    if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+                    showNewAccountNamePrompt();
                 }
             }
         }
@@ -3232,10 +3232,10 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
             try { await applyServerUsername(_nameTry); }
             catch (nameErr) {
                 showToast(nameErr.message || 'Pick a different username.');
-                if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+                showNewAccountNamePrompt();
             }
-        } else if (typeof showUsernamePrompt === 'function') {
-            showUsernamePrompt();
+        } else {
+            showNewAccountNamePrompt();
         }
     } else {
         // Returning user - apply fields they typed only if not already set
@@ -4294,7 +4294,7 @@ async function loadUser(uid, prefetchedDoc) {
         if (user && !user.isAnonymous) {
             const newData = clientCreatePayload({});
             await db.collection('users').doc(uid).set(newData);
-            if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 400);
+            setTimeout(showNewAccountNamePrompt, 400);
             currentUser = { uid, ...newData };
             rankingReady = true;
             window._badgesReady = true;
@@ -4977,7 +4977,7 @@ function ensureUsernameRepickStyle() {
     if (document.getElementById('usernameRepickStyle')) return;
     var style = document.createElement('style');
     style.id = 'usernameRepickStyle';
-    style.textContent = '#usernameRepick{position:fixed;inset:0;z-index:2100010;background:var(--overlay,rgba(0,0,0,.72));overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;}' +
+    style.textContent = '#usernameRepick{position:fixed;inset:0;z-index:2100013;background:var(--overlay,rgba(0,0,0,.72));overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;}' +
         '#usernameRepick .username-box{width:min(400px,100%);max-width:400px;margin:24px auto;box-sizing:border-box;}' +
         '#usernameRepick h2{font-size:1.2rem;line-height:1.35;overflow-wrap:anywhere;}' +
         '#usernameRepick input{font-size:16px;box-sizing:border-box;}' +
@@ -5004,9 +5004,9 @@ function usernameRepickFailure(e) {
     return msg;
 }
 
-function showUsernameRepickPrompt() {
+function showUsernameRepickPrompt(opts) {
     if (tosBlocking()) {
-        window.runAfterTos(function() { showUsernameRepickPrompt(); });
+        window.runAfterTos(function() { showUsernameRepickPrompt(opts); });
         return;
     }
     if (document.getElementById('usernameRepick')) return;
@@ -5028,7 +5028,7 @@ function showUsernameRepickPrompt() {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', 'usernameRepickTitle');
-    var _neverNamed = typeof window.usernameNeverPicked === 'function' && typeof currentUser !== 'undefined' && window.usernameNeverPicked(currentUser);
+    var _neverNamed = !!(opts && opts.fresh) || typeof window.usernameNeverPicked === 'function' && typeof currentUser !== 'undefined' && window.usernameNeverPicked(currentUser);
     overlay.innerHTML = '<div class="username-box glass-dark">' +
         '<h2 id="usernameRepickTitle">' + (_neverNamed ? 'Pick a username so you show up on the leaderboard' : 'Your username needs updating. Please pick a new one') + '</h2>' +
         '<p>This stays open until the new name is saved.</p>' +
@@ -5069,6 +5069,12 @@ function showUsernameRepickPrompt() {
     }
 }
 window.showUsernameRepickPrompt = showUsernameRepickPrompt;
+
+// A new signed-in account has no name yet. showUsernamePrompt opens Settings
+// for any signed-in user, so go straight to the username step instead.
+function showNewAccountNamePrompt() {
+    showUsernameRepickPrompt({ fresh: true });
+}
 
 function maybeShowUsernameRepick() {
     var needed = window.usernameRepickNeeded;
