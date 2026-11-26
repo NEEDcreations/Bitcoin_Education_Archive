@@ -122,6 +122,12 @@ function setup(opts) {
         if (o.providerDown) return { ok: false, status: 503, json: async function () { return {}; } };
         const exm = url.match(/^https:\/\/api\.stripe\.com\/v1\/checkout\/sessions\/([A-Za-z0-9_]+)\/expire$/);
         if (exm && init.method === 'POST') {
+            if (o.expireHangIds && o.expireHangIds.has(exm[1])) {
+                // A hung Stripe call: never answers; only an abort signal ends it (Red Team P11).
+                return new Promise(function (resolve, reject) {
+                    if (init.signal) init.signal.addEventListener('abort', function () { const e = new Error('aborted'); e.name = 'AbortError'; reject(e); });
+                });
+            }
             if (o.expireFail || (o.expireFailIds && o.expireFailIds.has(exm[1]))) return { ok: false, status: 500, json: async function () { return { error: { code: 'api_error' } }; } };
             return { ok: true, status: 200, json: async function () { return { id: exm[1], status: 'expired' }; } };
         }
@@ -199,6 +205,7 @@ function setup(opts) {
         HttpsError: HttpsError,
         now: function () { return clock.now; },
         elapsedNow: o.elapsedNow,
+        inlineStripeTimeoutMs: o.inlineStripeTimeoutMs,
         env: envObj,
         fetch: fetchMock,
         projectId: o.projectId || 'bitcoin-quest-staging',
@@ -2453,6 +2460,23 @@ test('P5: the inline drain stops starting Stripe calls after a 5 s budget; the s
     const src = require('fs').readFileSync(path.join(__dirname, '..', 'functions', 'src', 'premium.js'), 'utf8');
     assert.ok(/const EXPIRE_INLINE_MAX_CALLS = 2;/.test(src) && /const EXPIRE_INLINE_BUDGET_MS = 5000;/.test(src));
     assert.strictEqual((src.match(/drainExpireQueue\(nowMs, (lapsedIds|\[\]), INLINE_DRAIN\)/g) || []).length, 2, 'both checkout drains are capped');
+});
+test('P11: a hung inline Stripe expire call is aborted and the checkout still completes', async function () {
+    const a = setup({ expireHangIds: new Set(['cs_lapse_0000']), inlineStripeTimeoutMs: 50 });
+    const ids = seedLapsed(a, 4);
+    const t0 = Date.now();
+    const o = await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('p11a', '198.51.100.171'));
+    assert.ok(o && o.orderId && o.url, 'checkout returned a session');
+    assert.ok(Date.now() - t0 < 3000, 'did not wait on the hung call');
+    const ex = expireCalls(a);
+    assert.strictEqual(ex.length, 2, 'the hung call counts toward the inline cap');
+    assert.ok(ex.every(function (c) { return c.init.signal; }), 'inline expire calls carry an abort signal');
+    assert.ok(qdoc(a)[ids[0]], 'the aborted one stays queued for the sweep');
+    assert.ok(!a.db.store.get('premium_orders/' + ids[0]).sessionExpiredAtMs);
+    assert.ok(a.db.store.get('premium_orders/' + ids[1]).sessionExpiredAtMs);
+    const src = require('fs').readFileSync(path.join(__dirname, '..', 'functions', 'src', 'premium.js'), 'utf8');
+    assert.ok(/const EXPIRE_INLINE_TIMEOUT_MS = 4000;/.test(src));
+    assert.ok(/abortTimer = setTimeout\(function \(\) \{ ac\.abort\(\); \}, timeoutMs\);/.test(src));
 });
 test('P6: a grant passes only the event subscription id (or null) when marking the plan renewing', function () {
     const src = require('fs').readFileSync(path.join(__dirname, '..', 'functions', 'src', 'premium.js'), 'utf8');

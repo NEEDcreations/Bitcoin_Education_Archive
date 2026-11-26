@@ -440,6 +440,7 @@ const EXPIRE_BATCH = 10;
 const EXPIRE_QUEUE_MAX = 300;
 const EXPIRE_INLINE_MAX_CALLS = 2; // checkout path: at most 2 Stripe expire calls inline (Red Team P5)
 const EXPIRE_INLINE_BUDGET_MS = 5000; // and stop starting new calls after 5 s; the hourly sweep does the rest
+const EXPIRE_INLINE_TIMEOUT_MS = 4000; // and abort any one inline expire call that hangs past 4 s (Red Team P11)
 const EXPIRE_DRAIN_EVERY_MS = 15000; // at most one drain per 15 s, all callers (N3)
 // New queue entries for holds that just lapsed (merged into the queue doc).
 function lapsedEntries(lapsedHolds, nowMs) {
@@ -508,6 +509,7 @@ function createPremiumHandlers(deps) {
     const HttpsError = deps.HttpsError;
     const now = deps.now || Date.now;
     const elapsedNow = deps.elapsedNow || Date.now; // real time for inline drain budgets
+    const inlineStripeTimeoutMs = Number(deps.inlineStripeTimeoutMs) > 0 ? Number(deps.inlineStripeTimeoutMs) : EXPIRE_INLINE_TIMEOUT_MS;
     const env = deps.env || process.env;
     const fetchImpl = deps.fetch || (typeof fetch === 'function' ? fetch : null);
     const projectId = deps.projectId || env.GCLOUD_PROJECT || env.GCP_PROJECT || '';
@@ -573,10 +575,28 @@ function createPremiumHandlers(deps) {
         return { base: u.origin + u.pathname.replace(/\/+$/, ''), store: store, key: key };
     }
 
-    async function stripeRequest(method, path, params, idemKey) {
+    // timeoutMs (optional): abort the request if Stripe hangs (Red Team P11,
+    // used by the inline Founders' expire drain only). An abort throws like any
+    // other Stripe error.
+    async function stripeRequest(method, path, params, idemKey, timeoutMs) {
         if (!fetchImpl) throw new Error('no fetch');
         const headers = { Authorization: 'Bearer ' + stripeKey() };
         const init = { method: method, headers: headers };
+        // AbortController + a plain timer (not AbortSignal.timeout, whose timer
+        // is unref'd) so the abort always fires; the timer is cleared after.
+        let abortTimer = null;
+        if (timeoutMs > 0 && typeof AbortController === 'function') {
+            const ac = new AbortController();
+            abortTimer = setTimeout(function () { ac.abort(); }, timeoutMs);
+            init.signal = ac.signal;
+        }
+        try {
+            return await stripeSend(method, path, params, idemKey, headers, init);
+        } finally {
+            if (abortTimer) clearTimeout(abortTimer);
+        }
+    }
+    async function stripeSend(method, path, params, idemKey, headers, init) {
         if (method === 'POST' || (method === 'DELETE' && params)) {
             headers['Content-Type'] = 'application/x-www-form-urlencoded';
             init.body = stripeForm(params || {});
@@ -1098,7 +1118,7 @@ function createPremiumHandlers(deps) {
     // goes to the founders_sold_out_late_payment review path.
     // One order: 'expired', 'skip' (nothing to expire: not a pending Stripe
     // Founders' order, already expired, or no session) or 'failed' (retry later).
-    async function expireOne(id, nowMs) {
+    async function expireOne(id, nowMs, timeoutMs) {
         try {
             const snap = await ref(COL.orders, id).get();
             if (!snap.exists) return 'skip';
@@ -1108,7 +1128,7 @@ function createPremiumHandlers(deps) {
             // Stripe has already expired the session on its own by now.
             if (Number(o.createdAtMs) > 0 && nowMs > Number(o.createdAtMs) + (STRIPE_CHECKOUT_MINUTES + 1) * 60000) return 'skip';
             if (typeof o.providerSessionId !== 'string' || !/^cs_[A-Za-z0-9_]{6,200}$/.test(o.providerSessionId)) return 'skip';
-            await stripeRequest('POST', '/v1/checkout/sessions/' + encodeURIComponent(o.providerSessionId) + '/expire', {}, 'bq-expire-' + id);
+            await stripeRequest('POST', '/v1/checkout/sessions/' + encodeURIComponent(o.providerSessionId) + '/expire', {}, 'bq-expire-' + id, timeoutMs);
             await ref(COL.orders, id).update({ sessionExpiredAtMs: nowMs });
             return 'expired';
         } catch (e) {
@@ -1150,10 +1170,12 @@ function createPremiumHandlers(deps) {
     // opts.maxCalls / opts.budgetMs cap an inline (checkout) drain so a paying
     // user never waits on a long run of Stripe calls (Red Team P5); whatever is
     // left stays queued for the next drain or the hourly sweep.
-    const INLINE_DRAIN = { maxCalls: EXPIRE_INLINE_MAX_CALLS, budgetMs: EXPIRE_INLINE_BUDGET_MS };
+    // opts.timeoutMs aborts one hung inline Stripe call (Red Team P11); it counts as failed and stays queued.
+    const INLINE_DRAIN = { maxCalls: EXPIRE_INLINE_MAX_CALLS, budgetMs: EXPIRE_INLINE_BUDGET_MS, timeoutMs: inlineStripeTimeoutMs };
     async function drainExpireQueue(nowMs, extraIds, opts) {
         const maxCalls = Math.min(EXPIRE_BATCH, Number(opts && opts.maxCalls) || EXPIRE_BATCH);
         const budgetMs = Number(opts && opts.budgetMs) || 0;
+        const timeoutMs = Number(opts && opts.timeoutMs) || 0;
         const startedAt = elapsedNow();
         try {
             const queueRef = ref(COL.counters, FOUNDERS_EXPIRE_DOC);
@@ -1178,7 +1200,7 @@ function createPremiumHandlers(deps) {
             for (const id of ids.slice(0, maxCalls * 3)) {
                 if (calls >= maxCalls) break;
                 if (budgetMs && elapsedNow() - startedAt >= budgetMs) break;
-                const r = await expireOne(id, nowMs);
+                const r = await expireOne(id, nowMs, timeoutMs);
                 if (r !== 'skip') calls++;
                 if (r === 'expired') n++;
                 if (r !== 'failed') done.push(id);
@@ -1199,8 +1221,12 @@ function createPremiumHandlers(deps) {
         }
     }
 
-    // Sweep: Founders' card orders whose hold lapsed in the last 70 minutes
-    // (a Stripe session lives at most ~31) still get their session expired.
+    // Sweep: drains the expire queue, then expires Founders' card orders whose
+    // hold lapsed in the last 70 minutes. The sweep runs hourly, but a Stripe
+    // session lives at most ~31 minutes, so some lapsed sessions are skipped
+    // here and simply expire on Stripe's side (Red Team P12). That is safe: a
+    // payment that still lands takes a free seat or goes to the
+    // founders_sold_out_late_payment review path, so it can't oversell.
     async function expireLapsedFoundersSessions(nowMs) {
         // The sweep runs without the Stripe key bound today; skip quietly then.
         if (!stripeKeyOk(env.STRIPE_SECRET_KEY, mode())) return -1;
