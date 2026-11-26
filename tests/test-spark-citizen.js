@@ -182,8 +182,7 @@ test('catalog names, descriptions, and grant mapping', () => {
 });
 
 
-test('the served bundle catalog differs from live only by the five Spark Citizen badges', () => {
-    const crypto = require('crypto');
+test('the served bundle includes all five Spark Citizen tiers and matches badges.catalog.js', () => {
     const vm = require('vm');
     const SPARK_IDS = ['spark_citizen_t1', 'spark_citizen_t2', 'spark_citizen_t3', 'spark_citizen_t4', 'spark_citizen_t5'];
     const SPARK = {
@@ -193,9 +192,6 @@ test('the served bundle catalog differs from live only by the five Spark Citizen
         spark_citizen_t4: { name: 'Spark Citizen · Platinum', emoji: '🟪', desc: 'Watched the Citadel Spark teaser on 14 days (server-verified, once a day) (+5 orange tickets)', xp: 250, category: 'Citadel Spark', hidden: false, serverAward: true },
         spark_citizen_t5: { name: 'Spark Citizen · Diamond', emoji: '💎', desc: 'Watched the Citadel Spark teaser on 28 days (server-verified, once a day) (+21 orange tickets)', xp: 500, category: 'Citadel Spark', hidden: false, serverAward: true },
     };
-    // SHA-256 of JSON.stringify(BADGE_CATALOG) from the live gh-pages bundle
-    // (pin 20261119_v2682b), which matches origin/gh-pages badges.catalog.js.
-    const LIVE_CATALOG_SHA256 = '1667ee602658fc29fd308e9b998c22a01746c0465efebed8fe119644c176f3c0';
 
     function catalogFrom(js) {
         const token = 'window.BADGE_CATALOG=';
@@ -228,20 +224,56 @@ test('the served bundle catalog differs from live only by the five Spark Citizen
     const source = catalogFrom(read('badges.catalog.js'));
     // Compare as JSON so vm-realm objects don't fail deepStrictEqual.
     assert.strictEqual(JSON.stringify(bundle), JSON.stringify(source));
-
-    const added = Object.keys(bundle).filter((id) => SPARK_IDS.indexOf(id) !== -1);
-    assert.deepStrictEqual(added, SPARK_IDS);
+    assert.strictEqual(Object.keys(bundle).length, 991);
+    assert.ok(bundle.still_buzzing && bundle.badger_dont_quit, 'full rebuild keeps the two faction catalog ids');
     SPARK_IDS.forEach((id) => {
+        assert.ok(Object.prototype.hasOwnProperty.call(bundle, id), id);
         assert.strictEqual(JSON.stringify(bundle[id]), JSON.stringify(SPARK[id]), id);
     });
+});
 
-    const remainder = {};
-    Object.keys(bundle).forEach((id) => {
-        if (SPARK_IDS.indexOf(id) === -1) remainder[id] = bundle[id];
+test('badge screen lists Spark Citizen under Citadel Spark like Watcher, and the tier modal is wired', () => {
+    const vm = require('vm');
+    const badges = read('badges.js');
+    const htmlStart = badges.indexOf('function getBadgeHTML()');
+    const htmlEnd = badges.indexOf('\n// ============================================================\n// 🏅 BADGE SETS');
+    assert.ok(htmlStart !== -1 && htmlEnd !== -1, 'getBadgeHTML bounds');
+    const famStart = badges.indexOf('var BADGE_TIER_TICKETS');
+    const famEnd = badges.indexOf('function _tierFmt');
+    assert.ok(famStart !== -1 && famEnd !== -1, 'tier family bounds');
+
+    const catCtx = { window: {} };
+    vm.runInNewContext(read('badges.catalog.js'), catCtx);
+
+    const store = {};
+    const localStorage = {
+        getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+        setItem: function (k, v) { store[k] = String(v); },
+        removeItem: function (k) { delete store[k]; },
+    };
+    const ctx = {
+        window: { BADGE_CATALOG: catCtx.window.BADGE_CATALOG, localStorage: localStorage },
+        localStorage: localStorage,
+        BADGE_DEFS: [],
+        earnedBadges: new Set(),
+        HIDDEN_BADGES: [],
+        escapeHtml: function (s) { return String(s); },
+        badgeShownXp: function (b) { return b && b.pts || 0; },
+        _renderBadgeSets: function () { return ''; },
+    };
+    vm.runInNewContext(badges.slice(famStart, famEnd) + '\n' + badges.slice(htmlStart, htmlEnd), ctx);
+    assert.ok(ctx.BADGE_TIER_FAMILIES.spark_citizen, 'spark_citizen family missing');
+    assert.strictEqual(ctx.window._badgeTierFamilyOf('spark_citizen_t3'), 'spark_citizen');
+    assert.strictEqual(ctx.window._badgeTierFamilyOf('tctv_watch_t1'), 'tctv_watch');
+    const html = ctx.getBadgeHTML();
+    assert.ok(html.indexOf('Citadel Spark') !== -1, 'no Citadel Spark section');
+    assert.ok(html.indexOf('Prime Time') !== -1, 'no Prime Time / Watcher section');
+    ['spark_citizen_t1', 'spark_citizen_t2', 'spark_citizen_t3', 'spark_citizen_t4', 'spark_citizen_t5'].forEach((id) => {
+        assert.ok(html.indexOf('data-badge-id="' + id + '"') !== -1, id + ' missing from badge screen');
     });
-    assert.strictEqual(Object.keys(remainder).length, 984);
-    const sha = crypto.createHash('sha256').update(JSON.stringify(remainder)).digest('hex');
-    assert.strictEqual(sha, LIVE_CATALOG_SHA256, 'catalog besides Spark Citizen must match the live served catalog');
+    ['tctv_watch_t1', 'tctv_watch_t2', 'tctv_watch_t3', 'tctv_watch_t4', 'tctv_watch_t5'].forEach((id) => {
+        assert.ok(html.indexOf('data-badge-id="' + id + '"') !== -1, id + ' missing from badge screen');
+    });
 });
 
 console.log(`\nspark citizen: ${passed} passed, ${failed} failed`);

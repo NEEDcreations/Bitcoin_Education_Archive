@@ -1253,6 +1253,30 @@ function getBadgeHTML() {
         '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };
 
+    // Active 5-tier families live in the catalog, not BADGE_DEFS. List each
+    // family under its catalog category (Prime Time, Citadel Spark, …) so the
+    // badge screen can open showBadgeTiers the same way for every family.
+    var _tierFams = (typeof window !== 'undefined' && window.BADGE_TIER_FAMILIES)
+        || (typeof BADGE_TIER_FAMILIES !== 'undefined' ? BADGE_TIER_FAMILIES : null);
+    if (typeof window !== 'undefined' && window.BADGE_CATALOG && _tierFams) {
+        Object.keys(_tierFams).forEach(function(famKey) {
+            var fam = _tierFams[famKey];
+            var list = [];
+            for (var ti = 1; ti <= 5; ti++) {
+                var tid = famKey + '_t' + ti;
+                if (_used[tid]) continue;
+                var c = window.BADGE_CATALOG[tid];
+                if (!c) continue;
+                list.push({ id: tid, name: c.name, desc: c.desc, emoji: c.emoji, pts: c.xp, category: c.category });
+                _used[tid] = true;
+            }
+            if (!list.length) return;
+            var catLabel = (fam.emoji ? fam.emoji + ' ' : '') + (list[0].category || fam.label);
+            if (categories[catLabel]) categories[catLabel] = categories[catLabel].concat(list);
+            else categories[catLabel] = list;
+        });
+    }
+
     // Sort ALL categories strictly alphabetically by label (strip emoji for sort key)
     var _sortedCatKeys = Object.keys(categories).sort(function(a, b) {
         var _strip = function(s) { return s.replace(/^[^a-zA-Z]+/, '').toLowerCase(); };
@@ -2444,6 +2468,11 @@ var BADGE_TIER_FAMILIES = {
         label: 'Timechain TV Watcher', emoji: '📺', field: 'tctvLifetimeSeconds', unit: 60, unitLabel: 'min watched',
         how: 'Watch Timechain TV while signed in. Watch time is verified by the server, up to 3 hours a day.',
         tiers: [[10, 10], [300, 150], [6000, 1000], [30000, 2500], [126000, 5000]]
+    },
+    spark_citizen: {
+        label: 'Spark Citizen', emoji: '🏰', field: 'sparkCitizenCount', unit: 1, unitLabel: 'days',
+        how: 'Watch the in-app Citadel Spark teaser while signed in. The server credits one watch per day.',
+        tiers: [[1, 10], [3, 30], [7, 100], [14, 250], [28, 500]]
     }
 };
 window.BADGE_TIER_FAMILIES = BADGE_TIER_FAMILIES;
