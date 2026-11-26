@@ -66,14 +66,51 @@ test('legal page titles say Bitcoin Quest', function () {
     });
 });
 
-test('headings and legal body wording are unchanged', function () {
+test('headings are unchanged and back links and subtitle say Bitcoin Quest', function () {
+    const terms = read('terms.html');
+    const deletion = read('deletion.html');
     assert.ok(privacy.includes('<h1>Privacy Policy</h1>'));
-    assert.ok(read('terms.html').includes('<h1>Terms of Service</h1>'));
-    assert.ok(read('deletion.html').includes('<h1>🗑️ User Data Deletion</h1>'));
-    // The trademark and party names in the body stay as they were.
+    assert.ok(terms.includes('<h1>Terms of Service</h1>'));
+    assert.ok(deletion.includes('<h1>🗑️ User Data Deletion</h1>'));
+    assert.ok(privacy.includes('<a href="/" class="back">← Back to Bitcoin Quest</a>'));
+    assert.ok(terms.includes('<a href="/" class="back">← Back to Bitcoin Quest</a>'));
+    assert.ok(!privacy.includes('Back to Bitcoin Education Archive'));
+    assert.ok(!terms.includes('Back to Bitcoin Education Archive'));
+    assert.ok(deletion.includes('<p><strong>Bitcoin Quest</strong>'));
+    // Trademark wording stays as it was.
     assert.ok(privacy.includes('"Bitcoin Education Archive" is a trademark'));
-    assert.ok(read('terms.html').includes('By accessing or using the Bitcoin Education Archive website'));
-    assert.ok(read('deletion.html').includes('<p><strong>Bitcoin Education Archive</strong>'));
+});
+
+test('no line still says the Site has no ad networks or ad cookies', function () {
+    assert.ok(!privacy.includes('use a third-party analytics product, advertising network, or tracking pixel'));
+    assert.ok(!privacy.includes('Facebook Pixel, ad networks, or any'));
+    assert.ok(!privacy.includes('<li>Advertising or marketing cookies</li>'));
+    assert.ok(!privacy.includes('<li>Cross-site tracking cookies</li>'));
+    assert.ok(!privacy.includes('There is no sale or share to opt out of.'));
+    assert.ok(!privacy.includes('we do not share it for cross-context behavioral advertising'));
+});
+
+test('reworded lines match ads.js: 18+ only, AdSense plus A-ADS, ad cookies', function () {
+    assert.ok(privacy.includes('We use two ad networks, Google AdSense and A-ADS, only for signed-in users who have confirmed they are 18 or older'));
+    assert.ok(privacy.includes('Google AdSense and A-ADS show ads only to signed-in users who have confirmed they are 18 or older, and they can use their own ad and measurement cookies'));
+    assert.ok(privacy.includes('<li>Advertising or marketing cookies of our own. When Google AdSense or A-ADS shows an ad'));
+    assert.ok(privacy.includes('<li>Cross-site tracking cookies of our own</li>'));
+});
+
+test('the ad-free group is 20% and bq_ads_device is in the storage list', function () {
+    assert.ok(adsSection().includes('about 20% of eligible users are placed in an ad-free group'));
+    assert.ok(privacy.includes('<code>bq_ads_device</code> is a random device id used only to place this device in or out of the ad-free group'));
+    const storage = privacy.slice(privacy.indexOf('<h3>Browser localStorage</h3>'), privacy.indexOf('<h3>Service Worker Cache</h3>'));
+    assert.ok(storage.includes('bq_ads_device'));
+});
+
+test('the CCPA line has a Do not sell or share draft marked [LEGAL REVIEW]', function () {
+    const sale = privacy.slice(privacy.indexOf('<h3>Sale and share</h3>'), privacy.indexOf('<h3>Legal bases'));
+    assert.ok(sale.includes('[LEGAL REVIEW]'));
+    assert.ok(sale.includes('Do not sell or share:'));
+    assert.ok(sale.includes('href="https://adssettings.google.com"'));
+    assert.ok(sale.includes('href="https://www.aboutads.info/choices"'));
+    assert.ok(!sale.includes('\u2014'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
