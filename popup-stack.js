@@ -277,7 +277,8 @@
         sync();
     }
 
-    var ORDER = ['gift', 'terms', 'pace', 'quiz', 'quest'];
+    // Questions come before the mode picker so the picker can recommend a mode.
+    var ORDER = ['gift', 'terms', 'quiz', 'pace', 'quest'];
     var state = {};
     var shows = {};
     var signedIn = false;

@@ -2153,7 +2153,9 @@
         bqEnsurePickerStyles();
         var options = opts || {};
         container.textContent = '';
-        var stored = bqStoredExperienceMode();
+        // ignoreStored: onboarding passes its own selection and tags the
+        // recommended mode on its own, even after a default mode was saved.
+        var stored = options.ignoreStored ? '' : bqStoredExperienceMode();
         var preselect = stored || options.preselect || 'beginner';
         if (preselect !== 'lite' && preselect !== 'beginner' && preselect !== 'intermediate' && preselect !== 'advanced') preselect = 'beginner';
         BQ_EXPERIENCE_MODES.forEach(function (meta) {
@@ -2173,7 +2175,7 @@
                 current.className = 'bq-mode-flag';
                 current.textContent = ' (current)';
                 name.appendChild(current);
-            } else if (on || meta.id === (options.recommended || 'beginner')) {
+            } else if (options.ignoreStored ? meta.id === (options.recommended || 'beginner') : (on || meta.id === (options.recommended || 'beginner'))) {
                 var rec = document.createElement('span');
                 rec.className = 'bq-mode-flag';
                 rec.textContent = options.recommended ? ' · Recommended for you' : ' · Recommended';

@@ -64,9 +64,10 @@ test('More Quests toggle is a 44px high-contrast secondary button in both themes
     assert.ok(light >= 4.5, 'light More Quests contrast ' + light.toFixed(2));
 });
 
-test('service worker cache pin is v2632', function () {
+test('service worker cache pin is v2696', function () {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2632'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2696'"));
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2632'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2628'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2622'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2615'"));

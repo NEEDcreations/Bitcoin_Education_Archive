@@ -77,20 +77,23 @@ function test(name, fn) {
     catch (e) { console.log('  FAIL ' + name + ': ' + (e && e.message ? e.message : e)); failed++; }
 }
 
-test('queue waits for sign-in and shows gift, then terms, then pace', function () {
+test('queue waits for sign-in and shows gift, then terms, then quiz, then pace', function () {
     const env = bootQueue();
     const q = env.sandbox.btcOnboardingQueue;
     const seen = [];
     q.ready('gift', function () { seen.push('gift'); });
     q.ready('terms', function () { seen.push('terms'); });
     q.ready('pace', function () { seen.push('pace'); });
+    q.ready('quiz', function () { seen.push('quiz'); });
     assert.deepStrictEqual(seen, []);
     q.onSignedIn();
     assert.deepStrictEqual(seen, ['gift']);
     q.done('gift');
     assert.deepStrictEqual(seen, ['gift', 'terms']);
     q.done('terms');
-    assert.deepStrictEqual(seen, ['gift', 'terms', 'pace']);
+    assert.deepStrictEqual(seen, ['gift', 'terms', 'quiz']);
+    q.done('quiz');
+    assert.deepStrictEqual(seen, ['gift', 'terms', 'quiz', 'pace']);
 });
 
 test('a skipped gift does not block terms', function () {
@@ -124,7 +127,7 @@ test('onboarding does not open before sign-in and pace persists a default', func
     assert.ok(boot.includes('holdUntilSignedIn'));
     assert.ok(!boot.includes('showOnboardingIntro()'));
     assert.ok(src.includes('btcShowPaceStep'));
-    assert.ok(src.includes("readPace() || 'beginner'"));
+    assert.ok(src.includes("readPace() || rec || 'beginner'"));
     assert.ok(src.includes('window.setExperienceMode(picked)'));
     assert.ok(src.includes("q.ready('gift'") === false);
     assert.ok(src.includes("q.ready('pace'"));
