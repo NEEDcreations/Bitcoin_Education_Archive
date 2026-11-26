@@ -199,6 +199,8 @@ const TESTS = [
     { name: 'Popup queue', file: 'test-popup-queue.js' },
     { name: '18+ age confirmation', file: 'test-confirm-age-18.js' },
     { name: 'Kids account flags', file: 'test-kids-account.js' },
+    { name: 'Guest onboarding', file: 'test-onboarding-guest-1120.js' },
+    { name: 'New-user fixes (Week 1)', file: 'test-onboarding-w1-1125.js' },
     { name: 'Username repick', file: 'test-username-repick.js' },
     { name: 'Favor display name', file: 'test-favor-display-name.js' },
     { name: 'Username spaces', file: 'test-username-spaces.js' },

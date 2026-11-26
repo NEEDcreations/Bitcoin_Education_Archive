@@ -172,6 +172,8 @@ function buildCSP(nonce, opts) {
             " https://cdn.jsdelivr.net" +
             " https://cdnjs.cloudflare.com" +
             " https://translate.google.com" +
+            " https://translate.googleapis.com" +   // Language switch: Google Translate main script
+            " https://translate-pa.googleapis.com" + // Language switch: supported-languages list
             " https://www.google.com" +          // reCAPTCHA v3 (App Check token generation)
             " https://www.youtube.com" +
             " https://pagead2.googlesyndication.com" +  // AdSense (RLDA-40)
@@ -253,7 +255,7 @@ function buildCSP(nonce, opts) {
         // accounts.google.com is not a style-src host, so this path is the
         // smallest allow for the GIS button stylesheet. A host source would
         // make the path redundant.
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style https://www.gstatic.com", // gstatic: Google Translate styles
 
         "object-src 'none'",    // No Flash/plugins
         "base-uri 'self'",      // No <base> tag hijacking

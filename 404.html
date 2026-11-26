@@ -541,7 +541,7 @@
         .lb-level-row { display: flex; justify-content: space-between; padding: 4px 0; color: var(--text-muted); font-size: 0.8rem; }
 
         /* Username Modal */
-        #usernameModal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay); z-index: 2100008; overflow-y: scroll; -webkit-overflow-scrolling: touch; }
+        #usernameModal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay); z-index: 2100008; overflow-y: scroll; -webkit-overflow-scrolling: touch; box-sizing: border-box; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
         #usernameModal.open { display: block; }
         .username-box { background: var(--bg-side); border: 1px solid var(--border); border-radius: 24px; padding: 40px; max-width: 400px; width: 90%; text-align: center; margin: 20px auto; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
         @media (max-width: 900px) { .username-box { padding: 20px 16px; width: 95%; margin: 10px auto; } }
@@ -824,6 +824,13 @@
             body.ticker-visible #inviteGuestPill:not([hidden]) {
                 top: clamp(calc(160px + env(safe-area-inset-top, 0px)), calc(50dvh - 22px), calc(100dvh - 340px - env(safe-area-inset-bottom, 0px)));
             }
+        }
+        /* Phones, signed-in home: the pill band starts where the wallet strip
+           ends, so the Experience bar sat under the Invite and Quest pills.
+           Move the bar below the band while a pill is up. */
+        @media (max-width: 900px) {
+            body.home-signed-in:has(#inviteCard[data-show="1"][data-state="min"]) #bqHomeModeBar,
+            body.home-signed-in:has(#nachoQuestPill) #bqHomeModeBar { margin-top: 52px; }
         }
         body:has(#searchOverlay[data-open="1"]) .invite-card,
         body:has(#searchOverlay[data-open="1"]) #inviteGuestPill { display: none !important; }
