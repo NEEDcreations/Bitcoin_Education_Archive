@@ -2,17 +2,20 @@
  * Bitcoin Quest ads (RLDA-40).
  *
  * Homepage: A-ADS unit 2463147 (https iframe, in-flow, no z-index 99998).
- * Learn + arcade: AdSense script (ca-pub-7244515226002177) in reserved slots,
- * but only for users with a known adult age. Guests and users with no age
- * field get A-ADS only (Phil, Nov 25: "A. Guests and no-age users get
- * A-ADS only, no AdSense").
+ * Learn + arcade: AdSense script (ca-pub-7244515226002177) in reserved slots.
+ * Every ad, including A-ADS, requires a signed-in user with a known adult
+ * age (Phil, Nov 25, 9:15-9:16 PM ET: "let's require the 18+ check for
+ * all ads including A-ADS" and "A. Guests see no ads until they sign up
+ * and confirm 18+"). Guests, signed-out users, and accounts with no
+ * known adult age get no ads at all: no script or iframe is loaded.
  * Hard rule (Phil, Nov 25): no ads of any kind on Timechain TV screens —
  * no paid ads, no ad breaks, nothing overlaying or pausing the player.
  *
  * Kids, Classroom, and Premium accounts never see ads.
  * A configurable ad-free holdout (default 20%; Phil, Nov 25: "A. Make
- * the ad-free group 20%") is assigned stably per user id or, for guests,
- * a persistent device id. Change BQ_ADS_HOLDOUT_PCT only.
+ * the ad-free group 20%") is assigned stably per signed-in user id.
+ * Only eligible (18+) users are counted in holdout logging. Change
+ * BQ_ADS_HOLDOUT_PCT only.
  *
  * Holdout vs ads is recorded as aggregate daily-active and next-day-return
  * counts only (ads_holdout_stats/{YYYY-MM-DD}). No per-user export.
@@ -188,11 +191,12 @@
         return t === 'kids' || t === 'kid' || t === 'child' || t === 'family-child' || t === 'minor';
     }
 
-    // AdSense is only for a signed-in user with an explicit adult age.
-    // Guests, anonymous sessions, and accounts with no age fields stay on
-    // A-ADS. These adult fields are not set in the repo yet; the server
-    // must write them the same way Family/Classroom seats must write the
-    // kids fields. A kids account is never treated as adult.
+    // Every ad, including A-ADS, is only for a signed-in user with an
+    // explicit adult age. Guests, anonymous sessions, and accounts with
+    // no age fields get no ads. These adult fields are not set in the
+    // repo yet; the server must write them the same way Family/Classroom
+    // seats must write the kids fields. A kids account is never treated
+    // as adult.
     function numericAge(user) {
         if (!user) return null;
         var n = Number(user.age != null ? user.age : user.ageYears);
@@ -208,6 +212,13 @@
         if (band === 'adult' || band === 'over18' || band === '18+' || band === '18plus') return true;
         var age = numericAge(user);
         return age != null && age >= 18;
+    }
+
+    function isGuestUser(user) {
+        if (!user) return true;
+        if (user.isAnonymous === true) return true;
+        if (!user.uid) return true;
+        return false;
     }
 
     function premiumPlanId(user) {
@@ -334,8 +345,9 @@
 
     /**
      * Decide whether ads may show, and which experiment group (if any)
-     * this daily-active belongs to. Restricted accounts are ad-free and
-     * are left out of the holdout-vs-ads comparison.
+     * this daily-active belongs to. Guests, users without a known adult
+     * age, and restricted accounts are ad-free and are left out of the
+     * holdout-vs-ads comparison.
      */
     function decide(input) {
         input = input || {};
@@ -349,8 +361,10 @@
         if (!isFinite(pct) || pct < 0) pct = HOLDOUT_PCT;
         if (pct > 100) pct = 100;
         var unknown = isUserUnknown(input);
+        var guest = isGuestUser(user);
+        var adult = hasKnownAdultAge(user);
         var id = unknown ? null : assignmentId(user);
-        var holdout = !unknown && inHoldout(id, pct);
+        var holdout = !unknown && !guest && adult && inHoldout(id, pct);
         var reason = null;
         var experimentGroup = null;
         var show = false;
@@ -365,6 +379,10 @@
             reason = 'classroom';
         } else if (isPremiumAccount(user)) {
             reason = 'premium';
+        } else if (guest) {
+            reason = 'guest';
+        } else if (!adult) {
+            reason = 'age';
         } else if (kidsSurface) {
             reason = 'kids-surface';
         } else if (sensitive) {
@@ -379,10 +397,12 @@
             experimentGroup = 'ads';
         }
 
-        // Eligible (not kids/classroom/premium, not on TCTV) users in the
-        // experiment still belong to holdout or ads even when the current
-        // surface has no slot, so daily-active return can be compared later.
-        if (!unknown && !tctv && !isKidsAccount(user) && !isClassroomAccount(user) && !isPremiumAccount(user)) {
+        // Eligible (signed-in, known adult age, not kids/classroom/premium,
+        // not on TCTV) users in the experiment still belong to holdout or
+        // ads even when the current surface has no slot, so daily-active
+        // return can be compared later. Guests and no-age users are left
+        // out, so holdout logging counts only eligible (18+) users.
+        if (!unknown && !tctv && !guest && adult && !isKidsAccount(user) && !isClassroomAccount(user) && !isPremiumAccount(user)) {
             experimentGroup = holdout ? 'holdout' : 'ads';
             if (holdout) reason = 'holdout';
             else if (!show) reason = reason || (kidsSurface ? 'kids-surface' : (sensitive ? 'sensitive' : 'surface'));
@@ -750,6 +770,7 @@
         isPremiumAccount: isPremiumAccount,
         isKidsAccount: isKidsAccount,
         hasKnownAdultAge: hasKnownAdultAge,
+        isGuestUser: isGuestUser,
         isClassroomAccount: isClassroomAccount,
         isFamilyOrClassroomPlan: isFamilyOrClassroomPlan,
         isKidsSurface: isKidsSurface,

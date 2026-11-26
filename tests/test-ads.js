@@ -167,11 +167,11 @@ test('HARD RULE: Timechain TV never gets ads, even for eligible users', function
     for (let i = 0; i < 200; i++) {
         if (!ads.inHoldout('u' + i)) { uid = 'u' + i; break; }
     }
-    const d = ads.decide({ user: { uid: uid }, surface: 'timechain-tv', path: '/timechain-tv' });
+    const d = ads.decide({ user: { uid: uid, over18: true }, surface: 'timechain-tv', path: '/timechain-tv' });
     assert.strictEqual(d.show, false);
     assert.strictEqual(d.reason, 'tctv');
     assert.strictEqual(d.experimentGroup, null);
-    assert.strictEqual(ads.shouldShowAds({ user: { uid: uid }, path: '/tv', tctvActive: true }), false);
+    assert.strictEqual(ads.shouldShowAds({ user: { uid: uid, over18: true }, path: '/tv', tctvActive: true }), false);
 });
 
 test('ads are allowed only on homepage, Learn, and arcade for eligible users', function () {
@@ -180,7 +180,7 @@ test('ads are allowed only on homepage, Learn, and arcade for eligible users', f
     for (let i = 0; i < 400; i++) {
         if (!ads.inHoldout('ok' + i)) { uid = 'ok' + i; break; }
     }
-    const user = { uid: uid };
+    const user = { uid: uid, over18: true };
     assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'home', path: '/' }), true);
     assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'learning-quests' }), true);
     assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'proof-of-play' }), true);
@@ -211,7 +211,7 @@ test('aggregate recorder writes only holdout vs ads counts, never a user or devi
         if (!ads.inHoldout('agg' + i)) { uid = 'agg' + i; break; }
     }
     const now = new Date('2026-11-25T18:00:00-05:00');
-    const decision = ads.decide({ user: { uid: uid }, surface: 'home' });
+    const decision = ads.decide({ user: { uid: uid, over18: true }, surface: 'home' });
     assert.strictEqual(decision.experimentGroup, 'ads');
     const out = ads.recordDailyAggregate(decision, now);
     assert.strictEqual(out.recorded, true);
@@ -242,13 +242,13 @@ test('next-day return increments the previous day cohort across all daily active
     }
     const day1 = new Date('2026-11-25T12:00:00-05:00');
     const day2 = new Date('2026-11-26T09:00:00-05:00');
-    const d1 = ads.decide({ user: { uid: uid }, surface: 'forum' });
+    const d1 = ads.decide({ user: { uid: uid, over18: true }, surface: 'forum' });
     assert.strictEqual(d1.experimentGroup, 'holdout');
     ads.recordDailyAggregate(d1, day1);
     const firstFields = increments.map(function (i) { return Object.keys(i.data)[0]; });
     assert.ok(firstFields.indexOf('holdoutDau') >= 0);
     increments.length = 0;
-    const d2 = ads.decide({ user: { uid: uid }, surface: 'home' });
+    const d2 = ads.decide({ user: { uid: uid, over18: true }, surface: 'home' });
     const out = ads.recordDailyAggregate(d2, day2);
     assert.strictEqual(out.returned, true);
     const fields = increments.map(function (i) { return Object.keys(i.data)[0] + '@' + i.id; });
@@ -297,7 +297,7 @@ test('index.html and 404.html include ads.js, the homepage slot, and the AdSense
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const html404 = fs.readFileSync(path.join(root, '404.html'), 'utf8');
     assert.strictEqual(html, html404, '404.html must match index.html');
-    assert.ok(html.includes('src="/ads.js?v=20261125_v2693"'));
+    assert.ok(html.includes('src="/ads.js?v=20261125_v2694"'));
     assert.ok(html.includes('defer') && html.includes('ads.js'));
     assert.ok(html.includes('id="bqAadsHome"'));
     assert.ok(html.includes('name="google-adsense-account"'));
@@ -336,7 +336,7 @@ test('Kids section and topic pages are never an ad surface', function () {
     for (let i = 0; i < 400; i++) {
         if (!ads.inHoldout('ks' + i)) { uid = 'ks' + i; break; }
     }
-    const user = { uid: uid };
+    const user = { uid: uid, over18: true };
     assert.strictEqual(ads.isKidsSurface({ surface: 'marketplace', category: 'kids' }), true);
     assert.strictEqual(ads.isKidsSurface({ surface: 'timechain-tv', channel: 'kids-family' }), true);
     assert.strictEqual(ads.isKidsSurface({ path: '/marketplace', hash: '#category=kids' }), true);
@@ -355,6 +355,9 @@ test('decide defaults to no ads while the user is unknown and does not record a 
     assert.strictEqual(ads.shouldShowAds({ userUnknown: true, surface: 'home' }), false);
     const knownGuest = ads.decide({ user: null, surface: 'home', path: '/' });
     assert.notStrictEqual(knownGuest.reason, 'unknown');
+    assert.strictEqual(knownGuest.show, false);
+    assert.strictEqual(knownGuest.reason, 'guest');
+    assert.strictEqual(knownGuest.experimentGroup, null);
 });
 
 test('A-ADS iframe is sandboxed without top navigation and sends no referrer', function () {
@@ -371,7 +374,7 @@ test('claim, withdraw, wallet, login, and admin are not ad surfaces', function (
     for (let i = 0; i < 400; i++) {
         if (!ads.inHoldout('sens' + i)) { uid = 'sens' + i; break; }
     }
-    const user = { uid: uid };
+    const user = { uid: uid, over18: true };
     ['claim', 'withdraw', 'wallet', 'nwc', 'login', 'admin'].forEach(function (surface) {
         assert.strictEqual(ads.isSensitiveSurface({ surface: surface }), true, surface);
         assert.strictEqual(ads.shouldShowAds({ user: user, surface: surface }), false, surface);
@@ -404,37 +407,55 @@ function findEligibleDevice(ads) {
     return 'abcdef0123456789';
 }
 
-test('guests can see A-ADS but AdSense never loads for them, including Learn and PoP', function () {
+test('guests and signed-out users get no ads at all, including A-ADS', function () {
     const ads = loadAds();
     store['bq_ads_device'] = findEligibleDevice(ads);
-    const guest = { user: null };
-    const home = ads.decide(Object.assign({ surface: 'home', path: '/' }, guest));
-    assert.strictEqual(home.show, true);
-    assert.strictEqual(ads.adsenseAllowed(home, Object.assign({ surface: 'home' }, guest)), false);
-    const lq = ads.decide(Object.assign({ surface: 'learning-quests' }, guest));
-    assert.strictEqual(lq.show, true);
-    assert.strictEqual(ads.adsenseAllowed(lq, Object.assign({ surface: 'learning-quests' }, guest)), false);
-    const pop = ads.decide(Object.assign({ surface: 'proof-of-play' }, guest));
-    assert.strictEqual(pop.show, true);
-    assert.strictEqual(ads.adsenseAllowed(pop, Object.assign({ surface: 'proof-of-play' }, guest)), false);
-    assert.strictEqual(ads.hasKnownAdultAge(null), false);
-    assert.strictEqual(ads.hasKnownAdultAge({ uid: 'anon', isAnonymous: true }), false);
+    const guests = [
+        { user: null },
+        { user: { uid: 'anon', isAnonymous: true } },
+        { user: {} }
+    ];
+    guests.forEach(function (guest) {
+        ['home', 'learning-quests', 'proof-of-play', 'arcade'].forEach(function (surface) {
+            const input = Object.assign({ surface: surface, path: surface === 'home' ? '/' : undefined }, guest);
+            const d = ads.decide(input);
+            assert.strictEqual(d.show, false, JSON.stringify(guest) + ' ' + surface);
+            assert.strictEqual(d.reason, 'guest', JSON.stringify(guest) + ' ' + surface);
+            assert.strictEqual(d.experimentGroup, null);
+            assert.strictEqual(ads.adsenseAllowed(d, input), false);
+        });
+        assert.strictEqual(ads.hasKnownAdultAge(guest.user), false);
+        assert.strictEqual(ads.isGuestUser(guest.user), true);
+    });
+    const now = new Date('2026-11-25T18:00:00-05:00');
+    const out = ads.recordDailyAggregate(ads.decide({ user: null, surface: 'home', path: '/' }), now);
+    assert.strictEqual(out.recorded, false);
+    assert.strictEqual(out.group, null);
+    assert.strictEqual(increments.length, 0);
 });
 
-test('signed-in users with no age fields get A-ADS only, never AdSense', function () {
+test('signed-in users with no age fields get no ads at all, including A-ADS', function () {
     const ads = loadAds();
     const uid = findEligibleUid(ads, 'noage');
     const user = { uid: uid };
     assert.strictEqual(ads.hasKnownAdultAge(user), false);
-    assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'home', path: '/' }), true);
-    assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'learning-quests' }), true);
-    assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'proof-of-play' }), true);
-    assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'learning-quests' }), { user: user, surface: 'learning-quests' }), false);
-    assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'proof-of-play' }), { user: user, surface: 'proof-of-play' }), false);
-    assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'arcade' }), { user: user, surface: 'arcade' }), false);
+    assert.strictEqual(ads.isGuestUser(user), false);
+    ['home', 'learning-quests', 'proof-of-play', 'arcade'].forEach(function (surface) {
+        const input = { user: user, surface: surface, path: surface === 'home' ? '/' : undefined };
+        const d = ads.decide(input);
+        assert.strictEqual(d.show, false, surface);
+        assert.strictEqual(d.reason, 'age', surface);
+        assert.strictEqual(d.experimentGroup, null);
+        assert.strictEqual(ads.adsenseAllowed(d, input), false);
+    });
+    const now = new Date('2026-11-25T18:00:00-05:00');
+    const out = ads.recordDailyAggregate(ads.decide({ user: user, surface: 'home', path: '/' }), now);
+    assert.strictEqual(out.recorded, false);
+    assert.strictEqual(out.group, null);
+    assert.strictEqual(increments.length, 0);
 });
 
-test('only users with a known adult age can get AdSense on Learn and PoP', function () {
+test('over18 users get A-ADS on the homepage and AdSense on Learn and PoP', function () {
     const ads = loadAds();
     const uid = findEligibleUid(ads, 'adult');
     const adults = [
@@ -446,15 +467,19 @@ test('only users with a known adult age can get AdSense on Learn and PoP', funct
     ];
     adults.forEach(function (user) {
         assert.strictEqual(ads.hasKnownAdultAge(user), true, JSON.stringify(user));
+        assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'home', path: '/' }), true);
         assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'learning-quests' }), true);
         assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'learning-quests' }), { user: user, surface: 'learning-quests' }), true);
         assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'proof-of-play' }), { user: user, surface: 'proof-of-play' }), true);
+        assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'arcade' }), { user: user, surface: 'arcade' }), true);
         // Homepage stays A-ADS even for adults.
         assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'home', path: '/' }), { user: user, surface: 'home' }), false);
     });
     const under = { uid: uid, age: 17 };
     assert.strictEqual(ads.hasKnownAdultAge(under), false);
-    assert.strictEqual(ads.shouldShowAds({ user: under, surface: 'learning-quests' }), true);
+    assert.strictEqual(ads.shouldShowAds({ user: under, surface: 'home', path: '/' }), false);
+    assert.strictEqual(ads.shouldShowAds({ user: under, surface: 'learning-quests' }), false);
+    assert.strictEqual(ads.decide({ user: under, surface: 'learning-quests' }).reason, 'age');
     assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: under, surface: 'learning-quests' }), { user: under, surface: 'learning-quests' }), false);
 });
 
