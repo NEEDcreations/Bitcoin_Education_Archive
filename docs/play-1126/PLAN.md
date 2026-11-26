@@ -47,7 +47,7 @@ A private working list of 8 agreed people already exists from Nov 21 (not stored
 | Item | Status | Notes |
 | --- | --- | --- |
 | TWA / Bubblewrap project | Not started | Keep it in a **new private repo**, suggested `NEEDcreations/bitcoin-quest-android`. Do not put the Android project, a keystore, or `local.properties` in this public website repo. Tooling: `@bubblewrap/cli`. Template: `docs/play-1126/twa-manifest.json`. Start URL: `/?client=android-twa`. Host: `bitcoineducation.quest` only (not www, not pages.dev). |
-| Existing AAB | None | No AAB or APK is in this repo or on the shared computer. The first upload-signed AAB should be built on a maintainer machine after Phil creates the upload keystore. The shared bot box is the wrong place for a real keystore. |
+| Existing AAB | None | No AAB or APK is in this repo. The first upload-signed AAB should be built on a maintainer machine after Phil creates the upload keystore. Do not generate or store a real keystore on a shared or unattended machine. |
 | Play App Signing | Phil must enroll | After the first upload, copy the **App signing key certificate SHA-256** (and the upload-key SHA-256 if a locally signed build should also verify) into `.well-known/assetlinks.json`. Format: 32 colon-separated uppercase hex bytes, as Play Console shows it. Do not invent a fingerprint. Do not put a debug cert on the production origin. |
 | Upload keystore | Phil must create and store privately | Alias in the template is `upload`. Keep the password in Phil's password manager. Never commit `*.jks` / `*.keystore`. |
 
@@ -158,13 +158,13 @@ First-run, in order, once the age confirm and onboarding branches are on the liv
 3. **Questions-first onboarding, then mode picker, then first quest overlay.** Already live in product shape (shipped Nov 19; guest path checked Nov 20 / Nov 25). `introSeen` must be saved so the intro does not repeat (#2, already fixed). On a 375 px phone the account sheet must not cover the questions (#3, already fixed).
 4. **Guided tour after onboarding** (how to earn XP and convert it to bitcoin, ways to earn, Learn tab, mini apps, Skip anytime, a Need help? step, end-of-tour "Ready to start learning?" / "Want to earn some quick XP?", and blur daily tasks behind "Reveal your daily tasks"). Script still waits on Phil. Do not ship a tour until he has approved the script. This is the remaining closed-test onboarding blocker that is not already coded.
 
-### Status of the Week 1 list (from Mini Rufus, not re-asked)
+### Status of the Week 1 list
 
 Branch `fix/onboarding-w1-1125`, head `1d13e15ed`, SW still `v2691` (final pin is set at merge). Pushed, no PR.
 
 | Item | Status |
 | --- | --- |
-| #1 Update banner must not sign new users out | Fixed earlier (`b395fc6df`, PR #387). Staging plan written at `/workspace/private/onboarding-w1-1125-staging-plan.md`. **Not yet run** on a real staging account. |
+| #1 Update banner must not sign new users out | Fixed earlier (`b395fc6df`, PR #387). A staging plan is written separately. **Not yet run** on a real staging account. |
 | #2 `introSeen` saved | Already fixed on that earlier commit. |
 | #3 Account sheet covering onboarding at 375 px | Already fixed. |
 | #4 First-time onboarding / tutorial vs the Nov 20 guest path | Checked locally; no new defect besides #5. |
@@ -178,7 +178,7 @@ Branch `fix/onboarding-w1-1125`, head `1d13e15ed`, SW still `v2691` (final pin i
 | #13 Make orange toasts instant; profile-picture toast was ~10 seconds late | Not started. Small follow-up: audit `showToast` / delayed toast calls on profile saves and fire the success toast when the write resolves, not after an extra timer. |
 | #14–#17 Guided tour | Waits on Phil's script review. Must still be live before the closed test if we keep that earlier commitment. |
 
-Unit tests already green on that branch: Week 1 7/0, guest onboarding 13/0, busters 13/0. The #1 staging plan still needs a staging preview and a throwaway account (Google, email-link, and guest). That is a QA / Rufus run, not a new code branch.
+Unit tests already green on that branch: Week 1 7/0, guest onboarding 13/0, busters 13/0. The #1 staging plan still needs a staging preview and a throwaway account (Google, email-link, and guest). That is a QA run, not a new code branch.
 
 #12 and #13 are small enough for a later branch (`fix/profile-save-toasts-1126` or similar). They were not mixed into this Play hosting branch. They are not closed-test blockers in the same way as age confirm, social username, and the tour.
 
@@ -186,10 +186,10 @@ Unit tests already green on that branch: Week 1 7/0, guest onboarding 13/0, bust
 
 ## 4. Exact steps only Phil can do in Play Console (and related)
 
-Rufus cannot complete these in Phil's Play account from here. Do them in this order when the AAB and live origin are ready.
+These cannot be completed in Phil's Play account from here. Do them in this order when the AAB and live origin are ready.
 
 1. **Confirm the developer account.** Open Play Console as 603BTC. Confirm identity verification is approved, the $25 registration is paid, and the account is in good standing. Confirm the app with application id `quest.bitcoineducation.app` is the one already created.
-2. **Create the upload key and turn on Play App Signing.** Generate an upload keystore on a machine you control (not the shared bot computer). Store the keystore and passwords in your password manager. When Play shows the **App signing key certificate** SHA-256 (and the upload-key SHA-256), paste them to Rufus or into the assetlinks file yourself. Do not send the keystore file in chat.
+2. **Create the upload key and turn on Play App Signing.** Generate an upload keystore on a machine you control. Store the keystore and passwords in your password manager. When Play shows the **App signing key certificate** SHA-256 (and the upload-key SHA-256), paste them into the assetlinks file yourself. Do not send the keystore file in chat.
 3. **Approve publishing `assetlinks.json` and the worker / hosting changes**, in your own words, after the real SHA-256 values are in the file. Until then, the website branch must not be merged to `gh-pages` or deployed.
 4. **Complete App setup in Play Console** (closed testing is locked until this is done), using the drafts in `docs/play-1126/`:
    - Store listing (name, short and full description, icon, feature graphic, phone screenshots)
@@ -227,8 +227,8 @@ Still for you to confirm when you fill the forms (recommended answers are alread
 
 1. Friday ship (separate track): combined web build, including onboarding `fix/onboarding-w1-1125` and age confirm, after the usual QA / Security / User Data / Phil OK and a verified full export. Not part of this branch.
 2. Phil creates the upload key, enrolls Play App Signing, and returns the SHA-256 values.
-3. Rufus fills `.well-known/assetlinks.json`, you approve the publish in your own words, and we verify DAL on the apex HTTPS URL.
-4. Rufus (or you) creates the private Android repo, runs Bubblewrap from `docs/play-1126/twa-manifest.json`, and builds the upload-signed AAB on a maintainer machine.
+3. The fingerprints are added to `.well-known/assetlinks.json`, you approve the publish in your own words, and we verify DAL on the apex HTTPS URL.
+4. You or a maintainer create the private Android repo, run Bubblewrap from `docs/play-1126/twa-manifest.json`, and build the upload-signed AAB on a maintainer machine.
 5. A follow-up website branch hides Premium (and Kids / Classroom) in the TWA client. Merge it with the usual review before testers start.
 6. You complete the Play forms, upload the AAB, add testers, and send the opt-in link.
 7. Install the Play-signed build on a real phone and confirm: no URL bar, age confirm, sign-up, first quest, no Premium checkout, no Kids / Classroom.
@@ -240,7 +240,6 @@ If signing, DAL, or the Friday ship slips, move the closed-test start, not the 1
 
 ## 6. Sources
 
-- Workstream memory: `/bot/workstream/bitcoin-quest-google-play`
-- Mini Rufus local drafts (Nov 25): `/workspace/private/twa-assetlinks-plan-1125.md`, `play-console-answers-1125.md`, `assetlinks-1125.json`, `twa-manifest-1125.json`, `onboarding-w1-1125.md`, `onboarding-w1-1125-test-results.md`, `onboarding-w1-1125-staging-plan.md`
+- Workstream notes for the Google Play closed test (kept outside this repo)
 - Google Play Console Help, testing requirements for new personal accounts, fetched Nov 26, 2026: https://support.google.com/googleplay/android-developer/answer/14151465?hl=en
 - Live probes, Nov 26, 2026, ~8:51–8:53 AM ET: privacy.html HTTP 200; assetlinks.json HTTPS 404 HTML; same path over HTTP 500 from Pingora
