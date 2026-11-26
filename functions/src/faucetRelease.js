@@ -85,9 +85,14 @@ async function releaseFailedClaim(deps, info, today, lnRateRef, kind) {
             // on the original ET day. Held claims never come through this path.
             if (capsDailyRef) {
                 const capDay = sitewideCaps.dayFromSnap(capsDailySnap);
-                const released = sitewideCaps.isReserveSwept(inv)
-                    ? sitewideCaps.planSweptFailed(capDay.paid, capDay.reserved, capDay.held)
-                    : Object.assign(sitewideCaps.planFaucetRelease(capDay.paid, capDay.reserved), { held: capDay.held });
+                let released;
+                if (sitewideCaps.isReserveSwept(inv)) {
+                    released = sitewideCaps.planSweptFailed(capDay.paid, capDay.reserved, capDay.held);
+                } else if (sitewideCaps.isLegacyReservedReleased(inv)) {
+                    released = sitewideCaps.planLegacyReleasedFailed(capDay.paid, capDay.reserved, capDay.held);
+                } else {
+                    released = Object.assign(sitewideCaps.planFaucetRelease(capDay.paid, capDay.reserved), { held: capDay.held });
+                }
                 t.set(capsDailyRef, {
                     paid: released.paid,
                     reserved: released.reserved,

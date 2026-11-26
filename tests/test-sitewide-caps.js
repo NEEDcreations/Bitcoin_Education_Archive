@@ -240,6 +240,68 @@ function sweptPendingThenSettledKeepsOccupancyAndOtherReservations() {
     assert.strictEqual(unk.held, 1);
 }
 
+function legacyReleasedOutcomesDoNotUndercountOccupancy() {
+    const now = Date.parse('2026-11-25T18:00:00.000Z');
+    const staleMs = 15 * 60 * 1000;
+    const sixteenAgo = now - (16 * 60 * 1000);
+    // Sweep still skips both markers.
+    assert.strictEqual(caps.planStaleReserveSweep({
+        status: 'pending', reservedReleased: true, tsMs: sixteenAgo, etDay: '2026-11-25', id: 'legacy',
+    }, now, staleMs).release, false);
+    assert.strictEqual(caps.planStaleReserveSweep({
+        status: 'pending', reserveSwept: true, tsMs: sixteenAgo, etDay: '2026-11-25', id: 'swept',
+    }, now, staleMs).release, false);
+    assert.strictEqual(caps.isReserveSwept({ reservedReleased: true }), false);
+    assert.strictEqual(caps.isReserveSwept({ reserveSwept: true }), true);
+    assert.strictEqual(caps.isLegacyReservedReleased({ reservedReleased: true }), true);
+    assert.strictEqual(caps.isLegacyReservedReleased({ reserveSwept: true }), false);
+    assert.strictEqual(caps.isLegacyReservedReleased({ reserveSwept: true, reservedReleased: true }), false);
+    assert.strictEqual(caps.isSweepSkipMarked({ reservedReleased: true }), true);
+    assert.strictEqual(caps.isSweepSkipMarked({ reserveSwept: true }), true);
+
+    // Live slots: one reserved claim and one held unknown. The leftover
+    // reservedReleased invoice is already out of occupancy.
+    const paid = 0;
+    const reserved = 1;
+    const held = 1;
+    const liveOcc = paid + reserved + held;
+
+    const pay = caps.planLegacyReleasedPaid(paid, reserved, held, 10);
+    assert.strictEqual(pay.paidAfter, 1);
+    assert.strictEqual(pay.reservedAfter, 1);
+    assert.strictEqual(pay.heldAfter, 1);
+    const afterPay = pay.paidAfter + pay.reservedAfter + pay.heldAfter;
+    assert.strictEqual(afterPay, liveOcc + 1);
+    // The reserveSwept math would steal the other claim's held slot.
+    const wrongPay = caps.planSweptPaid(paid, reserved, held, 10);
+    assert.strictEqual(wrongPay.heldAfter, 0);
+    assert.ok(wrongPay.paidAfter + wrongPay.reservedAfter + wrongPay.heldAfter < afterPay);
+    const trip = caps.planLegacyReleasedPaid(9, 1, 1, 10);
+    assert.strictEqual(trip.tripped, true);
+    assert.strictEqual(trip.reservedAfter, 1);
+    assert.strictEqual(trip.heldAfter, 1);
+
+    const fail = caps.planLegacyReleasedFailed(paid, reserved, held);
+    assert.strictEqual(fail.paid, 0);
+    assert.strictEqual(fail.reserved, 1);
+    assert.strictEqual(fail.held, 1);
+    assert.strictEqual(fail.paid + fail.reserved + fail.held, liveOcc);
+    const wrongFail = caps.planSweptFailed(paid, reserved, held);
+    assert.ok(wrongFail.paid + wrongFail.reserved + wrongFail.held < liveOcc);
+
+    const unk = caps.planLegacyReleasedUnknown(paid, reserved, held);
+    assert.strictEqual(unk.paid, 0);
+    assert.strictEqual(unk.reserved, 1);
+    assert.strictEqual(unk.held, 1);
+    assert.strictEqual(unk.paid + unk.reserved + unk.held, liveOcc);
+
+    assert.strictEqual(caps.shouldHoldFaucetUnknown({ status: 'pending' }), true);
+    assert.strictEqual(caps.shouldHoldFaucetUnknown({}), true);
+    assert.strictEqual(caps.shouldHoldFaucetUnknown({ status: 'unknown' }), false);
+    assert.strictEqual(caps.shouldHoldFaucetUnknown({ status: 'used' }), false);
+    assert.strictEqual(caps.shouldHoldFaucetUnknown({ status: 'failed' }), false);
+}
+
 function makeSweepDb(invoices, days) {
     const rows = invoices.map(function (inv) { return Object.assign({}, inv); });
     const dayState = JSON.parse(JSON.stringify(days || {}));
@@ -517,13 +579,14 @@ async function main() {
     faucetCountsPaidOnly();
     tenUnknownClaimsBlockTheEleventh();
     sweptPendingThenSettledKeepsOccupancyAndOtherReservations();
+    legacyReleasedOutcomesDoNotUndercountOccupancy();
     await sweepQueryPagesPastSweptAndCountsOnlyRealMoves();
     await sweepSkipsWhenKillSwitchIsOn();
     settingsAreAdminLoggedAndRejectedWhenInvalid();
     capHitCopyIsOneConstant();
     alertsAtEightyAndTrip();
     await nonAdminCapCallablesWriteNothing();
-    console.log('test-sitewide-caps: 13 groups passed');
+    console.log('test-sitewide-caps: 14 groups passed');
 }
 
 main().catch(function (err) {

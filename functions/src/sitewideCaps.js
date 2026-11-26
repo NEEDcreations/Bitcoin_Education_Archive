@@ -192,7 +192,59 @@ function planSweptUnknown(paid, reserved, held) {
 }
 
 function isReserveSwept(inv) {
-    return !!(inv && (inv.reserveSwept || inv.reservedReleased));
+    return !!(inv && inv.reserveSwept);
+}
+
+// Old sweep (never ran on live gh-pages) decremented reserved and left
+// the invoice pending with reservedReleased. That slot is already gone
+// from occupancy, so a later outcome must not touch reserved or held.
+function isLegacyReservedReleased(inv) {
+    return !!(inv && inv.reservedReleased && !inv.reserveSwept);
+}
+
+function isSweepSkipMarked(inv) {
+    return isReserveSwept(inv) || !!(inv && inv.reservedReleased);
+}
+
+// paid+1; reserved and held stay as they are, so a leftover cannot
+// take another claim's held or reserved slot.
+function planLegacyReleasedPaid(paid, reserved, held, cap) {
+    const p = nonNeg(paid);
+    const r = nonNeg(reserved);
+    const h = nonNeg(held);
+    const c = normalizeCap(cap, DEFAULT_FAUCET_CAP);
+    const paidAfter = p + 1;
+    return {
+        ok: true,
+        paidAfter: paidAfter,
+        reservedAfter: r,
+        heldAfter: h,
+        cap: c,
+        crossed80: crossedThreshold(p, paidAfter, alertThreshold(c)),
+        tripped: paidAfter >= c,
+    };
+}
+
+function planLegacyReleasedFailed(paid, reserved, held) {
+    return {
+        paid: nonNeg(paid),
+        reserved: nonNeg(reserved),
+        held: nonNeg(held),
+    };
+}
+
+function planLegacyReleasedUnknown(paid, reserved, held) {
+    return {
+        paid: nonNeg(paid),
+        reserved: nonNeg(reserved),
+        held: nonNeg(held),
+    };
+}
+
+// Only pending invoices move to unknown. used, failed, or already
+// unknown are left alone so a retry cannot apply the hold twice.
+function shouldHoldFaucetUnknown(inv) {
+    return String((inv && inv.status) || 'pending') === 'pending';
 }
 
 // A held claim never pays on its own when the ET day rolls. An admin
@@ -248,7 +300,7 @@ function planStaleReserveSweep(row, nowMs, staleMs, lookbackMs) {
     if (String(src.status || '') !== 'pending') {
         return { release: false, reason: 'not-pending' };
     }
-    if (isReserveSwept(src)) {
+    if (isSweepSkipMarked(src)) {
         return { release: false, reason: 'already-swept' };
     }
     if (!String(src.etDay || '').trim()) {
@@ -532,7 +584,13 @@ module.exports = {
     planSweptPaid: planSweptPaid,
     planSweptFailed: planSweptFailed,
     planSweptUnknown: planSweptUnknown,
+    planLegacyReleasedPaid: planLegacyReleasedPaid,
+    planLegacyReleasedFailed: planLegacyReleasedFailed,
+    planLegacyReleasedUnknown: planLegacyReleasedUnknown,
     isReserveSwept: isReserveSwept,
+    isLegacyReservedReleased: isLegacyReservedReleased,
+    isSweepSkipMarked: isSweepSkipMarked,
+    shouldHoldFaucetUnknown: shouldHoldFaucetUnknown,
     planAutoPayHeld: planAutoPayHeld,
     planStaleReserveSweep: planStaleReserveSweep,
     sweepStaleFaucetReserves: sweepStaleFaucetReserves,
