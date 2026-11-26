@@ -5158,7 +5158,7 @@ function showUsernameRepickPrompt(opts) {
             var nextOpts = copyUsernamePromptOpts(opts);
             nextOpts._ageWaitTries = waitTries + 1;
             nextOpts._ageHooked = true;
-            nextOpts._nameChecked = false;
+            // Keep _nameChecked so a 300ms tick does not re-read users/{uid}.
             setTimeout(function () { showUsernameRepickPrompt(nextOpts); }, 300);
             return;
         }

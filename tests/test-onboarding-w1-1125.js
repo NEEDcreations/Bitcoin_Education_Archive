@@ -352,11 +352,125 @@ test('a deferred fresh prompt does not open if the server name lands before the 
     assert.deepStrictEqual(ctx.created, []);
 });
 
+test('a fresh username step reads the server name once across age-wait ticks', async function () {
+    const ctx = loadFreshPromptSandbox({
+        withDb: true,
+        serverName: '',
+        auth: { currentUser: { uid: 'emailuid1', isAnonymous: false } },
+        ageDecision: 'pending'
+    });
+    ctx.sandbox.showUsernameRepickPrompt({ fresh: true });
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.deepStrictEqual(ctx.getCalls, ['emailuid1']);
+    assert.deepStrictEqual(ctx.created, []);
+    for (let i = 0; i < 5; i++) {
+        assert.strictEqual(ctx.timers.length, 1, 'age-wait try ' + i);
+        ctx.timers.shift()();
+        await Promise.resolve();
+        await Promise.resolve();
+    }
+    assert.deepStrictEqual(ctx.getCalls, ['emailuid1'], 'ticks must not re-read users/{uid}');
+    assert.deepStrictEqual(ctx.created, []);
+});
+
+function loadAgeConfirmSandbox(opts) {
+    opts = opts || {};
+    const src = read('age-confirm.js');
+    const flushed = [];
+    const timeouts = [];
+    const gets = [];
+    let failLeft = opts.failTimes || 0;
+    const user = opts.user || { uid: 'emailuid1', isAnonymous: false };
+    const root = {
+        document: {
+            readyState: 'complete',
+            getElementById: function () { return null; },
+            addEventListener: function () {}
+        },
+        setTimeout: function (fn) { timeouts.push(fn); return timeouts.length; },
+        setInterval: function () { return 1; },
+        clearInterval: function () {},
+        localStorage: { getItem: function () { return null; }, setItem: function () {}, removeItem: function () {} },
+        sessionStorage: { getItem: function () { return null; }, setItem: function () {}, removeItem: function () {} },
+        flushAfterAge: function () { flushed.push('flush'); },
+        btcOnboardingQueue: opts.queue === undefined ? null : opts.queue,
+        console: { log: function () {}, error: function () {} }
+    };
+    root.firebase = {
+        auth: function () {
+            return {
+                currentUser: user,
+                onAuthStateChanged: function (cb) { root._onAuth = cb; }
+            };
+        },
+        firestore: function () {
+            return {
+                collection: function () {
+                    return {
+                        doc: function (uid) {
+                            return {
+                                get: function () {
+                                    gets.push(uid);
+                                    if (failLeft > 0) {
+                                        failLeft--;
+                                        return Promise.reject(new Error('unavailable'));
+                                    }
+                                    if (opts.missingDoc) {
+                                        return Promise.resolve({ exists: false, data: function () { return {}; } });
+                                    }
+                                    return Promise.resolve({
+                                        exists: true,
+                                        data: function () { return opts.userData || { over18: true }; }
+                                    });
+                                }
+                            };
+                        }
+                    };
+                }
+            };
+        }
+    };
+    vm.createContext(root);
+    vm.runInContext(src, root);
+    return { root: root, flushed: flushed, timeouts: timeouts, gets: gets };
+}
+
+test('finishQueue flushes the age wait even when the onboarding queue is missing', async function () {
+    const ctx = loadAgeConfirmSandbox({ userData: { over18: true } });
+    assert.strictEqual(typeof ctx.root._onAuth, 'function');
+    ctx.root._onAuth({ uid: 'emailuid1', isAnonymous: false });
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.ok(ctx.flushed.length >= 1, 'flushAfterAge runs when q is empty');
+    assert.strictEqual(ctx.root._bqAgeDecision, 'done');
+});
+
+test('loadUserDoc retries that skip the age prompt still flush when the queue is missing', async function () {
+    const ctx = loadAgeConfirmSandbox({ failTimes: 8, missingDoc: true });
+    ctx.root._onAuth({ uid: 'emailuid1', isAnonymous: false });
+    await Promise.resolve();
+    await Promise.resolve();
+    for (let i = 0; i < 20 && ctx.flushed.length === 0; i++) {
+        const fns = ctx.timeouts.splice(0, ctx.timeouts.length);
+        fns.forEach(function (fn) { fn(); });
+        await Promise.resolve();
+        await Promise.resolve();
+    }
+    assert.ok(ctx.gets.length >= 9, 'retries then a last get');
+    assert.ok(ctx.flushed.length >= 1, 'flushAfterAge runs after retries skip the prompt');
+    assert.strictEqual(ctx.root._bqAgeDecision, 'done');
+});
+
 test('age-confirm marks the age decision pending on sign-in and flushes after finishQueue', function () {
     const src = read('age-confirm.js');
     const finish = fnSource(src, 'finishQueue');
     assert.ok(finish.includes('flushAfterAge'), 'finishQueue flushes the age wait');
     assert.ok(finish.includes('_bqAgeDecision'), 'finishQueue records the decision');
+    const earlyReturn = finish.indexOf('if (!q) return');
+    const flushAt = finish.indexOf('flushAfterAge');
+    assert.ok(flushAt !== -1, 'finishQueue calls flushAfterAge');
+    assert.ok(earlyReturn === -1 || flushAt < earlyReturn, 'flush runs even when the queue is missing');
     const onAuth = fnSource(src, 'onAuthUser');
     assert.ok(onAuth.includes("_bqAgeDecision = 'pending'"), 'sign-in marks age pending');
 });

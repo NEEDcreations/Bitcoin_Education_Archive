@@ -115,13 +115,16 @@
 
     function finishQueue(kind) {
         var q = queue();
-        if (!q) return;
-        try {
-            if (kind === 'skip' && typeof q.skip === 'function') q.skip('age');
-            else if (typeof q.done === 'function') q.done('age');
-        } catch (e) {}
+        if (q) {
+            try {
+                if (kind === 'skip' && typeof q.skip === 'function') q.skip('age');
+                else if (typeof q.done === 'function') q.done('age');
+            } catch (e) {}
+        }
         // Tell the username step the age step is fully done (confirmed or
-        // dismissed). Sign-out is not a decision for the next account.
+        // dismissed), even when the onboarding queue is missing, so
+        // loadUserDoc skip/retry paths still flush. Sign-out is not a
+        // decision for the next account.
         try {
             var signedOut = false;
             try {
