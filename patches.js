@@ -84,6 +84,11 @@
     const _toastQueue = [];
     let _toastActive = false;
     const _originalShowToast = window.showToast;
+    // ranking.js toasts are separate elements with their own timers, so the
+    // next one only waits a short beat instead of the full display time.
+    const _toastHoldMs = function(duration) {
+        return typeof _originalShowToast === 'function' ? Math.min(duration, 900) : duration;
+    };
     window.showToast = function(message, duration) {
         duration = duration || 2500;
         if (_toastActive) {
@@ -116,7 +121,7 @@
                     window.showToast(next.message, next.duration);
                 }, 300); 
             }
-        }, duration);
+        }, _toastHoldMs(duration));
     };
     let _sidebarScrollTop = 0;
     const sidebar = document.getElementById('sidebar');
