@@ -243,13 +243,48 @@ tests.push(test('each user-doc creation path stamps created, including a first T
     assert.ok(index.includes('await joinDate.applyMissingJoin(admin, uid, createdPatch, snap, { allowNow: true });'));
     assert.ok(api.includes("created: destJoinStamp || admin.firestore.FieldValue.serverTimestamp()"));
     assert.ok(api.includes('if (!joinDate.hasJoin(dest, nowMs) && destJoinStamp) update.created = destJoinStamp;'));
-    const tos = around(ranking, 'window._acceptTos = async function()', 0, 1800);
+    const tos = around(ranking, 'window._acceptTos = async function()', 0, 2800);
     assert.ok(tos.includes('if (!tosDoc.exists)'));
-    assert.ok(tos.includes('clientCreatePayload({'));
+    assert.ok(tos.includes('clientCreatePayload(tosMerge)'));
     assert.ok(tos.includes('tosVersion: TOS_CURRENT_VERSION'));
+    const createBranch = tos.slice(tos.indexOf('if (!tosDoc.exists)'), tos.indexOf('} else {'));
+    assert.ok(createBranch.includes('clientCreatePayload(tosMerge)'));
+    assert.ok(createBranch.includes("tosCreateErr.code !== 'permission-denied'"));
+    assert.ok(createBranch.includes(', { merge: true }'));
+    assert.ok(!createBranch.split('permission-denied')[1].includes('clientCreatePayload'));
     const mergeOnly = tos.slice(tos.indexOf('} else {'));
-    assert.ok(mergeOnly.includes('tosVersion: TOS_CURRENT_VERSION'));
+    assert.ok(mergeOnly.includes('tosMerge'));
     assert.ok(!mergeOnly.includes('created:'));
+    assert.ok(!mergeOnly.includes('clientCreatePayload'));
+}));
+
+tests.push(test('onUserDocCreated stamps created even if the stats write fails', function () {
+    const index = read('functions/index.js');
+    const at = index.indexOf('exports.onUserDocCreated');
+    assert.ok(at !== -1);
+    const fn = index.slice(at, at + 2200);
+    const joinAt = fn.indexOf("await joinDate.applyMissingJoin(admin, uid, createdPatch, snap, { allowNow: true })");
+    const statsAt = fn.indexOf('runTransaction');
+    assert.ok(joinAt !== -1 && statsAt !== -1);
+    assert.ok(joinAt < statsAt);
+    const joinTry = fn.indexOf("console.error('[onUserDocCreated] join date failed:'");
+    const statsTry = fn.indexOf("console.error('[onUserDocCreated] failed:'");
+    assert.ok(joinTry !== -1 && statsTry !== -1 && joinTry < statsTry);
+    assert.ok(fn.includes('if (createdPatch.created)'));
+}));
+
+tests.push(test('an LN-reset first write stamps created, and an update does not', function () {
+    const src = read('functions/src/resetLightningAddress.js');
+    assert.ok(src.includes("const joinDate = require('./joinDate');"));
+    const at = src.indexOf('if (freshUser.exists)');
+    assert.ok(at !== -1);
+    const block = src.slice(at, at + 800);
+    assert.ok(block.includes('await joinDate.applyMissingJoin(admin, uid, createdUser, freshUser);'));
+    assert.ok(block.includes('t.set(userRef, createdUser);'));
+    const mergeLine = block.slice(0, block.indexOf('else {'));
+    assert.ok(mergeLine.includes("{ lightning: next, lightningAddress: next }"));
+    assert.ok(!mergeLine.includes('applyMissingJoin'));
+    assert.ok(!mergeLine.includes('created:'));
 }));
 
 tests.push(test('signup paths stamp created on the server', function () {

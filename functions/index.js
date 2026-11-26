@@ -5739,6 +5739,19 @@ exports.onPvpMatchFinished = onDocumentUpdated({
 exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
     const snap = event.data; const context = { params: event.params };
         const uid = context.params.uid;
+        const userDocRef = db.collection('users').doc(uid);
+        // Every create path lands here. If that first write omitted created,
+        // stamp Auth metadata.creationTime. The server clock is only used
+        // when Auth has no creation time, because this document is new.
+        // Keep this off the stats transaction so a userCount failure cannot
+        // skip the join date.
+        try {
+            const createdPatch = {};
+            await joinDate.applyMissingJoin(admin, uid, createdPatch, snap, { allowNow: true });
+            if (createdPatch.created) {
+                await userDocRef.set(createdPatch, { merge: true });
+            }
+        } catch (e) { console.error('[onUserDocCreated] join date failed:', e); }
         try {
             const statsRef = db.collection('stats').doc('global');
             // Use a transaction to atomically increment and read the new count
@@ -5749,14 +5762,7 @@ exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
                 t.set(statsRef, { userCount: admin.firestore.FieldValue.increment(1) }, { merge: true });
                 return newCount;
             });
-            // Write plebNumber back to the user doc if not already set.
-            // Every create path lands here. If that first write omitted created,
-            // stamp Auth metadata.creationTime. The server clock is only used
-            // when Auth has no creation time, because this document is new.
-            const userDocRef = db.collection('users').doc(uid);
-            const createdPatch = { plebNumber: plebNumber };
-            await joinDate.applyMissingJoin(admin, uid, createdPatch, snap, { allowNow: true });
-            await userDocRef.set(createdPatch, { merge: true });
+            await userDocRef.set({ plebNumber: plebNumber }, { merge: true });
         } catch (e) { console.error('[onUserDocCreated] failed:', e); }
         return null;
     });
