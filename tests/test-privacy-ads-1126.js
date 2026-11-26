@@ -140,5 +140,21 @@ test('no email opt-out promise and no sell-for-advertising line remain', functio
     assert.ok(privacy.includes('Our commitment: We do not sell your personal information for money.'));
 });
 
+test('the section adds Premium ad-free and the partner-sites link after the Legal text', function () {
+    const sec = adsSection();
+    const legalEnd = sec.indexOf("We don't currently show ads in the EEA, UK or Switzerland.");
+    const extra = sec.indexOf('<p>Premium accounts are ad-free.');
+    assert.ok(legalEnd > 0 && extra > legalEnd);
+    assert.ok(sec.includes('href="https://policies.google.com/technologies/partner-sites"'));
+    assert.ok(plain(sec).includes('Google explains how it uses this data in How Google uses information from sites or apps that use our services.'));
+    assert.ok(extra < sec.indexOf('Ad-free group.'));
+});
+
+test('Terms no longer says it does not sell for advertising', function () {
+    const terms = read('terms.html');
+    assert.ok(!terms.includes('sell your personal information for advertising'));
+    assert.ok(terms.includes('We do not sell your personal information for money.'));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);
