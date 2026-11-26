@@ -6,13 +6,13 @@ const path = require('path');
 const vm = require('vm');
 
 const root = path.join(__dirname, '..');
-const store = {};
 const increments = [];
 const callableCalls = [];
 
 function loadAds(opts) {
     opts = opts || {};
     increments.length = 0;
+    const store = opts.store || Object.create(null);
     const docs = opts.docs || {};
     const authState = { currentUser: opts.authUser || null };
     const sandbox = {
@@ -105,7 +105,9 @@ function loadAds(opts) {
     if (opts.clearStore) Object.keys(store).forEach(function (k) { delete store[k]; });
     const code = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
     vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
-    sandbox.api = sandbox.bqAds || sandbox.module.exports;
+    sandbox.store = store;
+    sandbox.bqAdsPublic = sandbox.bqAds;
+    sandbox.api = sandbox.module.exports || sandbox.bqAds;
     return sandbox;
 }
 
@@ -374,28 +376,19 @@ function eligibleUser(ads, prefix) {
 
 let passed = 0, failed = 0;
 function test(name, fn) {
-    try {
-        Object.keys(store).forEach(function (k) { delete store[k]; });
+    return function () {
         increments.length = 0;
         callableCalls.length = 0;
-        const ret = fn();
-        if (ret && typeof ret.then === 'function') {
-            return ret.then(function () {
-                console.log('✅ ' + name);
-                passed++;
-            }).catch(function (e) {
-                console.log('❌ ' + name + ': ' + (e && e.stack ? e.stack : e));
-                failed++;
-            });
-        }
-        console.log('✅ ' + name);
-        passed++;
-        return Promise.resolve();
-    } catch (e) {
-        console.log('❌ ' + name + ': ' + (e && e.stack ? e.stack : e));
-        failed++;
-        return Promise.resolve();
-    }
+        return Promise.resolve().then(function () {
+            return fn();
+        }).then(function () {
+            console.log('✅ ' + name);
+            passed++;
+        }).catch(function (e) {
+            console.log('❌ ' + name + ': ' + (e && e.stack ? e.stack : e));
+            failed++;
+        });
+    };
 }
 
 const pending = [];
@@ -423,7 +416,7 @@ pending.push(test('the Your Privacy Choices toggle forces npa and is stored loca
     const user = eligibleUser(ads, 'tog');
     assert.strictEqual(ads.isPrivacyShareOptedOut({ user: user, gpc: false }), false);
     ads.setShareOptOut(true);
-    assert.strictEqual(store['bq_privacy_share_opt_out'], '1');
+    assert.strictEqual(env.store['bq_privacy_share_opt_out'], '1');
     const d = ads.decide({ user: user, surface: 'learning-quests', gpc: false });
     assert.strictEqual(d.show, true);
     assert.strictEqual(d.npa, true);
@@ -725,9 +718,9 @@ pending.push(test('a fill before boot or geo starts is blocked when document is 
 pending.push(test('ads.js peeks at btc_open_privacy_choices and does not consume it', function () {
     const env = loadAdsDom();
     const ads = env.api;
-    store['sess:btc_open_privacy_choices'] = '1';
+    env.store['sess:btc_open_privacy_choices'] = '1';
     assert.strictEqual(ads.privacyChoicesOpenRequested(), true);
-    assert.strictEqual(store['sess:btc_open_privacy_choices'], '1');
+    assert.strictEqual(env.store['sess:btc_open_privacy_choices'], '1');
     const src = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
     assert.ok(src.indexOf("sessionStorage.removeItem('btc_open_privacy_choices')") === -1);
     const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
@@ -760,7 +753,82 @@ pending.push(test('DEPLOY-LIST.md lists the callable and CSP publishes as needin
     assert.ok(list.indexOf('fundingchoicesmessages.google.com') !== -1);
 }));
 
-Promise.all(pending).then(function () {
+pending.push(test('browser console cannot fill ads or override country', async function () {
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    const pub = env.bqAdsPublic;
+    const ads = env.api;
+    const document = env.document;
+    assert.ok(pub);
+    assert.strictEqual(typeof pub.fillAdsense, 'undefined');
+    assert.strictEqual(typeof pub.fillAads, 'undefined');
+    assert.strictEqual(typeof pub.fillSlot, 'undefined');
+    assert.strictEqual(typeof pub.rememberCountry, 'undefined');
+    assert.strictEqual(typeof ads.fillAdsense, 'function');
+    assert.strictEqual(typeof ads.rememberCountry, 'function');
+
+    ads.rememberCountry('DE');
+    const adult = await withEligibleDoc(env, 'n1geo');
+    const d = pub.decide({ user: adult, surface: 'home', country: 'US' });
+    assert.strictEqual(d.show, false);
+    assert.strictEqual(d.reason, 'geo');
+    assert.strictEqual(d.country, 'DE');
+    const dSync = pub.sync({ country: 'US', surface: 'home' });
+    assert.ok(!dSync || dSync.show !== true);
+
+    ads.rememberCountry('US');
+    env.docs['users/' + adult.uid] = { username: 'x', over18: false, ageUnder18: true };
+    await ads.fetchFreshUserDoc(adult.uid);
+    const slot = document.createElement('div');
+    slot.className = 'bq-ad-slot';
+    document.body.appendChild(slot);
+    ads.fillAdsense(slot, { surface: 'learning-quests', country: 'US' });
+    assert.ok(slot.hidden || !slot.innerHTML || slot.innerHTML.indexOf('adsbygoogle') === -1);
+    ads.fillAads(slot, { surface: 'home', country: 'US' });
+    assert.ok(slot.hidden || !slot.innerHTML || slot.innerHTML.indexOf('acceptable.a-ads.com') === -1);
+    assert.strictEqual(adsenseScripts(document).length, 0);
+}));
+
+pending.push(test('a GPC reload waits until the claim modal closes', async function () {
+    const reloads = [];
+    const nav = { globalPrivacyControl: false };
+    const env = loadAdsDom({ navigator: nav });
+    env.BQ_ADS_RELOAD = function () { reloads.push(1); };
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const user = await withEligibleDoc(env, 'n2gpc');
+    const slot = document.createElement('div');
+    slot.className = 'bq-ad-slot';
+    document.body.appendChild(slot);
+    const d = ads.decide({ user: user, surface: 'learning-quests', country: 'US' });
+    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests', country: 'US' }, true);
+    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+    const scripts = adsenseScripts(document);
+    assert.ok(scripts.some(function (el) { return (el.src || '').indexOf('npa=1') === -1; }));
+
+    const claim = document.createElement('div');
+    claim.id = 'claimModal';
+    claim.hidden = false;
+    document.body.appendChild(claim);
+
+    nav.globalPrivacyControl = true;
+    const result = ads.applyPrivacyChoiceNow();
+    assert.strictEqual(result.deferredReload, true);
+    assert.strictEqual(result.reloaded, false);
+    assert.ok(slot.hidden || !slot.innerHTML || slot.innerHTML.indexOf('adsbygoogle') === -1);
+    assert.strictEqual(reloads.length, 0);
+
+    ads.watchPrivacySignals();
+    assert.strictEqual(reloads.length, 0);
+
+    claim.hidden = true;
+    ads.watchPrivacySignals();
+    assert.strictEqual(reloads.length, 1);
+}));
+
+pending.reduce(function (chain, run) {
+    return chain.then(run);
+}, Promise.resolve()).then(function () {
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

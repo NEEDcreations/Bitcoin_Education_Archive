@@ -70,7 +70,7 @@ function loadAds(opts) {
     if (opts.clearStore) Object.keys(store).forEach(function (k) { delete store[k]; });
     const code = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
     vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
-    return sandbox.bqAds || sandbox.module.exports;
+    return sandbox.module.exports || sandbox.bqAds;
 }
 
 let passed = 0, failed = 0;
@@ -581,7 +581,7 @@ function loadBrowserAds(opts) {
     sandbox._bqAdsUserUnknown = false;
     const code = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
     vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
-    const ads = sandbox.bqAds || sandbox.module.exports;
+    const ads = sandbox.module.exports || sandbox.bqAds;
     // Browser tests assume a finished geo lookup unless they are testing geo.
     if (ads && typeof ads.rememberCountry === 'function' && opts.geo !== false) {
         ads.rememberCountry(opts.country || 'US');

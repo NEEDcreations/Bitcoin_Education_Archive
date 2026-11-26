@@ -159,6 +159,32 @@
     var personalizedAdsLive = false;
     var lastSeenGpc = false;
 
+    var pendingPrivacyReload = false;
+
+    function personalizedArtifactsLive() {
+        if (typeof document === 'undefined') return false;
+        var scripts = document.getElementsByTagName('script');
+        var i, src, ins;
+        for (i = 0; i < scripts.length; i++) {
+            src = scripts[i].src || '';
+            if (src.indexOf('adsbygoogle.js') !== -1 && src.indexOf('npa=1') === -1 && scripts[i].getAttribute('data-npa') !== '1') {
+                return true;
+            }
+        }
+        ins = document.querySelectorAll ? document.querySelectorAll('ins.adsbygoogle') : [];
+        for (i = 0; i < ins.length; i++) {
+            if (ins[i].getAttribute('data-npa-on-unknown') !== '1') return true;
+        }
+        return false;
+    }
+
+    function flushDeferredPrivacyReload() {
+        if (!pendingPrivacyReload) return false;
+        if (sensitiveUiOpen()) return false;
+        pendingPrivacyReload = false;
+        return requestPrivacyReload();
+    }
+
     function requestPrivacyReload() {
         try {
             if (root && typeof root.BQ_ADS_RELOAD === 'function') {
@@ -182,12 +208,24 @@
         var opted = isPrivacyShareOptedOut(input);
         applyNonPersonalizedAds(opted);
         if (opted) {
+            // Inspect the page before hideAllSlots() strips the tags.
+            var mustReload = personalizedAdsLive || pendingPrivacyReload || personalizedArtifactsLive();
             hideAllSlots();
-            var mustReload = personalizedAdsLive;
+            // Keep a deferred reload armed if one is already waiting, so a
+            // later apply() during claim/withdraw cannot fall through to sync()
+            // and refill slots.
             personalizedAdsLive = false;
-            if (mustReload && requestPrivacyReload()) {
-                try { updatePrivacyChoicesUi(); } catch (e) {}
-                return { reloaded: true, optedOut: true };
+            if (mustReload) {
+                if (sensitiveUiOpen()) {
+                    pendingPrivacyReload = true;
+                    try { updatePrivacyChoicesUi(); } catch (e) {}
+                    return { reloaded: false, optedOut: true, deferredReload: true };
+                }
+                pendingPrivacyReload = false;
+                if (requestPrivacyReload()) {
+                    try { updatePrivacyChoicesUi(); } catch (e2) {}
+                    return { reloaded: true, optedOut: true };
+                }
             }
         }
         var decision = sync(input);
@@ -212,6 +250,7 @@
         var now = hasGpc();
         if (now && !lastSeenGpc) applyPrivacyChoiceNow();
         lastSeenGpc = now;
+        flushDeferredPrivacyReload();
     }
 
     function parseTraceCountry(text) {
@@ -223,7 +262,9 @@
 
     function readCountry(input) {
         input = input || {};
-        if (Object.prototype.hasOwnProperty.call(input, 'country')) {
+        // A console caller must not override geo with { country: 'US' }.
+        // Node unit tests still pass country through allowExplicitUser().
+        if (allowExplicitUser(input) && Object.prototype.hasOwnProperty.call(input, 'country')) {
             var c = input.country;
             if (c == null || c === '') return { apply: true, known: false, value: null };
             var up = String(c).toUpperCase();
@@ -255,7 +296,8 @@
 
     // Fills (and sync) must not run while country is unknown or the
     // lookup has not started or finished, even if decide() was given no
-    // country in a Node test. An explicit input.country still wins.
+    // country in a Node test. An explicit input.country wins only when
+    // allowExplicitUser() is true (Node tests, never the browser).
     function fillsBlocked(input) {
         if (isGeoBlocked(input)) return true;
         var info = readCountry(input);
@@ -904,9 +946,15 @@
         slot.innerHTML = '';
     }
 
+    function fillAllowed(input) {
+        if (!hasKnownAdultAge(userForAge(input))) return false;
+        if (fillsBlocked(input)) return false;
+        return true;
+    }
+
     function fillAads(slot, input) {
         if (!slot) return;
-        if (fillsBlocked(input) || shouldSkipAads(input)) {
+        if (!fillAllowed(input) || shouldSkipAads(input)) {
             clearSlot(slot);
             return;
         }
@@ -980,7 +1028,7 @@
 
     function fillAdsense(slot, input) {
         if (!slot) return;
-        if (fillsBlocked(input)) {
+        if (!fillAllowed(input)) {
             clearSlot(slot);
             return;
         }
@@ -1004,7 +1052,7 @@
 
     function fillSlot(slot, decision, input, preferAdsense) {
         if (!slot) return;
-        if (fillsBlocked(input) || !decision || decision.show !== true) {
+        if (!fillAllowed(input) || fillsBlocked(input) || !decision || decision.show !== true) {
             clearSlot(slot);
             return;
         }
@@ -1256,6 +1304,7 @@
         hookAuth();
         ensurePrivacyChoicesFooter();
         watchPrivacySignals();
+        flushDeferredPrivacyReload();
         hookFn(window, 'go', function () { sync(); });
         hookFn(window, 'enterProofOfPlay', function () { sync({ surface: 'proof-of-play' }); });
         hookFn(window, 'exitProofOfPlay', function () { sync(); });
@@ -1361,22 +1410,39 @@
         readCountry: readCountry,
         isGeoBlocked: isGeoBlocked,
         fillsBlocked: fillsBlocked,
-        rememberCountry: rememberCountry,
         ensureGeo: ensureGeo,
         adsenseScriptSrc: adsenseScriptSrc,
         applyNonPersonalizedAds: applyNonPersonalizedAds,
         shouldSkipAads: shouldSkipAads,
-        fillAads: fillAads,
-        fillAdsense: fillAdsense,
-        fillSlot: fillSlot,
         openPrivacyChoices: openPrivacyChoices,
         privacyChoicesOpenRequested: privacyChoicesOpenRequested,
         updatePrivacyChoicesUi: updatePrivacyChoicesUi,
         ensurePrivacyChoicesFooter: ensurePrivacyChoicesFooter
     };
 
+    // Console must not get fill/rememberCountry hooks (same class as
+    // allowExplicitUser). Node tests, including those that mock document,
+    // still receive them on module.exports.
+    if (typeof document === 'undefined') {
+        api.rememberCountry = rememberCountry;
+        api.fillAads = fillAads;
+        api.fillAdsense = fillAdsense;
+        api.fillSlot = fillSlot;
+    }
+
     root.bqAds = api;
-    if (typeof module !== 'undefined' && module.exports) module.exports = api;
+    if (typeof module !== 'undefined' && module.exports) {
+        if (typeof document === 'undefined') {
+            module.exports = api;
+        } else {
+            module.exports = Object.assign({}, api, {
+                rememberCountry: rememberCountry,
+                fillAads: fillAads,
+                fillAdsense: fillAdsense,
+                fillSlot: fillSlot
+            });
+        }
+    }
     if (!root.BQ_ADS_NO_BOOT) {
         if (typeof document !== 'undefined' && document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', boot);
