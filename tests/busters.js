@@ -984,7 +984,10 @@ test('RLDA-40 ads.js is pinned at 20261125_v2695 and not protocol-relative', () 
     assert.ok(!html.includes('src="ads.js'));
     const ads = read('ads.js');
     assert.ok(ads.includes("https://acceptable.a-ads.com/2463147/?size=Adaptive"));
-    assert.ok(!ads.includes("src = '//"));test('18+ age confirmation script is pinned and identical on 404', () => {
+    assert.ok(!ads.includes("src = '//"));
+});
+
+test('18+ age confirmation script is pinned and identical on 404', () => {
     const html = read('index.html');
     const html404 = read('404.html');
     assert.strictEqual(html, html404);
