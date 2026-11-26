@@ -253,10 +253,12 @@ test('single-field index is declared for tctv_presence.ts', () => {
     assert.ok(orders.includes('ASCENDING:COLLECTION'));
 });
 
-test('cache name is v2358 and the TV script cache-buster moved', () => {
+test('cache name is current (v2692 or later) and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2692'"));
+    // busters.js owns the exact SW pin; this only checks it never goes back below v2692.
+    const swVer = sw.match(/const CACHE_NAME = 'btc-archive-v(\d+)'/);
+    assert.ok(swVer && Number(swVer[1]) >= 2692, 'CACHE_NAME is ' + (swVer && swVer[1]));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2455'"));
     assert.ok(!sw.includes('btc-archive-v2438'));
     assert.ok(!sw.includes('btc-archive-v2437'));
