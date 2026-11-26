@@ -184,6 +184,109 @@ tests.push(test('client profile card matches the server parser and skips last lo
     assert.ok(!modal.slice(use, use + 900).includes('lastLogin'));
 }));
 
+function loadCreatePayload() {
+    const ranking = read('ranking.js');
+    const src = ranking.slice(ranking.indexOf('function clientCreatePayload'), ranking.indexOf('async function applyServerUsername'));
+    assert.ok(src.includes('function clientCreatePayload'));
+    const firebase = { firestore: { FieldValue: { serverTimestamp: function () { return { _op: 'server' }; } } } };
+    return (new Function('firebase', src + '\nreturn clientCreatePayload;'))(firebase);
+}
+
+tests.push(test('a new account payload always writes created as a server timestamp', function () {
+    const clientCreatePayload = loadCreatePayload();
+    const payload = clientCreatePayload({ country: 'Japan', created: '2020-01-01' });
+    assert.deepStrictEqual(payload.created, { _op: 'server' });
+    assert.strictEqual(payload.country, 'Japan');
+    assert.strictEqual(payload.points, 0);
+    const bare = clientCreatePayload({});
+    assert.deepStrictEqual(bare.created, { _op: 'server' });
+}));
+
+tests.push(test('a later profile save does not write created', function () {
+    const ranking = read('ranking.js');
+    const save = ranking.slice(ranking.indexOf('async function saveProfile()'), ranking.indexOf('function saveProfileCache'));
+    assert.ok(save.includes("updateData = { bio: bio, country: country }"));
+    assert.ok(save.includes('.update(updateData)'));
+    assert.ok(!save.includes('created:'));
+    assert.ok(!save.includes("updateData['created']") && !save.includes('updateData.created'));
+    const links = ranking.slice(ranking.indexOf("var links = ['website'"), ranking.indexOf('// URL scheme validation'));
+    assert.ok(!links.includes('created'));
+}));
+
+tests.push(test('each user-doc creation path stamps created, including a first TOS write', function () {
+    const ranking = read('ranking.js');
+    const index = read('functions/index.js');
+    const api = read('functions/src/onboardingApi.js');
+    function around(src, needle, before, after) {
+        const at = src.indexOf(needle);
+        assert.ok(at !== -1, needle);
+        return src.slice(Math.max(0, at - before), at + needle.length + after);
+    }
+    const redirect = around(ranking, "set(clientCreatePayload(_redirExtra))", 400, 40);
+    assert.ok(redirect.includes('if (!existingDoc.exists)'));
+    const email = around(ranking, 'set(clientCreatePayload(extra))', 1200, 40);
+    assert.ok(email.includes('if (!existingDoc.exists)'));
+    const provider = around(ranking, 'set(clientCreatePayload(_provExtra))', 400, 40);
+    assert.ok(provider.includes('if (!existingDoc.exists)'));
+    const username = around(ranking, 'set(userData);', 1600, 20);
+    assert.ok(username.includes('clientCreatePayload({})'));
+    assert.ok(username.includes('if (!_existingAccount.exists)'));
+    const recreate = around(ranking, 'set(newData);', 200, 20);
+    assert.ok(recreate.includes('clientCreatePayload({})'));
+    const nostrClient = around(ranking, "set(clientCreatePayload({ nostr: pubkey })", 400, 80);
+    assert.ok(nostrClient.includes('if (!userDoc.exists)'));
+    assert.ok(ranking.includes('if (!nostrDoc.exists) nostrPatch.created = firebase.firestore.FieldValue.serverTimestamp();'));
+    const lnClient = around(ranking, 'set(clientCreatePayload({}));', 400, 40);
+    assert.ok(lnClient.includes('if (!userDoc.exists)'));
+    assert.ok(index.includes('await joinDate.applyMissingJoin(admin, nostrUid, nostrPatch, nostrExisting);'));
+    assert.ok(index.includes('await joinDate.applyMissingJoin(admin, lnUid, lnPatch, lnExisting);'));
+    assert.ok(index.includes('await joinDate.applyMissingJoin(admin, uid, createdPatch, snap, { allowNow: true });'));
+    assert.ok(api.includes("created: destJoinStamp || admin.firestore.FieldValue.serverTimestamp()"));
+    assert.ok(api.includes('if (!joinDate.hasJoin(dest, nowMs) && destJoinStamp) update.created = destJoinStamp;'));
+    const tos = around(ranking, 'window._acceptTos = async function()', 0, 2800);
+    assert.ok(tos.includes('if (!tosDoc.exists)'));
+    assert.ok(tos.includes('clientCreatePayload(tosMerge)'));
+    assert.ok(tos.includes('tosVersion: TOS_CURRENT_VERSION'));
+    const createBranch = tos.slice(tos.indexOf('if (!tosDoc.exists)'), tos.indexOf('} else {'));
+    assert.ok(createBranch.includes('clientCreatePayload(tosMerge)'));
+    assert.ok(createBranch.includes("tosCreateErr.code !== 'permission-denied'"));
+    assert.ok(createBranch.includes(', { merge: true }'));
+    assert.ok(!createBranch.split('permission-denied')[1].includes('clientCreatePayload'));
+    const mergeOnly = tos.slice(tos.indexOf('} else {'));
+    assert.ok(mergeOnly.includes('tosMerge'));
+    assert.ok(!mergeOnly.includes('created:'));
+    assert.ok(!mergeOnly.includes('clientCreatePayload'));
+}));
+
+tests.push(test('onUserDocCreated stamps created even if the stats write fails', function () {
+    const index = read('functions/index.js');
+    const at = index.indexOf('exports.onUserDocCreated');
+    assert.ok(at !== -1);
+    const fn = index.slice(at, at + 2200);
+    const joinAt = fn.indexOf("await joinDate.applyMissingJoin(admin, uid, createdPatch, snap, { allowNow: true })");
+    const statsAt = fn.indexOf('runTransaction');
+    assert.ok(joinAt !== -1 && statsAt !== -1);
+    assert.ok(joinAt < statsAt);
+    const joinTry = fn.indexOf("console.error('[onUserDocCreated] join date failed:'");
+    const statsTry = fn.indexOf("console.error('[onUserDocCreated] failed:'");
+    assert.ok(joinTry !== -1 && statsTry !== -1 && joinTry < statsTry);
+    assert.ok(fn.includes('if (createdPatch.created)'));
+}));
+
+tests.push(test('an LN-reset first write stamps created, and an update does not', function () {
+    const src = read('functions/src/resetLightningAddress.js');
+    assert.ok(src.includes("const joinDate = require('./joinDate');"));
+    const at = src.indexOf('if (freshUser.exists)');
+    assert.ok(at !== -1);
+    const block = src.slice(at, at + 800);
+    assert.ok(block.includes('await joinDate.applyMissingJoin(admin, uid, createdUser, freshUser);'));
+    assert.ok(block.includes('t.set(userRef, createdUser);'));
+    const mergeLine = block.slice(0, block.indexOf('else {'));
+    assert.ok(mergeLine.includes("{ lightning: next, lightningAddress: next }"));
+    assert.ok(!mergeLine.includes('applyMissingJoin'));
+    assert.ok(!mergeLine.includes('created:'));
+}));
+
 tests.push(test('signup paths stamp created on the server', function () {
     const index = read('functions/index.js');
     const api = read('functions/src/onboardingApi.js');
