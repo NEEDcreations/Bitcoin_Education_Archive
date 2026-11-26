@@ -603,7 +603,7 @@ pending.push(test('the callable name is setPrivacyShareOptOut and the default EE
     const src = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     assert.ok(src.indexOf('exports.setPrivacyShareOptOut') !== -1);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.indexOf("const CACHE_NAME = 'btc-archive-v2716'") !== -1);
+    assert.ok(sw.indexOf("const CACHE_NAME = 'btc-archive-v2717'") !== -1);
 }));
 
 pending.push(test('opt-out does not put AdSense on home, including when the claim modal is open', async function () {

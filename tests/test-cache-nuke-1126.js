@@ -85,7 +85,7 @@ test('stale client with the signup modal open: reload waits until it closes', as
 });
 
 test('already-current client: no work at all', async function () {
-    const r = run({ local: { btc_build: '20260405e' }, keys: ['btc-archive-v2716'], regs: 1 });
+    const r = run({ local: { btc_build: '20260405e' }, keys: ['btc-archive-v2717'], regs: 1 });
     await r.settle();
     assert.strictEqual(r.calls.reload, 0);
     assert.strictEqual(r.calls.deleted.length, 0);

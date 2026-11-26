@@ -403,8 +403,27 @@
         return window.bqModeAllows(id);
     }
 
+    // The today card ships #todayFavorStrip in the page markup, but
+    // today-card.js (which defines _paintTodayFavor) can load after this file.
+    // While the strip exists and its painter is still loading, wait for it
+    // instead of prepending the fallback banner above #homeHero and removing
+    // it a moment later (first-load CLS: phone 0.194, desktop 0.122 at v2716).
+    // The fallback banner is only for a home without the strip, or a strip
+    // whose painter never loads (~10 s).
+    var _favorPaintWaitTimer = null;
+    var _favorPaintWaitTries = 0;
     function renderHomeBanner() {
         var strip = document.getElementById('todayFavorStrip');
+        if (strip && typeof window._paintTodayFavor !== 'function' && _favorPaintWaitTries < 50) {
+            if (!_favorPaintWaitTimer) {
+                _favorPaintWaitTimer = setTimeout(function () {
+                    _favorPaintWaitTimer = null;
+                    _favorPaintWaitTries++;
+                    renderHomeBanner();
+                }, 200);
+            }
+            return;
+        }
         if (strip && typeof window._paintTodayFavor === 'function') {
             // Active window: favorActive and the countdown end is still ahead.
             var active = isFavorEffectivelyActive();
