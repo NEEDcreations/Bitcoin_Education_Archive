@@ -389,7 +389,8 @@ function resolveAction(input) {
     if (actionKey === 'prediction_correct' || PREDICTION_RESULT.test(action)) {
         return { ok: false, error: 'Prediction results are scored on the server', awarded: 0, tickets: 0 };
     }
-    // 100 XP and 1 orange ticket, once per offset day, from tctvWatchHeartbeat.
+    // 100 XP and 1 orange ticket, once per America/New_York day, from tctvWatchHeartbeat.
+    // The XP amount still counts toward the 5 AM UTC offset-day cap ledger.
     if (action === 'tctv_watch_10m' || actionKey === 'tctv_watch_10m') {
         return { ok: false, error: 'Timechain TV watch rewards are granted by the server', awarded: 0, tickets: 0 };
     }

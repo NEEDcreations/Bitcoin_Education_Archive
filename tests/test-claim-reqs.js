@@ -51,15 +51,61 @@ test('exempt only when Auth creation is strictly before the start', () => {
 });
 
 test('a new account is missing each stamp until the server writes it', () => {
-    assert.deepStrictEqual(claimReqs.missingItems({}, START), ['chat', 'tctv']);
-    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START } }, START), ['tctv']);
+    const originals = require('../functions/src/tctvOriginals');
+    assert.strictEqual(originals.taskEnabled(), false);
+    // Library is thin: anti-bot step is a server-verified lesson or quiz, not dropped.
+    assert.deepStrictEqual(claimReqs.missingItems({}, START), ['chat', 'learn']);
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START } }, START), ['learn']);
     assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { tctvAt: { seconds: 10 } } }, START), ['chat']);
     const done = { claimReq: { chatAt: 1, tctvAt: 1 } };
     assert.deepStrictEqual(claimReqs.missingItems(done, START), []);
-    assert.deepStrictEqual(claimReqs.missingItems({ created: START - 1 }, START), ['chat', 'tctv']);
+    assert.deepStrictEqual(claimReqs.missingItems({ created: START - 1 }, START), ['chat', 'learn']);
     // No referral step: a stale referralAt stamp is irrelevant.
-    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { referralAt: 1 } }, START), ['chat', 'tctv']);
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { referralAt: 1 } }, START), ['chat', 'learn']);
     assert.ok(!('referral' in claimReqs.ITEM_LABEL));
+    originals.ORIGINALS.push({ id: 'tmp-test', title: 'tmp', durationSeconds: 600, rights: 'BQ' });
+    try {
+        assert.strictEqual(originals.taskEnabled(), true);
+        assert.deepStrictEqual(claimReqs.missingItems({}, START), ['chat', 'tctv']);
+        assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START } }, START), ['tctv']);
+        assert.deepStrictEqual(claimReqs.missingItems({ created: START - 1 }, START), ['chat', 'tctv']);
+        assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { referralAt: 1 } }, START), ['chat', 'tctv']);
+    } finally {
+        originals.ORIGINALS.pop();
+        assert.strictEqual(originals.taskEnabled(), false);
+    }
+});
+
+test('a server-written lesson or quiz satisfies the anti-bot step while Originals are thin', () => {
+    const originals = require('../functions/src/tctvOriginals');
+    assert.strictEqual(originals.taskEnabled(), false);
+    assert.strictEqual(claimReqs.learnQualifies({ completedQuests: ['quest_fake'] }), false);
+    assert.strictEqual(claimReqs.learnQualifies({ questsPassed: 1 }), true);
+    assert.strictEqual(claimReqs.learnQualifies({ lqPassed: ['lq_what_is_bitcoin'] }), true);
+    assert.strictEqual(claimReqs.learnQualifies({ lqPassed: 1 }), true);
+    assert.strictEqual(claimReqs.learnQualifies({ lqPassed: [] }), false);
+    assert.strictEqual(claimReqs.learnQualifies({ triviaCorrect: 1 }), false);
+    assert.strictEqual(claimReqs.learnQualifies({ triviaCorrect: 2, questsPassed: 1 }), true);
+    assert.strictEqual(claimReqs.learnQualifies({ triviaCorrect: 2, lqPassed: ['lq_mining'] }), true);
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, questsPassed: 1 }, START), []);
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, lqPassed: ['lq_what_is_bitcoin'] }, START), []);
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, lqPassed: 1 }, START), []);
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, triviaCorrect: 2 }, START), ['learn']);
+    // learnAt has no writer and does not qualify.
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START, learnAt: START } }, START), ['learn']);
+    // Client-owned completedQuests must not satisfy the step.
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, completedQuests: ['quest_x'] }, START), ['learn']);
+    // Already-qualified accounts stay qualified after Originals go live.
+    originals.ORIGINALS.push({ id: 'tmp-test', title: 'tmp', durationSeconds: 600, rights: 'BQ' });
+    try {
+        assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, questsPassed: 1 }, START), []);
+        assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, lqPassed: ['lq_what_is_bitcoin'] }, START), []);
+        assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START, tctvAt: START } }, START), []);
+        assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START, learnAt: START } }, START), ['tctv']);
+        assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START } }, START), ['tctv']);
+    } finally {
+        originals.ORIGINALS.pop();
+    }
 });
 
 test('the claim error names only the missing items', () => {
@@ -68,12 +114,15 @@ test('the claim error names only the missing items', () => {
     assert.ok(!chatOnly.includes('Timechain'));
     assert.ok(!chatOnly.includes('referral'));
     const tvOnly = claimReqs.missingError(['tctv']);
-    assert.ok(tvOnly.includes('watch Timechain TV for 60 seconds'));
+    assert.ok(tvOnly.includes('watch Bitcoin Quest Originals for 60 seconds'));
     assert.ok(!tvOnly.includes('chat message'));
     const all = claimReqs.missingError(['chat', 'tctv']);
-    assert.ok(all.indexOf('send 1 chat message') < all.indexOf('watch Timechain'));
+    assert.ok(all.indexOf('send 1 chat message') < all.indexOf('watch Bitcoin Quest Originals'));
     assert.ok(!all.includes('referral'));
     assert.ok(all.indexOf('Finish these before claiming:') === 0);
+    const learnOnly = claimReqs.missingError(['learn']);
+    assert.ok(learnOnly.includes('complete 1 lesson or quiz'));
+    assert.ok(!learnOnly.includes('chat message'));
 });
 
 test('chat counts only a short real message the filter would keep', () => {
@@ -207,11 +256,15 @@ test('the Requirements card shows the chat and TCTV rows with Go', () => {
     assert.strictEqual(clientCut[1], claimReqs.CLAIM_REQS_START_ISO, 'client and server cutoff must match');
     assert.ok(ranking.includes('Date.parse(CLAIM_REQS_START_ISO)'));
     assert.ok(ranking.includes('Send 1 message in Chat'));
-    assert.ok(ranking.includes('Watch Timechain TV'));
+    assert.ok(ranking.includes('Watch Bitcoin Quest Originals') || ranking.includes('Watch Timechain TV'));
+    assert.ok(ranking.includes('Complete 1 lesson or quiz'));
+    assert.ok(ranking.includes('Pass one learning quest or lesson'));
+    assert.ok(!ranking.includes('or trivia quiz'));
     assert.ok(!ranking.includes('Share your referral link'));
     assert.ok(!ranking.includes('referralReqMet'));
     assert.ok(ranking.includes("go: 'openClaimChat()'"));
     assert.ok(ranking.includes("go: 'openClaimTv()'"));
+    assert.ok(ranking.includes("go: 'openClaimLearn()'"));
     assert.ok(!ranking.includes('shareClaimReferral'));
     assert.ok(ranking.includes('var CLAIM_TCTV_SECONDS = 60'));
     assert.ok(ranking.includes("Watch at least ' + CLAIM_TCTV_SECONDS + ' seconds"));

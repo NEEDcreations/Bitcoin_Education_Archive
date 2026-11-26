@@ -650,8 +650,22 @@
         setSub('nqSpinSub', spun ? 'Done' : '');
         var watched = watchDone();
         var watchBtn = document.getElementById('tctvWatchBtn');
-        mark(watchBtn, watched);
-        if (watchBtn && watched) watchBtn.setAttribute('aria-label', 'Watch Timechain TV, completed');
+        var originalsOn = window._tctvOriginals && typeof window._tctvOriginals.taskEnabled === 'function' && window._tctvOriginals.taskEnabled();
+        var taskCard = (window._tctvOriginals && window._tctvOriginals.TASK_CARD) || 'Watch 10 minutes of Bitcoin Quest Originals today to earn 100 XP and 1 OrangeTix. Only Bitcoin Quest Original videos count; other videos on Timechain TV are just for watching.';
+        if (watchBtn) {
+            if (!originalsOn) {
+                watchBtn.hidden = true;
+                watchBtn.setAttribute('hidden', '');
+                watchBtn.setAttribute('data-em-hidden', 'tctv-originals');
+            } else {
+                watchBtn.hidden = false;
+                watchBtn.removeAttribute('hidden');
+                watchBtn.removeAttribute('data-em-hidden');
+                mark(watchBtn, watched);
+                watchBtn.setAttribute('aria-label', watched ? 'Watch Bitcoin Quest Originals, completed' : taskCard);
+                watchBtn.setAttribute('title', taskCard);
+            }
+        }
         var predicted = predictDone();
         var predictBtn = document.getElementById('todayPredictBtn');
         if (!predictBtn) {

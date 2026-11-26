@@ -16,7 +16,7 @@ const ACTIONS = {
     forum_post_ticket: { tickets: 1, label: 'a forum post' },
     marketplace_listing_ticket: { tickets: 1, label: 'a marketplace listing' },
     irl_listing_ticket: { tickets: 1, label: 'an IRL listing' },
-    tctv_watch_ticket: { tickets: 1, label: 'watching Timechain TV' },
+    tctv_watch_ticket: { tickets: 1, label: 'watching Bitcoin Quest Originals' },
     strava_connect_ticket: { tickets: 5, once: true, label: 'connecting Strava' },
     raid_damage_ticket: { maxPerGrant: RAID_MAX_PER_GRANT, dailyTickets: RAID_DAILY_TICKETS, label: 'raid damage' },
 };

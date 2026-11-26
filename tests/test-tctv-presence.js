@@ -256,7 +256,8 @@ test('single-field index is declared for tctv_presence.ts', () => {
 test('cache name is v2358 and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2692'"));
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2455'"));
     assert.ok(!sw.includes('btc-archive-v2438'));
     assert.ok(!sw.includes('btc-archive-v2437'));
     assert.ok(!sw.includes('btc-archive-v2436'));
@@ -375,13 +376,15 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!sw.includes('btc-archive-v2240'));
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
+    assert.ok(html.includes('timechain-tv.js?v=20261125_v2691'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261105_v2502'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_tctv3'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_tctvwatch'));
-    assert.ok(html.includes('gifting.js?v=20261102_v2465'));
+    assert.ok(html.includes('gifting.js?v=20261106_v2522'));
+    assert.ok(!html.includes('gifting.js?v=20261102_v2465'));
     assert.ok(!html.includes('gifting.js?v=20261029_v2429'));
     assert.ok(!html.includes('gifting.js?v=20261026_v2400'));
     assert.ok(!html.includes('gifting.js?v=20261026_v2399'));
@@ -389,7 +392,8 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('gifting.js?v=20261024_v2358'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2357'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2254'));
-    assert.ok(html.includes('notifications.js?v=20261105_v2497'));
+    assert.ok(html.includes('notifications.js?v=20261106_v2512'));
+    assert.ok(!html.includes('notifications.js?v=20261105_v2497'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2355'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2354'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2352'));
@@ -397,7 +401,8 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('notifications.js?v=20261022_v2254'));
     assert.ok(!html.includes('gifting.js?v=20261022_lightfix'));
     assert.ok(!html.includes('notifications.js?v=20261022_gifts'));
-    assert.ok(html.includes("'quests.js?v=20261104_v2477'"));
+    assert.ok(html.includes("'quests.js?v=20261120_v2686'") || html.includes('quests.js?v=20261120_v2686'));
+    assert.ok(!html.includes("'quests.js?v=20261104_v2477'"));
     assert.ok(!html.includes("'quests.js?v=20261030_v2435'"));
     assert.ok(!html.includes("'quests.js?v=20261026_v2381'"));
     assert.ok(!html.includes("'quests.js?v=20261026_v2368'"));
@@ -414,7 +419,9 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes("'quests.js?v=20261023_v2324'"));
     assert.ok(!html.includes('quests.js?v=20261022_v2279'));
     assert.ok(!html.includes('quests.js?v=20261022_v2251'));
-    assert.ok(html.includes('ranking.js?v=20261102_v2465'));
+    assert.ok(html.includes('ranking.js?v=20261125_v2694'));
+    assert.ok(!html.includes('ranking.js?v=20261125_v2693'));
+    assert.ok(!html.includes('ranking.js?v=20261102_v2465'));
     assert.ok(!html.includes('ranking.js?v=20261029_v2431'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -442,7 +449,8 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2251'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2251'));
-    assert.ok(html.includes('bundle.min.js?v=20261101_v2455'));
+    assert.ok(html.includes('bundle.min.js?v=20261119_v2682b'));
+    assert.ok(!html.includes('bundle.min.js?v=20261101_v2455'));
     assert.ok(!html.includes('bundle.min.js?v=20261029_v2429'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2391'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2386'));

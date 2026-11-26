@@ -9863,6 +9863,15 @@ function accountDeleteRowHtml(user) {
         var claimReqMap = (currentUser && currentUser.claimReq && typeof currentUser.claimReq === 'object') ? currentUser.claimReq : {};
         var chatReqMet = claimStampMs(claimReqMap.chatAt) > 0;
         var tctvReqMet = claimStampMs(claimReqMap.tctvAt) > 0;
+        function progressCount(value) {
+            if (Array.isArray(value)) return value.length;
+            var n = Number(value);
+            return isFinite(n) ? n : 0;
+        }
+        var learnReqMet = Math.floor(progressCount(currentUser && currentUser.questsPassed)) >= 1
+            || Math.floor(progressCount(currentUser && currentUser.lqPassed)) >= 1;
+        var antiBotMet = tctvReqMet || learnReqMet;
+        var originalsOn = !!(window._tctvOriginals && typeof window._tctvOriginals.taskEnabled === 'function' && window._tctvOriginals.taskEnabled());
         var holdRaw = currentUser ? currentUser.satsHold : 0;
         var holdUntil = 0;
         if (holdRaw && typeof holdRaw.seconds === 'number') holdUntil = holdRaw.seconds * 1000;
@@ -9872,7 +9881,7 @@ function accountDeleteRowHtml(user) {
         var satsHeld = holdUntil > now;
 
         // Eligibility checks. New accounts also need the chat and TCTV server stamps.
-        var newReqsMet = claimExempt || (chatReqMet && tctvReqMet);
+        var newReqsMet = claimExempt || (chatReqMet && antiBotMet);
         var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10 && newReqsMet;
         var meetsMin = satsBalance >= 100;
 
@@ -9972,10 +9981,14 @@ function accountDeleteRowHtml(user) {
         var CLAIM_TCTV_SECONDS = 60;
         if (claimExempt) {
             checks.push({ na: true, met: true, label: 'Send 1 message in Chat', detail: 'N/A · account before Nov 5' });
-            checks.push({ na: true, met: true, label: 'Watch Timechain TV', detail: 'N/A · account before Nov 5' });
+            checks.push({ na: true, met: true, label: originalsOn ? 'Watch Bitcoin Quest Originals' : 'Complete 1 lesson or quiz', detail: 'N/A · account before Nov 5' });
         } else {
             checks.push({ met: chatReqMet, label: 'Send 1 message in Chat', detail: chatReqMet ? '✓ Message sent' : 'Send a short real message in Chat', go: 'openClaimChat()' });
-            checks.push({ met: tctvReqMet, label: 'Watch Timechain TV', detail: tctvReqMet ? ('✓ ' + CLAIM_TCTV_SECONDS + ' seconds watched') : ('Watch at least ' + CLAIM_TCTV_SECONDS + ' seconds of a video'), go: 'openClaimTv()' });
+            if (originalsOn) {
+                checks.push({ met: antiBotMet, label: 'Watch Bitcoin Quest Originals', detail: antiBotMet ? (tctvReqMet ? ('✓ ' + CLAIM_TCTV_SECONDS + ' seconds watched') : '✓ Lesson or quiz completed') : ('Watch at least ' + CLAIM_TCTV_SECONDS + ' seconds of a Bitcoin Quest Original'), go: 'openClaimTv()' });
+            } else {
+                checks.push({ met: antiBotMet, label: 'Complete 1 lesson or quiz', detail: antiBotMet ? '✓ Lesson or quest completed' : 'Pass one learning quest or lesson', go: 'openClaimLearn()' });
+            }
         }
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
@@ -9996,12 +10009,15 @@ function accountDeleteRowHtml(user) {
             db.collection('users').doc(user.uid).get().then(function(snap) {
                 window._claimReqPull = false;
                 if (!snap.exists || typeof currentUser === 'undefined' || !currentUser) return;
-                var nextReq = snap.data().claimReq || null;
-                var prevKey = claimStampMs(claimReqMap.chatAt) + ':' + claimStampMs(claimReqMap.tctvAt);
+                var nextData = snap.data() || {};
+                var nextReq = nextData.claimReq || null;
+                var prevKey = claimStampMs(claimReqMap.chatAt) + ':' + claimStampMs(claimReqMap.tctvAt) + ':' + progressCount(currentUser && currentUser.questsPassed) + ':' + progressCount(currentUser && currentUser.lqPassed);
                 var nextMap = (nextReq && typeof nextReq === 'object') ? nextReq : {};
-                var nextKey = claimStampMs(nextMap.chatAt) + ':' + claimStampMs(nextMap.tctvAt);
+                var nextKey = claimStampMs(nextMap.chatAt) + ':' + claimStampMs(nextMap.tctvAt) + ':' + progressCount(nextData.questsPassed) + ':' + progressCount(nextData.lqPassed);
                 if (prevKey === nextKey) return;
                 currentUser.claimReq = nextReq;
+                if (nextData.questsPassed != null) currentUser.questsPassed = nextData.questsPassed;
+                if (nextData.lqPassed != null) currentUser.lqPassed = nextData.lqPassed;
                 if (settingsTab === 'sats' && window._satsSubTab !== 'donate') showSettingsPage('sats');
             }).catch(function() { window._claimReqPull = false; });
         }
@@ -13940,6 +13956,11 @@ window.openClaimChat = function() {
 window.openClaimTv = function() {
     if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
     if (typeof go === 'function') go('timechain-tv');
+};
+
+window.openClaimLearn = function() {
+    if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
+    if (typeof go === 'function') go('quests');
 };
 
 // Device fingerprint for multi-account detection (Fix #3)

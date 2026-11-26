@@ -11,10 +11,34 @@
         try { var u = firebase.auth().currentUser; return u && !u.isAnonymous ? u : null; } catch (e) { return null; }
     }
     function onTv() { return window._tctvActive === true && !!document.querySelector('.tctv-video-wrap'); }
-    function playing() {
-        var p = window._tctvYtPlayer;
-        if (!p || typeof p.getPlayerState !== 'function') return false;
-        try { return p.getPlayerState() === ((window.YT && window.YT.PlayerState) ? window.YT.PlayerState.PLAYING : 1); } catch (e) { return false; }
+    function originalsPlaying() {
+        var api = window._tctvOriginals;
+        if (!api || typeof api.taskEnabled !== 'function' || !api.taskEnabled()) return false;
+        if (document.visibilityState !== 'visible') return false;
+        var source = window._tctvCurrentSource || (window._tctvStreamPlayer ? 'stream' : '');
+        if (source !== 'stream') return false;
+        var videoId = typeof window._tctvCurrentVideoId === 'string' ? window._tctvCurrentVideoId : '';
+        if (!api.isOriginal(videoId)) return false;
+        var player = window._tctvStreamPlayer;
+        if (!player) return false;
+        try {
+            if (player.paused === true) return false;
+            if (player.muted === true || player.volume === 0) return false;
+            var rate = Number(player.playbackRate);
+            if (!isFinite(rate) || rate <= 0 || rate > 1) return false;
+        } catch (e) { return false; }
+        return true;
+    }
+    function playing() { return originalsPlaying(); }
+    function dripFlags() {
+        var player = window._tctvStreamPlayer || {};
+        var rate = Number(player.playbackRate);
+        return {
+            videoId: typeof window._tctvCurrentVideoId === 'string' ? window._tctvCurrentVideoId : '',
+            muted: player.muted === true || player.volume === 0,
+            paused: player.paused === true,
+            playbackRate: isFinite(rate) ? rate : 0
+        };
     }
     function deviceId() {
         var k = 'tctvDripDevice', id = '';
@@ -533,14 +557,44 @@
         if (!vis || !play) return;
         inflight = true;
         try {
-            firebase.functions().httpsCallable('tctvDripCheckin')({
-                deviceId: deviceId(), visible: vis, playing: play,
-                promptToken: answer ? promptToken : ''
+            var ready = (typeof window._btcAppCheckForClaim === 'function')
+                ? window._btcAppCheckForClaim(8000)
+                : { then: function (ok) { return ok('skip'); } };
+            ready.then(function (token) {
+                if (!token) {
+                    var missing = new Error('app-check');
+                    missing.code = 'app-check';
+                    throw missing;
+                }
+                var flags = dripFlags();
+                return firebase.functions().httpsCallable('tctvDripCheckin')({
+                    deviceId: deviceId(), visible: vis, playing: play,
+                    videoId: flags.videoId, muted: flags.muted, paused: flags.paused,
+                    playbackRate: flags.playbackRate,
+                    promptToken: answer ? promptToken : ''
+                });
             }).then(function (res) {
                 var d = (res && res.data) || {};
                 var el = document.getElementById('tctv-drip');
                 if (d.prompt && el) { promptToken = d.promptToken || ''; showPrompt(el); }
-            }).catch(function () {}).then(function () {
+                if (typeof window._tctvRewardNote === 'function') {
+                    var note = document.getElementById('tctv-reward-note');
+                    if (note && note.textContent.indexOf("Can't verify this browser") !== -1) {
+                        window._tctvRewardNote({ text: '' });
+                    }
+                }
+            }).catch(function (err) {
+                var code = (err && (err.code || err.message)) || 'unknown';
+                console.warn('[TCTV] tctvDripCheckin failed', code, err);
+                if (err && /app-check|appCheck|recaptcha/i.test(String((err.code || '') + ' ' + (err.message || '')))) {
+                    if (typeof window._tctvRewardNote === 'function') {
+                        window._tctvRewardNote({
+                            text: "Can't verify this browser, rewards paused",
+                            onRetry: function () { checkin(answer); }
+                        });
+                    }
+                }
+            }).then(function () {
                 inflight = false;
                 if (answerQueued) { answerQueued = false; checkin(true); }
             });

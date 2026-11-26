@@ -61,6 +61,7 @@ function planCheckin(prev, ctx) {
     const now = ctx.nowMs;
     const cfg = ctx.cfg;
     if (!ctx.playing) return { credit: 0, reason: 'not-playing' };
+    if (ctx.originalOk !== true) return { credit: 0, reason: 'not-original' };
     if (!ctx.presenceFresh) return { credit: 0, reason: 'no-presence' };
     const last = num(p.lastCheckMs, 0);
     const answered = !!(ctx.promptAnswer && p.promptToken && ctx.promptAnswer === p.promptToken);
