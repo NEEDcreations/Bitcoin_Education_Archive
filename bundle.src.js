@@ -14178,6 +14178,11 @@ window.closeDM = function() {
     if (w) w.remove();
 };
 
+// DM photos and GIFs get a fixed box before they load. Without it each image
+// grew from 0 to its full height and pushed the thread down (layout shift).
+// object-fit:contain keeps the whole image visible inside the box.
+var DM_IMG_BOX = 'display:block;width:240px;max-width:100%;aspect-ratio:6/5;height:auto;object-fit:contain;background:rgba(0,0,0,0.18);border-radius:8px;';
+
 function loadDMMessages(convoId, myUid, otherUid, otherName) {
     var container = document.getElementById('dmMessages');
     if (!container) return;
@@ -14232,7 +14237,8 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 // Image support
                 var imgHtml = '';
                 if (m.imageUrl) {
-                    imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+                    // Fixed 240x200 box so the thread does not jump when the image arrives (CLS).
+                    imgHtml = '<img data-dm-img="1" src="' + sanitizeUrl(m.imageUrl) + '" style="' + DM_IMG_BOX + 'margin:' + (m.text ? '6px 0 0' : '0') + ';cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
                 }
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
@@ -14509,7 +14515,7 @@ window.sendDMGif = function(gifUrl) {
         var nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         container.innerHTML += '<div data-optimistic style="display:flex;justify-content:flex-end;margin-bottom:6px;">' +
             '<div style="max-width:85%;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--accent);color:#fff;">' +
-                '<img src="' + escapeHtml(sanitizeUrl(gifUrl)) + '" style="max-width:100%;max-height:200px;border-radius:8px;display:block;" loading="lazy">' +
+                '<img data-dm-img="1" src="' + escapeHtml(sanitizeUrl(gifUrl)) + '" style="' + DM_IMG_BOX + '" loading="lazy">' +
                 '<div style="font-size:0.6rem;color:rgba(255,255,255,0.6);margin-top:4px;text-align:right;">' + nowStr + '</div>' +
             '</div></div>';
         container.scrollTop = container.scrollHeight;
