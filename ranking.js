@@ -1637,6 +1637,12 @@ function accountEmailAction(user) {
     return 'change';
 }
 
+// Sats hold end time for the settings banner. The year is always shown so a
+// hold that runs into next year does not read as already over.
+function formatSatsHoldUntil(ms, locale) {
+    return new Date(Number(ms) || 0).toLocaleString(locale, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
 async function syncAccountEmailFromAuth() {
     var user = auth && auth.currentUser;
     if (!user || user.isAnonymous || typeof firebase === 'undefined' || !firebase.functions) return null;
@@ -9883,7 +9889,7 @@ function accountDeleteRowHtml(user) {
         html += '</div>';
 
         if (satsHeld) {
-            var holdWhen = new Date(holdUntil).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+            var holdWhen = formatSatsHoldUntil(holdUntil);
             html += '<div id="satsHoldNotice" style="background:rgba(239,68,68,0.12);border:1px solid #ef4444;border-radius:12px;padding:12px;margin-bottom:16px;color:#ef4444;font-size:0.9rem;font-weight:700;line-height:1.45;">Sats withdrawals are paused until ' + holdWhen + '</div>';
         }
 
