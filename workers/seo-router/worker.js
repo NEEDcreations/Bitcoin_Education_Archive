@@ -160,7 +160,7 @@ function buildCSP(nonce, opts) {
         // The nonce is still injected into <script> tags by HTMLRewriter (ready for Phase 2)
         // but must not appear in the header until the onclick= → addEventListener migration
         // is complete across all inline HTML and bundle.js innerHTML strings.
-        `script-src 'self' 'unsafe-inline'` +
+        `script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com` +
             " https://www.gstatic.com" +
             " https://challenges.cloudflare.com" +
             " https://accounts.google.com" +
@@ -176,7 +176,7 @@ function buildCSP(nonce, opts) {
             " https://www.youtube.com",
 
         // connect-src: every outbound fetch / WebSocket the app makes
-        "connect-src 'self'" +
+        "connect-src 'self' https://cloudflareinsights.com" +
             " https://www.gstatic.com" +              // Firebase source maps (firebase-*.js.map)
             " https://*.googleapis.com" +           // Firestore, Auth, FCM, Storage
             " https://*.firebasestorage.app" +        // Firebase Storage (new domain)
