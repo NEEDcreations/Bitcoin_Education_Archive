@@ -19,6 +19,17 @@
  *
  * Holdout vs ads is recorded as aggregate daily-active and next-day-return
  * counts only (ads_holdout_stats/{YYYY-MM-DD}). No per-user export.
+ *
+ * Privacy choices (feat/ads-privacy-choices-1126): honor Global Privacy
+ * Control and a "Your Privacy Choices" opt-out. Opted-out users get
+ * AdSense non-personalized ads (requestNonPersonalizedAds=1 / npa=1) and
+ * never A-ADS (A-ADS's policy allows cookies, web beacons, and device
+ * identifiers). Store the toggle in localStorage and, when signed in, on
+ * the account via the setPrivacyShareOptOut callable (no rules change).
+ * EEA, UK, and Switzerland (and unknown country) get no ads until
+ * ADS_EEA_ENABLED / BQ_ADS_EEA_ENABLED is true, after AdSense Privacy &
+ * messaging (Funding Choices) is on. Fail closed. Country comes from the
+ * existing /cdn-cgi/trace endpoint; no worker publish is required for geo.
  */
 (function (root) {
     'use strict';
@@ -67,6 +78,371 @@
     // Server-sourced users/{uid} snapshot used for the 18+ gate. Never
     // filled from localStorage btc_profile_cache or window flags.
     var freshUserDoc = null;
+
+    var OPT_OUT_KEY = 'bq_privacy_share_opt_out';
+    var OPT_OUT_AT_KEY = 'bq_privacy_share_opt_out_at';
+    var COUNTRY_SESSION_KEY = 'bq_ads_country';
+    var TRACE_PATH = '/cdn-cgi/trace';
+    var ACCOUNT_OPTOUT_FIELD = 'privacyShareOptOut';
+    var CALLABLE_NAME = 'setPrivacyShareOptOut';
+    // EEA + UK + Switzerland, plus EU outermost regions Cloudflare may return.
+    // ADS_EEA_ENABLED / BQ_ADS_EEA_ENABLED stays false until AdSense Privacy &
+    // messaging (Funding Choices) is on and verified. Unknown country = no ads.
+    var RESTRICTED_COUNTRIES = {
+        AT: 1, BE: 1, BG: 1, HR: 1, CY: 1, CZ: 1, DK: 1, EE: 1, FI: 1, FR: 1,
+        DE: 1, GR: 1, HU: 1, IS: 1, IE: 1, IT: 1, LV: 1, LI: 1, LT: 1, LU: 1,
+        MT: 1, NL: 1, NO: 1, PL: 1, PT: 1, RO: 1, SK: 1, SI: 1, ES: 1, SE: 1,
+        GB: 1, CH: 1, AX: 1, GF: 1, GP: 1, MQ: 1, RE: 1, YT: 1, MF: 1, BL: 1
+    };
+    var UNKNOWN_COUNTRY_CODES = { XX: 1, T1: 1 };
+    var geoState = { started: false, resolved: false, country: null };
+
+    function eeaAdsEnabled() {
+        var raw = null;
+        if (root) {
+            if (root.BQ_ADS_EEA_ENABLED != null) raw = root.BQ_ADS_EEA_ENABLED;
+            else if (root.ADS_EEA_ENABLED != null) raw = root.ADS_EEA_ENABLED;
+        }
+        return raw === true || raw === 1 || raw === 'true' || raw === '1';
+    }
+
+    function isRestrictedCountry(code) {
+        if (!code) return false;
+        return RESTRICTED_COUNTRIES[String(code).toUpperCase()] === 1;
+    }
+
+    function hasGpc(input) {
+        if (input && input.gpc === true) return true;
+        if (input && input.gpc === false) return false;
+        try {
+            var nav = (typeof navigator !== 'undefined') ? navigator : (root && root.navigator);
+            return !!(nav && nav.globalPrivacyControl === true);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function localOptedOut() {
+        return storageGet(OPT_OUT_KEY) === '1';
+    }
+
+    function accountOptedOut(user) {
+        if (!user) user = freshUserDoc;
+        return !!(user && user[ACCOUNT_OPTOUT_FIELD] === true);
+    }
+
+    function isPrivacyShareOptedOut(input) {
+        input = input || {};
+        if (hasGpc(input)) return true;
+        if (localOptedOut()) return true;
+        var user = null;
+        try { user = userForAge(input); } catch (e) { user = freshUserDoc; }
+        if (accountOptedOut(user) || accountOptedOut(input.user)) return true;
+        return false;
+    }
+
+    function persistAccountOptOut(optedOut) {
+        try {
+            if (!signedInUid()) return Promise.resolve(false);
+            if (typeof firebase === 'undefined' || !firebase.functions) return Promise.resolve(false);
+            var fn = firebase.functions().httpsCallable(CALLABLE_NAME);
+            return Promise.resolve(fn({ optedOut: !!optedOut })).then(function () {
+                return true;
+            }).catch(function () {
+                return false;
+            });
+        } catch (e) {
+            return Promise.resolve(false);
+        }
+    }
+
+    var personalizedAdsLive = false;
+    var lastSeenGpc = false;
+
+    var pendingPrivacyReload = false;
+
+    function personalizedArtifactsLive() {
+        if (typeof document === 'undefined') return false;
+        var scripts = document.getElementsByTagName('script');
+        var i, src, ins;
+        for (i = 0; i < scripts.length; i++) {
+            src = scripts[i].src || '';
+            if (src.indexOf('adsbygoogle.js') !== -1 && src.indexOf('npa=1') === -1 && scripts[i].getAttribute('data-npa') !== '1') {
+                return true;
+            }
+        }
+        ins = document.querySelectorAll ? document.querySelectorAll('ins.adsbygoogle') : [];
+        for (i = 0; i < ins.length; i++) {
+            if (ins[i].getAttribute('data-npa-on-unknown') !== '1') return true;
+        }
+        return false;
+    }
+
+    function flushDeferredPrivacyReload() {
+        if (!pendingPrivacyReload) return false;
+        if (sensitiveUiOpen()) return false;
+        pendingPrivacyReload = false;
+        return requestPrivacyReload();
+    }
+
+    function requestPrivacyReload() {
+        try {
+            if (root && typeof root.BQ_ADS_RELOAD === 'function') {
+                root.BQ_ADS_RELOAD();
+                return true;
+            }
+        } catch (e) {}
+        try {
+            if (typeof location !== 'undefined' && location && typeof location.reload === 'function') {
+                location.reload();
+                return true;
+            }
+        } catch (e2) {}
+        return false;
+    }
+
+    // Mid-page opt-out or GPC: drop personalized slots immediately. If a
+    // personalized AdSense tag already loaded, reload so the old library
+    // cannot keep requesting personalized ads. Tests may stub BQ_ADS_RELOAD.
+    function applyPrivacyChoiceNow(input) {
+        var opted = isPrivacyShareOptedOut(input);
+        applyNonPersonalizedAds(opted);
+        if (!opted) pendingPrivacyReload = false;
+        if (opted) {
+            // Inspect the page before hideAllSlots() strips the tags.
+            var mustReload = personalizedAdsLive || pendingPrivacyReload || personalizedArtifactsLive();
+            hideAllSlots();
+            // Keep a deferred reload armed if one is already waiting, so a
+            // later apply() during claim/withdraw cannot fall through to sync()
+            // and refill slots.
+            personalizedAdsLive = false;
+            if (mustReload) {
+                if (sensitiveUiOpen()) {
+                    pendingPrivacyReload = true;
+                    try { updatePrivacyChoicesUi(); } catch (e) {}
+                    return { reloaded: false, optedOut: true, deferredReload: true };
+                }
+                pendingPrivacyReload = false;
+                if (requestPrivacyReload()) {
+                    try { updatePrivacyChoicesUi(); } catch (e2) {}
+                    return { reloaded: true, optedOut: true };
+                }
+            }
+        }
+        var decision = sync(input);
+        try { updatePrivacyChoicesUi(); } catch (e2) {}
+        return { reloaded: false, optedOut: opted, decision: decision };
+    }
+
+    function setShareOptOut(optedOut) {
+        optedOut = !!optedOut;
+        storageSet(OPT_OUT_KEY, optedOut ? '1' : '0');
+        storageSet(OPT_OUT_AT_KEY, String(Date.now()));
+        if (freshUserDoc) freshUserDoc[ACCOUNT_OPTOUT_FIELD] = optedOut;
+        persistAccountOptOut(optedOut);
+        // Mid-session opt-out must drop a personalized tag already on the
+        // page. removeAdsenseArtifacts + clear slots live in hideAllSlots,
+        // so the next fill injects npa=1 instead of returning early.
+        if (optedOut) hideAllSlots();
+        return applyPrivacyChoiceNow();
+    }
+
+    function watchPrivacySignals() {
+        var now = hasGpc();
+        if (now && !lastSeenGpc) applyPrivacyChoiceNow();
+        lastSeenGpc = now;
+        flushDeferredPrivacyReload();
+    }
+
+    function parseTraceCountry(text) {
+        if (!text) return null;
+        var m = String(text).match(/(?:^|\n)loc=([A-Za-z]{2})(?:\n|$)/);
+        if (!m) return null;
+        return m[1].toUpperCase();
+    }
+
+    function readCountry(input) {
+        input = input || {};
+        // A console caller must not override geo with { country: 'US' }.
+        // Node unit tests still pass country through allowExplicitUser().
+        if (allowExplicitUser(input) && Object.prototype.hasOwnProperty.call(input, 'country')) {
+            var c = input.country;
+            if (c == null || c === '') return { apply: true, known: false, value: null };
+            var up = String(c).toUpperCase();
+            if (UNKNOWN_COUNTRY_CODES[up] === 1) return { apply: true, known: false, value: up };
+            return { apply: true, known: true, value: up };
+        }
+        if (geoState.resolved) {
+            return { apply: true, known: !!geoState.country, value: geoState.country };
+        }
+        if (geoState.started) {
+            return { apply: true, known: false, value: null };
+        }
+        // Browser / document path: geo has not started, so fills and
+        // decide() fail closed. Node unit tests with no document keep the
+        // previous contract unless they pass country or start a lookup.
+        if (typeof document !== 'undefined') {
+            return { apply: true, known: false, value: null };
+        }
+        return { apply: false, known: false, value: null };
+    }
+
+    function isGeoBlocked(input) {
+        var info = readCountry(input);
+        if (!info.apply) return false;
+        if (!info.known) return true;
+        if (!isRestrictedCountry(info.value)) return false;
+        return !eeaAdsEnabled();
+    }
+
+    // Fills (and sync) must not run while country is unknown or the
+    // lookup has not started or finished, even if decide() was given no
+    // country in a Node test. An explicit input.country wins only when
+    // allowExplicitUser() is true (Node tests, never the browser).
+    function fillsBlocked(input) {
+        if (isGeoBlocked(input)) return true;
+        var info = readCountry(input);
+        if (!info.apply) return true;
+        if (!info.known) return true;
+        return false;
+    }
+
+    function rememberCountry(code) {
+        var known = !!(code && UNKNOWN_COUNTRY_CODES[code] !== 1);
+        geoState.started = true;
+        geoState.resolved = true;
+        geoState.country = known ? code : null;
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage) {
+                if (geoState.country) sessionStorage.setItem(COUNTRY_SESSION_KEY, geoState.country);
+                else sessionStorage.removeItem(COUNTRY_SESSION_KEY);
+            }
+        } catch (e) {}
+        return geoState.country;
+    }
+
+    function fetchCountrySignal() {
+        var fetchFn = (root && root.fetch) || (typeof fetch === 'function' ? fetch : null);
+        if (!fetchFn) return Promise.resolve(null);
+        return Promise.resolve(fetchFn(TRACE_PATH, { credentials: 'omit', cache: 'no-store' })).then(function (res) {
+            if (!res || !res.ok) return null;
+            if (typeof res.text === 'function') return res.text();
+            return null;
+        }).then(function (text) {
+            return parseTraceCountry(text);
+        }).catch(function () {
+            return null;
+        });
+    }
+
+    function ensureGeo() {
+        if (geoState.resolved) return Promise.resolve(geoState.country);
+        geoState.started = true;
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage) {
+                var cached = sessionStorage.getItem(COUNTRY_SESSION_KEY);
+                if (cached && /^[A-Z]{2}$/.test(cached) && UNKNOWN_COUNTRY_CODES[cached] !== 1) {
+                    // Session cache is a hint only after a live check in this
+                    // document. Still fail closed until this page's fetch returns,
+                    // except in tests that set the cache then mark resolved.
+                }
+            }
+        } catch (e) {}
+        return fetchCountrySignal().then(function (code) {
+            rememberCountry(code);
+            return geoState.country;
+        });
+    }
+
+    function adsenseScriptSrc(npa) {
+        if (npa) {
+            return ADSENSE_SRC + (ADSENSE_SRC.indexOf('?') >= 0 ? '&' : '?') + 'npa=1';
+        }
+        // Official client tag. When ADS_EEA_ENABLED is on and AdSense Privacy
+        // & messaging is published, Funding Choices attaches to this tag. No
+        // custom CMP.
+        return ADSENSE_SRC;
+    }
+
+    function applyNonPersonalizedAds(npa) {
+        if (!root) return;
+        root.adsbygoogle = root.adsbygoogle || [];
+        if (npa) root.adsbygoogle.requestNonPersonalizedAds = 1;
+    }
+
+    function shouldSkipAads(input) {
+        return isPrivacyShareOptedOut(input);
+    }
+
+    function privacyChoicesOpenRequested() {
+        var open = false;
+        try {
+            // Peek only. ranking.js reads this flag to scroll Settings, then
+            // removes it. Consuming it here dropped the scroll.
+            if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('btc_open_privacy_choices') === '1') {
+                open = true;
+            }
+        } catch (e) {}
+        try {
+            var loc = (root && root.location) || (typeof location !== 'undefined' ? location : null);
+            var hash = loc && loc.hash ? String(loc.hash).replace(/^#/, '') : '';
+            var first = hash.split('/')[0];
+            if (first === 'privacy-choices' || first === 'settings-privacy-choices') open = true;
+        } catch (e2) {}
+        return open;
+    }
+
+    function updatePrivacyChoicesUi() {
+        if (typeof document === 'undefined') return;
+        var opted = isPrivacyShareOptedOut();
+        var gpc = hasGpc();
+        var box = document.getElementById('bqPrivacyShareOptOut');
+        if (box) {
+            box.checked = opted;
+            if (gpc) box.setAttribute('aria-description', 'Your browser sent a Global Privacy Control signal.');
+        }
+        var note = document.getElementById('bqPrivacyChoicesGpcNote');
+        if (note) note.hidden = !gpc;
+        var modalNote = document.getElementById('bqPrivacyChoicesModalGpcNote');
+        if (modalNote) modalNote.hidden = !gpc;
+        var modalBox = document.getElementById('bqPrivacyChoicesModalOptOut');
+        if (modalBox) modalBox.checked = opted;
+    }
+
+    function openPrivacyChoices() {
+        if (typeof document === 'undefined') return;
+        var existing = document.getElementById('bqPrivacyChoicesModal');
+        if (existing) {
+            existing.hidden = false;
+            updatePrivacyChoicesUi();
+            try { existing.focus(); } catch (e) {}
+            return;
+        }
+        var wrap = document.createElement('div');
+        wrap.id = 'bqPrivacyChoicesModal';
+        wrap.setAttribute('role', 'dialog');
+        wrap.setAttribute('aria-labelledby', 'bqPrivacyChoicesTitle');
+        wrap.tabIndex = -1;
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:16px;';
+        var opted = isPrivacyShareOptedOut();
+        var gpc = hasGpc();
+        wrap.innerHTML = '<div style="background:var(--card-bg,#111);color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:12px;padding:20px;max-width:420px;width:100%;font-family:inherit;">' +
+            '<h2 id="bqPrivacyChoicesTitle" style="margin:0 0 10px;font-size:1.1rem;">Your Privacy Choices</h2>' +
+            '<p style="margin:0 0 12px;font-size:0.9rem;line-height:1.5;color:var(--text-muted,#bbb);">Opt out of sharing cookie and device identifiers for personalized ads. Eligible users still see non-personalized ads. We also honor Global Privacy Control (GPC) from your browser.</p>' +
+            '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:0.9rem;">' +
+            '<input type="checkbox" id="bqPrivacyChoicesModalOptOut"' + (opted ? ' checked' : '') + '>' +
+            '<span>Do not sell or share my personal information</span></label>' +
+            '<p id="bqPrivacyChoicesModalGpcNote" style="margin:10px 0 0;font-size:0.8rem;color:var(--text-muted,#bbb);"' + (gpc ? '' : ' hidden') + '>Your browser sent a Global Privacy Control signal, so personalized ads are already off.</p>' +
+            '<div style="margin-top:16px;text-align:right;"><button type="button" id="bqPrivacyChoicesClose" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border,#333);background:var(--bg-side,#222);color:inherit;cursor:pointer;font-family:inherit;">Close</button></div>' +
+            '</div>';
+        document.body.appendChild(wrap);
+        var box = document.getElementById('bqPrivacyChoicesModalOptOut');
+        if (box) box.addEventListener('change', function () { setShareOptOut(box.checked); });
+        var close = document.getElementById('bqPrivacyChoicesClose');
+        if (close) close.addEventListener('click', function () { wrap.hidden = true; });
+        wrap.addEventListener('click', function (ev) { if (ev.target === wrap) wrap.hidden = true; });
+        try { wrap.focus(); } catch (e3) {}
+    }
 
     function holdoutPct() {
         var raw = (root && root.BQ_ADS_HOLDOUT_PCT != null) ? root.BQ_ADS_HOLDOUT_PCT : HOLDOUT_PCT;
@@ -257,6 +633,8 @@
     }
 
     function fetchFreshUserDoc(uid, firestore) {
+        // Browser callers cannot inject a fake db. Node tests may still pass one.
+        if (!allowExplicitUser({})) firestore = null;
         var id = String(uid || signedInUid() || '');
         if (!id) {
             freshUserDoc = null;
@@ -274,15 +652,20 @@
         try { req = ref.get({ source: 'server' }); } catch (e) { req = ref.get(); }
         return Promise.resolve(req).then(function (snap) {
             if (signedInUid() !== id) return null;
-            return applyFreshUserSnap(id, snap);
+            applyFreshUserSnap(id, snap);
+            return copyFreshUserDoc();
         }).catch(function () {
             if (signedInUid() === id) freshUserDoc = null;
             return null;
         });
     }
 
+    function copyFreshUserDoc() {
+        return freshUserDoc ? Object.freeze(Object.assign({}, freshUserDoc)) : null;
+    }
+
     function getFreshUserDoc() {
-        return freshUserDoc;
+        return copyFreshUserDoc();
     }
 
     // The 18+ gate uses only an explicit test/doc user (non-DOM) or the
@@ -447,6 +830,8 @@
         var adult = hasKnownAdultAge(user);
         var id = unknown ? null : assignmentId(user);
         var holdout = !unknown && !guest && adult && inHoldout(id, pct);
+        var geoBlocked = isGeoBlocked(input);
+        var optedOut = isPrivacyShareOptedOut(input);
         var reason = null;
         var experimentGroup = null;
         var show = false;
@@ -465,6 +850,8 @@
             reason = 'guest';
         } else if (!adult) {
             reason = 'age';
+        } else if (geoBlocked) {
+            reason = 'geo';
         } else if (kidsSurface) {
             reason = 'kids-surface';
         } else if (sensitive) {
@@ -484,7 +871,7 @@
         // ads even when the current surface has no slot, so daily-active
         // return can be compared later. Guests and no-age users are left
         // out, so holdout logging counts only eligible (18+) users.
-        if (!unknown && !tctv && !guest && adult && !isKidsAccount(user) && !isClassroomAccount(user) && !isPremiumAccount(user)) {
+        if (!unknown && !tctv && !guest && adult && !isKidsAccount(user) && !isClassroomAccount(user) && !isPremiumAccount(user) && !geoBlocked) {
             experimentGroup = holdout ? 'holdout' : 'ads';
             if (holdout) reason = 'holdout';
             else if (!show) reason = reason || (kidsSurface ? 'kids-surface' : (sensitive ? 'sensitive' : 'surface'));
@@ -497,7 +884,12 @@
             experimentGroup: experimentGroup,
             assignmentId: id,
             holdoutPct: pct,
-            bucket: unknown ? null : bucket(id)
+            bucket: unknown ? null : bucket(id),
+            npa: !!(show && optedOut),
+            skipAads: !!(show && optedOut),
+            privacyOptOut: !!optedOut,
+            geoBlocked: !!geoBlocked,
+            country: readCountry(input).value || null
         };
     }
 
@@ -562,8 +954,18 @@
         slot.innerHTML = '';
     }
 
-    function fillAads(slot) {
+    function fillAllowed(input) {
+        if (!hasKnownAdultAge(userForAge(input))) return false;
+        if (fillsBlocked(input)) return false;
+        return true;
+    }
+
+    function fillAads(slot, input) {
         if (!slot) return;
+        if (!fillAllowed(input) || shouldSkipAads(input)) {
+            clearSlot(slot);
+            return;
+        }
         slot.innerHTML = '<p class="bq-ad-label">Ad</p>' + aadsIframeHtml();
         slot.hidden = false;
     }
@@ -577,14 +979,44 @@
         return false;
     }
 
-    function injectAdsenseScript() {
+    function injectAdsenseScript(npa) {
         if (typeof document === 'undefined') return;
-        if (adsenseScriptPresent()) return;
+        if (npa == null) npa = isPrivacyShareOptedOut();
+        // Request NPA before the official client tag loads so Funding Choices
+        // and AdSense both see the opt-out. When npa is off, leave the flag
+        // unset so a later Funding Choices message can manage consent.
+        applyNonPersonalizedAds(npa);
+        var wanted = adsenseScriptSrc(npa);
+        if (adsenseScriptPresent()) {
+            var existingNpa = false;
+            var scripts = document.getElementsByTagName('script');
+            var si, src;
+            for (si = 0; si < scripts.length; si++) {
+                src = scripts[si].src || '';
+                if (src.indexOf('adsbygoogle.js') !== -1) {
+                    existingNpa = src.indexOf('npa=1') !== -1 || scripts[si].getAttribute('data-npa') === '1';
+                    break;
+                }
+            }
+            if (existingNpa === !!npa) return;
+            // Mismatch (typically personalized already loaded, now npa=1):
+            // drop our artifacts so the next inject is the npa tag.
+            removeAdsenseArtifacts();
+            scripts = document.getElementsByTagName('script');
+            for (si = scripts.length - 1; si >= 0; si--) {
+                src = scripts[si].src || '';
+                if (src.indexOf('adsbygoogle.js') !== -1 && scripts[si].parentNode) {
+                    scripts[si].parentNode.removeChild(scripts[si]);
+                }
+            }
+        }
         var s = document.createElement('script');
         s.async = true;
-        s.src = ADSENSE_SRC;
+        s.src = wanted;
         s.crossOrigin = 'anonymous';
         s.setAttribute('data-bq-adsense', '1');
+        if (npa) s.setAttribute('data-npa', '1');
+        else personalizedAdsLive = true;
         (document.head || document.documentElement).appendChild(s);
     }
 
@@ -602,19 +1034,44 @@
         }
     }
 
-    function fillAdsense(slot) {
+    function fillAdsense(slot, input) {
         if (!slot) return;
-        injectAdsenseScript();
+        if (!fillAllowed(input)) {
+            clearSlot(slot);
+            return;
+        }
+        var npa = isPrivacyShareOptedOut(input);
+        if (!npa) personalizedAdsLive = true;
+        injectAdsenseScript(npa);
         slot.innerHTML = '<p class="bq-ad-label">Ad</p>' +
             '<ins class="adsbygoogle" style="display:block;position:relative;z-index:0;"' +
             ' data-ad-client="' + ADSENSE_CLIENT + '"' +
             ' data-ad-format="horizontal"' +
-            ' data-full-width-responsive="true"></ins>';
+            ' data-full-width-responsive="true"' +
+            (npa ? ' data-npa-on-unknown="1"' : '') +
+            '></ins>';
         slot.hidden = false;
         try {
+            applyNonPersonalizedAds(npa);
             root.adsbygoogle = root.adsbygoogle || [];
             root.adsbygoogle.push({});
         } catch (e) {}
+    }
+
+    function fillSlot(slot, decision, input, preferAdsense) {
+        if (!slot) return;
+        if (!fillAllowed(input) || fillsBlocked(input) || !decision || decision.show !== true) {
+            clearSlot(slot);
+            return;
+        }
+        var useAdsense = !!preferAdsense && adsenseAllowed(decision, input);
+        if (decision.skipAads) {
+            if (useAdsense) fillAdsense(slot, input);
+            else clearSlot(slot);
+            return;
+        }
+        if (useAdsense) fillAdsense(slot, input);
+        else fillAads(slot, input);
     }
 
     function hideAllSlots() {
@@ -693,6 +1150,32 @@
     }
 
     function sync(input) {
+        if (pendingPrivacyReload) {
+            hideAllSlots();
+            if (flushDeferredPrivacyReload()) return { show: false, reason: 'privacy-reload' };
+            return { show: false, reason: 'privacy-reload' };
+        }
+        if (fillsBlocked(input)) {
+            hideAllSlots();
+            var blocked = decide(input);
+            if (blocked.show) {
+                blocked = {
+                    show: false,
+                    reason: 'geo',
+                    surface: blocked.surface,
+                    experimentGroup: null,
+                    assignmentId: blocked.assignmentId,
+                    holdoutPct: blocked.holdoutPct,
+                    bucket: blocked.bucket,
+                    npa: false,
+                    skipAads: false,
+                    privacyOptOut: blocked.privacyOptOut,
+                    geoBlocked: true,
+                    country: blocked.country
+                };
+            }
+            return blocked;
+        }
         var decision = decide(input);
         recordDailyAggregate(decision, input && input.now, input && input.firestore);
         if (!decision.show) {
@@ -700,7 +1183,7 @@
             return decision;
         }
         if (decision.surface === 'home') {
-            fillAads(ensureHomeSlot());
+            fillSlot(ensureHomeSlot(), decision, input, false);
             var learn = typeof document !== 'undefined' ? document.getElementById('bqAdsenseLearn') : null;
             var arcade = typeof document !== 'undefined' ? document.getElementById('bqAdsenseArcade') : null;
             clearSlot(learn);
@@ -709,8 +1192,7 @@
             var hub = typeof document !== 'undefined' ? document.getElementById('lqHub') : null;
             var host = hub && (hub.querySelector('div') || hub);
             var learnSlot = ensureSurfaceSlot('bqAdsenseLearn', host);
-            if (adsenseAllowed(decision, input)) fillAdsense(learnSlot);
-            else fillAads(learnSlot);
+            fillSlot(learnSlot, decision, input, true);
             clearSlot(typeof document !== 'undefined' ? document.getElementById('bqAadsHome') : null);
             clearSlot(typeof document !== 'undefined' ? document.getElementById('bqAdsenseArcade') : null);
         } else if (decision.surface === 'proof-of-play' || decision.surface === 'arcade') {
@@ -722,8 +1204,7 @@
                 popHost = body.parentNode || overlay;
             }
             var arcadeSlot = ensureSurfaceSlot('bqAdsenseArcade', popHost || overlay);
-            if (adsenseAllowed(decision, input)) fillAdsense(arcadeSlot);
-            else fillAads(arcadeSlot);
+            fillSlot(arcadeSlot, decision, input, true);
             clearSlot(typeof document !== 'undefined' ? document.getElementById('bqAadsHome') : null);
             clearSlot(typeof document !== 'undefined' ? document.getElementById('bqAdsenseLearn') : null);
         } else {
@@ -809,9 +1290,34 @@
         });
     }
 
+    function ensurePrivacyChoicesFooter() {
+        if (typeof document === 'undefined' || !document.body) return;
+        var el = document.getElementById('bqSitePrivacyFooter');
+        if (!el) {
+            el = document.createElement('p');
+            el.id = 'bqSitePrivacyFooter';
+            el.className = 'bq-site-privacy-footer';
+            el.innerHTML = '<a href="#privacy-choices">Your Privacy Choices</a>';
+            document.body.appendChild(el);
+        }
+        if (!el.getAttribute('data-bq-bound')) {
+            el.setAttribute('data-bq-bound', '1');
+            el.addEventListener('click', function (ev) {
+                var a = ev.target && ev.target.closest ? ev.target.closest('a') : ev.target;
+                if (!a) return;
+                ev.preventDefault();
+                try { sessionStorage.setItem('btc_open_privacy_choices', '1'); } catch (e) {}
+                openPrivacyChoices();
+            });
+        }
+    }
+
     function hookNavigation() {
         if (typeof window === 'undefined') return;
         hookAuth();
+        ensurePrivacyChoicesFooter();
+        watchPrivacySignals();
+        flushDeferredPrivacyReload();
         hookFn(window, 'go', function () { sync(); });
         hookFn(window, 'enterProofOfPlay', function () { sync({ surface: 'proof-of-play' }); });
         hookFn(window, 'exitProofOfPlay', function () { sync(); });
@@ -837,13 +1343,29 @@
             root._bqAdsUserUnknown = true;
         }
         hookNavigation();
+        lastSeenGpc = hasGpc();
+        ensurePrivacyChoicesFooter();
+        // Fail closed until /cdn-cgi/trace returns a country. No worker change.
+        // Start the lookup before any fill; sync() itself also refuses fills
+        // until the country is known.
+        ensureGeo().then(function () { sync(); });
         sync();
+        try { if (privacyChoicesOpenRequested()) openPrivacyChoices(); } catch (e) {}
         if (typeof setInterval === 'function') {
-            setInterval(function () { hookNavigation(); }, 2000);
+            setInterval(function () { hookNavigation(); watchPrivacySignals(); }, 2000);
+        }
+        if (typeof document !== 'undefined' && document.addEventListener && !root._bqAdsVisHook) {
+            root._bqAdsVisHook = true;
+            document.addEventListener('visibilitychange', function () { watchPrivacySignals(); });
         }
         if (typeof document !== 'undefined') {
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', function () { hookNavigation(); sync(); });
+                document.addEventListener('DOMContentLoaded', function () {
+                    hookNavigation();
+                    ensureGeo().then(function () { sync(); });
+                    sync();
+                    try { if (privacyChoicesOpenRequested()) openPrivacyChoices(); } catch (e2) {}
+                });
             }
         }
     }
@@ -884,11 +1406,57 @@
         sync: sync,
         hideAllSlots: hideAllSlots,
         hookNavigation: hookNavigation,
-        boot: boot
+        boot: boot,
+        OPT_OUT_KEY: OPT_OUT_KEY,
+        TRACE_PATH: TRACE_PATH,
+        CALLABLE_NAME: CALLABLE_NAME,
+        ACCOUNT_OPTOUT_FIELD: ACCOUNT_OPTOUT_FIELD,
+        RESTRICTED_COUNTRIES: RESTRICTED_COUNTRIES,
+        eeaAdsEnabled: eeaAdsEnabled,
+        isRestrictedCountry: isRestrictedCountry,
+        hasGpc: hasGpc,
+        isPrivacyShareOptedOut: isPrivacyShareOptedOut,
+        setShareOptOut: setShareOptOut,
+        applyPrivacyChoiceNow: applyPrivacyChoiceNow,
+        watchPrivacySignals: watchPrivacySignals,
+        parseTraceCountry: parseTraceCountry,
+        readCountry: readCountry,
+        isGeoBlocked: isGeoBlocked,
+        fillsBlocked: fillsBlocked,
+        ensureGeo: ensureGeo,
+        adsenseScriptSrc: adsenseScriptSrc,
+        applyNonPersonalizedAds: applyNonPersonalizedAds,
+        shouldSkipAads: shouldSkipAads,
+        openPrivacyChoices: openPrivacyChoices,
+        privacyChoicesOpenRequested: privacyChoicesOpenRequested,
+        updatePrivacyChoicesUi: updatePrivacyChoicesUi,
+        ensurePrivacyChoicesFooter: ensurePrivacyChoicesFooter
     };
 
+    // Console must not get fill/rememberCountry hooks (same class as
+    // allowExplicitUser). Node tests with no document get them on the
+    // public api. Browser-like tests opt in with BQ_ADS_TEST_EXPORTS,
+    // which adds the hooks to module.exports only, never window.bqAds.
+    if (typeof document === 'undefined') {
+        api.rememberCountry = rememberCountry;
+        api.fillAads = fillAads;
+        api.fillAdsense = fillAdsense;
+        api.fillSlot = fillSlot;
+    }
+
     root.bqAds = api;
-    if (typeof module !== 'undefined' && module.exports) module.exports = api;
+    if (typeof module !== 'undefined' && module.exports) {
+        if (root && root.BQ_ADS_TEST_EXPORTS && typeof document !== 'undefined') {
+            module.exports = Object.assign({}, api, {
+                rememberCountry: rememberCountry,
+                fillAads: fillAads,
+                fillAdsense: fillAdsense,
+                fillSlot: fillSlot
+            });
+        } else {
+            module.exports = api;
+        }
+    }
     if (!root.BQ_ADS_NO_BOOT) {
         if (typeof document !== 'undefined' && document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', boot);

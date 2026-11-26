@@ -9877,6 +9877,11 @@ exports.confirmAge18 = confirmAge18Fns.confirmAge18;
 exports.confirmAgeUnder18 = confirmAge18Fns.confirmAgeUnder18;
 exports.adminUnconfirmAge18 = confirmAge18Fns.adminUnconfirmAge18;
 exports.adminResetAge18 = confirmAge18Fns.adminResetAge18;
+// Privacy choices opt-out. Admin SDK write so firestore.rules stay unchanged.
+// Deploy is separate; the client already stores the choice in localStorage.
+const { bindPrivacyShareOptOut } = require('./src/privacyShareOptOut');
+const privacyShareFns = bindPrivacyShareOptOut(functionsV1, { admin: admin, db: db, HttpsError: functionsV1.https.HttpsError });
+exports.setPrivacyShareOptOut = privacyShareFns.setPrivacyShareOptOut;
 
 // Hidden reply bonus. App Check is required, same as claimSats. The handler
 // grants XP only inside a transaction after it reads the chat message.

@@ -21,9 +21,14 @@
 // Consume the notifications deep link before the hash router treats it as a channel.
 (function(){
     var raw = (window.location.hash || '').replace('#', '');
-    if (raw.split('/')[0] === 'settings-notifications') {
+    var first = raw.split('/')[0];
+    if (first === 'settings-notifications') {
         try { sessionStorage.setItem('btc_open_notif_settings', '1'); } catch (e) {}
         try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e2) {}
+    }
+    if (first === 'privacy-choices' || first === 'settings-privacy-choices') {
+        try { sessionStorage.setItem('btc_open_privacy_choices', '1'); } catch (e3) {}
+        try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e4) {}
     }
 })();
 // Direct-link fast-path: hide home immediately if navigating to a hash
@@ -876,6 +881,11 @@
         #suggestStatus { text-align: center; margin-top: 10px; font-size: 0.85rem; }
 
         .home-footer { margin-top: 30px; color: var(--text-muted); font-size: 0.85rem; text-align: center; }
+        .bq-site-privacy-footer { position: fixed; left: max(12px, env(safe-area-inset-left, 0px)); bottom: max(10px, env(safe-area-inset-bottom, 0px)); z-index: 120; margin: 0; font-size: 0.7rem; line-height: 1.3; color: var(--text-faint); pointer-events: none; }
+        .bq-site-privacy-footer a { pointer-events: auto; color: var(--text-faint); text-decoration: underline; }
+        @media (max-width: 900px) {
+            .bq-site-privacy-footer { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + 8px); left: max(10px, env(safe-area-inset-left, 0px)); }
+        }
 
         .skeleton { background: linear-gradient(90deg, var(--card-bg) 25%, var(--border) 50%, var(--card-bg) 75%); background-size: 200% 100%; animation: skeletonLoading 1.5s infinite; border-radius: 8px; }
         @keyframes skeletonLoading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -2247,7 +2257,7 @@
                             <div><div style="font-size:0.85rem;font-weight:700;">The Signal Newsletter</div><div style="font-size:0.75rem;color:var(--text-muted);">Weekly curated Bitcoin insights</div></div>
                         </a>
                     </div>
-                <p class="home-footer" style="order:9999;">Open source · Free forever · Built on GitHub Pages<br><a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Privacy Policy</a> · <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Terms of Service</a><br><span style="font-size:0.7rem;color:var(--text-faint);margin-top:6px;display:inline-block;">© 2026 603BTC LLC · Bitcoin Education Archive™</span><br><a href="https://603btc.com" target="_blank" rel="noopener noreferrer" style="font-size:0.75rem;color:var(--text-faint);text-decoration:none;margin-top:6px;display:inline-block;">⚡ Powered by 603BTC</a></p>
+                <p class="home-footer" style="order:9999;">Open source · Free forever · Built on GitHub Pages<br><a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Privacy Policy</a> · <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Terms of Service</a> · <a href="#privacy-choices" style="color:var(--text-faint);font-size:0.75rem;">Your Privacy Choices</a><br><span style="font-size:0.7rem;color:var(--text-faint);margin-top:6px;display:inline-block;">© 2026 603BTC LLC · Bitcoin Education Archive™</span><br><a href="https://603btc.com" target="_blank" rel="noopener noreferrer" style="font-size:0.75rem;color:var(--text-faint);text-decoration:none;margin-top:6px;display:inline-block;">⚡ Powered by 603BTC</a></p>
                 </div>
                 <script>
                 (function () {
@@ -2286,6 +2296,7 @@
         <div class="messages" id="msgs"></div>
         <div id="forumContainer" style="display:none;"></div>
     </main>
+    <p id="bqSitePrivacyFooter" class="bq-site-privacy-footer"><a href="#privacy-choices">Your Privacy Choices</a></p>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
     <!-- TOS acceptance modal for existing users -->
     <div id="tosModal">

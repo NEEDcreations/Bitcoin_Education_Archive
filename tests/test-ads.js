@@ -70,7 +70,7 @@ function loadAds(opts) {
     if (opts.clearStore) Object.keys(store).forEach(function (k) { delete store[k]; });
     const code = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
     vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
-    return sandbox.bqAds || sandbox.module.exports;
+    return sandbox.module.exports || sandbox.bqAds;
 }
 
 let passed = 0, failed = 0;
@@ -297,7 +297,7 @@ test('index.html and 404.html include ads.js, the homepage slot, and the AdSense
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const html404 = fs.readFileSync(path.join(root, '404.html'), 'utf8');
     assert.strictEqual(html, html404, '404.html must match index.html');
-    assert.ok(html.includes('src="/ads.js?v=20261126_v2696"'));
+    assert.ok(html.includes('src="/ads.js?v=20261126_v2706"'));
     assert.ok(html.includes('defer') && html.includes('ads.js'));
     assert.ok(html.includes('id="bqAadsHome"'));
     assert.ok(html.includes('name="google-adsense-account"'));
@@ -530,6 +530,7 @@ function loadBrowserAds(opts) {
         console, Date, Math, Intl, Uint8Array, Number, String, Boolean, Array, Object, JSON, Promise, isFinite,
         module: { exports: {} }, exports: {},
         BQ_ADS_NO_BOOT: true,
+        BQ_ADS_TEST_EXPORTS: true,
         localStorage: {
             getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
             setItem: function (k, v) { store[k] = String(v); },
@@ -581,7 +582,12 @@ function loadBrowserAds(opts) {
     sandbox._bqAdsUserUnknown = false;
     const code = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
     vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
-    return { ads: sandbox.bqAds || sandbox.module.exports, reads: reads, sandbox: sandbox, authState: authState };
+    const ads = sandbox.module.exports || sandbox.bqAds;
+    // Browser tests assume a finished geo lookup unless they are testing geo.
+    if (ads && typeof ads.rememberCountry === 'function' && opts.geo !== false) {
+        ads.rememberCountry(opts.country || 'US');
+    }
+    return { ads: ads, reads: reads, sandbox: sandbox, authState: authState };
 }
 
 function asyncTest(name, fn) {

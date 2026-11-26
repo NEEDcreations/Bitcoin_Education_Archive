@@ -187,7 +187,8 @@ function buildCSP(nonce, opts) {
             " https://www.youtube.com" +
             " https://pagead2.googlesyndication.com" +  // AdSense (RLDA-40)
             " https://www.googletagservices.com" +
-            " https://adservice.google.com",
+            " https://adservice.google.com" +
+            " https://fundingchoicesmessages.google.com", // AdSense Privacy & messaging / Funding Choices
 
         // connect-src: every outbound fetch / WebSocket the app makes
         "connect-src 'self'" +
@@ -217,7 +218,8 @@ function buildCSP(nonce, opts) {
             " https://*.googlesyndication.com" +
             " https://*.doubleclick.net" +
             " https://adservice.google.com" +
-            " https://acceptable.a-ads.com",
+            " https://acceptable.a-ads.com" +
+            " https://fundingchoicesmessages.google.com",
 
         "img-src 'self' data: blob: https:",         // Broad: GIF picker, user avatars, YouTube thumbs
 
@@ -257,6 +259,7 @@ function buildCSP(nonce, opts) {
             " https://googleads.g.doubleclick.net" +   // AdSense
             " https://tpc.googlesyndication.com" +
             " https://pagead2.googlesyndication.com" +
+            " https://fundingchoicesmessages.google.com" +
             (allowSubstackSubscribe ? " https://603btc.substack.com" : ""), // waitlist browser subscribe iframe
 
         "font-src 'self' https://fonts.gstatic.com",
