@@ -131,21 +131,71 @@
         setHelper(false);
     }
 
+    var MSG = {
+        appCheck: 'Security check is still loading. Wait a moment and tap again.',
+        appCheckFailed: 'Security check did not load. Refresh the page and try again.',
+        offline: "Can't reach the server. Check your connection and try again.",
+        generic: 'Could not save your answer. Please try again.'
+    };
+
+    // Resolves to a token string, '' when App Check never became ready, or
+    // 'skip' when the page has no App Check helper (tests, old shells).
+    function appCheckReady() {
+        if (typeof root._btcAppCheckForClaim !== 'function') return Promise.resolve('skip');
+        return Promise.resolve(root._btcAppCheckForClaim(8000)).catch(function () { return ''; });
+    }
+
+    function codeOf(e) {
+        return String((e && e.code) || '').replace(/^functions\//, '');
+    }
+
+    function isAppCheckError(e) {
+        var code = codeOf(e);
+        return code === 'app-check-unavailable' || code === 'unauthenticated' || /app ?check/i.test(String((e && e.message) || ''));
+    }
+
+    function errorMessage(e) {
+        if (root._btcRecaptchaFailed) return MSG.appCheckFailed;
+        if (isAppCheckError(e)) return MSG.appCheck;
+        var code = codeOf(e);
+        if (code === 'unavailable' || code === 'deadline-exceeded') return MSG.offline;
+        // The server's own messages for these codes are written for people.
+        if ((code === 'resource-exhausted' || code === 'permission-denied') && e.message) return e.message;
+        return MSG.generic;
+    }
+
+    // Waits for App Check before the call, and retries once after a fresh
+    // token when an early tap still loses the race. Resolves { ok, error }.
     function callAge(name) {
-        function fail() { return Promise.resolve(false); }
+        var fn;
         try {
-            if (!root.firebase || !root.firebase.functions) return fail();
-            var fn = root.firebase.functions().httpsCallable(name);
-            return Promise.resolve(fn({})).then(function (res) {
-                var data = (res && res.data) || {};
-                if (name === 'confirmAgeUnder18') {
-                    return data.success === true || data.ageUnder18 === true;
-                }
-                return data.success === true || data.over18 === true || data.ageConfirmed18 === true;
-            }).catch(function () { return false; });
+            if (!root.firebase || !root.firebase.functions) return Promise.resolve({ ok: false, error: MSG.generic });
+            fn = root.firebase.functions().httpsCallable(name);
         } catch (e) {
-            return fail();
+            return Promise.resolve({ ok: false, error: MSG.generic });
         }
+        function attempt() {
+            return appCheckReady().then(function (token) {
+                if (token === '') {
+                    var missing = new Error('App Check token is not ready');
+                    missing.code = 'app-check-unavailable';
+                    throw missing;
+                }
+                return fn({});
+            });
+        }
+        return attempt().catch(function (e) {
+            if (!isAppCheckError(e) || root._btcRecaptchaFailed) throw e;
+            return attempt();
+        }).then(function (res) {
+            var data = (res && res.data) || {};
+            var ok = name === 'confirmAgeUnder18'
+                ? (data.success === true || data.ageUnder18 === true)
+                : (data.success === true || data.over18 === true || data.ageConfirmed18 === true);
+            return ok ? { ok: true } : { ok: false, error: MSG.generic };
+        }).catch(function (e) {
+            return { ok: false, error: errorMessage(e) };
+        });
     }
 
     function fireAgeEvent(name, detail) {
@@ -164,14 +214,14 @@
             btn.disabled = true;
             var label = btn.querySelector('span');
             if (label) label.textContent = 'Saving...';
-            callAge(callable).then(function (ok) {
-                if (ok) {
+            callAge(callable).then(function (result) {
+                if (result.ok) {
                     onOk();
                 } else {
                     busy = false;
                     btn.disabled = false;
                     if (label) label.textContent = labelText;
-                    if (typeof root.showToast === 'function') root.showToast('Error saving. Please try again.');
+                    if (typeof root.showToast === 'function') root.showToast(result.error);
                 }
             });
         });

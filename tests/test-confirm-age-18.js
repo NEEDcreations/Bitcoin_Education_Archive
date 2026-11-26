@@ -856,6 +856,128 @@ test('tapping I am under 18 saves through the callable and does not enable ads',
     });
 });
 
+function ageClient(opts) {
+    const state = { invokes: 0, checks: 0, toasts: [] };
+    const extras = {
+        showToast: function (msg) { state.toasts.push(msg); },
+        firebase: {
+            functions: function () {
+                return {
+                    httpsCallable: function () {
+                        return function () { state.invokes++; return opts.invoke(state.invokes); };
+                    }
+                };
+            }
+        }
+    };
+    if (opts.appCheck) {
+        extras._btcAppCheckForClaim = function () { state.checks++; return opts.appCheck(state.checks); };
+    }
+    if (opts.recaptchaFailed) extras._btcRecaptchaFailed = true;
+    const env = bootClient(extras);
+    env.showAgeConfirmPrompt();
+    state.env = env;
+    state.btn = env.document.getElementById('ageConfirmBtn');
+    return state;
+}
+
+function settle() {
+    return new Promise(function (resolve) { setTimeout(resolve, 5); });
+}
+
+test('an early tap waits for App Check before calling confirmAge18', function () {
+    let release;
+    const token = new Promise(function (resolve) { release = resolve; });
+    const c = ageClient({
+        appCheck: function () { return token; },
+        invoke: function () { return Promise.resolve({ data: { success: true, over18: true } }); }
+    });
+    c.btn.click();
+    return settle().then(function () {
+        assert.strictEqual(c.invokes, 0, 'no call before the token is ready');
+        assert.ok(c.env.document.getElementById('ageConfirmOverlay'));
+        release('tok');
+        return settle();
+    }).then(function () {
+        assert.strictEqual(c.invokes, 1);
+        assert.strictEqual(c.env._bqAgeConfirmed18, true);
+        assert.strictEqual(c.env.document.getElementById('ageConfirmOverlay'), null);
+        assert.deepStrictEqual(c.toasts, []);
+    });
+});
+
+test('a call that loses the App Check race retries once after a fresh token', function () {
+    const c = ageClient({
+        appCheck: function () { return Promise.resolve('tok'); },
+        invoke: function (n) {
+            if (n === 1) {
+                const e = new Error('Unauthenticated');
+                e.code = 'functions/unauthenticated';
+                return Promise.reject(e);
+            }
+            return Promise.resolve({ data: { success: true, over18: true } });
+        }
+    });
+    c.btn.click();
+    return settle().then(function () {
+        assert.strictEqual(c.invokes, 2);
+        assert.strictEqual(c.checks, 2);
+        assert.strictEqual(c.env._bqAgeConfirmed18, true);
+        assert.deepStrictEqual(c.toasts, []);
+    });
+});
+
+test('App Check that never gets ready shows a real message, retries once, and re-enables the button', function () {
+    const c = ageClient({
+        appCheck: function () { return Promise.resolve(''); },
+        invoke: function () { return Promise.resolve({ data: { success: true } }); }
+    });
+    c.btn.click();
+    return settle().then(function () {
+        assert.strictEqual(c.invokes, 0);
+        assert.strictEqual(c.checks, 2);
+        assert.deepStrictEqual(c.toasts, ['Security check is still loading. Wait a moment and tap again.']);
+        assert.strictEqual(c.btn.disabled, false);
+        assert.ok(c.env.document.getElementById('ageConfirmOverlay'));
+        assert.strictEqual(c.env._bqAgeConfirmed18, false);
+    });
+});
+
+test('a failed security script asks for a refresh and does not retry', function () {
+    const c = ageClient({
+        recaptchaFailed: true,
+        appCheck: function () { return Promise.resolve(''); },
+        invoke: function () { return Promise.resolve({ data: { success: true } }); }
+    });
+    c.btn.click();
+    return settle().then(function () {
+        assert.strictEqual(c.checks, 1);
+        assert.deepStrictEqual(c.toasts, ['Security check did not load. Refresh the page and try again.']);
+    });
+});
+
+test('network, throttle, and unknown failures show specific messages, never Error saving', function () {
+    function fails(code, message) {
+        return ageClient({
+            invoke: function () { const e = new Error(message); e.code = code; return Promise.reject(e); }
+        });
+    }
+    const offline = fails('functions/unavailable', 'unavailable');
+    const throttled = fails('functions/resource-exhausted', 'Please try again in a moment.');
+    const unknown = fails('functions/internal', 'internal');
+    const refused = ageClient({ invoke: function () { return Promise.resolve({ data: { success: false } }); } });
+    [offline, throttled, unknown, refused].forEach(function (c) { c.btn.click(); });
+    return settle().then(function () {
+        assert.deepStrictEqual(offline.toasts, ["Can't reach the server. Check your connection and try again."]);
+        assert.deepStrictEqual(throttled.toasts, ['Please try again in a moment.']);
+        assert.deepStrictEqual(unknown.toasts, ['Could not save your answer. Please try again.']);
+        assert.deepStrictEqual(refused.toasts, ['Could not save your answer. Please try again.']);
+        assert.strictEqual(offline.invokes, 1, 'non App Check errors do not retry');
+        const src = fs.readFileSync(path.join(root, 'age-confirm.js'), 'utf8');
+        assert.strictEqual(src.indexOf('Error saving'), -1);
+    });
+});
+
 function assertThrottleExpireAt(docs, uid, atMs) {
     const throttle = docs['age_confirm_throttle/' + uid];
     assert.ok(throttle);
