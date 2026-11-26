@@ -81,19 +81,27 @@ test('a server-written lesson or quiz satisfies the anti-bot step while Original
     assert.strictEqual(originals.taskEnabled(), false);
     assert.strictEqual(claimReqs.learnQualifies({ completedQuests: ['quest_fake'] }), false);
     assert.strictEqual(claimReqs.learnQualifies({ questsPassed: 1 }), true);
+    assert.strictEqual(claimReqs.learnQualifies({ lqPassed: ['lq_what_is_bitcoin'] }), true);
     assert.strictEqual(claimReqs.learnQualifies({ lqPassed: 1 }), true);
-    assert.strictEqual(claimReqs.learnQualifies({ triviaCorrect: 1 }), true);
+    assert.strictEqual(claimReqs.learnQualifies({ lqPassed: [] }), false);
+    assert.strictEqual(claimReqs.learnQualifies({ triviaCorrect: 1 }), false);
+    assert.strictEqual(claimReqs.learnQualifies({ triviaCorrect: 2, questsPassed: 1 }), true);
+    assert.strictEqual(claimReqs.learnQualifies({ triviaCorrect: 2, lqPassed: ['lq_mining'] }), true);
     assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, questsPassed: 1 }, START), []);
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, lqPassed: ['lq_what_is_bitcoin'] }, START), []);
     assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, lqPassed: 1 }, START), []);
-    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, triviaCorrect: 2 }, START), []);
-    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START, learnAt: START } }, START), []);
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, triviaCorrect: 2 }, START), ['learn']);
+    // learnAt has no writer and does not qualify.
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START, learnAt: START } }, START), ['learn']);
     // Client-owned completedQuests must not satisfy the step.
     assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, completedQuests: ['quest_x'] }, START), ['learn']);
     // Already-qualified accounts stay qualified after Originals go live.
     originals.ORIGINALS.push({ id: 'tmp-test', title: 'tmp', durationSeconds: 600, rights: 'BQ' });
     try {
         assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, questsPassed: 1 }, START), []);
+        assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START }, lqPassed: ['lq_what_is_bitcoin'] }, START), []);
         assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START, tctvAt: START } }, START), []);
+        assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START, learnAt: START } }, START), ['tctv']);
         assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START } }, START), ['tctv']);
     } finally {
         originals.ORIGINALS.pop();
@@ -250,6 +258,8 @@ test('the Requirements card shows the chat and TCTV rows with Go', () => {
     assert.ok(ranking.includes('Send 1 message in Chat'));
     assert.ok(ranking.includes('Watch Bitcoin Quest Originals') || ranking.includes('Watch Timechain TV'));
     assert.ok(ranking.includes('Complete 1 lesson or quiz'));
+    assert.ok(ranking.includes('Pass one learning quest or lesson'));
+    assert.ok(!ranking.includes('or trivia quiz'));
     assert.ok(!ranking.includes('Share your referral link'));
     assert.ok(!ranking.includes('referralReqMet'));
     assert.ok(ranking.includes("go: 'openClaimChat()'"));

@@ -9863,10 +9863,13 @@ function accountDeleteRowHtml(user) {
         var claimReqMap = (currentUser && currentUser.claimReq && typeof currentUser.claimReq === 'object') ? currentUser.claimReq : {};
         var chatReqMet = claimStampMs(claimReqMap.chatAt) > 0;
         var tctvReqMet = claimStampMs(claimReqMap.tctvAt) > 0;
-        var learnReqMet = claimStampMs(claimReqMap.learnAt) > 0
-            || Math.floor(Number(currentUser && currentUser.questsPassed) || 0) >= 1
-            || Math.floor(Number(currentUser && currentUser.lqPassed) || 0) >= 1
-            || Math.floor(Number(currentUser && currentUser.triviaCorrect) || 0) >= 1;
+        function progressCount(value) {
+            if (Array.isArray(value)) return value.length;
+            var n = Number(value);
+            return isFinite(n) ? n : 0;
+        }
+        var learnReqMet = Math.floor(progressCount(currentUser && currentUser.questsPassed)) >= 1
+            || Math.floor(progressCount(currentUser && currentUser.lqPassed)) >= 1;
         var antiBotMet = tctvReqMet || learnReqMet;
         var originalsOn = !!(window._tctvOriginals && typeof window._tctvOriginals.taskEnabled === 'function' && window._tctvOriginals.taskEnabled());
         var holdRaw = currentUser ? currentUser.satsHold : 0;
@@ -9984,7 +9987,7 @@ function accountDeleteRowHtml(user) {
             if (originalsOn) {
                 checks.push({ met: antiBotMet, label: 'Watch Bitcoin Quest Originals', detail: antiBotMet ? (tctvReqMet ? ('✓ ' + CLAIM_TCTV_SECONDS + ' seconds watched') : '✓ Lesson or quiz completed') : ('Watch at least ' + CLAIM_TCTV_SECONDS + ' seconds of a Bitcoin Quest Original'), go: 'openClaimTv()' });
             } else {
-                checks.push({ met: antiBotMet, label: 'Complete 1 lesson or quiz', detail: antiBotMet ? '✓ Lesson or quiz completed' : 'Pass one learning quest, lesson, or trivia quiz', go: 'openClaimLearn()' });
+                checks.push({ met: antiBotMet, label: 'Complete 1 lesson or quiz', detail: antiBotMet ? '✓ Lesson or quest completed' : 'Pass one learning quest or lesson', go: 'openClaimLearn()' });
             }
         }
         checks.forEach(function(c) {
@@ -10006,12 +10009,15 @@ function accountDeleteRowHtml(user) {
             db.collection('users').doc(user.uid).get().then(function(snap) {
                 window._claimReqPull = false;
                 if (!snap.exists || typeof currentUser === 'undefined' || !currentUser) return;
-                var nextReq = snap.data().claimReq || null;
-                var prevKey = claimStampMs(claimReqMap.chatAt) + ':' + claimStampMs(claimReqMap.tctvAt) + ':' + claimStampMs(claimReqMap.learnAt);
+                var nextData = snap.data() || {};
+                var nextReq = nextData.claimReq || null;
+                var prevKey = claimStampMs(claimReqMap.chatAt) + ':' + claimStampMs(claimReqMap.tctvAt) + ':' + progressCount(currentUser && currentUser.questsPassed) + ':' + progressCount(currentUser && currentUser.lqPassed);
                 var nextMap = (nextReq && typeof nextReq === 'object') ? nextReq : {};
-                var nextKey = claimStampMs(nextMap.chatAt) + ':' + claimStampMs(nextMap.tctvAt) + ':' + claimStampMs(nextMap.learnAt);
+                var nextKey = claimStampMs(nextMap.chatAt) + ':' + claimStampMs(nextMap.tctvAt) + ':' + progressCount(nextData.questsPassed) + ':' + progressCount(nextData.lqPassed);
                 if (prevKey === nextKey) return;
                 currentUser.claimReq = nextReq;
+                if (nextData.questsPassed != null) currentUser.questsPassed = nextData.questsPassed;
+                if (nextData.lqPassed != null) currentUser.lqPassed = nextData.lqPassed;
                 if (settingsTab === 'sats' && window._satsSubTab !== 'donate') showSettingsPage('sats');
             }).catch(function() { window._claimReqPull = false; });
         }

@@ -12,10 +12,13 @@
 // tctvWatch.CREDIT_SECONDS, because the first heartbeat only starts the
 // clock and the next one is the first credit. While the Originals library
 // is too thin, the same anti-bot step is met by one server-written lesson
-// or quiz pass (questsPassed, lqPassed, or triviaCorrect). A prior tctvAt
-// or learnAt stamp also counts, including after Originals go live.
-// completedQuests is a client field and is ignored. (A referral-visit
-// step was dropped on Nov 4.)
+// or quest pass (questsPassed or lqPassed). lqPassed is an arrayUnion
+// array, so length is what counts. triviaCorrect is the same daily
+// question for everyone and does not satisfy the step on its own.
+// A prior tctvAt stamp also counts, including after Originals go live.
+// claimReq.learnAt has no writer and is ignored. completedQuests is a
+// client field and is ignored. (A referral-visit step was dropped on
+// Nov 4.)
 
 const { classifyChatText } = require('./chatProfanity');
 const tctvWatch = require('./tctvWatch');
@@ -82,17 +85,25 @@ function claimReqOf(user) {
 }
 
 // Server-written progress only. Ignore client-owned arrays such as completedQuests.
+// lqPassed is an arrayUnion array; a leftover numeric value still counts.
+function progressCount(value) {
+    if (Array.isArray(value)) return value.length;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
 function learnQualifies(user) {
     const row = user || {};
-    const quests = Math.floor(Number(row.questsPassed) || 0);
-    const lessons = Math.floor(Number(row.lqPassed) || 0);
-    const trivia = Math.floor(Number(row.triviaCorrect) || 0);
-    return quests >= 1 || lessons >= 1 || trivia >= 1;
+    const quests = Math.floor(progressCount(row.questsPassed));
+    const lessons = Math.floor(progressCount(row.lqPassed));
+    // triviaCorrect may exist alongside a quest or lesson, but it never
+    // qualifies the account by itself.
+    return quests >= 1 || lessons >= 1;
 }
 
 function antiBotMet(user) {
     const req = claimReqOf(user);
-    if (stampMillis(req.tctvAt) || stampMillis(req.learnAt)) return true;
+    if (stampMillis(req.tctvAt)) return true;
     return learnQualifies(user);
 }
 

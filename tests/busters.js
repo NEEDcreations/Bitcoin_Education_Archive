@@ -333,7 +333,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
     assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
     assert.ok(html.includes('referral-tiers.js?v=20261105_v2499'));
-    assert.ok(html.includes('ranking.js?v=20261125_v2693'));
+    assert.ok(html.includes('ranking.js?v=20261125_v2694'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2665'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2635'));
     assert.ok(!html.includes('ranking.js?v=20261118_v2605'));
@@ -370,7 +370,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261029_v2420'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2416'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2403'));
-    assert.ok(html.indexOf('referral-tiers.js?v=20261105_v2499') < html.indexOf('ranking.js?v=20261125_v2693'));
+    assert.ok(html.indexOf('referral-tiers.js?v=20261105_v2499') < html.indexOf('ranking.js?v=20261125_v2694'));
     assert.ok(html.includes('auth-display.js?v=20261106_v2512'));
     assert.ok(!html.includes('auth-display.js?v=20261028_v2425'));
     assert.ok(!html.includes('auth-display.js?v=20261029_v2420'));
@@ -396,8 +396,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261026_v2373'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261125_v2693'));
-    assert.ok(html.indexOf('username-repick.js?v=20261104_v2476') < html.indexOf('ranking.js?v=20261125_v2693'));
+    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261125_v2694'));
+    assert.ok(html.indexOf('username-repick.js?v=20261104_v2476') < html.indexOf('ranking.js?v=20261125_v2694'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -901,7 +901,7 @@ test('PR #252 asset busters are v2512 (popup-stack bumped to v2519)', () => {
     assert.ok(html.includes('popup-stack.js?v=20261119_v2681'));
     assert.ok(!html.includes('popup-stack.js?v=20261106_v2515'));
     assert.ok(!html.includes('popup-stack.js?v=20261106_v2512'));
-    assert.ok(html.includes('ranking.js?v=20261125_v2693'));
+    assert.ok(html.includes('ranking.js?v=20261125_v2694'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2635'));
     assert.ok(!html.includes('ranking.js?v=20261116_v2581'));
     assert.ok(html.includes('bundle.min.js?v=20261119_v2682b'));
@@ -928,7 +928,7 @@ test('kill switch client and SW v2551 pins', () => {
     const html404 = read('404.html');
     assert.ok(html.includes('kill-switch.js?v=20261111_v2551'));
     assert.ok(html404.includes('kill-switch.js?v=20261111_v2551'));
-    assert.ok(html.indexOf('kill-switch.js?v=20261111_v2551') < html.indexOf('ranking.js?v=20261125_v2693'));
+    assert.ok(html.indexOf('kill-switch.js?v=20261111_v2551') < html.indexOf('ranking.js?v=20261125_v2694'));
     const ranking = read('ranking.js');
     assert.ok(ranking.includes("/admin-panel.js?v=20261116_v2581"));
     assert.ok(!ranking.includes("/admin-panel.js?v=20261111_v2551"));
