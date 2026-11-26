@@ -498,6 +498,18 @@ service cloud.firestore {
             || request.resource.data.experienceMode == 'beginner'
             || request.resource.data.experienceMode == 'intermediate'
             || request.resource.data.experienceMode == 'advanced')
+          // PvP lobby prefs: booleans, and a 0..9 shard. Delete is allowed.
+          && (!changed.hasAny(['pvpAlertsMuted'])
+            || !('pvpAlertsMuted' in request.resource.data)
+            || request.resource.data.pvpAlertsMuted is bool)
+          && (!changed.hasAny(['pvpPushEnabled'])
+            || !('pvpPushEnabled' in request.resource.data)
+            || request.resource.data.pvpPushEnabled is bool)
+          && (!changed.hasAny(['pvpPushShard'])
+            || !('pvpPushShard' in request.resource.data)
+            || (request.resource.data.pvpPushShard is int
+                && request.resource.data.pvpPushShard >= 0
+                && request.resource.data.pvpPushShard <= 9))
           // Favorite apps. Owner may only store a list of up to 2 whitelisted Explore App ids.
           && (!changed.hasAny(['favoriteApps'])
             || !('favoriteApps' in request.resource.data)
@@ -1576,6 +1588,23 @@ service cloud.firestore {
         || v4vSplitsListOk(data.v4vSplits);
     }
 
+    // Like and unlike must move likes and likedBy together, by exactly one.
+    function beatsLikeOk() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+        && resource.data.get('likes', 0) is int
+        && request.resource.data.likes == resource.data.get('likes', 0) + 1
+        && !(request.auth.uid in resource.data.get('likedBy', []))
+        && request.resource.data.likedBy == resource.data.get('likedBy', []).concat([request.auth.uid]);
+    }
+    function beatsUnlikeOk() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+        && resource.data.get('likes', 0) is int
+        && resource.data.get('likes', 0) > 0
+        && request.auth.uid in resource.data.get('likedBy', [])
+        && request.resource.data.likes == resource.data.get('likes', 0) - 1
+        && request.resource.data.likedBy == resource.data.get('likedBy', []).removeAll([request.auth.uid]);
+    }
+
     // =============================================
     // BITCOIN BEATS — TRACKS
     // =============================================
@@ -1631,15 +1660,10 @@ service cloud.firestore {
                             || request.resource.data.releaseDate == ''
                             || (request.resource.data.releaseDate is string
                                 && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))))
-                      // Social interactions: plays/likes only
-                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
-                          && request.resource.data.likes <= resource.data.get('likes', 0) + 1
-                          && (!request.resource.data.keys().hasAny(['likedBy']) || (
-                              request.resource.data.likedBy is list
-                              && request.resource.data.likedBy.size() <= resource.data.get('likedBy', []).size() + 1
-                              && request.resource.data.likedBy.hasAll(resource.data.get('likedBy', []))
-                              && !(resource.data.get('likedBy', []).hasAny([request.auth.uid]))
-                          )))
+                      // Like: +1 and the caller's uid appended.
+                      // Unlike: -1 and only the caller's uid removed.
+                      || beatsLikeOk()
+                      || beatsUnlikeOk()
                     )
                     // Moderated tracks stay hidden. A partial update (plays, likes,
                     // title) still sees the existing flag. A rewrite that drops it,

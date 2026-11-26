@@ -96,7 +96,7 @@ const parts = emu.split(':');
                 createdAt: new Date(),
                 duration: 30,
                 copyrightConfirmed: true,
-                plays: 0,
+                plays: 5,
                 likes: 0,
                 likedBy: [],
                 hidden: false,
@@ -132,7 +132,7 @@ const parts = emu.split(':');
         }, true);
         const guest = env.authenticatedContext('guest', { firebase: { sign_in_provider: 'anonymous' } }).firestore();
         await expect('guest cannot add a play', function () {
-            return updateDoc(doc(guest, 'beats_tracks', 'track1'), { plays: 1 });
+            return updateDoc(doc(guest, 'beats_tracks', 'track1'), { plays: 6 });
         }, false);
         await expect('someone else cannot set plays to zero', function () {
             return updateDoc(doc(bea, 'beats_tracks', 'track1'), { plays: 0 });
@@ -207,6 +207,52 @@ const parts = emu.split(':');
             return updateDoc(doc(bea, 'beats_tracks', 'track1'), {
                 likes: 0,
                 likedBy: [],
+            });
+        }, true);
+        const dee = env.authenticatedContext('dee', password).firestore();
+        await env.withSecurityRulesDisabled(async function (ctx) {
+            const db = ctx.firestore();
+            await setDoc(doc(db, 'beats_tracks', 'trackLike'), {
+                authorId: 'ada',
+                authorName: 'Ada',
+                title: 'Like Tests',
+                createdAt: new Date(),
+                duration: 30,
+                copyrightConfirmed: true,
+                plays: 5,
+                likes: 2,
+                likedBy: ['bea', 'cy'],
+                hidden: false,
+            });
+        });
+        await expect('cannot drop likes without a likedBy change', function () {
+            return updateDoc(doc(bea, 'beats_tracks', 'trackLike'), { likes: 1 });
+        }, false);
+        await expect('cannot drop likes below zero with a likedBy removal', function () {
+            return updateDoc(doc(bea, 'beats_tracks', 'trackLike'), {
+                likes: -1,
+                likedBy: ['cy'],
+            });
+        }, false);
+        await expect('cannot remove someone else from likedBy', function () {
+            return updateDoc(doc(bea, 'beats_tracks', 'trackLike'), {
+                likes: 1,
+                likedBy: ['bea'],
+            });
+        }, false);
+        await expect('cannot increment likes without joining likedBy', function () {
+            return updateDoc(doc(dee, 'beats_tracks', 'trackLike'), { likes: 3 });
+        }, false);
+        await expect('cannot increment likes by more than one', function () {
+            return updateDoc(doc(dee, 'beats_tracks', 'trackLike'), {
+                likes: 4,
+                likedBy: ['bea', 'cy', 'dee'],
+            });
+        }, false);
+        await expect('the owner of a like can unlike once', function () {
+            return updateDoc(doc(bea, 'beats_tracks', 'trackLike'), {
+                likes: 1,
+                likedBy: ['cy'],
             });
         }, true);
         await expect('client cannot write an award claim marker', function () {
