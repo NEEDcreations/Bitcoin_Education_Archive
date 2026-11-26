@@ -1,12 +1,39 @@
 #!/bin/bash
 # Build dev.bitcoineducation.quest (staging) from gh-pages. Public staging Firebase web config only; no secrets.
 set -euo pipefail
-SRC=${SRC:-.}; OUT=${OUT:-out}; CFG=$(mktemp)
+SRC=${SRC:-.}; CFG=$(mktemp)
+# The output holds staging-only material (App Check debug token, Turnstile test
+# sitekey), so it must never land inside a repo checkout where deploy.sh's
+# `git add -A` or deploy.yml's copy could ship it (Red Team D1). Default to a
+# fresh temp dir; refuse any OUT that resolves inside SRC or inside the git tree.
+OUT=${OUT:-$(mktemp -d /tmp/bq-staging-out.XXXXXX)}
+OUT_ABS=$(realpath -m "$OUT")
+SRC_ABS=$(realpath -m "$SRC")
+SRC_TOP=$(git -C "$SRC" rev-parse --show-toplevel 2>/dev/null || echo "$SRC_ABS")
+SRC_TOP=$(realpath -m "$SRC_TOP")
+if [ "$OUT_ABS" = "/" ]; then echo "REFUSING: OUT resolves to /" >&2; exit 1; fi
+# OUT is rm -rf'd below, so it must not contain the checkout either.
+case "$SRC_TOP/" in "$OUT_ABS"/*)
+  echo "REFUSING: OUT '$OUT_ABS' contains the repo tree '$SRC_TOP'; rm -rf would delete it." >&2
+  exit 1 ;;
+esac
+case "$OUT_ABS/" in
+  "$SRC_ABS"/*|"$SRC_TOP"/*)
+    echo "REFUSING: OUT '$OUT' resolves to '$OUT_ABS', inside the repo tree '$SRC_TOP' (or is /). Use a dir outside the checkout." >&2
+    exit 1 ;;
+esac
+if CWD_TOP=$(git rev-parse --show-toplevel 2>/dev/null); then
+  case "$OUT_ABS/" in "$(realpath -m "$CWD_TOP")"/*)
+    echo "REFUSING: OUT '$OUT_ABS' is inside the current git checkout '$CWD_TOP'." >&2
+    exit 1 ;;
+  esac
+fi
+OUT=$OUT_ABS
 cat > "$CFG" <<'JSON'
 {"projectId": "bitcoin-quest-staging", "appId": "1:689995930118:web:915f62b60c33cac100c187", "storageBucket": "bitcoin-quest-staging.firebasestorage.app", "apiKey": "AIzaSyB1gWK65s8MPFsKSK2-Qdp3eSXOjF7lnng", "authDomain": "bitcoin-quest-staging.firebaseapp.com", "messagingSenderId": "689995930118", "projectNumber": "689995930118", "version": "2"}
 JSON
 rm -rf "$OUT"; mkdir -p $OUT
-tar -C "$SRC" --exclude=./out --exclude='./.?*' --exclude='*/.?*' --exclude=functions --exclude=workers --exclude=scripts --exclude=tests --exclude=docs --exclude=node_modules --exclude='*.sh' --exclude='*.md' --exclude='*.py' --exclude='*.rules' --exclude='*.bak*' --exclude=firebase.json --exclude='firebase.*.json' --exclude=firestore.indexes.json --exclude=CNAME -cf - . | tar -C $OUT -xf -
+tar -C "$SRC" --exclude=./out --exclude=./_site --exclude='./.?*' --exclude='*/.?*' --exclude=functions --exclude=workers --exclude=scripts --exclude=tests --exclude=docs --exclude=node_modules --exclude='*.sh' --exclude='*.md' --exclude='*.py' --exclude='*.rules' --exclude='*.bak*' --exclude=firebase.json --exclude='firebase.*.json' --exclude=firestore.indexes.json --exclude=CNAME -cf - . | tar -C $OUT -xf -
 
 # Hidden-file excludes drop dot-directories. Re-copy Digital Asset Links so a
 # staging TWA origin can serve /.well-known/assetlinks.json.

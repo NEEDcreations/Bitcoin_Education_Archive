@@ -24,9 +24,11 @@ jobs:
           STAGING_APPCHECK_DEBUG_TOKEN: ${{ secrets.STAGING_APPCHECK_DEBUG_TOKEN }}
           PAGES_PROJECT: bq-staging
           CLOUDFLARE_PAGES_PROJECT: bq-staging
+          OUT: ${{ runner.temp }}/bq-staging-out
         run: bash scripts/build-staging.sh
       - name: Deploy to Cloudflare Pages bq-staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_STAGING_PAGES_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: bc12a6ce8540408b7552f1d658c45bf7
-        run: npx --yes wrangler@3.114.17 pages deploy out --project-name bq-staging --branch main --commit-dirty=true
+          OUT: ${{ runner.temp }}/bq-staging-out
+        run: npx --yes wrangler@3.114.17 pages deploy "$OUT" --project-name bq-staging --branch main --commit-dirty=true

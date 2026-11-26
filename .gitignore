@@ -35,6 +35,11 @@ username-spaces-private/
 *.working-backup
 *.src.bak
 
+# Staging build output (scripts/build-staging.sh). Holds staging-only material
+# (App Check debug token, Turnstile test sitekey). Never commit (Red Team D1).
+out/
+/_site/
+
 # Local dependency installs (real dirs or symlinks). Never commit.
 node_modules
 functions/node_modules
