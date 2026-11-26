@@ -375,8 +375,10 @@ test('a non-admin cannot un-confirm and step-up is not called', async function (
 });
 
 test('an admin un-confirm clears the fields and writes an audit row', async function () {
+    const priorOver = { _server: true, id: 'over' };
+    const priorAge = { _server: true, id: 'age' };
     const world = createWorld({
-        'users/alice': { over18: true, ageConfirmed18: true, over18ConfirmedAt: { _server: true }, points: 4 }
+        'users/alice': { over18: true, ageConfirmed18: true, over18ConfirmedAt: priorOver, ageConfirmed18At: priorAge, points: 4 }
     });
     const out = await world.handlers.adminUnconfirmAge18({ uid: 'alice' }, adminAuth('admin1'));
     assert.strictEqual(out.success, true);
@@ -386,13 +388,26 @@ test('an admin un-confirm clears the fields and writes an audit row', async func
     assert.strictEqual(doc.over18, undefined);
     assert.strictEqual(doc.ageConfirmed18, undefined);
     assert.strictEqual(doc.over18ConfirmedAt, undefined);
+    assert.strictEqual(doc.ageConfirmed18At, undefined);
     assert.strictEqual(doc.ageConfirmBlocked, true);
     assert.strictEqual(doc.points, 4);
     const auditKeys = Object.keys(world.docs).filter(function (k) { return k.indexOf('admin_audit_log/age18_unconfirm_alice_') === 0; });
     assert.strictEqual(auditKeys.length, 1);
-    assert.strictEqual(world.docs[auditKeys[0]].action, 'age_unconfirm');
-    assert.strictEqual(world.docs[auditKeys[0]].uid, 'alice');
-    assert.strictEqual(world.docs[auditKeys[0]].adminUid, 'admin1');
+    const row = world.docs[auditKeys[0]];
+    assert.strictEqual(row.action, 'age_unconfirm');
+    assert.strictEqual(row.uid, 'alice');
+    assert.strictEqual(row.adminUid, 'admin1');
+    assert.strictEqual(row.over18ConfirmedAt, priorOver);
+    assert.strictEqual(row.ageConfirmed18At, priorAge);
+
+    const world2 = createWorld({
+        'users/bob': { over18: true, ageConfirmed18: true, points: 1 }
+    });
+    await world2.handlers.adminUnconfirmAge18({ uid: 'bob' }, adminAuth('admin1'));
+    const keys2 = Object.keys(world2.docs).filter(function (k) { return k.indexOf('admin_audit_log/age18_unconfirm_bob_') === 0; });
+    assert.strictEqual(keys2.length, 1);
+    assert.strictEqual(world2.docs[keys2[0]].over18ConfirmedAt, null);
+    assert.strictEqual(world2.docs[keys2[0]].ageConfirmed18At, null);
 });
 
 test('a blocked account cannot confirm again', async function () {

@@ -189,6 +189,7 @@ function createConfirmAge18Handlers(deps) {
                 outcome.missing = true;
                 return;
             }
+            const user = snap.data() || {};
             t.set(userRef, {
                 over18: del,
                 over18ConfirmedAt: del,
@@ -201,7 +202,9 @@ function createConfirmAge18Handlers(deps) {
                 uid: targetUid,
                 adminUid: context.auth.uid,
                 at: now,
-                atMs: atMs
+                atMs: atMs,
+                over18ConfirmedAt: user.over18ConfirmedAt != null ? user.over18ConfirmedAt : null,
+                ageConfirmed18At: user.ageConfirmed18At != null ? user.ageConfirmed18At : null
             });
         });
 
