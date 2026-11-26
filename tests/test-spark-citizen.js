@@ -181,5 +181,13 @@ test('catalog names, descriptions, and grant mapping', () => {
     assert.ok(grant.familyFor('sparkCitizenCount').indexOf('spark_citizen_t1') === 0);
 });
 
+
+test('the served bundle includes all five Spark Citizen tiers', () => {
+    const bundle = read('bundle.min.js');
+    ['spark_citizen_t1', 'spark_citizen_t2', 'spark_citizen_t3', 'spark_citizen_t4', 'spark_citizen_t5'].forEach((id) => {
+        assert.ok(bundle.includes(id), id);
+    });
+});
+
 console.log(`\nspark citizen: ${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
