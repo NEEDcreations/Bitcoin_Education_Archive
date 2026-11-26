@@ -197,6 +197,45 @@ const parts = emu.split(':');
                 likes: 0,
             });
         }, true);
+        await expect('a track cannot be created with a non-empty likedBy', function () {
+            return setDoc(doc(ada, 'beats_tracks', 'trackLikedBySeeded'), {
+                authorId: 'ada',
+                copyrightConfirmed: true,
+                duration: 30,
+                plays: 0,
+                likes: 0,
+                likedBy: ['bea'],
+            });
+        }, false);
+        await expect('a track cannot be created with a non-list likedBy', function () {
+            return setDoc(doc(ada, 'beats_tracks', 'trackLikedByBad'), {
+                authorId: 'ada',
+                copyrightConfirmed: true,
+                duration: 30,
+                plays: 0,
+                likes: 0,
+                likedBy: 'bea',
+            });
+        }, false);
+        await expect('a track can be created with no likedBy', function () {
+            return setDoc(doc(ada, 'beats_tracks', 'trackNoLikedBy'), {
+                authorId: 'ada',
+                copyrightConfirmed: true,
+                duration: 30,
+                plays: 0,
+                likes: 0,
+            });
+        }, true);
+        await expect('a track can be created with an empty likedBy', function () {
+            return setDoc(doc(ada, 'beats_tracks', 'trackEmptyLikedBy'), {
+                authorId: 'ada',
+                copyrightConfirmed: true,
+                duration: 30,
+                plays: 0,
+                likes: 0,
+                likedBy: [],
+            });
+        }, true);
         await expect('someone else can like a track', function () {
             return updateDoc(doc(bea, 'beats_tracks', 'track1'), {
                 likes: 1,

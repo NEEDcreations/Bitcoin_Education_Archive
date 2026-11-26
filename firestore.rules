@@ -1640,6 +1640,7 @@ service cloud.firestore {
                             && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
                     && (!('plays' in request.resource.data) || request.resource.data.plays == 0)
                     && (!('likes' in request.resource.data) || request.resource.data.likes == 0)
+                    && (!('likedBy' in request.resource.data) || request.resource.data.likedBy == [])
                     && v4vSplitsFieldOk(request.resource.data));
       allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
