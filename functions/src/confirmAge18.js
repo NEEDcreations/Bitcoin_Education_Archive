@@ -167,17 +167,19 @@ function createConfirmAge18Handlers(deps) {
                 outcome.under18 = alreadyUnder18(user);
                 return;
             }
+            // Kids/eligibility refusal comes before the 30s throttle so a
+            // kids account always gets the clear refusal, not 429. This
+            // path does no writes, so it cannot open a throttle bypass.
+            if (isKidsAccount(user)) {
+                outcome.kids = true;
+                return;
+            }
             if (alreadyConfirmed(user)) {
                 outcome.already = true;
                 return;
             }
             if (tooSoon(tData)) {
                 outcome.throttled = true;
-                return;
-            }
-            if (isKidsAccount(user)) {
-                outcome.kids = true;
-                t.set(throttleRef(uid), throttleFields(uid, atMs, now), { merge: true });
                 return;
             }
 
@@ -242,6 +244,10 @@ function createConfirmAge18Handlers(deps) {
                 outcome.blocked = true;
                 return;
             }
+            if (isKidsAccount(user)) {
+                outcome.kids = true;
+                return;
+            }
             if (alreadyConfirmed(user)) {
                 outcome.confirmed = true;
                 return;
@@ -252,11 +258,6 @@ function createConfirmAge18Handlers(deps) {
             }
             if (tooSoon(tData)) {
                 outcome.throttled = true;
-                return;
-            }
-            if (isKidsAccount(user)) {
-                outcome.kids = true;
-                t.set(throttleRef(uid), throttleFields(uid, atMs, now), { merge: true });
                 return;
             }
 

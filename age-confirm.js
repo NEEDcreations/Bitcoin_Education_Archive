@@ -226,7 +226,9 @@
         title.id = 'ageConfirmTitle';
         title.setAttribute('tabindex', '-1');
         title.textContent = COPY.title;
-        title.style.cssText = 'margin:0 0 8px;font-size:1.25rem;font-weight:800;color:#f1f5f9;';
+        // tabindex=-1 + title.focus() is for the screen reader name, not a tab stop.
+        // Drop the browser's default white focus box; buttons keep their focus style.
+        title.style.cssText = 'margin:0 0 8px;font-size:1.25rem;font-weight:800;color:#f1f5f9;outline:none;';
 
         var body = document.createElement('p');
         body.textContent = COPY.body;

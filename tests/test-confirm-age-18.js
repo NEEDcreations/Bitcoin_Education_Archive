@@ -282,11 +282,40 @@ test('kids accounts cannot self-confirm adult age', async function () {
         seed['users/' + uid] = Object.assign({ points: 3 }, flag);
         const world = createWorld(seed);
         await assert.rejects(function () { return world.handlers.confirmAge18({}, auth(uid)); }, function (err) {
-            return err.code === 'permission-denied';
+            return err.code === 'permission-denied' && err.message === 'This account cannot confirm adult age.';
         });
         assert.strictEqual(world.docs['users/' + uid].over18, undefined);
         assert.strictEqual(world.docs['users/' + uid].points, 3);
+        assert.strictEqual(world.docs['age_confirm_throttle/' + uid], undefined);
     }
+});
+
+test('a kids account gets the adult-age refusal before the 30s throttle', async function () {
+    const lastAtMs = Date.parse('2026-11-25T21:10:00-05:00');
+    const world = createWorld({
+        'users/kid1': { points: 1, isMinor: true },
+        'age_confirm_throttle/kid1': { uid: 'kid1', lastAtMs: lastAtMs }
+    });
+    world.clock.ms = lastAtMs + 1000;
+    await assert.rejects(function () { return world.handlers.confirmAge18({}, auth('kid1')); }, function (err) {
+        return err.code === 'permission-denied' && err.message === 'This account cannot confirm adult age.';
+    });
+    assert.strictEqual(world.docs['users/kid1'].over18, undefined);
+    assert.strictEqual(world.docs['age_confirm_throttle/kid1'].lastAtMs, lastAtMs);
+});
+
+test('a kids under-18 refusal also comes before the throttle and writes nothing', async function () {
+    const lastAtMs = Date.parse('2026-11-25T21:10:00-05:00');
+    const world = createWorld({
+        'users/kid1': { points: 1, isMinor: true },
+        'age_confirm_throttle/kid1': { uid: 'kid1', lastAtMs: lastAtMs }
+    });
+    world.clock.ms = lastAtMs + 1000;
+    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('kid1')); }, function (err) {
+        return err.code === 'permission-denied' && err.message === "This account's age is already set.";
+    });
+    assert.strictEqual(world.docs['users/kid1'].ageUnder18, undefined);
+    assert.strictEqual(world.docs['age_confirm_throttle/kid1'].lastAtMs, lastAtMs);
 });
 
 test('a missing user doc fails closed and is not created', async function () {
@@ -639,6 +668,7 @@ test('kids accounts cannot save an under-18 answer', async function () {
         return err.code === 'permission-denied' && err.message === "This account's age is already set.";
     });
     assert.strictEqual(world.docs['users/kid_isMinor'].ageUnder18, undefined);
+    assert.strictEqual(world.docs['age_confirm_throttle/kid_isMinor'], undefined);
 });
 
 test('anonymous accounts cannot save under 18', async function () {
@@ -716,6 +746,15 @@ test('an invalid reset target is rejected before step-up', async function () {
     });
     assert.strictEqual(world.stepCalls.length, 0);
     assert.strictEqual(world.docs['users/alice'].ageUnder18, true);
+});
+
+test('the programmatically focused age title has no white focus box', function () {
+    const env = bootClient();
+    env.showAgeConfirmPrompt();
+    const title = env.document.getElementById('ageConfirmTitle');
+    assert.ok(title);
+    assert.strictEqual(title.getAttribute('tabindex'), '-1');
+    assert.ok(title.style.cssText.indexOf('outline:none') !== -1);
 });
 
 test('two age buttons have equal visual weight and mention no ads', function () {
@@ -845,7 +884,7 @@ test('every throttle write sets expireAt to lastAt plus one day', async function
     await assert.rejects(function () { return kids.handlers.confirmAge18({}, auth('kid1')); }, function (err) {
         return err.code === 'permission-denied';
     });
-    assertThrottleExpireAt(kids.docs, 'kid1', kids.clock.ms);
+    assert.strictEqual(kids.docs['age_confirm_throttle/kid1'], undefined);
 });
 
 Promise.all(queue).then(function () {
