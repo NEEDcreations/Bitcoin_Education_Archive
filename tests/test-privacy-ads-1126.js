@@ -16,7 +16,7 @@ function test(name, fn) {
 const privacy = read('privacy.html');
 
 // Insurance/Legal text, verbatim. Link tags are stripped before comparing.
-const LEGAL_TEXT = "We show ads only to signed-in users who have confirmed they are 18 or older. We never show ads to guests or to Kids or Classroom accounts. We don't sell personal information for money. When Google AdSense shows you an ad, Google may collect cookie and device identifiers, which some state laws, including California's, may treat as 'sharing' for cross-context behavioral advertising. [A-ADS SENTENCE TBD] You can opt out of this sharing at any time with the Your Privacy Choices link at the bottom of every page. We also honor Global Privacy Control (GPC) signals from your browser as an opt-out. When you opt out, you'll see only non-personalized ads. You can also manage Google's ad personalization in Google's Ads Settings. We don't knowingly sell or share personal information of anyone under 18. We don't currently show ads in the EEA, UK or Switzerland.";
+const LEGAL_TEXT = "We show ads only to signed-in users who have confirmed they are 18 or older. We never show ads to guests or to Kids or Classroom accounts. We don't sell personal information for money. When Google AdSense shows you an ad, Google may collect cookie and device identifiers, which some state laws, including California's, may treat as 'sharing' for cross-context behavioral advertising. We don't show A-ADS ads to users who opt out or whose browser sends a Global Privacy Control signal. You can opt out of this sharing at any time with the Your Privacy Choices link at the bottom of every page. We also honor Global Privacy Control (GPC) signals from your browser as an opt-out. When you opt out, you'll see only non-personalized ads. You can also manage Google's ad personalization in Google's Ads Settings. We don't knowingly sell or share personal information of anyone under 18. We don't currently show ads in the EEA, UK or Switzerland.";
 function plain(html) { return html.replace(/<[^>]+>/g, ''); }
 function adsSection() {
     const start = privacy.indexOf('<h2 id="advertising">Advertising</h2>');
@@ -36,7 +36,8 @@ test('privacy has one Advertising section between Cookies and Nacho', function (
 test('the section carries the Insurance/Legal text verbatim', function () {
     const s = plain(adsSection());
     assert.ok(s.includes('Advertising and your choices. ' + LEGAL_TEXT));
-    assert.ok(s.includes('[A-ADS SENTENCE TBD]'));
+    assert.ok(!privacy.includes('[A-ADS SENTENCE TBD]'));
+    assert.strictEqual(privacy.split("We don't show A-ADS ads to users who opt out or whose browser sends a Global Privacy Control signal.").length, 3);
 });
 
 test('the section links Google Ads Settings and nothing else from the old draft', function () {
