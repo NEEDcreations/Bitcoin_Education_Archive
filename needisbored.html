@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Until Phil's usage resets</title>
+  <meta name="description" content="until Phil's usage resets · Wed Nov 25, 2:39 PM ET">
+  <meta name="theme-color" content="#0d0d14">
+  <link rel="icon" href="/favicon.ico">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Bitcoin Quest">
+  <meta property="og:title" content="Until Phil's usage resets">
+  <meta property="og:description" content="until Phil's usage resets · Wed Nov 25, 2:39 PM ET">
+  <meta property="og:url" content="https://bitcoineducation.quest/needisbored">
+  <meta property="og:image" content="https://bitcoineducation.quest/needisbored/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Until Phil's usage resets">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Until Phil's usage resets">
+  <meta name="twitter:description" content="until Phil's usage resets · Wed Nov 25, 2:39 PM ET">
+  <meta name="twitter:image" content="https://bitcoineducation.quest/needisbored/og.png">
+  <style>
+    :root {
+      --bg: #0d0d14;
+      --text: #f4f4f5;
+      --muted: #8b93a7;
+      --accent: #f7931a;
+      --line: rgba(255,255,255,.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      min-height: 100dvh;
+      background: radial-gradient(ellipse at 50% 30%, #1a150e 0%, var(--bg) 62%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px 32px;
+    }
+    main {
+      width: min(1100px, 100%);
+      text-align: center;
+    }
+    .brand {
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      font-size: clamp(.7rem, 1.6vw, .85rem);
+      margin-bottom: clamp(1.2rem, 5vh, 2.4rem);
+    }
+    .brand a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .brand a:hover {
+      opacity: .85;
+    }
+    .brand a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(1rem, 4vw, 2.5rem);
+      flex-wrap: wrap;
+    }
+    .clock {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: clamp(.35rem, 1.6vw, 1rem);
+    }
+    .unit { min-width: 0; }
+    .n {
+      display: block;
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      letter-spacing: -.04em;
+      line-height: .9;
+      font-size: clamp(3.4rem, 16vw, 9.5rem);
+      color: var(--text);
+    }
+    .l {
+      display: block;
+      margin-top: .55em;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .16em;
+      font-weight: 600;
+      font-size: clamp(.6rem, 1.6vw, .85rem);
+    }
+    .colon {
+      font-weight: 700;
+      line-height: .9;
+      font-size: clamp(3.4rem, 16vw, 9.5rem);
+      color: var(--accent);
+      transform: translateY(-.06em);
+      user-select: none;
+    }
+    .blocks {
+      color: var(--accent);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.02em;
+      font-size: clamp(1.35rem, 4.6vw, 2.6rem);
+      white-space: nowrap;
+      padding-top: .15em;
+    }
+    .caption {
+      margin-top: clamp(1.4rem, 5vh, 2.6rem);
+      color: var(--muted);
+      font-size: clamp(.92rem, 2.2vw, 1.15rem);
+    }
+    #done {
+      font-weight: 800;
+      font-size: clamp(2.6rem, 9vw, 5.5rem);
+      line-height: 1.1;
+      color: var(--accent);
+    }
+    .share {
+      margin-top: clamp(1.8rem, 6vh, 3rem);
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: .55rem 1rem;
+      font: inherit;
+      font-size: .85rem;
+      cursor: pointer;
+    }
+    .share:hover, .share:focus-visible {
+      color: var(--text);
+      border-color: var(--accent);
+      outline: none;
+    }
+    [hidden] { display: none !important; }
+    @media (max-width: 640px) {
+      .row { flex-direction: column; gap: 1.25rem; }
+      .blocks { padding-top: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="brand"><a href="https://bitcoineducation.quest/?ref=s2rP0nRE">Bitcoin Quest</a></p>
+    <div id="live">
+      <div class="row">
+        <div class="clock" aria-live="polite">
+          <div class="unit"><span class="n" id="d">00</span><span class="l">days</span></div>
+          <span class="colon" aria-hidden="true">:</span>
+          <div class="unit"><span class="n" id="h">00</span><span class="l">hours</span></div>
+          <span class="colon" aria-hidden="true">:</span>
+          <div class="unit"><span class="n" id="m">00</span><span class="l">minutes</span></div>
+          <span class="colon" aria-hidden="true">:</span>
+          <div class="unit"><span class="n" id="s">00</span><span class="l">seconds</span></div>
+        </div>
+        <div class="blocks" id="blocks">≈ 0 blocks</div>
+      </div>
+      <p class="caption">until Phil's usage resets · Wed Nov 25, 2:39 PM ET</p>
+    </div>
+    <div id="done" hidden>Usage reset! 🎉</div>
+    <button type="button" class="share" id="share">Copy share link</button>
+  </main>
+  <script>
+    (function () {
+      var TARGET = Date.parse('2026-11-25T19:39:00Z');
+      var live = document.getElementById('live');
+      var done = document.getElementById('done');
+      var blocksEl = document.getElementById('blocks');
+      var dEl = document.getElementById('d');
+      var hEl = document.getElementById('h');
+      var mEl = document.getElementById('m');
+      var sEl = document.getElementById('s');
+      var share = document.getElementById('share');
+      var finished = false;
+
+      function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+      function tick() {
+        var ms = TARGET - Date.now();
+        if (ms <= 0) {
+          if (!finished) {
+            finished = true;
+            live.setAttribute('hidden', '');
+            done.removeAttribute('hidden');
+          }
+          return;
+        }
+        var totalSec = Math.floor(ms / 1000);
+        var days = Math.floor(totalSec / 86400);
+        var hours = Math.floor((totalSec % 86400) / 3600);
+        var mins = Math.floor((totalSec % 3600) / 60);
+        var secs = totalSec % 60;
+        dEl.textContent = pad(days);
+        hEl.textContent = pad(hours);
+        mEl.textContent = pad(mins);
+        sEl.textContent = pad(secs);
+        blocksEl.textContent = '≈ ' + Math.ceil(totalSec / 600) + ' blocks';
+      }
+
+      tick();
+      setInterval(tick, 1000);
+
+      share.addEventListener('click', function () {
+        var url = 'https://bitcoineducation.quest/needisbored?t=' + Date.now();
+        function ok() {
+          share.textContent = 'Copied!';
+          setTimeout(function () { share.textContent = 'Copy share link'; }, 1600);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(ok).catch(function () {
+            window.prompt('Copy this share link:', url);
+          });
+        } else {
+          window.prompt('Copy this share link:', url);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -670,10 +670,10 @@ function renderChatMessages(msgs) {
         }
         if (m.isGif && m.text && (IMG_REGEX.test(m.text) || /^data:image\/(jpeg|jpg|png|gif|webp);base64,/.test(m.text))) {
             html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
-            if (m.caption) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-top:4px;">' + formatChatText(esc(m.caption), m.mentionUid) + '</div>';
+            if (m.caption) html += isOfficialUpdatesSender(m) ? officialChatBodyMarkup('margin-top:4px;') : '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-top:4px;">' + formatChatText(esc(m.caption), m.mentionUid) + '</div>';
         } else if (m.imageUrl || m.gifUrl) {
             var mediaSrc = m.imageUrl || m.gifUrl;
-            if (m.text) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-bottom:4px;">' + formatChatText(esc(m.text), m.mentionUid) + '</div>';
+            if (m.text) html += isOfficialUpdatesSender(m) ? officialChatBodyMarkup('margin-bottom:4px;') : '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-bottom:4px;">' + formatChatText(esc(m.text), m.mentionUid) + '</div>';
             if (m.gifUrl && /\.mp4(\?|$)/i.test(mediaSrc)) {
                 // Telegram MP4 animations need a video element, not img
                 html += '<video src="' + esc(mediaSrc) + '" autoplay loop muted playsinline style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;" onerror="this.style.display=\'none\'"></video>';
@@ -681,7 +681,7 @@ function renderChatMessages(msgs) {
                 html += '<img src="' + esc(mediaSrc) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy" onerror="this.style.display=\'none\'">';
             };
         } else {
-            html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || ''), m.mentionUid) + (m.editCount ? ' <span style="font-size:0.6rem;color:var(--text-faint);font-style:italic;">(edited)</span>' : '') + '</div>';
+            html += isOfficialUpdatesSender(m) ? officialChatBodyMarkup('', m.editCount) : '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || ''), m.mentionUid) + (m.editCount ? ' <span style="font-size:0.6rem;color:var(--text-faint);font-style:italic;">(edited)</span>' : '') + '</div>';
         }
         var reactions = m.reactions || {};
         var hasReactions = Object.keys(reactions).length > 0;
@@ -711,6 +711,7 @@ function renderChatMessages(msgs) {
     var _savedBanner = document.getElementById('chatPinnedBanner');
     if (_savedBanner) _savedBanner.remove();
     el.innerHTML = html;
+    attachOfficialChatCtas(el, visibleMsgs);
     if (_savedBanner) el.insertBefore(_savedBanner, el.firstChild);
 
     // Auto-scroll to bottom if user was near bottom
@@ -898,6 +899,96 @@ function renderCustomEmojis(html) {
 window.CUSTOM_EMOJIS = CUSTOM_EMOJIS;
 window.renderCustomEmojis = renderCustomEmojis;
 
+
+// Official 603BTC Updates CTAs in Global Chat.
+// Telegram's RSS broadcasts use HTML links ("Open PlebTalk →"), but the
+// chat-bridge copies only plain text into Firestore, so formatChatText
+// never sees a URL or [label](#route) and the CTA stays unclickable.
+// Existing and new official posts are fixed on render: we never read a
+// URL from the message, and user-typed text never gets a button.
+var OFFICIAL_UPDATES_UID = 'tg_broadcast';
+var OFFICIAL_CHAT_CTA_CATALOG = [
+    { re: /Open[ \t]+PlebTalk[ \t]*(?:\u2192|->|\u00bb)?[ \t]*$/i, label: 'Open PlebTalk \u2192', route: 'forum' },
+    { re: /Listen[ \t]+now[ \t]*(?:\u2192|->|\u00bb)?[ \t]*$/i, label: 'Listen now \u2192', route: 'bitcoin-beats' },
+    { re: /View[ \t]+listing[ \t]*(?:\u2192|->|\u00bb)?[ \t]*$/i, label: 'View listing \u2192', route: 'marketplace' },
+    { re: /View[ \t]+event[ \t]*(?:\u2192|->|\u00bb)?[ \t]*$/i, label: 'View event \u2192', route: 'irl-sync' }
+];
+function isAllowedOfficialChatRoute(route) {
+    return route === 'forum' || route === 'bitcoin-beats' || route === 'marketplace' || route === 'irl-sync';
+}
+function officialUpdatesName(name) {
+    var raw = String(name || '').trim();
+    if (raw === '\uD83D\uDCE2 603BTC Updates') return true;
+    return raw.replace(/^\uD83D\uDCE2\s*/, '').trim() === '603BTC Updates';
+}
+function isOfficialUpdatesSender(m) {
+    if (!m || typeof m !== 'object') return false;
+    if (m.uid !== OFFICIAL_UPDATES_UID) return false;
+    return officialUpdatesName(m.name);
+}
+function parseOfficialChatCta(text) {
+    var src = String(text || '');
+    if (!src) return null;
+    for (var i = 0; i < OFFICIAL_CHAT_CTA_CATALOG.length; i++) {
+        var item = OFFICIAL_CHAT_CTA_CATALOG[i];
+        var match = src.match(item.re);
+        if (!match) continue;
+        if (!isAllowedOfficialChatRoute(item.route)) continue;
+        var body = src.slice(0, match.index).replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').replace(/\s+$/, '');
+        return { body: body, label: item.label, route: item.route };
+    }
+    return null;
+}
+function officialChatBodyMarkup(styleExtra, edited) {
+    var style = 'color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;' + (styleExtra || '');
+    var html = '<div style="' + style + '"><div data-official-body></div><div data-official-cta-slot style="margin-top:8px;"></div>';
+    if (edited) html += '<span style="font-size:0.6rem;color:var(--text-faint);font-style:italic;">(edited)</span>';
+    html += '</div>';
+    return html;
+}
+function createOfficialChatCtaButton(label, route) {
+    if (!isAllowedOfficialChatRoute(route)) return null;
+    var safeLabel = String(label || '').replace(/[\r\n]/g, ' ').slice(0, 80);
+    if (!safeLabel) return null;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'official-chat-cta';
+    btn.setAttribute('data-official-cta-route', route);
+    btn.textContent = safeLabel;
+    btn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;min-width:44px;margin-top:2px;padding:10px 14px;border:1px solid var(--accent);border-radius:10px;background:rgba(247,147,26,0.12);color:var(--accent);font:inherit;font-weight:700;font-size:0.85rem;line-height:1.2;text-decoration:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    btn.addEventListener('click', function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (!isAllowedOfficialChatRoute(route)) return;
+        if (typeof window._annNavToHash === 'function') window._annNavToHash(route);
+        else if (typeof go === 'function') go(route);
+    });
+    return btn;
+}
+function attachOfficialChatCtas(root, msgs) {
+    if (!root || !root.querySelectorAll) return;
+    var byId = Object.create(null);
+    (msgs || []).forEach(function (m) {
+        if (m && m._id) byId[m._id] = m;
+    });
+    var nodes = root.querySelectorAll('[data-msg-id]');
+    for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        var m = byId[node.getAttribute('data-msg-id')];
+        if (!isOfficialUpdatesSender(m)) continue;
+        var rawText = m.text || m.caption || '';
+        var parsed = parseOfficialChatCta(rawText);
+        var bodyEl = node.querySelector('[data-official-body]');
+        if (bodyEl) bodyEl.textContent = parsed ? parsed.body : String(rawText || '');
+        var slot = node.querySelector('[data-official-cta-slot]');
+        if (!slot) continue;
+        while (slot.firstChild) slot.removeChild(slot.firstChild);
+        if (!parsed) continue;
+        var btn = createOfficialChatCtaButton(parsed.label, parsed.route);
+        if (btn) slot.appendChild(btn);
+    }
+}
+
 function formatChatText(text, mentionUid) {
     // Inline images/GIFs: render as image if it's a direct image URL
     text = text.replace(/(https?:\/\/[^\s<]+\.(?:gif|png|jpg|jpeg|webp)(?:\?[^\s<]*)?)/gi, function(url) {
@@ -910,7 +1001,7 @@ function formatChatText(text, mentionUid) {
     var _inAppLinks = [];
     var _safeMentions = [];
     text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_\/-]+)\)/g, function(match, label, route) {
-        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128}|topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\/\d+\/[a-z0-9]{8})?)$/.test(route)) return label;
+        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,256}|marketplace\/listing\/[A-Za-z0-9_-]{1,128}|topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\/\d+\/[a-z0-9]{8})?)$/.test(route)) return label;
         var _deepId = '';
         var _action;
         if (route.indexOf('forum/post/') === 0) {
@@ -4680,13 +4771,13 @@ if (!window._annHashClickBound) {
         e.preventDefault();
         e.stopPropagation();
         var hash = a.getAttribute('data-ann-hash') || '';
-        if (!/^(?:[a-zA-Z0-9_-]+|(?:forum\/post|marketplace\/listing)\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
+        if (!/^(?:[a-zA-Z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,256}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
         if (typeof window._annNavToHash === 'function') window._annNavToHash(hash);
     }, true);
 }
 
 window._annNavToHash = function(hash) {
-    if (!hash || !/^(?:[a-zA-Z0-9_-]+|(?:forum\/post|marketplace\/listing)\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
+    if (!hash || !/^(?:[a-zA-Z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,256}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
     var wasOverlayOpen = !!window._chatOverlayOpen;
     // Close overlay if open
     if (wasOverlayOpen && typeof toggleChatOverlay === 'function') toggleChatOverlay();
@@ -4934,7 +5025,7 @@ function _renderAnnouncementItem(doc, context) {
     // 1b. [text](#hash) — single-segment hashes, plus forum/post and marketplace/listing ids.
     // Never interpolate into onclick (HTML-escaped quotes decode inside attributes).
     text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_\/-]+)\)/g, function(_, label, hash) {
-        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return label;
+        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,256}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return label;
         return '<a href="#' + hash + '" data-ann-hash="' + hash + '" class="ann-hash-link" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
     });
 
@@ -5419,6 +5510,11 @@ function _maybeClaimReplyBonus(messageId) {
 // REPLY-BONUS END
 window.formatChatText = formatChatText;
 window._chatMentionTargets = _chatMentionTargets;
+window.isOfficialUpdatesSender = isOfficialUpdatesSender;
+window.parseOfficialChatCta = parseOfficialChatCta;
+window.isAllowedOfficialChatRoute = isAllowedOfficialChatRoute;
+window.createOfficialChatCtaButton = createOfficialChatCtaButton;
+window.attachOfficialChatCtas = attachOfficialChatCtas;
 console.log('[CHAT] Global chat module loaded');
 }();
 

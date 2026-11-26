@@ -69,15 +69,13 @@ function lookupRequestFromDecoded(decoded) {
 // These NWC codes are an explicit refusal: the wallet did not send the payment.
 const EXPLICIT_PAY_REFUSALS = ['PAYMENT_FAILED', 'INSUFFICIENT_BALANCE', 'QUOTA_EXCEEDED', 'RATE_LIMITED'];
 
+// Exact NWC error code only. Message text can carry wording from the receiving
+// side (a memo or a failure reason), so a message-only match is never a refusal
+// and goes to lookup instead.
 function explicitPayRefusal(error) {
-    if (!error) return false;
+    if (!error || typeof error !== 'object') return false;
     const code = String(error.code || '').toUpperCase();
-    if (EXPLICIT_PAY_REFUSALS.indexOf(code) !== -1) return true;
-    const msg = String(error.message || error).toUpperCase();
-    for (let i = 0; i < EXPLICIT_PAY_REFUSALS.length; i++) {
-        if (msg.indexOf(EXPLICIT_PAY_REFUSALS[i]) !== -1) return true;
-    }
-    return false;
+    return EXPLICIT_PAY_REFUSALS.indexOf(code) !== -1;
 }
 
 // Release only when nothing was sent (still on the balance check) or the wallet
@@ -124,11 +122,14 @@ function classifyLookup(res) {
 // as status 'unknown' and keep the invoice reservation.
 function decideAfterLookups(steps) {
     const list = Array.isArray(steps) ? steps : [];
+    let pending = false;
     for (let i = 0; i < list.length; i++) {
         if (list[i].kind === 'paid') return { action: 'paid', preimage: list[i].preimage || '' };
         if (list[i].kind === 'failed') return { action: 'release' };
+        if (list[i].kind === 'pending') pending = true;
     }
-    return { action: 'hold' };
+    // pending: the wallet still reports the payment in flight (an HTLC may settle).
+    return pending ? { action: 'hold', pending: true } : { action: 'hold' };
 }
 
 async function lookupSettlement(opts) {
@@ -180,6 +181,7 @@ module.exports = {
     rewardBlocked: rewardBlocked,
     assessCipherClaim: assessCipherClaim,
     paymentHashFromDecoded: paymentHashFromDecoded,
+    classifyLookup: classifyLookup,
     lookupRequestFromDecoded: lookupRequestFromDecoded,
     EXPLICIT_PAY_REFUSALS: EXPLICIT_PAY_REFUSALS,
     explicitPayRefusal: explicitPayRefusal,

@@ -486,9 +486,14 @@ async function rejects(p, code) {
     await test('index.html and 404.html load survey.js right after kill-switch.js', function () {
         ['index.html', '404.html'].forEach(function (f) {
             const html = fs.readFileSync(path.join(root, f), 'utf8');
-            const a = html.indexOf('<script src="/kill-switch.js?v=20261114_v2570" defer></script>');
+            const a = html.search(/<script src="\/kill-switch\.js\?v=[^"]+" defer><\/script>/);
             const b = html.indexOf('<script src="/survey.js?v=20261114_v2570" defer></script>');
             assert.ok(a !== -1 && b !== -1 && a < b, f);
+            // Pins on kill-switch.js and ranking.js stay at the gh-pages values; do not re-pin here.
+            assert.ok(html.includes('kill-switch.js?v=20261111_v2551'), f);
+            assert.ok(html.includes('ranking.js?v=20261119_v2683'), f);
+            assert.ok(!html.includes('kill-switch.js?v=20261114_v2570'), f);
+            assert.ok(!html.includes('ranking.js?v=20261114_v2570'), f);
         });
     });
 

@@ -264,6 +264,31 @@ async function main() {
     assert.strictEqual(unqualified.status, 'unqualified');
     assert.ok(unqualified.message.indexOf('needs XP') !== -1);
 
+    // All-time XP rank is points minus guestUnclaimableXp. public_profiles.points
+    // already holds that score (as syncPublicProfile writes it). Missing
+    // guestUnclaimableXp counts as 0, so pre-cutoff XP still ranks, and
+    // unclaimableXp (unverified-action XP) does not lower the score.
+    const scoreSeed = {};
+    scoreSeed['public_profiles/raw'] = xpProfile('raw', 'RawHigh', 250);
+    scoreSeed['public_profiles/raw'].weeklyXP = 500;
+    scoreSeed['users/raw'] = { username: 'RawHigh', username_lower: 'rawhigh', points: 500, unclaimableXp: 250, guestUnclaimableXp: 250 };
+    scoreSeed['public_profiles/mid'] = xpProfile('mid', 'MidFair', 300);
+    scoreSeed['users/mid'] = { username: 'MidFair', username_lower: 'midfair', points: 300, unclaimableXp: 120 };
+    scoreSeed['public_profiles/full'] = xpProfile('full', 'FullKeep', 400);
+    scoreSeed['users/full'] = { username: 'FullKeep', username_lower: 'fullkeep', points: 400 };
+    const scoreDb = memoryDb(scoreSeed);
+    const rawAll = await call(scoreDb, 'mid', { board: 'xp', period: 'alltime', username: 'RawHigh' });
+    const midAll = await call(scoreDb, 'mid', { board: 'xp', period: 'alltime', username: 'MidFair' });
+    const fullAll = await call(scoreDb, 'mid', { board: 'xp', period: 'alltime', username: 'FullKeep' });
+    assert.strictEqual(rawAll.score, 250);
+    assert.strictEqual(midAll.score, 300);
+    assert.strictEqual(fullAll.score, 400);
+    assert.strictEqual(fullAll.rank, 1);
+    assert.strictEqual(midAll.rank, 2);
+    assert.strictEqual(rawAll.rank, 3);
+    const rawWeek = await call(scoreDb, 'mid', { board: 'xp', period: 'weekly', username: 'RawHigh' });
+    assert.strictEqual(rawWeek.score, 500);
+
     const weekKey = questBoard.weekKey(NOW);
     const monthKey = questBoard.monthKey(NOW);
     const questSeed = {};

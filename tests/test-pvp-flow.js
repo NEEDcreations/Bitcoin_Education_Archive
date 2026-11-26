@@ -250,5 +250,154 @@ test('a win ticket is once per win and daily-capped, and XP writes weekly fields
     assert.deepStrictEqual(flow.pushShardOrder(3).slice(0, 3), [3, 4, 5]);
 });
 
+
+const awardActions = require('../functions/src/awardActions');
+const { nyDateKey, offsetDateKey } = require('../functions/src/offsetDay');
+const fs = require('fs');
+const path = require('path');
+
+test('pvp win badges need server-counted wins', function () {
+    assert.deepStrictEqual(awardActions.pvpBadgeNeed('pvp_first'), { field: 'pvpWins', need: 1 });
+    assert.deepStrictEqual(awardActions.pvpBadgeNeed('pvp_25'), { field: 'pvpWins', need: 25 });
+    assert.deepStrictEqual(awardActions.pvpBadgeNeed('pvp_played_10'), { field: 'pvpPlayed', need: 10 });
+    assert.deepStrictEqual(awardActions.pvpBadgeNeed('pvp_win_streak_3'), { field: 'pvpBestStreak', need: 3 });
+    assert.deepStrictEqual(awardActions.pvpBadgeNeed('pvp_win_streak_5'), { field: 'pvpBestStreak', need: 5 });
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_win_streak_3', { pvpBestStreak: 2, pvpWins: 10 }), false);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_win_streak_3', { pvpBestStreak: 3 }), true);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_first', { pvpWins: 0 }), false);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_first', { pvpWins: 1 }), true);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_5', { pvpWins: 4 }), false);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_5', { pvpWins: 5 }), true);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_played_1', { pvpPlayed: 0, pvpWins: 5 }), false);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('explorer_10', { pvpWins: 0 }), true);
+});
+
+test('awardBadge checks pvp badge counters and finished path grants played badges', function () {
+    const awardBadge = fs.readFileSync(path.join(__dirname, '../functions/src/awardBadge.js'), 'utf8');
+    assert.ok(awardBadge.includes('pvpBadgeAllowed'), 'awardBadge must check pvp badge counters');
+    const src = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
+    const finish = src.slice(src.indexOf('exports.onPvpMatchFinished'), src.indexOf('exports.onUserDocCreated'));
+    assert.ok(finish.includes("familyFor('pvpPlayed')"), 'finished matches must grant played badges');
+    assert.ok(finish.includes('skipUids'), 'played grants must skip anonymous and guest-match uids');
+    assert.ok(!src.includes('pvp badge rejected'), 'awardPoints must not log pvp badge rejections with a uid');
+});
+
+
+test('win streak increments on a win and resets on a loss', function () {
+    assert.deepStrictEqual(flow.planStreakUpdate(2, 2, 'win'), { pvpWinStreak: 3, pvpBestStreak: 3 });
+    assert.deepStrictEqual(flow.planStreakUpdate(4, 4, 'win'), { pvpWinStreak: 5, pvpBestStreak: 5 });
+    assert.deepStrictEqual(flow.planStreakUpdate(3, 5, 'loss'), { pvpWinStreak: 0, pvpBestStreak: 5 });
+    assert.deepStrictEqual(flow.planStreakUpdate(2, 4, 'draw'), { pvpWinStreak: 2, pvpBestStreak: 4 });
+    assert.deepStrictEqual(flow.planStreakUpdate(2, 4, 'void'), { pvpWinStreak: 2, pvpBestStreak: 4 });
+});
+
+test('a guest match pays no XP, wins, or tickets to either side', function () {
+    const match = {
+        matchId: 'm-guest',
+        status: 'finished',
+        player1: { uid: 'signed', name: 'Ada', score: 30, roundWins: 3, anonymous: false },
+        player2: { uid: 'anon', name: 'Guest', score: 10, roundWins: 1, anonymous: true },
+    };
+    const plan = flow.planPvpReward(match);
+    assert.strictEqual(plan.grant, false);
+    assert.strictEqual(plan.guestMatch, true);
+    assert.strictEqual(plan.reason, 'guest_match');
+    assert.strictEqual(plan.shout, null);
+    plan.players.forEach(function (p) {
+        assert.strictEqual(p.points, 0);
+        assert.strictEqual(p.pvpWins, 0);
+        assert.strictEqual(p.pvpLosses, 0);
+        assert.strictEqual(p.blocked, true);
+        assert.strictEqual(flow.planWinTicket(p).tickets, 0);
+    });
+    const settle = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
+    const settleAt = settle.indexOf('async function settlePvpMatch');
+    const settleFn = settle.slice(settleAt, settleAt + 4000);
+    assert.ok(settleFn.indexOf("plan.reason === 'guest_match'") !== -1);
+    const guestReturn = settleFn.slice(settleFn.indexOf('if (!plan.grant)'), settleFn.indexOf('const rewardRef'));
+    assert.ok(guestReturn.indexOf("pvp_rewards") === -1);
+    assert.ok(guestReturn.indexOf('rewardsGranted: true') !== -1);
+    const signedOnly = flow.planPvpReward({
+        matchId: 'm-live',
+        status: 'finished',
+        player1: { uid: 'a', name: 'Ada', score: 30, roundWins: 3, anonymous: false },
+        player2: { uid: 'b', name: 'Bob', score: 10, roundWins: 1, anonymous: false },
+    });
+    assert.strictEqual(signedOnly.guestMatch, false);
+    assert.strictEqual(signedOnly.players[0].points, 50);
+    assert.strictEqual(signedOnly.players[0].pvpWins, 1);
+});
+
+test('anonymous finish still plans no rewards', function () {
+    const plan = flow.planPvpReward({
+        matchId: 'm-anon',
+        status: 'finished',
+        player1: { uid: 'a1', name: 'A', score: 30, roundWins: 3, anonymous: true },
+        player2: { uid: 'a2', name: 'B', score: 10, roundWins: 1, anonymous: true },
+    });
+    assert.strictEqual(plan.guestMatch, true);
+    assert.strictEqual(plan.players[0].points, 0);
+    assert.strictEqual(plan.players[1].points, 0);
+});
+
+test('rate window caps requests and resets after the window', function () {
+    const first = flow.planRateWindow(null, 1000, 20, 3600000);
+    assert.strictEqual(first.ok, true);
+    assert.strictEqual(first.count, 1);
+    let state = { windowStartMs: 1000, count: 19 };
+    const last = flow.planRateWindow(state, 2000, 20, 3600000);
+    assert.strictEqual(last.ok, true);
+    assert.strictEqual(last.count, 20);
+    const blocked = flow.planRateWindow({ windowStartMs: 1000, count: 20 }, 2000, 20, 3600000);
+    assert.strictEqual(blocked.ok, false);
+    const reset = flow.planRateWindow({ windowStartMs: 1000, count: 20 }, 1000 + 3600000, 20, 3600000);
+    assert.strictEqual(reset.ok, true);
+    assert.strictEqual(reset.count, 1);
+    assert.strictEqual(flow.PVP_ANON_MATCH_PER_HOUR, 20);
+    assert.strictEqual(flow.PVP_SIGNED_MATCH_PER_HOUR, 60);
+    assert.strictEqual(flow.PVP_CREATE_BURST, 10);
+});
+
+test('a currentQ skip after a reroll is ignored', function () {
+    assert.strictEqual(flow.skippedRerollQuestion(
+        { questionWinner: 'reroll', currentQ: 1, status: 'question_result' },
+        { questionWinner: 'reroll', currentQ: 2, status: 'active' }
+    ), true);
+    assert.strictEqual(flow.skippedRerollQuestion(
+        { questionWinner: 'player1', currentQ: 1, status: 'question_result' },
+        { questionWinner: null, currentQ: 2, status: 'active' }
+    ), false);
+    assert.strictEqual(flow.skippedRerollQuestion(
+        { questionWinner: 'reroll', currentQ: 1, status: 'question_result' },
+        { questionWinner: null, currentQ: 1, status: 'active' }
+    ), false);
+});
+
+
+test('pvp client source has guest copy, clears roundExplain, and drops unused resolveRound', function () {
+    const src = fs.readFileSync(path.join(__dirname, '../pvp.js.src'), 'utf8');
+    assert.ok(src.indexOf('Playing as a guest. Log in to earn XP, badges, OrangeTix and sats, and to chat.') !== -1);
+    assert.ok(src.indexOf('+\' + n + \' XP if logged in') !== -1 || src.indexOf('XP if logged in') !== -1);
+    assert.ok(src.indexOf("roundExplain: ''") !== -1);
+    assert.ok(src.indexOf('function resolveRound') === -1);
+    assert.ok(src.indexOf('function formatQuestionForFirestore') === -1);
+    assert.ok(src.indexOf("localStorage.setItem('btc_username', name)") !== -1);
+    assert.ok(src.indexOf('Set username in Firestore') === -1);
+    assert.ok(src.indexOf('pvpWins: 0') === -1);
+    assert.ok(src.indexOf("pts: 1000") !== -1);
+    const badges = fs.readFileSync(path.join(__dirname, '../badges.js'), 'utf8');
+    assert.ok(badges.indexOf('pvpBestStreak') !== -1);
+    assert.ok(badges.indexOf("btc_pvp_win_streak") === -1);
+});
+
+test('practice day key is midnight America/New_York, not 5 AM UTC', function () {
+    assert.strictEqual(nyDateKey(Date.parse('2026-03-08T04:30:00Z')), '2026-03-07');
+    assert.strictEqual(nyDateKey(Date.parse('2026-03-08T05:00:00Z')), '2026-03-08');
+    assert.strictEqual(nyDateKey(Date.parse('2026-03-08T06:30:00Z')), '2026-03-08');
+    // During Eastern Daylight Time, midnight ET and the 5 AM UTC reward day diverge.
+    assert.strictEqual(nyDateKey(Date.parse('2026-06-01T04:30:00Z')), '2026-06-01');
+    assert.strictEqual(offsetDateKey(Date.parse('2026-06-01T04:30:00Z')), '2026-05-31');
+});
+
 console.log(failed ? ('\n' + failed + ' failed') : ('\n' + passed + ' passed'));
 if (failed) process.exit(1);

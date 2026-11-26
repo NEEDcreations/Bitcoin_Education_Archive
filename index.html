@@ -91,9 +91,9 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
 
-    <link rel="preload" href="/bundle.min.js?v=20261109_v2542" as="script">
+    <link rel="preload" href="/bundle.min.js?v=20261119_v2682b" as="script">
 
-    <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
+    <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image" referrerpolicy="no-referrer">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous"></script>
@@ -216,7 +216,7 @@
         @media (min-width: 901px) {
             body.ticker-visible #guestPointsBanner,
             body.ticker-visible #userDisplay,
-            body.ticker-visible #notifOverlayBtn { top: 44px !important; }
+            body.ticker-visible #notifOverlayBtn:not(.bell-docked) { top: 44px !important; }
         }
         #guestPointsBanner * { pointer-events: auto !important; }
         /* Minimized sign-up banner: collapses to a small circular pill so users can always restore it */
@@ -260,7 +260,17 @@
         .sidebar-collapse-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; display: none; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; margin-left: 6px; }
         .sidebar-collapse-btn:hover, .sidebar-collapse-btn:active { border-color: var(--accent); color: var(--accent); }
         @media (min-width: 901px) { .sidebar-collapse-btn { display: flex; } }
-        .sidebar-header { padding: 24px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .sidebar-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; row-gap: 12px; column-gap: 10px; }
+        .sidebar-header .sb-brand { cursor: pointer; display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 auto; }
+        .sidebar-header .sb-brand h2 { margin: 0; line-height: 1.2; white-space: nowrap; }
+        .sidebar-header .sb-tools { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+        .sidebar-header .sb-tools .sidebar-collapse-btn { margin-left: 0; }
+        .sidebar-header .sb-bell-slot { display: flex; align-items: center; justify-content: center; }
+        .sidebar-header .sb-bell-slot:empty { display: none; }
+        .sidebar-header .sb-controls { flex: 1 0 100%; display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,0.02); }
+        .sidebar-header .sb-controls .theme-toggle { margin-left: 0; width: 34px; height: 34px; }
+        .sidebar-header .sb-controls #volumeSlider { flex: 1 1 auto; min-width: 60px; width: auto; height: 4px; accent-color: #f7931a; cursor: pointer; margin: 0; }
+        #notifOverlayBtn.bell-docked { position: relative !important; top: auto !important; left: auto !important; right: auto !important; width: 36px !important; height: 36px !important; margin: 0 !important; box-shadow: none !important; flex-shrink: 0; }
         .sidebar-header h2 { color: var(--accent); font-size: 1rem; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 900; line-height: 1.3; }
         .sidebar-header p { color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; }
         .channels { flex: 1; overflow-y: auto; padding: 12px; }
@@ -1011,6 +1021,8 @@
             .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
             .mobile-bar button:active { background: rgba(249,115,22,0.15); color: var(--accent); border-color: var(--accent); }
             .mobile-close { display: flex !important; }
+            .sidebar-header .sb-controls { display: contents; }
+            .sidebar-header .sb-controls #volumeSlider { min-width: 0; }
             .theme-toggle { position: absolute; top: 16px; right: 64px; z-index: 101; }
             #audioBtn { position: absolute; top: 16px; right: 108px; z-index: 101; }
             #volumeSlider { position: absolute; top: 24px; right: 152px; z-index: 101; width: 40px !important; }
@@ -1146,6 +1158,13 @@
 
     /* Simpler home */
     .mobile-bar .mobile-brand { min-width:0; flex:1 1 auto; overflow:hidden; display:flex; align-items:center; gap:8px; cursor:pointer; }
+    .mobile-bar .mobile-brand-text { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; min-width:0; }
+    .bq-brand-logo { flex-shrink:0; display:block; object-fit:contain; image-rendering:auto; }
+    .sidebar-header .bq-brand-logo { width:44px; height:44px; }
+    .mobile-bar .bq-brand-logo { width:30px; height:30px; }
+    [data-theme="dark"] .bq-brand-logo, body:not([data-theme]) .bq-brand-logo, .oled-theme .bq-brand-logo { filter:drop-shadow(0 0 1px rgba(255,255,255,0.22)) drop-shadow(0 0 3px rgba(255,255,255,0.12)); }
+    [data-theme="light"] .bq-brand-logo { filter:none; }
+    .mobile-bar .mobile-brand-home { font-size:0.55rem; font-weight:800; letter-spacing:0.14em; color:var(--text-muted); line-height:1; margin-top:2px; }
     .mobile-bar .mobile-tools { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:3px; min-width:0; }
     .mobile-bar h2 { letter-spacing:0; font-size:clamp(11px, 3.1vw, 0.85rem); line-height:1.05; }
     .mobile-bar h2 span { display:block; }
@@ -1199,6 +1218,8 @@
     #homeHero .home-logos { margin-bottom:12px; }
     #homeHero .home-logos img { width:72px !important; height:72px !important; }
     #homeHero .home-title { font-size:1.7rem; margin-bottom:8px; }
+    .home-kicker { font-size:0.72rem; font-weight:800; letter-spacing:0.16em; color:var(--accent); margin:-6px 0 14px; }
+    #homeHero .home-kicker { margin-top:0; margin-bottom:8px; }
     #homeHero .home-subtitle { font-size:1rem; margin-bottom:12px; }
     #patchNotesHome { width:100%; max-width:100%; box-sizing:border-box; text-align:center; }
     #patchNotesHome p { max-width:100%; overflow-wrap:anywhere; }
@@ -1206,6 +1227,16 @@
     @media (max-width: 390px) {
         #patchNotesHome { padding:0 2px; }
     }
+    #patchNotesBanner { width:100%; max-width:560px; margin:0 auto 12px; box-sizing:border-box; text-align:center; }
+    #patchNotesBanner[hidden], #patchNotesBanner [hidden] { display:none !important; }
+    #patchNotesBanner .pn-row { display:flex; align-items:center; gap:8px; min-height:40px; padding:4px 4px 4px 10px; background:rgba(247,147,26,0.08); border:1px solid rgba(247,147,26,0.35); border-radius:999px; text-align:left; }
+    #patchNotesBanner .pn-new, #patchNotesBanner .pn-pill { flex:none; background:#f7931a; color:#111; font-size:0.66rem; font-weight:800; letter-spacing:0.04em; text-transform:uppercase; border-radius:999px; padding:2px 8px; }
+    #patchNotesBanner a { flex:1; min-width:0; color:var(--text); font-size:0.82rem; font-weight:600; text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #patchNotesBanner a:hover, #patchNotesBanner a:focus-visible { color:var(--accent); text-decoration:underline; }
+    #patchNotesBanner .pn-btn { flex:none; width:32px; height:32px; border:0; border-radius:50%; background:transparent; color:var(--text-muted); font-size:1.1rem; line-height:1; cursor:pointer; }
+    #patchNotesBanner .pn-btn:hover, #patchNotesBanner .pn-btn:focus-visible { background:rgba(255,255,255,0.08); color:var(--text); }
+    #patchNotesBanner .pn-pill { border:0; cursor:pointer; padding:6px 14px; min-height:32px; font-size:0.72rem; }
+    #patchNotesBanner :focus-visible { outline:2px solid #f7931a; outline-offset:2px; }
     #homeLearnCard { background:#0f172a; border:1px solid #1e293b; border-radius:16px; padding:14px; text-align:left; margin:0 0 12px; }
     .home-learn-kicker { font-size:0.68rem; font-weight:800; letter-spacing:0.08em; color:#93c5fd; }
     .home-learn-title { font-size:1.25rem; font-weight:900; color:#fff; margin:4px 0; }
@@ -1401,8 +1432,8 @@
     
     <div class="mobile-bar">
         <div class="mobile-brand" onclick="goHome()">
-            <svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><circle cx="32" cy="32" r="30" fill="#f7931a"/><g transform="rotate(14,32,32)"><text x="32" y="44" text-anchor="middle" font-size="36" font-weight="bold" fill="#fff" font-family="Arial,sans-serif">B</text><line x1="28" y1="12" x2="28" y2="52" stroke="#fff" stroke-width="3"/><line x1="36" y1="12" x2="36" y2="52" stroke="#fff" stroke-width="3"/></g></svg>
-            <h2 style="margin:0;"><span>BITCOIN</span><span>EDUCATION</span><span>ARCHIVE</span></h2>
+            <img class="bq-brand-logo" src="/icons/bq-logo-96.png?v=2578" srcset="/icons/bq-logo-48.png?v=2578 48w, /icons/bq-logo-96.png?v=2578 96w, /icons/bq-logo-128.png?v=2578 128w, /icons/bq-logo-192.png?v=2578 192w, /icons/bq-logo-256.png?v=2578 256w, /icons/bq-logo-384.png?v=2578 384w" sizes="30px" width="30" height="30" alt="Bitcoin Quest" decoding="async">
+            <div class="mobile-brand-text"><h2 style="margin:0;"><span>BITCOIN</span><span>QUEST</span></h2><div class="mobile-brand-home">HOME</div></div>
         </div>
         <div class="mobile-tools">
             <span id="mobileUserInfo" style="font-size:0.65rem;color:var(--text-muted);cursor:pointer;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;"><span id="mobileUserLabel"></span></span>
@@ -1418,15 +1449,18 @@
         <button onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" style="position:fixed;bottom:90px;right:16px;z-index:99;background:var(--accent);color:#fff;width:50px;height:50px;border-radius:50%;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.4);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.4rem;" id="mobileSearchBtn" class="no-desktop">🔍</button>
         <button class="mobile-close" onclick="toggleMenu()">✕</button>
         <div class="sidebar-header">
-            <div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
-                <svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><circle cx="32" cy="32" r="30" fill="#f7931a"/><g transform="rotate(14,32,32)"><text x="32" y="44" text-anchor="middle" font-size="36" font-weight="bold" fill="#fff" font-family="Arial,sans-serif">B</text><line x1="28" y1="12" x2="28" y2="52" stroke="#fff" stroke-width="3"/><line x1="36" y1="12" x2="36" y2="52" stroke="#fff" stroke-width="3"/></g></svg>
-                <h2 style="margin:0;line-height:1.2;">BITCOIN<br>EDUCATION ARCHIVE</h2>
+            <div class="sb-brand" onclick="goHome()">
+                <img class="bq-brand-logo" src="/icons/bq-logo-96.png?v=2578" srcset="/icons/bq-logo-48.png?v=2578 48w, /icons/bq-logo-96.png?v=2578 96w, /icons/bq-logo-128.png?v=2578 128w, /icons/bq-logo-192.png?v=2578 192w, /icons/bq-logo-256.png?v=2578 256w, /icons/bq-logo-384.png?v=2578 384w" sizes="44px" width="44" height="44" alt="Bitcoin Quest" decoding="async">
+                <h2>BITCOIN<br>QUEST</h2>
             </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-                <button class="theme-toggle" onclick="toggleAudio()" title="Toggle sound" id="audioBtn" style="font-size:1rem;background:none;border:1px solid var(--border);color:var(--text-dim);width:32px;height:32px;border-radius:8px;cursor:pointer;">🔊</button>
-                <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)" style="width:50px;height:4px;accent-color:#f7931a;cursor:pointer;" title="Volume">
-                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" id="themeBtn">🌙</button>
+            <div class="sb-tools">
+                <div id="sidebarBellSlot" class="sb-bell-slot"></div>
                 <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar">◀</button>
+            </div>
+            <div class="sb-controls">
+                <button class="theme-toggle" onclick="toggleAudio()" title="Toggle sound" id="audioBtn" aria-label="Toggle sound">🔊</button>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)" title="Volume" aria-label="Volume">
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" id="themeBtn" aria-label="Toggle light/dark mode">🌙</button>
             </div>
         </div>
         <div class="search-box">
@@ -1708,16 +1742,13 @@
                     </div>
                 </div>
                 <div id="btcSigningShell" role="status" aria-live="polite">Signing you in…</div>
-                <div id="homeGuestActions">
-                    <button type="button" id="homeGuestCta" class="home-guest-cta" onclick="showUsernamePrompt()">Sign up free and earn sats</button>
-                    <button type="button" id="homeWatchIntro" class="home-watch-intro" onclick="watchIntroVideo()">Start Here</button>
-                </div>
                 <div id="homeHero">
                 <div class="home-logos">
-                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Education Archive" fetchpriority="high" decoding="async" width="130" height="130" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
+                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Quest" referrerpolicy="no-referrer" fetchpriority="high" decoding="async" width="130" height="130" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
                     <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
                 </div>
-                <h1 class="home-title">Bitcoin Quest<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
+                <h1 class="home-title">BITCOIN QUEST<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
+                <p class="home-kicker">HOME</p>
                 <div id="patchNotesHome">
                 <p style="margin:0 0 6px;font-size:0.78rem;line-height:1.35;"><a id="patchNotesLink" href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates</a></p>
                 <p id="resetReminderRow" style="margin:0 0 16px;font-size:0.78rem;line-height:1.35;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;"><a id="resetsTimelinesLink" href="/resets.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">⏰ Resets, Timelines &amp; Odds</a><span style="color:var(--text-muted);font-weight:600;">Reminder resets</span><button type="button" id="resetRemindersBtn">Turn on notifications</button></p>
@@ -1752,8 +1783,120 @@
                 })();
                 </script>
                 </div>
-                <p class="home-subtitle">Learn Bitcoin and earn real sats.</p>
+                <p class="home-subtitle">Play, Learn, and Earn real bitcoin!</p>
                 <span id="homeTopicCount" hidden>145 topics</span>
+                </div>
+                <div id="patchNotesBanner" class="pn-banner" role="region" aria-label="What's new" hidden>
+                    <div class="pn-row" id="pnBannerRow">
+                        <span class="pn-new" aria-hidden="true">New</span>
+                        <a id="pnBannerLink" href="/patch-notes.html">Patch notes: <span id="pnBannerTitle"></span></a>
+                        <button type="button" class="pn-btn" id="pnBannerCollapse" aria-label="Collapse what's new" aria-expanded="true" aria-controls="pnBannerRow">&#8722;</button>
+                        <button type="button" class="pn-btn" id="pnBannerClose" aria-label="Dismiss until the next update">&times;</button>
+                    </div>
+                    <button type="button" class="pn-pill" id="pnBannerPill" aria-label="Show what's new" aria-expanded="false" aria-controls="pnBannerRow" hidden>New &middot; Patch notes</button>
+                </div>
+                <script>
+                (function () {
+                    // One-line "what's new" banner. Driven by the newest entry in /patch-notes.html
+                    // (first details.patch: its id, title and .patch-date). Shows for 5 days after
+                    // that release. X hides it until the next release; minus collapses it to a
+                    // "New" pill. Both are remembered per release in localStorage.
+                    // The latest entry is cached in localStorage for 6h, tagged with the SW
+                    // version. A new SW version (or an expired cache) refetches immediately;
+                    // otherwise the cache is shown first and revalidated in the background.
+                    var SHOW_DAYS = 5, STATE_KEY = 'bq_pn_banner', CACHE_KEY = 'bq_pn_latest', CACHE_MS = 6 * 3600 * 1000;
+                    var MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+                    var box = document.getElementById('patchNotesBanner');
+                    if (!box) return;
+                    var row = document.getElementById('pnBannerRow'), pill = document.getElementById('pnBannerPill');
+                    var link = document.getElementById('pnBannerLink'), titleEl = document.getElementById('pnBannerTitle');
+                    var collapseBtn = document.getElementById('pnBannerCollapse'), closeBtn = document.getElementById('pnBannerClose');
+                    function getJson(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+                    function setJson(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+                    // Release day = last "Month D" in the entry's date text ("November 15–18, 2026" -> Nov 18),
+                    // else the YYYY-MM-DD in its id (week-2026-11-19).
+                    function releaseMs(id, dateText) {
+                        var t = String(dateText || '').toLowerCase().replace(/[\u2013\u2014]/g, '-');
+                        var yr = (t.match(/(\d{4})/) || [])[1];
+                        var re = /(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:\s*-\s*(\d{1,2}))?/g, m, last = null;
+                        while ((m = re.exec(t))) last = { mo: MONTHS.indexOf(m[1]), d: Number(m[3] || m[2]) };
+                        if (yr && last) return new Date(Number(yr), last.mo, last.d).getTime();
+                        var k = String(id || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+                        return k ? new Date(Number(k[1]), Number(k[2]) - 1, Number(k[3])).getTime() : 0;
+                    }
+                    function parse(html) {
+                        var doc = new DOMParser().parseFromString(html, 'text/html');
+                        var d = doc.querySelector('details.patch[id]');
+                        if (!d) return null;
+                        var t = d.querySelector('.patch-title'), dt = d.querySelector('.patch-date');
+                        var title = t ? t.textContent.trim() : '';
+                        if (!title) return null;
+                        return { id: d.id, title: title.slice(0, 80), released: releaseMs(d.id, dt ? dt.textContent : ''), at: Date.now() };
+                    }
+                    var latest = null;
+                    function render() {
+                        if (!latest || !latest.id || !latest.released) { box.hidden = true; return; }
+                        var age = Date.now() - latest.released;
+                        if (age < 0 || age > SHOW_DAYS * 86400000) { box.hidden = true; return; }
+                        var st = getJson(STATE_KEY);
+                        var mode = (st && st.id === latest.id) ? st.s : 'open';
+                        if (mode === 'dismissed') { box.hidden = true; return; }
+                        titleEl.textContent = latest.title;
+                        link.href = '/patch-notes.html#' + encodeURIComponent(latest.id);
+                        var collapsed = mode === 'collapsed';
+                        row.hidden = collapsed;
+                        pill.hidden = !collapsed;
+                        box.classList.toggle('is-collapsed', collapsed);
+                        collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                        pill.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                        box.hidden = false;
+                    }
+                    function save(mode) { if (latest) setJson(STATE_KEY, { id: latest.id, s: mode }); render(); }
+                    collapseBtn.addEventListener('click', function () { save('collapsed'); pill.focus(); });
+                    pill.addEventListener('click', function () { save('open'); link.focus(); });
+                    closeBtn.addEventListener('click', function () { save('dismissed'); });
+                    link.addEventListener('click', function () { if (window._markPatchSeen) window._markPatchSeen(); });
+                    window._bqPatchBanner = { releaseMs: releaseMs, render: render, set: function (v) { latest = v; render(); } };
+                    function currentSw() { return String(window._swVersion || ''); }
+                    function load() {
+                        if (typeof fetch !== 'function' || typeof DOMParser === 'undefined') return;
+                        fetch('/patch-notes.html', { cache: 'no-cache' }).then(function (r) { return r && r.ok ? r.text() : ''; })
+                            .then(function (html) {
+                                var v = html && parse(html);
+                                if (v) { v.sw = currentSw(); latest = v; setJson(CACHE_KEY, v); render(); }
+                            })
+                            .catch(function () {});
+                    }
+                    function schedule(immediate) {
+                        if (immediate) { load(); return; }
+                        if ('requestIdleCallback' in window) requestIdleCallback(load, { timeout: 4000 });
+                        else setTimeout(load, 1500);
+                    }
+                    function staleForSw(c) {
+                        var sw = currentSw();
+                        if (sw && (!c || c.sw !== sw)) return true;
+                        if (!c || !c.at || Date.now() - c.at >= CACHE_MS) return true;
+                        return false;
+                    }
+                    var cached = getJson(CACHE_KEY);
+                    if (cached && cached.id) { latest = cached; render(); }
+                    // Always revalidate. Fetch immediately when the SW version changed or
+                    // the 6h cache expired; otherwise refresh in the background.
+                    if (currentSw() || staleForSw(cached)) {
+                        schedule(staleForSw(cached));
+                    } else {
+                        schedule(false);
+                        var _pnTries = 0, _pnWait = setInterval(function () {
+                            _pnTries += 1;
+                            if (currentSw()) { clearInterval(_pnWait); if (staleForSw(cached)) schedule(true); }
+                            else if (_pnTries >= 20) clearInterval(_pnWait);
+                        }, 100);
+                    }
+                })();
+                </script>
+                <div id="homeGuestActions">
+                    <button type="button" id="homeGuestCta" class="home-guest-cta" onclick="showUsernamePrompt()">Sign up free and earn sats</button>
+                    <button type="button" id="homeWatchIntro" class="home-watch-intro" onclick="watchIntroVideo()">Start Here</button>
                 </div>
                 <!-- As Featured On -->
                 <div id="featuredOnSection" style="width:100%;margin:0 auto 24px;">
@@ -2289,18 +2432,18 @@
     <script src="/username-repick.js?v=20261104_v2476" defer></script>
     <script src="/earn-xp-guide.js?v=20261026_v2382" defer></script>
     <script src="/referral-tiers.js?v=20261105_v2499" defer></script>
-    <script src="/popup-stack.js?v=20261106_v2519" defer></script>
+    <script src="/popup-stack.js?v=20261119_v2681" defer></script>
 
-    <script src="/kill-switch.js?v=20261114_v2570" defer></script>
+    <script src="/kill-switch.js?v=20261111_v2551" defer></script>
     <script src="/survey.js?v=20261114_v2570" defer></script>
-    <script src="/ranking.js?v=20261114_v2570" defer></script>    <!-- Critical: needed for initial page render -->
-    <script src="/bundle.min.js?v=20261109_v2542" defer fetchpriority="high"></script>
+    <script src="/ranking.js?v=20261119_v2683" defer></script>    <!-- Critical: needed for initial page render -->
+    <script src="/bundle.min.js?v=20261119_v2682b" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
-    <script src="/features.registry.js?v=20261109_v2538" defer></script>
+    <script src="/features.registry.js?v=20261119_v2681" defer></script>
     <script src="/favorites.js?v=20261105_v2501" defer></script>
     <script src="/tctv-watch.js?v=20261102_v2464" defer></script>
-    <script src="/tctv-drip.js?v=20261106_v2521" defer></script>
+    <script src="/tctv-drip.js?v=20261117_v2588" defer></script>
 
     <script src="/today-card.js?v=20261109_v2538" defer></script>
     <script src="/achievement-share.js?v=20261109_v2536" defer></script>
@@ -2309,9 +2452,9 @@
     <script src="/faction-race-prizes.js?v=20261105_v2505" defer></script>
     
     <script src="/miniapp-share.js?v=20261107_v2526" defer></script>
-    <script src="/pvp-lobby-alert.js?v=20261106_v2519" defer></script>
+    <script src="/pvp-lobby-alert.js?v=20261118_v2605" defer></script>
     <script src="/patches.js?v=20261026_v2385" defer></script>
-    <script src="/onboarding.js?v=20261106_v2512" defer></script>
+    <script src="/onboarding.js?v=20261119_v2683" defer></script>
     <script src="/learning-quests.js?v=20261026_v2377" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
@@ -2322,15 +2465,15 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261106_v2509',
-            'satoshi-favor.js?v=20261112_v2539'
+            'global-chat.js?v=20261119_v2682',
+            'satoshi-favor.js?v=20261119_v2682b'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261112_v2551',
-            'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261031_v2447','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261105_v2506',
-            'scholar.js?v=20261105_v2490','beats.js?v=20261109_v2542',
-            'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261104_v2472',
+            'quests.js?v=20261120_v2686',
+            'hot-topics.js?v=20261114_citadelwire3',
+            'pvp.js?v=20261118_v2605','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261105_v2506',
+            'scholar.js?v=20261105_v2490','beats.js?v=20261119_v2666',
+            'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261119_v2666',
             'notifications.js?v=20261106_v2512','gifting.js?v=20261106_v2522','guide.js?v=20261104_v2482','modules.js?v=20261106_v2512',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20261028_v2410',
             'sats-vs-bits.js?v=20261030_v2440','tips-integrations.js?v=20260307','wallet-router.js?v=20261104_v2482',
@@ -2338,7 +2481,7 @@
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
             'timechain-tv.js?v=20261105_v2502',
             'learning-quests.js?v=20261026_v2377',
-            'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20261031_v2447'
+            'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20261119_v2682'
         ];
         function _injectScript(src) {
             if (document.querySelector('script[src="' + src + '"]')) return;
@@ -2591,20 +2734,20 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261109_v2542', 'global-chat.js?v=20261106_v2509'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261109_v2542', 'global-chat.js?v=20261106_v2509'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261106_v2509'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261106_v2509'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2666', 'global-chat.js?v=20261119_v2682'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2666', 'global-chat.js?v=20261119_v2682'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261119_v2682'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261119_v2682'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
-            'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261104_v2472'],
-            'pvp':           ['pvp.js?v=20261031_v2447'],
-            'proof-of-play': ['pvp.js?v=20261031_v2447', 'proof-of-play.js?v=20261031_v2447'],
+            'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261119_v2666'],
+            'pvp':           ['pvp.js?v=20261118_v2605'],
+            'proof-of-play': ['pvp.js?v=20261118_v2605', 'proof-of-play.js?v=20261119_v2682'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261106_v2512'],
             'learning-quests': ['learning-quests.js?v=20261026_v2377'],
-            'quests':        ['quests.js?v=20261112_v2551'],
-            'questhub':      ['quests.js?v=20261112_v2551'],
-            'app':           ['quests.js?v=20261112_v2551'],
+            'quests':        ['quests.js?v=20261120_v2686'],
+            'questhub':      ['quests.js?v=20261120_v2686'],
+            'app':           ['quests.js?v=20261120_v2686'],
             'timechain-tv':  ['timechain-tv.js?v=20261105_v2502'],
             'tv':            ['timechain-tv.js?v=20261105_v2502'],
             'cert':          ['shareable-certs.js?v=20261028_v2410']
@@ -2681,20 +2824,42 @@ if ('serviceWorker' in navigator) {
             banner.style.cssText = 'position:fixed;bottom:' + (_isMobUpd ? 'var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 12px))' : '70px') + ';left:16px;right:' + (_isMobUpd ? 'calc(12px + env(safe-area-inset-right, 0px))' : '16px') + ';z-index:200010;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);font-family:inherit;animation:fadeSlideIn 0.3s ease;';
             banner.innerHTML = '<div style="font-weight:700;font-size:0.9rem;">🆕 Update ready</div><button id="_swRefreshBtn" style="padding:8px 18px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;white-space:nowrap;">Update</button>';
             document.body.appendChild(banner);
+            function _onboardingChromeOpen() {
+                try {
+                    var modal = document.getElementById('usernameModal');
+                    if (modal && modal.classList && modal.classList.contains('open')) return true;
+                    var tos = document.getElementById('tosModal');
+                    if (tos && tos.classList && tos.classList.contains('open')) return true;
+                    if (document.getElementById('btcIntroOverlay')) return true;
+                    if (document.getElementById('nachoQuestOverlay')) return true;
+                } catch (e) {}
+                return false;
+            }
+            function _reloadWhenIdle() {
+                if (!_onboardingChromeOpen()) { _reloadOnce(); return; }
+                if (window._bqSwReloadWait) return;
+                window._bqSwReloadWait = setInterval(function () {
+                    if (_onboardingChromeOpen()) return;
+                    clearInterval(window._bqSwReloadWait);
+                    window._bqSwReloadWait = null;
+                    _reloadOnce();
+                }, 500);
+            }
             document.getElementById('_swRefreshBtn').addEventListener('click', function() {
                 var btn = document.getElementById('_swRefreshBtn');
                 if (btn) { btn.textContent = 'Updating…'; btn.disabled = true; }
                 // Activate a waiting worker, then reload this page once.
                 // Navigating to "/" was a second round trip and could show the banner again.
+                // Do not reload while signup or onboarding is on screen.
                 navigator.serviceWorker.getRegistration().then(function(reg) {
                     var waiting = reg && reg.waiting;
-                    if (!waiting) { _reloadOnce(); return; }
+                    if (!waiting) { _reloadWhenIdle(); return; }
                     navigator.serviceWorker.addEventListener('controllerchange', function onChange() {
                         navigator.serviceWorker.removeEventListener('controllerchange', onChange);
-                        _reloadOnce();
+                        _reloadWhenIdle();
                     });
                     waiting.postMessage({ type: 'SKIP_WAITING' });
-                }).catch(function() { _reloadOnce(); });
+                }).catch(function() { _reloadWhenIdle(); });
             });
         }
 
@@ -2757,6 +2922,11 @@ if ('serviceWorker' in navigator) {
     <button type="button" class="invite-guest" id="inviteGuest" onclick="inviteGuestSignup()">Sign up to get your invite link</button>
 </div>
 <button type="button" class="invite-pill" id="inviteGuestPill" hidden aria-label="Invite friends" onclick="inviteGuestSignup()">🎟️ Invite friends</button>
+<script>
+/* Dock the notification bell inside the sidebar (profile card slot, else the header slot) on desktop,
+   so it scrolls with the page and never floats over the header buttons. Phones and a collapsed sidebar keep the floating bell. */
+(function(){var bell=null,q=0;function dock(){q=0;var b=document.getElementById("notifOverlayBtn");if(b)bell=b;else b=bell;if(!b)return;var aside=document.getElementById("sidebar");var open=window.innerWidth>900&&aside&&!aside.classList.contains("sidebar-collapsed");var ph=document.getElementById("notifBellPlaceholder");var t=null;if(open){t=(ph&&ph.offsetWidth>0)?ph:document.getElementById("sidebarBellSlot");}if(t){if(b.parentNode!==t)t.appendChild(b);b.classList.add("bell-docked");}else{if(b.parentNode!==document.body)document.body.appendChild(b);b.classList.remove("bell-docked");}}function soon(){if(!q){q=1;requestAnimationFrame(dock);}}setInterval(dock,1000);window.addEventListener("resize",soon);document.addEventListener("DOMContentLoaded",function(){var a=document.getElementById("sidebar");if(a&&window.MutationObserver)new MutationObserver(soon).observe(a,{childList:true,subtree:true,attributes:true,attributeFilter:["class"]});soon();});})();
+</script>
 </body>
 </html>
 <!-- v1771873982 -->

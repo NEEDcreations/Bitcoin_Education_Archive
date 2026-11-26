@@ -53,6 +53,9 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     backfillJoinDates: { id: 'fn-backfill-join-dates', extra: ['auth'] },
     claimCipherSats: { id: 'fn-claim-cipher-sats', extra: ['auth'] },
     claimCipherWin: { id: 'fn-claim-cipher-win', extra: ['auth'] },
+    // Same account and grants as claimCipherWin (NWC_URL + DELETION_HMAC_SECRET):
+    // no new service account or IAM grant for the Favor block claim.
+    claimFavorBlock: { id: 'fn-claim-cipher-win', extra: ['auth'] },
     claimSats: { id: 'fn-claim-sats', extra: ['auth', 'fcm'] },
     confirmAccountLink: { id: 'fn-confirm-account-link', extra: ['auth'] },
     confirmTipSent: { id: 'fn-confirm-tip-sent', extra: ['fcm'] },
@@ -103,6 +106,23 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
 
 const DEFAULT_PROJECT = 'bitcoin-education-archive';
 
+// Holdover: these four TOTP callables still run as the project's default
+// App Engine account (<project>@appspot.gserviceaccount.com) on the listed
+// projects, because their own fn-totp-* accounts were never created there and
+// a deploy that names a missing account fails. Their manifest entries above
+// stay, so runtime-sa-plan.js still plans the accounts for the follow-up move.
+// The holdover keys ONLY on the project id (GCLOUD_PROJECT), which the
+// Firebase CLI sets during function discovery; .env values are not visible
+// there. Staging keeps its own accounts; a like-live QA deploy adds
+// 'bitcoin-quest-staging' to these lists in an uncommitted scratch edit.
+// Secrets are unaffected: each function still binds TOTP_ENCRYPTION_KEY.
+const DEFAULT_SA_HOLDOVER = Object.freeze({
+    totpStepUp: Object.freeze(['bitcoin-education-archive']),
+    totpCheck: Object.freeze(['bitcoin-education-archive']),
+    totpSetup: Object.freeze(['bitcoin-education-archive']),
+    regenerateRecoveryCodes: Object.freeze(['bitcoin-education-archive']),
+});
+
 const EXTRA_ROLES = Object.freeze({
     auth: 'roles/firebaseauth.admin',
     authViewer: 'roles/firebaseauth.viewer',
@@ -119,6 +139,15 @@ function runtimeSa(functionName) {
     return entry.id + '@' + projectId() + '.iam.gserviceaccount.com';
 }
 
+// runtimeSa() plus the holdover above. Still throws for unknown functions.
+function runtimeSaOrDefault(functionName) {
+    const own = runtimeSa(functionName);
+    if (!Object.prototype.hasOwnProperty.call(DEFAULT_SA_HOLDOVER, functionName)) return own;
+    const project = projectId();
+    if (DEFAULT_SA_HOLDOVER[functionName].indexOf(project) === -1) return own;
+    return project + '@appspot.gserviceaccount.com';
+}
+
 function projectId() {
     if (process.env.GCLOUD_PROJECT) return process.env.GCLOUD_PROJECT;
     if (process.env.GOOGLE_CLOUD_PROJECT) return process.env.GOOGLE_CLOUD_PROJECT;
@@ -133,4 +162,6 @@ module.exports = {
     RUNTIME_SERVICE_ACCOUNTS: RUNTIME_SERVICE_ACCOUNTS,
     EXTRA_ROLES: EXTRA_ROLES,
     runtimeSa: runtimeSa,
+    runtimeSaOrDefault: runtimeSaOrDefault,
+    DEFAULT_SA_HOLDOVER: DEFAULT_SA_HOLDOVER,
 };

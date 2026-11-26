@@ -6,7 +6,7 @@ cat > "$CFG" <<'JSON'
 {"projectId": "bitcoin-quest-staging", "appId": "1:689995930118:web:915f62b60c33cac100c187", "storageBucket": "bitcoin-quest-staging.firebasestorage.app", "apiKey": "AIzaSyB1gWK65s8MPFsKSK2-Qdp3eSXOjF7lnng", "authDomain": "bitcoin-quest-staging.firebaseapp.com", "messagingSenderId": "689995930118", "projectNumber": "689995930118", "version": "2"}
 JSON
 rm -rf "$OUT"; mkdir -p $OUT
-tar -C "$SRC" --exclude=./out --exclude='./.?*' --exclude='*/.?*' --exclude=functions --exclude=workers --exclude=scripts --exclude=tests --exclude=docs --exclude=node_modules --exclude='*.sh' --exclude='*.md' --exclude='*.py' --exclude='*.rules' --exclude='*.bak*' --exclude=firebase.json --exclude=firestore.indexes.json --exclude=CNAME -cf - . | tar -C $OUT -xf -
+tar -C "$SRC" --exclude=./out --exclude='./.?*' --exclude='*/.?*' --exclude=functions --exclude=workers --exclude=scripts --exclude=tests --exclude=docs --exclude=node_modules --exclude='*.sh' --exclude='*.md' --exclude='*.py' --exclude='*.rules' --exclude='*.bak*' --exclude=firebase.json --exclude='firebase.*.json' --exclude=firestore.indexes.json --exclude=CNAME -cf - . | tar -C $OUT -xf -
 python3 - "$CFG" "$OUT" <<'PY'
 import json,sys,os,re
 c=json.load(open(sys.argv[1])); out=sys.argv[2]
@@ -25,6 +25,18 @@ for root,_,fs in os.walk(out):
     if f=='firebase-config.js': s=re.sub(r'authDomain:\s*"[^"]*"','authDomain: "%s"'%c['authDomain'],s)
     if s!=o: open(p,'w',encoding='utf-8',errors='surrogateescape').write(s); n+=1
 print('rewrote',n,'files')
+ticker=os.environ.get('SIGNAL_TICKER_URL','').rstrip('/')
+if ticker:
+  n2=0
+  for root,_,fs in os.walk(out):
+    for f in fs:
+      if not f.endswith(('.js','.html')): continue
+      p=os.path.join(root,f); s=open(p,encoding='utf-8',errors='surrogateescape').read(); o=s
+      s=s.replace("fetch('newsletter-data.json", "fetch('%s/newsletter-data.json" % ticker)
+      s=s.replace('fetch("newsletter-data.json', 'fetch("%s/newsletter-data.json' % ticker)
+      if s!=o: open(p,'w',encoding='utf-8',errors='surrogateescape').write(s); n2+=1
+  print('pointed newsletter-data.json at Signal ticker worker in',n2,'files')
+
 idx=os.path.join(out,'index.html'); s=open(idx).read()
 s=s.replace('<head>','<head>\n<meta name="robots" content="noindex,nofollow">',1)
 s=s.replace('</body>','<div style="position:fixed;bottom:0;left:0;z-index:2147483647;background:#c00;color:#fff;font:bold 11px sans-serif;padding:2px 6px;pointer-events:none">STAGING · fake data</div></body>',1)

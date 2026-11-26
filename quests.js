@@ -119,10 +119,9 @@ const QUESTION_BANK = {
         { q: "Miners are paid in:", a: "New Bitcoin and transaction fees", wrong: ["US dollars and government bonds", "Ethereum and other altcoin tokens", "Company stock and equity options"] },
         { q: "Mining difficulty adjusts approximately every:", a: "2 weeks (2016 blocks)", wrong: ["Every day (144 blocks)", "Each hour (6 new blocks)", "Each month (4,320 blocks)"] },
         { q: "A mining pool is:", a: "A group of miners combining computing power", wrong: ["A shared server for pooling and distributing rewards", "A single powerful dedicated mining computer", "A government-regulated mining operation facility"] },
-        { q: "The mining reward after the 2024 halving is:", a: "3.125 BTC per block", wrong: ["6.25 BTC per block", "50.0 BTC per block", "12.5 BTC per block"] },
         { q: "ASIC miners are:", a: "Specialized hardware designed only for mining", wrong: ["Standard laptops with mining software installed", "Gaming computers adapted for mining operations", "Smartphones modified with extra processing power"] },
         { q: "What prevents miners from cheating?", a: "Other nodes verify their work", wrong: ["An honor system among all miners", "Government oversight prevents it", "Nothing prevents cheating miners"] },
-        { q: "What milestone did Bitcoin hash rate reach in September 2025?", a: "1 Zettahash per second", wrong: ["500 Exahash per second", "10 Petahash per second", "100 Terahash per second"] },
+        { q: "What milestone did Bitcoin hash rate reach in September 2025?", a: "1 Zettahash per second", wrong: ["500 Exahash per second", "10 Petahash per second", "100 Terahash per second"], timeSensitive: true },
         { q: "Pleb Pool and Atlas Pool are examples of:", a: "Solo Bitcoin mining pools", wrong: ["Bitcoin Lightning wallets", "Centralized Bitcoin exchanges", "Hardware-based cold wallets"] },
         { q: "D-Central Technologies specializes in:", a: "Home mining equipment and support", wrong: ["Bitcoin day trading and arbitrage", "Lightning routing and channel management", "Hardware cold storage and backup"] },
         { q: "Constellation Heating combines mining with:", a: "Heating swimming pools", wrong: ["Cooling server data centers", "Generating wind power", "Installing solar panels"] },
@@ -189,9 +188,8 @@ const QUESTION_BANK = {
         { q: "What is the \"nothing at stake\" problem that affects naive Proof-of-Stake designs?", a: "Validators can vote on multiple competing chain forks simultaneously at zero cost because no real resource is being consumed", wrong: ["Validators can pledge the same tokens to multiple chains at once because there is no on-chain registry of all staked assets", "Validators have no incentive to stay online because the penalty for downtime costs less than the reward for staying connected", "New participants can't accumulate stake because established validators monopolize block production without expending any resources"] },
         { q: "When did Ethereum complete its switch from Proof-of-Work to Proof-of-Stake consensus?", a: "September 2022, in an event called \"The Merge\" that replaced Ethereum's PoW mining with a Proof-of-Stake validator set", wrong: ["March 2021, when the Ethereum Foundation completed deployment of the Beacon Chain mainnet consensus upgrade on schedule", "December 2023, when Ethereum's final sharding upgrade replaced the remaining PoW elements with Proof-of-Stake validation", "June 2020, when Ethereum 2.0 Phase 0 launched and the Proof-of-Work chain was simultaneously deprecated in the upgrade"] },
         { q: "How do the thresholds for a successful attack differ between Bitcoin's PoW and a typical PoS network?", a: "A Bitcoin 51% attack requires over half of total global hashrate; a typical PoS attack requires acquiring over 33% of staked tokens", wrong: ["A PoW attack requires 67% of mining power while PoS needs only 10% of staked capital, making PoS actually more attack-resistant", "Both systems require exactly 51% of their respective resources; the cost difference depends solely on the current token price", "PoW is attacked by controlling 25% of ASIC manufacturers; PoS requires 51% of staked tokens for an equivalent disruption"] },
-        { q: "What did Saifedean Ammous write about Proof-of-Work's uniquely fair property in The Bitcoin Standard?", a: "\"PoW is the only mechanism that does not confer explicit power on any subset of participants\" — Saifedean Ammous, The Bitcoin Standard", wrong: ["\"PoW guarantees equal returns on investment for all miners regardless of pool size or geographic cost of electricity access\"", "\"PoW creates a perfectly merit-based network where each participant's contribution is measured objectively by work performed\"", "\"PoW eliminates all insider advantages by requiring every participant to solve the same cryptographic puzzle each block epoch\""] },
         { q: "Does Proof-of-Stake slashing fully resolve the security weaknesses inherent in stake-based consensus?", a: "No — slashing punishes detectable misbehavior but cannot prevent long-range attacks where an attacker rewrites old chain history", wrong: ["Yes — slashing penalizes all forms of validator dishonesty and provides demonstrably stronger security guarantees than PoW mining", "Yes — slashing combined with finality gadgets eliminates all known attack vectors including long-range history rewriting attacks", "No — slashing creates severe centralization pressure by making it prohibitively risky for small validators to run nodes at all"] },
-        { q: "What was Bitcoin's approximate network hashrate in the 2024–2025 timeframe?", a: "Over 700 exahashes per second (EH/s), making a successful 51% attack require more hardware than currently exists on Earth", wrong: ["Over 100 exahashes per second (EH/s), a figure comparable to Ethereum's peak PoW hashrate just before The Merge in 2022", "Approximately 200 terahashes per second (TH/s), reflecting the dominance of next-generation 7nm ASIC mining hardware farms", "Around 500 petahashes per second (PH/s), representing roughly 40% annual growth sustained since the May 2020 halving event"] },
+        { q: "What was Bitcoin's approximate network hashrate in the 2024–2025 timeframe?", a: "Over 700 exahashes per second (EH/s)", wrong: ["Over 100 exahashes per second (EH/s), a figure comparable to Ethereum's peak PoW hashrate just before The Merge in 2022", "Approximately 200 terahashes per second (TH/s), reflecting the dominance of next-generation 7nm ASIC mining hardware farms", "Around 500 petahashes per second (PH/s), representing roughly 40% annual growth sustained since the May 2020 halving event"] },
         { q: "How does access to Bitcoin mining compare to participation in Proof-of-Stake validation?", a: "Anyone with hardware and cheap electricity can mine Bitcoin; PoS compounds advantages for those who already hold large wealth", wrong: ["Bitcoin mining requires a license from the Bitcoin Foundation; PoS is fully open to anyone willing to make a small token deposit", "Both systems offer equivalent access barriers; entry cost is roughly comparable between mining rigs and major PoS token deposits", "PoS is far more accessible because anyone can stake tiny amounts; Bitcoin mining requires millions of dollars minimum investment"] },
         { q: "What is the fundamental difference in the nature of costs between PoW and PoS security models?", a: "PoW requires external real-world energy cost to attack; PoS only requires internal tokens the attacker may already own and hold", wrong: ["PoW security comes from miner coordination costs; PoS security relies on smart contract audits and formal verification proofs", "PoW security depends on hardware scarcity; PoS security relies entirely on the irreversibility of slashing penalties post-attack", "PoW costs are paid by miners and passed to users through fees; PoS costs are socialized across all token holders proportionally"] }
     ],
@@ -261,7 +259,6 @@ const QUESTION_BANK = {
         { q: "Bitcoin's blockchain is:", a: "Public - anyone can see transactions", wrong: ["Private and securely encrypted on the chain", "Visible only to miners and full node operators", "Hidden and accessible only to direct participants"] },
         { q: "Why do some people prefer non-KYC Bitcoin?", a: "To maintain financial privacy", wrong: ["To avoid paying taxes on gains", "To access lower-priced Bitcoin deals", "To bypass spending limits on exchanges"] },
         { q: "A Bitcoin address should ideally be:", a: "Used only once for privacy", wrong: ["Reused freely for all transactions", "Shared with all trading counterparties", "Saved and reused permanently in your wallet"] },
-        { q: "The first recorded address poisoning attack on Bitcoin happened in:", a: "2025", wrong: ["2021", "2013", "2009"] },
         { q: "Shielded CSV on Bitcoin promises:", a: "Better than Zcash-level privacy as an L1.5", wrong: ["Faster block times than the Bitcoin base layer allows", "Higher throughput and far lower fees than the mainchain", "Full native compatibility with all major altcoin networks"] },
         { q: "Briar messenger is engineered for:", a: "Privacy in hostile environments using Tor", wrong: ["High-quality encrypted video and voice calling", "Social media sharing with end-to-end encryption", "Seamless cloud backup for messages and contacts"] },
         { q: "What is a \"Dust Attack\"?", a: "Tiny amounts of BTC sent to addresses to track the owner's movement", wrong: ["A spam attack used to flood the mempool with thousands of unspendable small transactions", "A hardware failure that causes miners to repeatedly broadcast corrupted block data to peers", "Accidentally wiping your wallet's private keys during a routine software update process"] },
@@ -305,7 +302,7 @@ const QUESTION_BANK = {
         { q: "Bitcoin's 4-year cycle is often tied to:", a: "The halving events", wrong: ["US elections as defined by Bitcoin consensus rules enforced by all full nodes", "Solar cycles as defined by Bitcoin consensus rules enforced by all full nodes", "Stock market seasons"] },
         { q: "The best time to buy Bitcoin according to Bitcoiners is:", a: "Always - time in the market beats timing the market", wrong: ["Only when the price dips below its 200-day moving average", "During January to benefit from known seasonal price patterns", "Only after major corrections of at least 30% from recent highs"] },
         { q: "Stacking sats means:", a: "Accumulating small amounts of Bitcoin over time", wrong: ["Holding Bitcoin across multiple custodial exchange accounts", "Building a collection of hardware wallets for extra redundancy", "Running Lightning nodes to earn small routing fee payments"] },
-        { q: "The biggest drawdown in Bitcoin history was:", a: "94% decline from $32 to $2 in July 2011", wrong: ["85% drop from $19,700 down to $3,100 across late 2018", "80% decline from $69,000 to $13,800 during calendar year 2022", "73% crash from $65,000 to $17,500 between June and December 2022"] },
+        { q: "The biggest drawdown in Bitcoin history was:", a: "94% decline from about $32 (June 2011) to about $2 (November 2011)", wrong: ["85% drop from $19,700 down to $3,100 across late 2018", "80% decline from $69,000 to $13,800 during calendar year 2022", "73% crash from $65,000 to $17,500 between June and December 2022"] },
         { q: "MNAV.com tracks:", a: "Bitcoin treasury companies and their metrics", wrong: ["Lightning Network routing nodes and their channel statistics", "Bitcoin mining pool hash rates and block reward earnings", "Altcoin market capitalizations and daily trading volumes"] },
         { q: "Lump-sum investing means:", a: "Buying a large amount of Bitcoin all at once", wrong: ["Buying a set amount of Bitcoin on a regular schedule", "Liquidating your entire Bitcoin position in one trade", "Trading Bitcoin only during low-volume off-peak hours"] },
         { q: "Dollar Cost Averaging (DCA) means:", a: "Buying a fixed amount of Bitcoin at regular intervals regardless of price", wrong: ["Only purchasing Bitcoin when the price falls below a predetermined target level", "Converting your entire savings into Bitcoin in a single immediate lump-sum transaction", "Automatically selling a fixed portion of Bitcoin each time the price rises by 10 percent"] },
@@ -344,7 +341,7 @@ const QUESTION_BANK = {
     ],
     "regulation": [
         { q: "Bitcoin's response to bans has been:", a: "Moving to friendlier jurisdictions", wrong: ["Shutting down all operations worldwide", "Complying with every new law passed", "Becoming illegal in all countries forever"] },
-        { q: "El Salvador made Bitcoin:", a: "Legal tender in 2021", wrong: ["Illegal to hold in 2020", "A classified state asset", "Available only to tourists"] },
+        { q: "El Salvador made Bitcoin:", a: "Legal tender in 2021", wrong: ["Illegal to hold in 2020", "A classified state asset", "Available only to tourists"], timeSensitive: true },
         { q: "Bitcoin regulation varies by:", a: "Country - each has different rules", wrong: ["No country has any Bitcoin rules at all", "One universal global law governs it", "The Bitcoin code sets its own rules"] },
         { q: "A Bitcoin ETF allows:", a: "Traditional investors to get Bitcoin exposure through stock markets", wrong: ["Any person to receive free Bitcoin as a government-issued daily dividend", "Government agencies to operate and directly control Bitcoin mining facilities", "Central banks to print and issue new Bitcoin in response to investor demand"] },
         { q: "The SEC has classified Bitcoin as:", a: "A commodity, not a security", wrong: ["A security similar to stocks", "A foreign currency like euros", "An illegal financial instrument"] },
@@ -366,10 +363,10 @@ const QUESTION_BANK = {
         { q: "Bitcoin mining can help stabilize:", a: "Electrical grids by acting as a flexible load", wrong: ["Financial markets by absorbing excess liquidity costs", "Global internet speeds by distributing network traffic", "National economies by generating significant tax revenue"] },
         { q: "Compared to traditional banking, Bitcoin's energy use is:", a: "Debatable but often comparable or less", wrong: ["Far higher, consuming roughly 100 times more power", "Essentially zero, as nodes share idle renewable capacity", "Precisely equal by international regulatory requirement"] },
         { q: "Methane flaring and Bitcoin mining:", a: "Miners can capture and use flared gas productively", wrong: ["Flaring and Bitcoin mining are completely unrelated industries", "Bitcoin mining operations significantly increase local methane flaring", "All Bitcoin mining is powered entirely by captured flared gas"] },
-        { q: "Bitcoin mining primarily uses which type of energy?", a: "Over 50% renewable - often stranded or wasted energy", wrong: ["Primarily coal and natural gas, making it highly polluting", "Entirely nuclear energy sourced from dedicated power plants", "Solar panels mounted directly onto the physical mining hardware"] },
+        { q: "Bitcoin mining primarily uses which type of energy?", a: "A large and growing share", wrong: ["Primarily coal and natural gas, making it highly polluting", "Entirely nuclear energy sourced from dedicated power plants", "Solar panels mounted directly onto the physical mining hardware"] },
         { q: "Bitcoin mining can actually help the environment by:", a: "Monetizing flared methane that would otherwise be released into the atmosphere", wrong: ["Reducing total global electricity demand through more efficient transaction processing", "Generating new renewable energy as a byproduct of the computational hashing process", "Cooling local environments through large-scale heat exchange and water evaporation systems"] },
         { q: "How do Bitcoin miners contribute to grid stability?", a: "They can instantly power down during peak demand, acting as flexible load that balances the grid", wrong: ["They generate surplus electricity by recovering heat from mining hardware and exporting it back to the grid", "They replace traditional power plants by acting as distributed energy generation nodes across local grids", "They are legally required to operate only during low-demand off-peak hours under formal grid usage agreements"] },
-        { q: "What percentage of Bitcoin mining uses renewable energy sources according to recent estimates?", a: "Over 50% and growing, driven by miners seeking the cheapest energy", wrong: ["Less than 5%, with the vast majority still coming from coal and natural gas", "Exactly 100%, as all mining facilities are now required by law to use renewables", "Around 10%, mostly from dedicated nuclear power plants located near data centers"] }
+        { q: "What share of Bitcoin mining used sustainable energy (renewables plus nuclear) in Cambridge's 2025 survey?", a: "About 52%", wrong: ["About 5%", "About 100%", "About 10%"] }
     ],
     "core-source-code": [
         { q: "Changes to Bitcoin Core require:", a: "Careful testing and peer review", wrong: ["Approval from a single trusted lead developer", "A majority vote from participating corporations", "Official regulatory permission from a government body"] },
@@ -599,8 +596,8 @@ const QUESTION_BANK = {
         { q: "A watch-only wallet lets you:", a: "Monitor a balance without being able to spend", wrong: ["Mine Bitcoin, as specified in the original Bitcoin whitepaper released in 2008", "Create new coins, as specified in the original Bitcoin whitepaper released in 2008", "Edit the blockchain, as specified in the original Bitcoin whitepaper released in 2008"] },
         { q: "Pleb is a term of endearment in Bitcoin meaning:", a: "An everyday Bitcoiner, not wealthy but committed", wrong: ["A professional trader, as specified in the original Bitcoin whitepaper released in 2008", "A mining executive, as specified in the original Bitcoin whitepaper released in 2008", "A government official, as specified in the original Bitcoin whitepaper released in 2008"] },
         { q: "What is the total number of satoshis that will ever exist?", a: "2.1 quadrillion (2,100,000,000,000,000)", wrong: ["21 million, as specified in the original Bitcoin whitepaper released in 2008", "100 billion, as specified in the original Bitcoin whitepaper released in 2008", "21 quadrillion, as specified in the original Bitcoin whitepaper released in 2008"] },
-        { q: "Bitcoin's first confirmed exchange rate (in 2010) was roughly:", a: "1,309 BTC per US dollar", wrong: ["1 BTC per US dollar as defined by Bitcoin consensus rules enforced by all full nodes", "100 BTC per US dollar", "0.01 BTC per US dollar"] },
-        { q: "The first Bitcoin exchange rate was established at approximately:", a: "$0.00099 per BTC (less than one penny)", wrong: ["$1.00 per BTC, as specified in the original Bitcoin whitepaper released in 2008", "$0.10 per BTC, as specified in the original Bitcoin whitepaper released in 2008", "$100 per BTC, as specified in the original Bitcoin whitepaper released in 2008"] },
+        { q: "Bitcoin's first published exchange rate (October 2009) was roughly:", a: "1,309 BTC per US dollar", wrong: ["1 BTC per US dollar", "100 BTC per US dollar", "0.01 BTC per US dollar"] },
+        { q: "The first Bitcoin exchange rate was established at approximately:", a: "$0.00099 per BTC (less than one penny)", wrong: ["$1.00", "$0.10", "$100"] },
         { q: "Dollar-cost averaging (DCA) into Bitcoin means:", a: "Buying a fixed amount regularly regardless of price", wrong: ["Borrowing dollars to buy Bitcoin all at once as defined by Bitcoin consensus rules enforced by all full nodes", "Selling Bitcoin when the dollar strengthens as defined by Bitcoin consensus rules enforced by all full nodes", "Converting Bitcoin profits back into dollars as defined by Bitcoin consensus rules enforced by all full nodes"] },
         { q: "The phrase \"Not your keys, not your coins\" warns against:", a: "Keeping Bitcoin on exchanges where you don't control the private keys", wrong: ["Using physical Bitcoin coins instead of digital, as specified in the original Bitcoin whitepaper released in 2008", "Sharing your public key with other people, as specified in the original Bitcoin whitepaper released in 2008", "Using hardware wallets instead of software, as specified in the original Bitcoin whitepaper released in 2008"] }
     ],
@@ -622,14 +619,14 @@ const QUESTION_BANK = {
         { q: "What is \"VC token dumping\" in the altcoin market?", a: "VCs invest early at a discount, then sell their tokens on retail investors at launch", wrong: ["VCs donate their early-discounted token allocations to nonprofit charitable organizations after launch", "VCs permanently lock their allocated tokens inside smart contracts to demonstrate long-term commitment", "VCs convert their discounted token positions into grants that fund open-source protocol development"] },
         { q: "Why do Bitcoiners argue that \"decentralized governance tokens\" are an oxymoron?", a: "Token voting concentrates power with whales and VCs, recreating inequality", wrong: ["Governance tokens are far too technically complex to implement secure on-chain voting", "Bitcoin already uses internal governance tokens to coordinate votes on protocol upgrades", "Governance tokens have been declared illegal financial instruments in most global jurisdictions"] },
         { q: "What key evidence do Bitcoiners cite about Ethereum's centralization?", a: "A massive premine to insiders, repeated monetary policy changes, and known leadership", wrong: ["Ethereum runs on a centralized server cluster secretly managed by Vitalik Buterin and his core team", "Ethereum transactions require explicit approval from government financial regulators before confirming", "Ethereum currently has far fewer active global nodes than a typical mid-sized enterprise cloud database"] },
-        { q: "How was Ethereum's initial token supply structured at its 2014 crowdsale?", a: "About 72 million ETH were pre-mined; roughly 70% of the initial supply was allocated to founders and early insiders", wrong: ["All 72 million ETH were sold in a fully public fair launch with zero allocation reserved for the founding team or investors", "Roughly 20 million ETH were pre-mined with the remainder distributed through a public sale open to any retail investor globally", "100 million ETH were created and divided equally: one third to founders, one third to an R&D reserve, one third to the public"] },
+        { q: "How was Ethereum's initial token supply structured at its 2014 crowdsale?", a: "About 72 million ETH were created at launch: 60 million sold in the crowdsale and about 12 million kept for early contributors and the foundation", wrong: ["All 72 million ETH were sold in a fully public fair launch with zero allocation reserved for the founding team or investors", "Roughly 20 million ETH were pre-mined with the remainder distributed through a public sale open to any retail investor globally", "100 million ETH were created and divided equally: one third to founders, one third to an R&D reserve, one third to the public"] },
         { q: "What does research reveal about the infrastructure running Ethereum's validator nodes?", a: "About 61% of Ethereum nodes run in cloud data centers; AWS alone hosts roughly 25% making centralization a severe concern", wrong: ["Only about 15% of Ethereum nodes run in the cloud; the vast majority are home validators run by individual stakers globally", "Nearly 95% of Ethereum nodes run on dedicated bare-metal servers; cloud hosting is actively discouraged by the foundation", "Roughly 40% of nodes are cloud-hosted, a level considered acceptable within Ethereum's published decentralization targets"] },
         { q: "What action did Ethereum take after the DAO hack in 2016, and what principle did it violate?", a: "Ethereum rolled back its blockchain to reverse the hack, proving its \"code is law\" and immutability claims were overrideable", wrong: ["Ethereum implemented a smart contract patch to freeze hacker funds without altering any already-confirmed on-chain state", "Ethereum hard forked to add new security rules but preserved all historical transactions, maintaining full ledger immutability", "Ethereum's core developers sued the attacker in Swiss court and recovered the funds without touching or altering the chain"] },
         { q: "What are the key concerns about XRP's token distribution and Ripple's legal status?", a: "Ripple pre-created ~100 billion XRP, controls its scheduled release, and was sued by the SEC for an unregistered securities offering", wrong: ["XRP has a capped supply of 21 million tokens like Bitcoin, but Ripple Labs retains permanent veto power over all protocol upgrades", "Ripple distributed XRP through open mining but faces legal challenges because its founders hold United States banking licenses", "XRP has no maximum supply cap and Ripple can mint new tokens freely; the SEC sued over undisclosed token minting activities"] },
-        { q: "What is notable about Solana's track record of network availability since its mainnet launch?", a: "Solana has suffered over 10 major network outages since launch, including a single outage lasting approximately 17 hours", wrong: ["Solana has maintained a perfect uptime record since launch thanks to its Proof-of-History consensus and strong validator incentives", "Solana experienced one brief 2-hour outage in 2021 that was rapidly resolved via a coordinated validator restart procedure", "Solana's network undergoes scheduled maintenance windows twice per year, which critics sometimes mischaracterize as full outages"] },
+        { q: "What is notable about Solana's track record of network availability since its mainnet launch?", a: "It has had several major outages, including one in September 2021 that lasted about 17 hours", wrong: ["Solana has maintained a perfect uptime record since launch thanks to its Proof-of-History consensus and strong validator incentives", "Solana experienced one brief 2-hour outage in 2021 that was rapidly resolved via a coordinated validator restart procedure", "Solana's network undergoes scheduled maintenance windows twice per year, which critics sometimes mischaracterize as full outages"] },
         { q: "Why can't a competing cryptocurrency simply copy Bitcoin's open-source code and achieve equivalent security and value?", a: "Code is easily copied but network effects are not: Bitcoin's liquidity, hashrate security, deep trust, and developer talent are irreplaceable", wrong: ["Bitcoin's source code is proprietary and legally protected under copyright law, making direct copying a violation of intellectual property", "Bitcoin's cryptographic algorithms are patented by the Satoshi Nakamoto estate, preventing any fork from using SHA-256 legitimately", "Bitcoin's code can be copied but all resulting forks must share the original UTXO set, preventing any fork from bootstrapping independently"] },
         { q: "What has happened to nearly all altcoins throughout Bitcoin's history when evaluated in BTC-denominated terms?", a: "Over 99% of altcoins ever launched have declined toward zero when priced against Bitcoin, regardless of their initial hype cycles", wrong: ["About 50% of altcoins outperform Bitcoin over five-year windows; the rest decline, making broad diversification a rational strategy", "Altcoins have collectively outperformed Bitcoin since 2017 on a volume-weighted basis when adjusted for total market capitalization", "Roughly 30% of altcoins launched before 2018 still trade above their original ICO price when measured in BTC-denominated terms"] },
-        { q: "What happened to major corporate \"blockchain not Bitcoin\" initiatives at firms like JPMorgan, IBM, and Maersk?", a: "JPMorgan, IBM, and Maersk all launched enterprise blockchain projects with great fanfare and then quietly abandoned each of them", wrong: ["JPMorgan's blockchain now processes $10 trillion daily and IBM's Food Trust actively tracks 25 billion food supply chain records", "The corporate blockchain era succeeded in creating interoperable networks that now settle cross-border payments in real time", "IBM and JPMorgan merged their blockchain platforms into a single enterprise network now operating across 500 Fortune 500 companies"] },
+        { q: "What happened to TradeLens, the shipping blockchain built by IBM and Maersk?", a: "It was shut down in 2023 after failing to win enough industry adoption", wrong: ["It became the main settlement layer for global container shipping", "It was merged into the Lightning Network to settle freight payments", "It was sold to a central bank and relaunched as a national CBDC"] },
         { q: "What makes Bitcoin's origin uniquely different from every other major cryptocurrency ever launched?", a: "Bitcoin has an \"immaculate conception\": no founder enrichment, no premine, no ICO, and an anonymous creator who then disappeared", wrong: ["Bitcoin is unique because its consensus rules have never changed since genesis; no other network has achieved this full stability", "Bitcoin's origin is unique because it was launched by a publicly known academic team who donated all profits back to a foundation", "Bitcoin is the only cryptocurrency launched before 2015 that still runs its original completely unmodified consensus algorithm"] },
         { q: "Why does launching a new Proof-of-Work coin present a fundamental and unavoidable security problem?", a: "Any new PoW chain starts with near-zero hashrate, meaning an attacker with modest hardware could 51% attack it from day one", wrong: ["New PoW coins are insecure because ASIC manufacturers refuse to supply hardware to chains below the 1 EH/s threshold hashrate", "New PoW chains are vulnerable because they must use Bitcoin's SHA-256 algorithm, enabling cheap merged mining attack exploits", "Launching a new PoW coin requires regulatory approval in most countries, creating legal barriers that deter legitimate honest miners"] }
     ],
@@ -650,7 +647,7 @@ const QUESTION_BANK = {
     "swag-merch": [
         { q: "BTCAccepted.org helps you find:", a: "Businesses that accept Bitcoin payments", wrong: ["Bitcoin mining pools and hashrate marketplaces", "Lightning node operators and payment routing hubs", "Altcoin and stablecoin spot exchange platforms"] },
         { q: "Sats.host offers:", a: "Bitcoin-powered static website hosting", wrong: ["Bitcoin cloud mining-as-a-service rentals", "Hardware cold-storage wallet distribution", "Identity-based KYC verification services"] },
-        { q: "What annual Bitcoin conference is often called \"the Super Bowl of Bitcoin\"?", a: "Bitcoin Conference (formerly Miami/Bitcoin 2021)", wrong: ["Consensus (the annual CoinDesk crypto industry conference)", "DevCon (the Ethereum Foundation's annual developer summit)", "ETHDenver (the largest Ethereum-focused hackathon and festival)"] },
+        { q: "What annual Bitcoin conference is often called \"the Super Bowl of Bitcoin\"?", a: "The Bitcoin Conference", wrong: ["Consensus (the annual CoinDesk crypto industry conference)", "DevCon (the Ethereum Foundation's annual developer summit)", "ETHDenver (the largest Ethereum-focused hackathon and festival)"] },
         { q: "What is the significance of wearing an orange pill at Bitcoin conferences?", a: "Signifies being \"orange pilled\" - awakened to Bitcoin\\'s importance", wrong: ["It promotes a popular vitamin supplement brand that sponsors the Bitcoin conference", "It identifies official conference staff members and volunteers on the event floor", "It serves as a VIP lanyard granting holders priority access to all mainstage panels"] },
         { q: "What popular Bitcoin merchandise item satirizes central banking?", a: "\"End the Fed\" t-shirts and posters", wrong: ["Bitcoin-branded ergonomic gaming chairs", "Satoshi Nakamoto collectible action figures", "ASIC miner miniature keychain replicas"] }
     ],
@@ -658,7 +655,6 @@ const QUESTION_BANK = {
         { q: "PPQ.ai lets you use AI models and pay with:", a: "Bitcoin per prompt - no subscription needed", wrong: ["Monthly recurring credit card subscription billing", "Ethereum gas fees via a MetaMask browser extension", "Free access to models supported by targeted display ads"] },
         { q: "Angor is a platform for:", a: "Non-custodial Bitcoin crowdfunding", wrong: ["Hosted cloud Bitcoin mining pool services", "On-chain coin mixing for transaction privacy", "Consumer-grade cold-storage hardware wallet sales"] },
         { q: "What website provides real-time visualization of the Bitcoin mempool?", a: "mempool.space", wrong: ["blockchain.com", "coinmarketcap.com", "bitcoincharts.com"] },
-        { q: "What popular hardware wallet supports both Bitcoin and Lightning?", a: "Coldcard and BitBox02", wrong: ["Ledger Nano and Trezor", "KeepKey and Passport", "Foundation and SeedSigner"] },
         { q: "What full node implementation is the most widely used for running Bitcoin?", a: "Bitcoin Core", wrong: ["Bitcoin Cash", "Ethereum Classic", "Ripple Node"] }
     ],
     "games": [
@@ -718,7 +714,7 @@ const QUESTION_BANK = {
         { q: "Why can Bitcoin's market cap potentially exceed gold's?", a: "Bitcoin is more portable, divisible, verifiable, and scarce than gold", wrong: ["Bitcoin transactions are faster and carry lower fees than physical gold trading", "Bitcoin is backed by a global reserve fund that guarantees its long-term value", "Bitcoin's mining process ensures a steady new supply making it superior to gold"] },
         { q: "What metric compares Bitcoin\\'s market value to all other cryptocurrencies combined?", a: "Bitcoin Dominance Index", wrong: ["Crypto Dominance Score", "Digital Asset Share Index", "Total Market Value Ratio"] },
         { q: "Bitcoin's market capitalization represents:", a: "The total value of all existing Bitcoin at the current price", wrong: ["The maximum number of Bitcoin coins that will ever be created by mining", "The total amount of money spent on Bitcoin mining hardware globally", "The sum of all Bitcoin transactions recorded on the blockchain annually"] },
-        { q: "If Bitcoin captured gold's market cap, each coin would be worth approximately:", a: "Over $500,000", wrong: ["Around $100,000", "Close to $200,000", "Up to $50,000"] }
+        { q: "If Bitcoin captured gold's market cap, each coin would be worth approximately:", a: "Over $1 million a coin", wrong: ["Around $100,000", "Close to $200,000", "Up to $50,000"], timeSensitive: true }
     ],
     "the_future": [
         { q: "What hypothetical event do Bitcoiners call \"hyperbitcoinization\"?", a: "A voluntary tipping point where Bitcoin displaces fiat as the world's dominant money", wrong: ["A coordinated government transition where nations simultaneously adopt a Bitcoin standard", "A planned protocol upgrade that makes Bitcoin the only globally compatible payment rail", "A forced redenomination where central banks exchange fiat reserves for Bitcoin at par"] },
@@ -807,7 +803,7 @@ const QUESTION_BANK = {
     ],
     "environment___energy": [
         { q: "Bitcoin mining's relationship with renewable energy is:", a: "Miners actively seek cheap renewable and stranded energy, incentivizing green energy development", wrong: ["Miners are forced by government regulation to exclusively use coal-powered electricity", "Renewable sources lack sufficient power density and reliability to support mining operations", "Bitcoin mining has no connection to the broader global energy market whatsoever as defined by Bitcoin consensus rules enforced by all full nodes"] },
-        { q: "What percentage of Bitcoin mining comes from renewable energy (estimates)?", a: "Estimates range from 50-60% using renewable or stranded energy", wrong: ["Zero percent, since all mining relies entirely on coal-fired power plants", "One hundred percent clean energy, as all miners have fully committed to green power", "Under ten percent because fossil fuels remain far cheaper than any renewable source"] },
+        { q: "What percentage of Bitcoin mining comes from renewable energy (estimates)?", a: "About half, counting renewables plus nuclear (Cambridge, 2025)", wrong: ["Zero percent, since all mining relies entirely on coal-fired power plants", "One hundred percent clean energy, as all miners have fully committed to green power", "Under ten percent because fossil fuels remain far cheaper than any renewable source"] },
         { q: "What is \"stranded energy\" in Bitcoin mining?", a: "Energy that would otherwise go to waste due to lack of transmission infrastructure", wrong: ["Excess electricity from broken or malfunctioning solar panels at remote farm sites", "Power left unused in large lithium battery banks that can no longer be discharged", "Natural gas burned in industrial heating systems that is then converted to electricity"] },
         { q: "How does Bitcoin mining help stabilize electrical grids?", a: "Miners can rapidly reduce load during peak demand (demand response)", wrong: ["By storing surplus electricity in large on-site battery arrays for future reuse", "By donating a portion of their mining profits to local electrical utility companies", "By funding construction of additional coal-fired baseload power plants in nearby areas"] },
         { q: "What common criticism about Bitcoin energy use is often misrepresented?", a: "Per-transaction energy cost (Bitcoin uses same energy regardless of transaction count)", wrong: ["Carbon emissions per kilowatt-hour (most Bitcoin miners exclusively rely on fossil fuel grids)", "Total annual electricity compared to countries (mining consumes more than some European nations)", "Heat waste per mining farm (miners deliberately produce useless heat as a fundamental design flaw)"] }
@@ -888,14 +884,14 @@ const QUESTION_BANK = {
     "geopolitics___macroeconomics": [
         { q: "Why is Bitcoin relevant to geopolitics?", a: "It provides a neutral monetary system outside any nation's control", wrong: ["Major governments collectively control Bitcoin's code through an international treaty", "Bitcoin mining is only legal in a small handful of G20-member countries", "The United Nations actively regulates and monitors Bitcoin's international transfers"] },
         { q: "What is the \"petrodollar\" system?", a: "Oil is priced in US dollars, forcing global demand for the dollar", wrong: ["A type of digital currency that is fully backed by physical oil reserves", "A Bitcoin mining technique that relies exclusively on petroleum-powered generation", "A special tax imposed on all Bitcoin transactions by major oil-producing nations"] },
-        { q: "Which country was the first to adopt Bitcoin as legal tender?", a: "El Salvador in September 2021", wrong: ["The United States in early 2022", "Japan in November 2020 as defined by Bitcoin consensus rules enforced by all full nodes", "Germany in December 2019 as defined by Bitcoin consensus rules enforced by all full nodes"] },
+        { q: "Which country was the first to adopt Bitcoin as legal tender?", a: "El Salvador in September 2021", wrong: ["The United States in early 2022", "Japan in November 2020 as defined by Bitcoin consensus rules enforced by all full nodes", "Germany in December 2019 as defined by Bitcoin consensus rules enforced by all full nodes"], timeSensitive: true },
         { q: "How do sanctions-evading nations view Bitcoin?", a: "As a way to circumvent SWIFT restrictions and frozen reserves", wrong: ["As a serious threat to local currency stability and existing capital controls", "As a covert US surveillance tool designed to track all foreign transactions", "As illegal under international law and actively banned by all sanctioned regimes"] },
         { q: "What macro trend drives Bitcoin adoption during inflation?", a: "Currency debasement making bitcoin\\'s fixed supply attractive", wrong: ["Lower interest rates on Bitcoin savings accounts offered by regulated exchanges", "Government subsidies distributed to citizens who hold verified Bitcoin savings", "Strict bank account requirements that push unbanked users toward digital assets"] },
         { q: "What is the BRICS de-dollarization movement and how does it relate to Bitcoin?", a: "BRICS nations are reducing dollar dependence, creating demand for neutral reserves like Bitcoin", wrong: ["BRICS nations jointly launched a Bitcoin mining pool to dominate block production and earn seigniorage", "BRICS nations have collectively banned Bitcoin to shield their central bank digital currencies from competition", "BRICS de-dollarization is complete because all five member nations have officially adopted Bitcoin as legal tender"] },
         { q: "What is the \"strategic Bitcoin reserve\" concept that multiple nations are exploring?", a: "Nations accumulating Bitcoin as a reserve asset alongside gold for its scarcity and hedge value", wrong: ["A legal requirement for all nations to back their fiat currency reserves with a fixed proportion of Bitcoin", "A binding UN mandate requiring every member country to hold at least one thousand Bitcoin in sovereign reserves", "A coordinated IMF program where central banks systematically replace all existing gold reserves with Bitcoin"] },
         { q: "What is the \"nation-state game theory\" argument for Bitcoin adoption?", a: "Early adopter nations gain a massive strategic edge, pressuring others to follow or fall behind", wrong: ["Nations that ban Bitcoin grow more economically powerful because they retain full control of their money supply", "Game theory conclusively proves that no sovereign nation will ever voluntarily hold Bitcoin as a reserve asset", "Nation-state game theory around Bitcoin only applies to countries that already possess nuclear weapons stockpiles"] },
         { q: "How do proponents respond to critics who say Bitcoin is used for sanctions evasion?", a: "Bitcoin's transparent public ledger makes transactions easier to trace than physical cash", wrong: ["Many Bitcoin proponents openly admit that sanctions evasion represents its primary real-world use case today", "All Bitcoin transactions are completely invisible and therefore undetectable by any government or agency", "International sanctions do not legally apply to any digital assets under any existing international law"] },
-        { q: "How do institutions like the IMF and World Bank view Bitcoin?", a: "Generally hostile - they've pressured nations like El Salvador to drop Bitcoin legal tender status", wrong: ["The IMF and World Bank are secretly among the largest institutional Bitcoin holders, controlling millions of BTC", "Both organizations have publicly and enthusiastically endorsed Bitcoin as the clear future of global reserve finance", "The IMF originally created Bitcoin as a planned technical replacement for its existing Special Drawing Rights system"] }
+        { q: "How do institutions like the IMF and World Bank view Bitcoin?", a: "Generally hostile - they've pressured nations like El Salvador to drop Bitcoin legal tender status", wrong: ["The IMF and World Bank are secretly among the largest institutional Bitcoin holders, controlling millions of BTC", "Both organizations have publicly and enthusiastically endorsed Bitcoin as the clear future of global reserve finance", "The IMF originally created Bitcoin as a planned technical replacement for its existing Special Drawing Rights system"], timeSensitive: true }
     ],
     "op-codes": [
         { q: "Bitcoin OP_CODES are:", a: "Instructions in Bitcoin's scripting language that define spending conditions", wrong: ["Numerical error codes automatically returned to the sender when a transaction fails validation", "Standardized codes used to transmit data and coordinate operations between competing mining pools", "Secret backdoor commands embedded by Bitcoin core developers for emergency network maintenance"] },
@@ -917,9 +913,9 @@ const QUESTION_BANK = {
         { q: "What is the purpose of a public key?", a: "To receive bitcoin and verify signatures without revealing the private key", wrong: ["To spend and send bitcoin to others without requiring any additional keys", "To mine new blocks on the network and collect the associated block reward", "To generate and derive the matching private key through mathematical means"] }
     ],
     "transaction_fees": [
-        { q: "Bitcoin transaction fees are determined by:", a: "The size of the transaction in bytes and current network demand", wrong: ["A fixed percentage of the total amount sent in each transaction", "The total number of bitcoin units being sent in the transaction", "The geographic distance between the sender and recipient addresses"] },
+        { q: "Bitcoin transaction fees are determined by:", a: "The size of the transaction in virtual bytes (vbytes) and current network demand", wrong: ["A fixed percentage of the total amount sent in each transaction", "The total number of bitcoin units being sent in the transaction", "The geographic distance between the sender and recipient addresses"] },
         { q: "When the mempool is full:", a: "Transactions with higher fees get confirmed first", wrong: ["All transactions are rejected until the mempool clears", "The block size limit is automatically increased", "Transaction fees are fully refunded to all senders"] },
-        { q: "What determines Bitcoin transaction fees?", a: "Transaction size in bytes and current network demand (mempool congestion)", wrong: ["The total transaction amount in bitcoin sent to the recipient address", "The sender's account reputation and transaction history with miners", "Government regulatory requirements and compliance fees imposed on nodes"] },
+        { q: "What determines Bitcoin transaction fees?", a: "Transaction size in virtual bytes (vbytes) and current network demand (mempool congestion)", wrong: ["The total transaction amount in bitcoin sent to the recipient address", "The sender's account reputation and transaction history with miners", "Government regulatory requirements and compliance fees imposed on nodes"] },
         { q: "What is the mempool?", a: "A waiting area for unconfirmed transactions held by nodes", wrong: ["A mining hardware pool where miners jointly operate equipment", "A decentralized cryptocurrency exchange for peer-to-peer trading", "A type of hardware Bitcoin wallet for offline secure storage"] },
         { q: "Why do fees spike during network congestion?", a: "Users compete for limited block space by bidding higher fees", wrong: ["Miners arbitrarily raise fee requirements during busy periods", "Bitcoin exchanges charge extra fees during periods of peak usage", "The Bitcoin supply shrinks due to an accelerated halving schedule"] }
     ],
@@ -937,7 +933,7 @@ const QUESTION_BANK = {
     ],
     "halving": [
         { q: "The Bitcoin halving occurs every:", a: "210,000 blocks (approximately every 4 years)", wrong: ["Once every calendar year, on or around January 3rd", "Every 100,000 blocks mined on the network", "Whenever the market price of Bitcoin doubles in value"] },
-        { q: "After the 2024 halving, the block reward is:", a: "3.125 BTC per block", wrong: ["6.25 BTC per block", "1.5625 BTC per block", "50 BTC per block"] },
+        { q: "After the 2024 halving, the block reward is:", a: "3.125 BTC per block", wrong: ["6.25 BTC per block", "1.5625 BTC per block", "50 BTC per block"], timeSensitive: true },
         { q: "The halving is significant because it:", a: "Mathematically enforces Bitcoin's decreasing supply issuance", wrong: ["Doubles the total circulating supply of Bitcoin in the market", "Reduces the number of active miners by half temporarily", "Changes Bitcoin's proof-of-work consensus mechanism entirely"] },
         { q: "What happens during a Bitcoin halving?", a: "Block reward paid to miners is cut in half", wrong: ["Transaction fees are automatically doubled for users", "The total circulating supply of Bitcoin doubles", "The Bitcoin mining difficulty level also halves"] },
         { q: "When will the final bitcoin be mined?", a: "Around year 2140 when all 21 million are issued", wrong: ["Around year 2025 when the block subsidy drops to zero", "Around year 2040 at the current pace of new block mining", "Mining never ends because rewards continue indefinitely"] }
@@ -972,7 +968,6 @@ const QUESTION_BANK = {
         { q: "What is the maximum amount of data that can be stored in an OP_RETURN output?", a: "80 bytes", wrong: ["40 bytes", "160 bytes", "1000 bytes"] },
         { q: "What does it mean for Bitcoin to be provably unspendable through OP_RETURN?", a: "The output has no valid script path to spend it", wrong: ["It requires a special private key to spend", "It can only be spent after 100 confirmations", "It is temporarily locked until a timelock expires"] },
         { q: "Roughly how many Bitcoin are estimated to be permanently lost or burned?", a: "Between 3-4 million BTC", wrong: ["Less than 1 million BTC", "Over 10 million BTC", "Exactly 1 million BTC"] },
-        { q: "What type of Bitcoin address output is provably unspendable with no script?", a: "Bare multisig with invalid pubkeys", wrong: ["Standard P2PKH legacy address output scripts", "Wrapped P2SH redeem script hash outputs", "Native segwit P2WPKH address formats"] },
         { q: "What is proof of burn in the context of cryptocurrency?", a: "Demonstrating coins were sent to an unspendable address", wrong: ["Mining blocks without ever receiving any block rewards", "Permanently deleting the private keys associated with a wallet", "Sending coins to a wallet address belonging to a person who has died"] }
     ],
     "ctv-covenants": [
@@ -1013,7 +1008,7 @@ const QUESTION_BANK = {
     "el-salvador": [
         { q: "What was the Chivo wallet in El Salvador's Bitcoin adoption?", a: "A government-issued Lightning wallet that gave citizens $30 in Bitcoin", wrong: ["A private hardware wallet manufactured locally in El Salvador", "An exchange platform where Salvadorans could trade altcoins", "A banking app that only supported US dollar-based transactions"] },
         { q: "What is \"Bitcoin Beach\" and why is it significant to El Salvador's Bitcoin story?", a: "El Zonte - a village that built a grassroots Bitcoin economy before the national law", wrong: ["A luxury resort in San Salvador that exclusively accepts Bitcoin payments", "A government-built tourist attraction designed to promote Bitcoin adoption", "A cryptocurrency exchange headquartered on the Salvadoran coastal region"] },
-        { q: "What was President Bukele's core strategy behind making Bitcoin legal tender?", a: "Financial inclusion for the unbanked, foreign investment, and cheaper remittances", wrong: ["Replacing the US dollar entirely with Bitcoin as El Salvador's sole legal currency", "Mining Bitcoin at industrial scale using El Salvador's largely untapped natural oil reserves", "Creating a government-controlled national cryptocurrency designed to replace Bitcoin"] },
+        { q: "What was President Bukele's core strategy behind making Bitcoin legal tender?", a: "Financial inclusion for the unbanked, foreign investment, and cheaper remittances", wrong: ["Replacing the US dollar entirely with Bitcoin as El Salvador's sole legal currency", "Mining Bitcoin at industrial scale using El Salvador's largely untapped natural oil reserves", "Creating a government-controlled national cryptocurrency designed to replace Bitcoin"], timeSensitive: true },
         { q: "How did the World Bank and IMF respond to El Salvador's Bitcoin law?", a: "They pushed back - the World Bank refused help and the IMF warned of risks", wrong: ["Both organizations fully endorsed and helped fund the entire initiative", "The IMF designed and helped build the Chivo wallet infrastructure", "The World Bank provided a $500 million loan specifically for adoption"] },
         { q: "How did Lightning Network adoption benefit El Salvador's economy?", a: "It enabled fast, near-free payments and remittances, cutting out costly services", wrong: ["Lightning was not used - only on-chain Bitcoin transactions were supported", "Lightning made transactions faster but significantly more expensive overall", "El Salvador banned Lightning in favor of on-chain-only Bitcoin payments"] }
     ],
@@ -1111,7 +1106,7 @@ const QUESTION_BANK = {
     "austrian_economics": [
         { q: "What did Ludwig von Mises formalize in \"Human Action\" (1949)?", a: "Praxeology — the study of purposeful human action under scarcity, establishing economics as a deductive science of individual choice", wrong: ["A measured preference for investments offering rapid compounding returns rather than gradual wealth accumulation as defined by Bitcoin consensus rules enforced by all full nodes", "An economic condition where rising inflation expectations push consumers to purchase goods before prices climb as defined by Bitcoin consensus rules enforced by all full nodes", "A deliberate investment strategy of holding only liquid assets to preserve maximum optionality and flexibility as defined by Bitcoin consensus rules enforced by all full nodes"] },
         { q: "What was Hayek's core argument in \"The Use of Knowledge in Society\" (1945)?", a: "Prices are decentralized information signals encoding dispersed local knowledge that no central planner could ever collect or replicate", wrong: ["Wages are collective bargaining outcomes that government intervention can optimize to achieve full employment across all economic sectors", "Capital is best allocated by expert technocrats who can model aggregate market behavior using national statistical databases", "Markets fail to coordinate information efficiently whenever monopolies or asymmetric information distort the natural price discovery process"] },
-        { q: "What did Hayek propose in \"Denationalization of Money\" (1976)?", a: "Competitive private currencies issued and managed entirely outside government control, a concept Bitcoin made real 35 years later", wrong: ["A global reserve currency jointly managed by central banks under an international treaty with binding monetary supply rules", "A commodity basket standard linking currency values to weighted indices of gold, silver, and key agricultural commodity prices", "Full public ownership of the money supply administered by democratically elected monetary boards with transparent policy rules"] },
+        { q: "What did Hayek propose in \"Denationalization of Money\" (1976)?", a: "Competing private currencies issued outside government control", wrong: ["A global reserve currency jointly managed by central banks under an international treaty with binding monetary supply rules", "A commodity basket standard linking currency values to weighted indices of gold, silver, and key agricultural commodity prices", "Full public ownership of the money supply administered by democratically elected monetary boards with transparent policy rules"] },
         { q: "According to Austrian Business Cycle Theory, what causes boom-bust cycles?", a: "Artificially low central bank interest rates that encourage malinvestment and unsustainable credit expansion, inevitably followed by a painful bust", wrong: ["Excessive consumer spending fueled by rising wages that outpaces underlying productivity growth in the manufacturing and services sectors", "Trade imbalances caused by currency manipulation that distort the natural flow of global capital across national borders and industries", "Monopolistic corporate pricing that suppresses marketplace competition and prevents efficient capital reallocation across the broader economy"] },
         { q: "How does sound money affect time preference across society according to Austrian theory?", a: "Sound money lowers time preference, encouraging saving and long-term investment over immediate consumption and short-term debt-fueled spending", wrong: ["Sound money raises time preference by making future purchasing power uncertain, discouraging multi-year planning among investors and consumers", "Sound money has no measurable effect on time preference, which is entirely determined by individual psychology and genetic disposition", "Sound money temporarily lowers time preference but eventually promotes excessive hoarding that collapses demand and deflates the broader economy"] },
         { q: "What is the Austrian subjective theory of value, in contrast to Marxist labor theory?", a: "Value is determined solely by individual actors based on personal preferences and scarcity, not by labor hours embedded in production", wrong: ["Value is determined by the collective social utility of a good as measured through democratic consensus and community price-setting processes", "Value is established at market equilibrium when aggregate supply matches aggregate demand at a mutually acceptable price level", "Value is a function of raw material scarcity measured objectively by the replacement cost of producing the good under current market conditions"] },
@@ -1134,27 +1129,26 @@ const QUESTION_BANK = {
     ],
     "cypherpunks": [
         { q: "What did Eric Hughes declare in \"A Cypherpunk's Manifesto\" (1993)?", a: "\"Privacy is necessary for an open society in the electronic age... We must defend our own privacy if we expect to have any.\"", wrong: ["\"Encryption is a weapon of the people... The state's monopoly on surveillance must be broken by making cryptography universally available and free.\"", "\"Anonymity is the foundation of all digital freedom... Any government that surveils its citizens without consent has permanently forfeited its legitimacy.\"", "\"Code is the new law... Those who control cryptographic infrastructure ultimately control the rights and freedoms of citizens in the digital age.\""] },
-        { q: "Where did Satoshi Nakamoto first publish the Bitcoin whitepaper on October 31, 2008?", a: "The Cypherpunks mailing list, the center of digital privacy and cryptographic activism since its founding in 1992 by Eric Hughes and John Gilmore", wrong: ["The Bitcoin.org website, which Satoshi registered in August 2008 specifically to host the whitepaper and distribute the initial open-source software release", "The SourceForge code repository, where Satoshi posted the whitepaper alongside the initial C++ source code for broad public review and comment", "The Cryptography mailing list hosted at metzdowd.com, a separate but closely overlapping community focused primarily on academic cryptographic research"] },
+        { q: "Where did Satoshi Nakamoto first publish the Bitcoin whitepaper on October 31, 2008?", a: "The Cryptography mailing list (metzdowd.com)", wrong: ["The Cypherpunks mailing list", "The BitcoinTalk forum", "A Usenet newsgroup"] },
         { q: "What was Adam Back's technical contribution that directly shaped Bitcoin's design?", a: "He invented Hashcash in 1997 — a proof-of-work system directly cited in the Bitcoin whitepaper that became the foundation of Bitcoin's mining mechanism", wrong: ["He created the Merkle tree data structure in 1994 that Bitcoin uses to efficiently organize and cryptographically verify transaction data inside each block", "He developed the elliptic curve digital signature algorithm that Bitcoin uses to cryptographically authenticate ownership and authorize every transaction", "He invented the SHA-256 hashing algorithm in 1995 that Bitcoin relies on to secure its proof-of-work calculations and generate transaction identifiers"] },
         { q: "Who was Hal Finney and what was his historic role in Bitcoin's earliest days?", a: "He received the first Bitcoin transaction from Satoshi (block 170), ran the second node, created RPOW in 2004, and died of ALS in 2014 with his brain cryonically preserved", wrong: ["He authored the cryptographic foundations of the original Bitcoin whitepaper before Satoshi transformed them into a fully operational peer-to-peer payment system", "He mined the genesis block alongside Satoshi and ran Bitcoin's first public exchange, converting BTC into USD for the earliest adopters of the network as defined by Bitcoin consensus rules enforced by all full nodes", "He ran Bitcoin's first currency exchange and facilitated the landmark pizza transaction, the first documented real-world commercial use of Bitcoin as defined by Bitcoin consensus rules enforced by all full nodes"] },
         { q: "Why do many researchers suspect Nick Szabo is Satoshi Nakamoto?", a: "He coined the term \"smart contracts\" in 1994 and created bit gold in 1998 — a Bitcoin direct predecessor featuring similar proof-of-work and digital scarcity mechanics", wrong: ["He registered bitcoin.org before the whitepaper's release and was the only known cypherpunk with sufficient C++ expertise to write the original client", "His writing style matched the Bitcoin whitepaper with 99% confidence according to multiple independent linguistic forensic analysis studies published in 2013", "He confirmed in a 2019 podcast interview that he was \"deeply involved in Bitcoin's conceptual design\" without explicitly claiming sole authorship of the protocol"] },
         { q: "What was Wei Dai's contribution to digital cash, and how is he honored in crypto today?", a: "He created b-money in 1998, the first proposal for anonymous distributed electronic cash directly cited by Satoshi; Ethereum's smallest unit, the \"wei,\" is named after him", wrong: ["He invented the zero-knowledge proof protocol in 1992 underlying Ethereum's privacy layer; the \"gwei\" denomination honors his foundational cryptographic contribution", "He designed the distributed hash table architecture in 1997 that directly inspired Bitcoin's peer-to-peer network topology and decentralized node discovery protocol", "He created e-gold in 1996, the first operational digital gold currency system, and MakerDAO's \"dai\" stablecoin was named in honor of his legacy as defined by Bitcoin consensus rules enforced by all full nodes"] },
         { q: "What did Timothy May argue in his \"Crypto-Anarchist Manifesto\" written in 1988?", a: "Cryptography would make governments unable to tax or regulate digital communications, enabling untraceable anonymous transactions and entirely new free markets", wrong: ["Encryption would enable investigative journalists to safely transmit whistleblower documents across borders, fundamentally reforming government accountability worldwide", "Public-key cryptography would make government-issued identity documents and passports completely obsolete within two decades of widespread civilian adoption", "Digital cash systems would eliminate banking fees for ordinary citizens and redistribute trillions in financial industry profits directly to technology developers"] },
         { q: "What is Len Sassaman's unusual and permanent connection to the Bitcoin blockchain?", a: "He was a cypherpunk cryptographer who died in July 2011 shortly after Satoshi went dark; his obituary was permanently encoded into the Bitcoin blockchain as tribute", wrong: ["He merged Satoshi's final code commits before the creator went dark in 2011, making him the last developer to interact officially with the original Bitcoin client", "He operated the longest-running Bitcoin full node during the first year of the network, and his node identifier was encoded in the metadata of block 21,000", "He contributed the peer-to-peer networking module to the original Bitcoin client, and his PGP public key is permanently embedded inside the genesis block's coinbase script"] },
-        { q: "What legal precedent did Phil Zimmermann establish through his battles over PGP encryption?", a: "His US prosecution for \"exporting munitions\" when PGP spread abroad established the critical constitutional precedent that software source code is protected free speech", wrong: ["His case established that no court could compel production of cryptographic keys as self-incriminating testimony, extending Fifth Amendment protections to encryption", "His legal battle with RSA Security over patent licensing established the foundational principle that mathematical algorithms cannot be privately owned as intellectual property", "His prosecution established that open-source cryptographic software cannot under any circumstances be classified as a weapon under the Arms Export Control Act"] },
+        { q: "What happened in the US government's investigation of Phil Zimmermann over PGP?", a: "He was investigated for 'exporting munitions,' but the case was dropped in 1996", wrong: ["He was convicted and served two years in federal prison", "He settled by handing PGP's source code to the NSA", "He was fined and banned from writing crypto software"] },
         { q: "What was Julian Assange's connection to the cypherpunk movement and to Bitcoin's early adoption?", a: "Assange was a cypherpunk mailing list subscriber when Satoshi published the whitepaper in 2008; WikiLeaks later became one of Bitcoin's first major organizational adopters", wrong: ["Assange personally corresponded with Satoshi throughout 2009 to coordinate WikiLeaks's launch of a dedicated anonymous Bitcoin donation infrastructure for sources", "Assange co-authored the \"Cypherpunks\" book with Jacob Appelbaum in 2012, which became a widely cited foundational text within the early Bitcoin community", "Assange was a contributing Bitcoin developer before founding WikiLeaks, writing the anonymous transaction routing code that appeared in client version 0.2"] }
     ],
     "satoshi_nakamoto_deep": [
         { q: "How many posts did Satoshi Nakamoto make on the BitcoinTalk forum before going silent?", a: "Exactly 575 documented posts on the BitcoinTalk forum before Satoshi went dark in late 2010 and early 2011, handing off to Gavin Andresen", wrong: ["Approximately 3,200 posts across BitcoinTalk and the Cypherpunks mailing list before formally transferring all authority and repository access to Gavin Andresen", "Around 1,100 public posts on BitcoinTalk, plus hundreds of private direct messages to core developers that were later partially leaked online", "Fewer than 100 public posts total, since Satoshi strongly preferred communicating through private encrypted email rather than open public forum discussions"] },
         { q: "What is considered significant about Satoshi's self-reported birthday of April 5, 1975?", a: "April 5 is the date of FDR's 1933 Executive Order 6102 confiscating gold, and 1975 is the year Americans regained the legal right to own gold again", wrong: ["April 5 is the date Satoshi registered bitcoin.org in 2008, and 1975 is the year Whitfield Diffie and Martin Hellman published the public-key cryptography paper", "April 5 is the date of the first confirmed Bitcoin transaction in 2009, and 1975 marks the founding of the first academic digital money research consortium", "April 5 was chosen as a random privacy-preserving date, and 1975 simply reflects the year the cypherpunk movement's core philosophical foundations were established"] },
         { q: "What is notable about how Satoshi Nakamoto managed Bitcoin addresses for privacy?", a: "Satoshi maintained over 22,000 documented unique addresses and reportedly never reused a single one, demonstrating perfect on-chain privacy hygiene throughout", wrong: ["Satoshi used a single master address for all early mining rewards to simplify personal accounting, then rotated to new addresses only after 2010", "Satoshi reused addresses intentionally to signal authenticity to early users, maintaining fewer than 50 documented unique addresses across all activity", "Satoshi's addresses followed a deterministic pattern researchers cracked in 2013, successfully mapping every early mining reward back to a single master wallet"] },
-        { q: "What did Satoshi write in his final known email to Gavin Andresen in April 2011?", a: "\"I have moved on to other things. It is in good hands with Gavin and everyone.\"", wrong: ["\"The system is working as intended. Never add features without thorough peer review, and always keep the codebase minimal and fully auditable.\"", "\"Please do not attempt to contact me again. Bitcoin must stand entirely on its own without any individual being perceived as its leader.\"", "\"Protect the 21 million supply cap above all else. Any proposal to alter total issuance must be permanently and unconditionally rejected.\""] },
+        { q: "What did Satoshi write to Mike Hearn in April 2011?", a: "\"I have moved on to other things. It is in good hands with Gavin and everyone.\"", wrong: ["\"The system is working as intended. Never add features without thorough peer review, and always keep the codebase minimal and fully auditable.\"", "\"Please do not attempt to contact me again. Bitcoin must stand entirely on its own without any individual being perceived as its leader.\"", "\"Protect the 21 million supply cap above all else. Any proposal to alter total issuance must be permanently and unconditionally rejected.\""] },
         { q: "What surprising feature was hidden inside Satoshi's original Bitcoin source code?", a: "The unfinished beginnings of an online poker game were embedded within the original approximately 31,000 lines of C++ source code", wrong: ["A built-in decentralized exchange for direct peer-to-peer currency swaps without intermediaries, which was deliberately stripped out before the 2009 launch", "An early DNS-based identity system allowing users to cryptographically link human-readable usernames to their Bitcoin addresses across the network", "A complete payment channel prototype closely resembling the Lightning Network that Satoshi implemented fully but deliberately disabled before the January 2009 launch"] },
         { q: "What does Satoshi's registration of netcoin.org reveal about the project's late development?", a: "Satoshi registered netcoin.org one day before bitcoin.org, strongly suggesting the project's final name was still undecided until very late in development", wrong: ["Satoshi registered netcoin.org as a deliberate decoy domain to mislead corporate legal teams that were monitoring digital currency development for patent filings", "Netcoin.org was registered by Hal Finney on Satoshi's behalf as a geographic mirror for distributing the whitepaper outside of US legal jurisdiction", "The netcoin.org registration proves Satoshi initially envisioned a narrower online payment network before expanding the scope to a full decentralized monetary system"] },
         { q: "How did the pre-launch Bitcoin parameters differ from the version released in January 2009?", a: "Pre-launch Bitcoin used 15-minute block times and 30-day difficulty adjustments; these were changed to 10-minute blocks and a 2-week difficulty window before launch", wrong: ["Pre-launch Bitcoin used 1-minute block times and 24-hour difficulty adjustments; these were deliberately slowed to improve stability and prevent network spam", "The original technical parameters matched the final launch version exactly; no substantive changes were made between the whitepaper publication and the software release", "Pre-launch Bitcoin had no automatic difficulty adjustment at all; the 2-week adjustment period was proposed by Hal Finney and added during the first year of operation"] },
         { q: "What is notable about the approximately 1 million Bitcoin Satoshi mined in the early days?", a: "Satoshi mined roughly 1 million BTC using a deliberately limited single-threaded miner to avoid dominating the network, and none of these coins have ever moved", wrong: ["Satoshi mined approximately 1 million BTC but transferred the majority to a multi-signature escrow wallet controlled by the Bitcoin Foundation before going dark in 2011", "Satoshi mined approximately 1 million BTC and quietly liquidated about half of them during the 2013 bull run to fund ongoing anonymous development work", "Satoshi's early mining totaled only around 50,000 BTC; the widely cited 1 million figure is a persistent myth based on demonstrably flawed blockchain analysis methods"] },
-        { q: "What happens to Bitcoin that fans send to the original Genesis Block address as tribute?", a: "Over 68 BTC have been sent as tribute to the Genesis Block address, but they are permanently unspendable since the output carries no valid scriptPubKey to spend from", wrong: ["Bitcoin sent to the Genesis Block address is automatically destroyed by the protocol itself, permanently reducing the circulating supply below 21 million coins", "Genesis Block donations remain locked and are accessible only to whoever controls Satoshi's original private keys, creating an enduring cryptographic mystery", "All Bitcoin sent to the Genesis Block address accumulates in a special reserve fund governed collectively by the Bitcoin Core development team and maintainers"] },
-        { q: "What does the fact that only 0.06% of Bitcoin Core code remains from Satoshi's original suggest?", a: "The global community has rebuilt nearly everything from scratch, embodying the spirit that \"we are all Satoshi\" through decades of collective open-source maintainership", wrong: ["Satoshi's original code was so poorly structured and buggy that developers had to replace it entirely, raising serious questions about Satoshi's actual programming expertise", "The 0.06% figure proves Satoshi contributed only the whitepaper concept while the actual software was primarily written by Hal Finney and other early collaborators", "Bitcoin Core has diverged so completely from Satoshi's original design that it should be treated as an entirely different protocol incompatible with the founding vision"] }
+        { q: "What happens to Bitcoin that fans send to the original Genesis Block address as tribute?", a: "They can only be spent with the genesis address key, which has never been used", wrong: ["They are automatically destroyed, lowering the 21 million cap", "They are returned to the sender after 100 blocks", "They go into a reserve fund run by Bitcoin Core maintainers"] }
     ],
     "books_deep": [
         { q: "Which book did Michael Saylor credit as most impactful in MicroStrategy's decision to adopt Bitcoin?", a: "The Bitcoin Standard by Saifedean Ammous", wrong: ["The Fiat Standard by Saifedean Ammous", "Gradually Then Suddenly by Parker Lewis", "Broken Money by Lyn Alden, as specified in the original Bitcoin whitepaper released in 2008"] },
@@ -1174,11 +1168,10 @@ const QUESTION_BANK = {
         { q: "In Venezuela's hyperinflation crisis, what was the typical fee range that families lost when sending remittances through traditional wire and cash services?", a: "20–40% of the total transfer in fees and unfavorable exchange rates", wrong: ["5–10% of the total transfer in fees and unfavorable exchange rates", "50–70% of the total transfer in fees and currency conversion losses", "10–15% of the total transfer in fees and exchange rate spreads"] },
         { q: "During the 2019–2020 Lebanese banking crisis, how did the situation differ for Bitcoin holders versus bank depositors?", a: "Banks froze depositor accounts entirely, while Bitcoin holders retained full, unobstructed access to their funds", wrong: ["Bitcoin holders saw their funds seized by Lebanese authorities, while bank depositors received partial access", "Both groups faced equal restrictions, as Lebanese courts extended banking freezes to crypto wallets", "Bank depositors could withdraw up to $400 per week, while Bitcoin holders faced blockchain-level withdrawal limits"] },
         { q: "In Taliban-controlled Afghanistan, what specific financial freedom does Bitcoin on a mobile phone enable for women?", a: "Women legally barred from holding bank accounts can control their own money without requiring male permission or a bank", wrong: ["Women can receive international aid disbursements that Taliban officials cannot intercept or redirect to male relatives", "Women can pay for goods anonymously, preventing Taliban tracking of purchases deemed un-Islamic by local authorities", "Women can earn wages in Bitcoin from foreign employers, bypassing Taliban labor laws restricting female employment"] },
-        { q: "During the 2022 Canadian trucker convoy protests, what happened to the GoFundMe campaign, and how did the Bitcoin alternative compare in size?", a: "GoFundMe froze $10 million in donations; Bitcoin campaigns raised approximately $21 million which could not be frozen", wrong: ["GoFundMe froze $3 million in donations; Bitcoin campaigns raised approximately $7 million which could not be frozen", "GoFundMe froze $25 million in donations; Bitcoin campaigns raised approximately $4 million which could not be frozen", "GoFundMe froze $10 million in donations; Bitcoin campaigns raised approximately $4 million which was later seized"] },
+        { q: "During the 2022 Canadian trucker convoy protests, what happened to the GoFundMe campaign, and how did the Bitcoin alternative compare in size?", a: "GoFundMe froze about $10 million; Bitcoin donors gave about 21 BTC (roughly $1 million)", wrong: ["GoFundMe froze $3 million in donations; Bitcoin campaigns raised approximately $7 million which could not be frozen", "GoFundMe froze $25 million in donations; Bitcoin campaigns raised approximately $4 million which could not be frozen", "GoFundMe froze $10 million in donations; Bitcoin campaigns raised approximately $4 million which was later seized"] },
         { q: "In 2010, WikiLeaks was financially blockaded — Visa, Mastercard, and PayPal all cut off donations under US government pressure. What did this event demonstrate about Bitcoin?", a: "Bitcoin was completely immune to the blockade, allowing WikiLeaks to continue receiving donations without any payment processor", wrong: ["Bitcoin donations to WikiLeaks were blocked by exchanges cooperating with US Treasury demands at the network layer", "Bitcoin provided a brief alternative but was later traced by the NSA, leading to arrests of major WikiLeaks donors", "Bitcoin exposure forced WikiLeaks to pause fundraising temporarily due to volatility making donation values unpredictable"] },
         { q: "How many adults worldwide are estimated to lack a bank account, and what does Bitcoin's mobile-first design offer them?", a: "About 1.4 billion unbanked adults can access Bitcoin-based financial services using only a mobile phone", wrong: ["About 500 million unbanked adults can access Bitcoin-based financial services using only a mobile phone", "About 3 billion unbanked adults can access Bitcoin-based financial services using only a mobile phone", "About 800 million unbanked adults can access Bitcoin-based financial services using only a mobile phone"] },
-        { q: "In Cuba, what financial problem does Bitcoin solve for diaspora families sending money home?", a: "It eliminates the 10%+ fees charged by Western Union and other remittance services for transfers to Cuba", wrong: ["It bypasses the US embargo by routing transfers through Bitcoin exchanges outside Western financial networks", "It prevents Cuban authorities from seizing transfers that exceed government-set remittance caps per household", "It allows Cuban recipients to hold value that cannot be confiscated during government mandated currency conversions"] },
-        { q: "Alex Gladstein argues that the global financial privilege gap is poorly understood by people in wealthy nations. What is the key stat that reframes the debate?", a: "87% of humanity lives under authoritarian or semi-authoritarian governments with weaker, less stable currencies", wrong: ["65% of global GDP is produced in countries whose citizens cannot freely buy or sell foreign currencies", "92% of global inflation occurs in the developing world, yet monetary reform debates are dominated by G7 economists", "74% of the world's population has experienced at least one episode of government-imposed capital controls since 1970"] }
+        { q: "In Cuba, what financial problem does Bitcoin solve for diaspora families sending money home?", a: "It eliminates the 10%+ fees charged by Western Union and other remittance services for transfers to Cuba", wrong: ["It bypasses the US embargo by routing transfers through Bitcoin exchanges outside Western financial networks", "It prevents Cuban authorities from seizing transfers that exceed government-set remittance caps per household", "It allows Cuban recipients to hold value that cannot be confiscated during government mandated currency conversions"] }
     ],
     "cbdc": [
         { q: "What does CBDC stand for, and what is its most fundamental difference from Bitcoin?", a: "Central Bank Digital Currency — it is centrally controlled by government, unlike Bitcoin which has no central issuer", wrong: ["Crypto-Backed Digital Contract — it requires collateral backing unlike Bitcoin which is backed only by decentralized consensus", "Cross-Border Digital Currency — it is designed for international trade unlike Bitcoin which was designed for domestic payments", "Central Bank Distributed Coin — it uses distributed ledger technology unlike Bitcoin which uses a single-node blockchain"] },
@@ -1208,8 +1201,8 @@ const QUESTION_BANK = {
         { q: "What does the name \"Mt. Gox\" actually stand for, and what was the platform before it became a Bitcoin exchange?", a: "Magic: The Gathering Online Exchange — it was originally a card trading site repurposed for Bitcoin in 2010", wrong: ["Creditors waited approximately 5 years; distributions began in 2019 and were paid entirely in fiat currency at original dollar values", "Creditors waited approximately 7 years; distributions began in 2021 and were settled in USDT stablecoins rather than Bitcoin", "Creditors waited approximately 10 years; distributions began in 2024 but all Bitcoin was converted to cash at bankruptcy-era prices"] },
         { q: "At its peak in 2013, what share of all global Bitcoin transactions passed through Mt. Gox?", a: "Over 70% of all global Bitcoin transactions were processed through Mt. Gox at its peak", wrong: ["Over 90% of all global Bitcoin transactions were processed through Mt. Gox at its peak", "Approximately 40% of all global Bitcoin transactions were processed through Mt. Gox at its peak", "Roughly 55% of all global Bitcoin transactions were processed through Mt. Gox at its peak"] },
         { q: "When Mt. Gox collapsed in February 2014, how many BTC did it announce had been lost, and how many were later found internally?", a: "Mt. Gox reported ~850,000 BTC lost; approximately 200,000 BTC were later discovered in old wallets and recovered", wrong: ["Mt. Gox reported ~650,000 BTC lost; approximately 150,000 BTC were later discovered in cold storage and recovered", "Mt. Gox reported ~1.2 million BTC lost; approximately 350,000 BTC were later discovered during bankruptcy proceedings", "Mt. Gox reported ~850,000 BTC lost; none were ever recovered as all coins were immediately laundered by the attackers"] },
-        { q: "What were the two root causes that allowed Mt. Gox to be drained of Bitcoin over a period of years?", a: "Transaction malleability exploits combined with severe internal financial mismanagement and lack of auditing", wrong: ["A private key leak on the public GitHub repository combined with a social engineering attack on the core server team", "Insider theft by a rogue employee combined with a zero-day exploit in the OpenSSL library used for wallet encryption", "A 51% attack on the Bitcoin network combined with poor hot wallet security that left most funds in an online server"] },
-        { q: "What crime was Mt. Gox CEO Mark Karpeles ultimately convicted of in Japan?", a: "Data manipulation — he was convicted of falsifying electronic records, though embezzlement charges were dropped", wrong: ["Theft and embezzlement — he was convicted of directly moving customer Bitcoin to personal wallets for his own enrichment", "Securities fraud — he was convicted of issuing false statements about exchange reserves to prevent a bank run", "Money laundering — he was convicted of funneling customer funds through shell companies registered in France and Japan"] },
+        { q: "What were the two root causes that allowed Mt. Gox to be drained of Bitcoin over a period of years?", a: "Theft of its hot wallet keys starting in 2011, combined with poor bookkeeping and no audits", wrong: ["A private key leak on the public GitHub repository combined with a social engineering attack on the core server team", "Insider theft by a rogue employee combined with a zero-day exploit in the OpenSSL library used for wallet encryption", "A 51% attack on the Bitcoin network combined with poor hot wallet security that left most funds in an online server"] },
+        { q: "What crime was Mt. Gox CEO Mark Karpeles ultimately convicted of in Japan?", a: "Data manipulation — he was convicted of falsifying electronic records but acquitted of embezzlement", wrong: ["Theft and embezzlement — he was convicted of directly moving customer Bitcoin to personal wallets for his own enrichment", "Securities fraud — he was convicted of issuing false statements about exchange reserves to prevent a bank run", "Money laundering — he was convicted of funneling customer funds through shell companies registered in France and Japan"] },
         { q: "What phrase, now a cornerstone of Bitcoin culture, emerged directly from the lessons of the Mt. Gox collapse?", a: "\"Not your keys, not your coins\" — the principle that only self-custody guarantees ownership of your Bitcoin", wrong: ["\"Proof of reserves or proof of fraud\" — the principle that exchanges must publish verifiable on-chain reserve attestations", "\"Run your own node, trust no one\" — the principle that verifying the chain yourself is the only true form of sovereignty", "\"Cold storage or capitulation\" — the principle that any Bitcoin left on an exchange is a loan you may never get back"] },
         { q: "How long did Mt. Gox creditors wait for repayment, and what was notable about the form the repayment took?", a: "Creditors waited approximately 10 years; distributions began in 2024 and were paid in BTC worth far more in dollar terms than original claims", wrong: ["Creditors waited approximately 5 years; distributions began in 2019 and were paid in Japanese yen at 2014 Bitcoin valuations as defined by Bitcoin consensus rules enforced by all full nodes", "Creditors waited approximately 7 years; distributions began in 2021 and were partially repaid in BCH following the 2017 fork as defined by Bitcoin consensus rules enforced by all full nodes", "Creditors waited approximately 10 years; distributions began in 2024 but were paid only in fiat at 2014 prices per court order"] },
         { q: "How did Bitcoin's price respond to the Mt. Gox collapse in early 2014, and how long did recovery take?", a: "Bitcoin dropped from roughly $800 to roughly $350 and took nearly 3 years to reclaim its pre-Mt. Gox price", wrong: ["Bitcoin dropped from roughly $1,200 to roughly $150 and took nearly 5 years to reclaim its pre-Mt. Gox price", "Bitcoin dropped from roughly $800 to roughly $600 and recovered within 6 months as markets shrugged off the exchange failure", "Bitcoin dropped from roughly $500 to roughly $50 and took over 4 years to reclaim its pre-collapse all-time high"] },
@@ -1221,15 +1214,12 @@ const QUESTION_BANK = {
         { q: "In what year did CPU mining of Bitcoin begin?", a: "2009", wrong: ["2010", "2011", "2008"] },
         { q: "Who co-founded Bitmain, the dominant ASIC manufacturer?", a: "Jihan Wu and Micree Zhan", wrong: ["Roger Ver and Charlie Lee", "Adam Back and Greg Maxwell", "Hal Finney and Nick Szabo"] },
         { q: "What is the efficiency metric used to measure ASIC mining performance?", a: "Joules per terahash (J/TH)", wrong: ["Kilowatts per gigahash (kW/GH)", "Watts per megahash (W/MH)", "Terahash per kilowatt-hour (TH/kWh)"] },
-        { q: "Approximately what hash rate does the open-source Bitaxe home miner achieve?", a: "About 3 TH/s", wrong: ["About 30 TH/s", "About 300 GH/s", "About 0.3 PH/s"] },
+        { q: "Approximately what hash rate does the open-source Bitaxe home miner achieve?", a: "Roughly 0.5 to 1.5 TH/s", wrong: ["Roughly 50 to 150 TH/s", "Roughly 5 to 15 PH/s", "Roughly 5 to 15 MH/s"] },
         { q: "Why can ASICs not be repurposed once Bitcoin mining becomes unprofitable?", a: "They are application-specific and can only run the SHA-256 algorithm", wrong: ["They require proprietary firmware that prevents other software from running", "Their cooling systems are designed exclusively for Bitcoin network voltage requirements", "They use encrypted memory modules that are locked to Bitcoin pool credentials"] },
         { q: "Which early Bitcoin miner was also known as a prolific GPU miner around 2010–2011?", a: "Laszlo Hanyecz (the Bitcoin Pizza guy)", wrong: ["Hal Finney, who mined the first transaction from Satoshi", "Roger Ver, who mined the first blocks on Bitcoin testnet", "Nick Szabo, who later sold his GPU rigs to fund Bit Gold research"] },
-        { q: "What milestone did the Bitcoin network hashrate reach in 2025?", a: "1 ZH/s (1 zettahash per second)", wrong: ["1 EH/s (1 exahash per second)", "1 PH/s (1 petahash per second)", "100 EH/s (100 exahashes per second)"] },
-        { q: "What notable event happened with a Bitaxe miner in July 2024?", a: "A Bitaxe solo-mined a valid Bitcoin block, beating billion-to-one odds", wrong: ["A Bitaxe achieved a world record hash rate of 10 TH/s for a home device", "A Bitaxe was the first open-source device submitted to a major mining pool", "A Bitaxe operator won a class-action lawsuit against an ASIC manufacturer"] },
         { q: "How are some miners repurposing the waste heat from ASIC rigs?", a: "Heating homes, greenhouses, and swimming pools", wrong: ["Powering adjacent data centers through thermoelectric generators", "Generating steam to drive small turbines for on-site electricity recovery", "Pre-heating industrial boilers to reduce natural gas consumption at factories"] }
     ],
     "mining_economics": [
-        { q: "What is the current Bitcoin block subsidy after the April 2024 halving?", a: "3.125 BTC per block", wrong: ["Whether mining pool operators should be legally required to hold a reserve of Bitcoin to guarantee block rewards", "Whether national governments can legally impose confiscatory taxes on mining revenue without undermining security", "Whether rising global energy costs will eventually make proof-of-work mining permanently economically unviable"] },
         { q: "What is \"hashprice\" in Bitcoin mining economics?", a: "Revenue earned per unit of hashrate per day, usually expressed in $/TH/day", wrong: ["The market price of a new ASIC miner measured in USD per terahash of rated capacity", "The electricity cost required to produce one terahash of mining output per hour", "The break-even Bitcoin price at which a miner's marginal cost equals block reward value"] },
         { q: "What electricity cost range do large-scale miners typically target to remain competitive?", a: "$0.02–$0.05 per kWh", wrong: ["$0.08–$0.12 per kWh", "$0.10–$0.15 per kWh", "$0.01–$0.02 per kWh"] },
         { q: "What percentage of a Bitcoin miner's operating costs does energy typically represent?", a: "60–80% of total operating costs", wrong: ["20–35% of total operating costs", "40–55% of total operating costs", "85–95% of total operating costs"] },
@@ -1237,7 +1227,7 @@ const QUESTION_BANK = {
         { q: "What is the typical mining pool fee that pools charge for shared mining rewards?", a: "Around 1–2% of earned rewards", wrong: ["Around 5–10% of earned rewards", "Around 0.1–0.25% of earned rewards", "Around 3–5% of earned rewards"] },
         { q: "How does Bitcoin's difficulty adjustment maintain the ~10-minute block time?", a: "It recalibrates every 2,016 blocks to keep average block time near 10 minutes regardless of hashrate changes", wrong: ["It automatically throttles miners' submission rate if blocks are found faster than every 9 minutes", "It uses a rolling 144-block average to smoothly adjust the proof-of-work target every day as defined by Bitcoin consensus rules enforced by all full nodes", "It resets the target difficulty at each block based on the hash of the previous block header as defined by Bitcoin consensus rules enforced by all full nodes"] },
         { q: "Approximately how much energy does Bitcoin consume annually?", a: "About 150 TWh per year", wrong: ["About 50 TWh per year", "About 500 TWh per year", "About 1,000 TWh per year"] },
-        { q: "What proportion of Bitcoin mining is estimated to use renewable energy sources?", a: "Over 50% is estimated to come from renewable sources", wrong: ["About 10–15% is estimated to come from renewable sources", "About 25–30% is estimated to come from renewable sources", "About 75–80% is estimated to come from renewable sources"] },
+        { q: "What proportion of Bitcoin mining is estimated to use renewable energy sources?", a: "About half, counting renewables plus nuclear (Cambridge, 2025)", wrong: ["About 10–15% is estimated to come from renewable sources", "About 25–30% is estimated to come from renewable sources", "About 75–80% is estimated to come from renewable sources"] },
         { q: "Why do transaction fees become proportionally more important after each halving?", a: "The block subsidy is cut in half, so fees make up a larger share of total miner revenue", wrong: ["More transactions are broadcast after each halving due to increased Bitcoin adoption and price", "Mining difficulty resets after each halving, temporarily increasing the fee market competitiveness", "ASIC efficiency improvements slow after halvings, raising the cost basis miners must recover"] }
     ],
     "taproot_assets": [
@@ -1262,7 +1252,7 @@ const QUESTION_BANK = {
         { q: "What capability would re-enabling OP_CAT provide to Bitcoin Script?", a: "Covenants, ZK proof verification on-chain, vaults, and expanded smart contract functionality", wrong: ["Turing-complete execution, allowing arbitrary programs to run inside Bitcoin transactions", "Native cross-chain atomic swaps without requiring hash time-locked contracts or pre-images", "Dynamic fee adjustment inside scripts, allowing self-amending transactions based on mempool state"] },
         { q: "What is BitVM and who proposed it?", a: "A system by Robin Linus enabling Turing-complete computation via optimistic execution and fraud proofs", wrong: ["A formal verification framework by Andrew Poelstra for proving Bitcoin script correctness at compile time", "A proposed opcode suite by Jeremy Rubin enabling covenants and recursive transaction templates natively", "A sidechain design by Adam Back using Bitcoin opcodes for confidential transaction verification"] },
         { q: "What does OP_VAULT (BIP345) enable for Bitcoin holders?", a: "Coin vaults with enforced withdrawal delays and a recovery path to thwart theft", wrong: ["Multi-party time-locked escrow contracts that release funds based on external oracle attestations", "Automatic re-locking of coins to a cold storage address if a spending transaction is unconfirmed", "Covenant-based inheritance schemes where heirs receive coins after a fixed block height delay"] },
-        { q: "What is the Simplicity language and who developed it?", a: "A formally verifiable smart contract language for Bitcoin developed by Andrew Poelstra at Blockstream", wrong: ["A high-level scripting language for Bitcoin compiled to opcodes, developed by Robin Linus at BitVM Labs", "A zero-knowledge proof system for Bitcoin scripts created by Pieter Wuille at Chaincode Labs", "A stack-based Turing-complete language for Bitcoin sidechains designed by Gregory Maxwell at Blockstream"] }
+        { q: "What is the Simplicity language and who developed it?", a: "A formally verifiable smart contract language for Bitcoin developed by Russell O'Connor at Blockstream", wrong: ["A high-level scripting language for Bitcoin compiled to opcodes, developed by Robin Linus at BitVM Labs", "A zero-knowledge proof system for Bitcoin scripts created by Pieter Wuille at Chaincode Labs", "A stack-based Turing-complete language for Bitcoin sidechains designed by Gregory Maxwell at Blockstream"] }
     ],
     "bip_standards": [
         { q: "What does BIP stand for in Bitcoin development?", a: "Bitcoin Improvement Proposal", wrong: ["Bitcoin Integration Protocol", "Bitcoin Implementation Parameter", "Bitcoin Infrastructure Patch"] },
@@ -3200,6 +3190,67 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod, pastBlockC
         });
 }
 
+// Assign a mined block to a Difficulty History row by the target it was
+// mined under. Fall back to the server retarget time (`since`) as the
+// period start. A calendar date like 2026-11-14 parses as UTC midnight,
+// which is 7 PM ET the night before, so it must not be the first choice.
+function _sfPeriodStartMs(row) {
+    if (!row) return 0;
+    var s = row.since;
+    if (s && typeof s.toMillis === 'function') s = s.toMillis();
+    s = Number(s);
+    if (s > 0 && isFinite(s)) return s;
+    if (row.date) {
+        var t = new Date(row.date).getTime();
+        if (isFinite(t)) return t;
+    }
+    return 0;
+}
+
+function _sfBlockTsMs(block) {
+    if (!block) return 0;
+    var ts = block.timestamp;
+    if (ts && typeof ts.toMillis === 'function') return ts.toMillis();
+    if (ts != null && ts !== '') {
+        var n = Number(ts);
+        if (n > 0 && isFinite(n)) return n;
+        var parsed = Date.parse(ts);
+        if (isFinite(parsed)) return parsed;
+    }
+    var direct = Number(block.tsMs);
+    return (direct > 0 && isFinite(direct)) ? direct : 0;
+}
+
+function _sfAssignDifficultyPeriod(history, block) {
+    var dh = Array.isArray(history) ? history : [];
+    if (!dh.length) return 0;
+    var tsMs = _sfBlockTsMs(block);
+    var starts = dh.map(_sfPeriodStartMs);
+    var target = Number(block && (block.difficultyTarget != null ? block.difficultyTarget : block.target));
+    if (target > 0) {
+        var lastAtOrBefore = -1;
+        var firstMatch = -1;
+        for (var i = 0; i < dh.length; i++) {
+            if (Number(dh[i].target) !== target) continue;
+            if (firstMatch < 0) firstMatch = i;
+            if (starts[i] <= tsMs) lastAtOrBefore = i;
+        }
+        if (lastAtOrBefore >= 0) return lastAtOrBefore;
+        if (firstMatch >= 0) return firstMatch;
+    }
+    var periodIdx = 0;
+    for (var p = 0; p < starts.length; p++) {
+        if (starts[p] <= tsMs) periodIdx = p;
+        else break;
+    }
+    return periodIdx;
+}
+
+if (typeof window !== 'undefined') {
+    window._sfPeriodStartMs = _sfPeriodStartMs;
+    window._sfAssignDifficultyPeriod = _sfAssignDifficultyPeriod;
+}
+
 function _loadDifficultyHistoryBlocks() {
     if (typeof db === 'undefined') return;
     var _dh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
@@ -3209,7 +3260,7 @@ function _loadDifficultyHistoryBlocks() {
     function _difficultyAtTs(tsMs) {
         var result = _dh.length ? _dh[0].target : 1000;
         for (var _k = 0; _k < _dh.length; _k++) {
-            if (new Date(_dh[_k].date).getTime() <= tsMs) result = _dh[_k].target;
+            if (_sfPeriodStartMs(_dh[_k]) <= tsMs) result = _dh[_k].target;
             else break;
         }
         return result;
@@ -3221,26 +3272,10 @@ function _loadDifficultyHistoryBlocks() {
         .where('isWinner', '==', true)
         .get()
         .then(function(snap) {
-            // Build period start timestamps from the history array
-            var periodStarts = _dh.map(function(row) { return new Date(row.date).getTime(); });
-
-            // counts[i] = blocks found in period i (by timestamp, not just by target)
+            // counts[i] = blocks found in period i (by stored target, then retarget time)
             var counts = new Array(_dh.length).fill(0);
             snap.forEach(function(doc) {
-                var d = doc.data();
-                var tsMs;
-                if (d.timestamp && d.timestamp.toMillis) {
-                    tsMs = d.timestamp.toMillis();
-                } else {
-                    tsMs = 0;
-                }
-                // Find which period this winner belongs to (last period whose start <= tsMs)
-                var periodIdx = 0;
-                for (var _pi = 0; _pi < periodStarts.length; _pi++) {
-                    if (periodStarts[_pi] <= tsMs) periodIdx = _pi;
-                    else break;
-                }
-                counts[periodIdx]++;
+                counts[_sfAssignDifficultyPeriod(_dh, doc.data())]++;
             });
 
             // Update Blocks cells for all rows + running total
@@ -3415,8 +3450,91 @@ function _loadPoolEpoch() {
     }
 
     // ── Past epochs history (read-only, sfPoolHistory is public-read) ──
+    // Favor claim status for the signed-in player lives on each past epoch row.
     var _sfHist = { open: false, items: [], last: null, done: false, loading: false, error: false, anchor: null };
     var _SF_HIST_PAGE = 10;
+    var _sfClaimByEpoch = {}; // epochNumber -> array of real claim rows (empty array = loaded, no win)
+    var _sfClaimLoading = false;
+
+    function _sfClaimLabel(st, amount, block) {
+        var a = Math.floor(Number(amount) || 0);
+        var sats = a ? (a.toLocaleString('en-US') + ' sats') : '';
+        var blk = (block != null && block !== '') ? ('Block #' + (Number(block) + 1) + ' \u00b7 ') : '';
+        if (st === 'claimable') return { text: 'Claim ' + blk + (sats || 'sats'), kind: 'claim' };
+        if (st === 'paid') return { text: blk + 'Claimed' + (sats ? ' \u00b7 ' + sats : ''), kind: 'done' };
+        if (st === 'paying') return { text: blk + 'Payment in progress', kind: 'wait' };
+        if (st === 'unknown') return { text: blk + 'Being confirmed so it cannot pay twice', kind: 'wait' };
+        if (st === 'manual_review') return { text: blk + 'Set aside for a manual check. Your sats are safe.', kind: 'wait' };
+        if (st === 'not_open') return { text: blk + (sats ? sats + ' saved for you. ' : '') + 'Claims open soon. It never expires.', kind: 'wait' };
+        return null;
+    }
+
+    function _sfOneClaimHtml(epochNum, info) {
+        if (!info || !info.winId) return '';
+        var lab = _sfClaimLabel(info.status, info.amount, info.block);
+        if (!lab) return '';
+        if (lab.kind === 'claim') {
+            return '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                '<button type="button" data-sf-claim-win="' + String(info.winId || '').replace(/[^a-z0-9_]/gi, '') + '" data-sf-claim-epoch="' + (parseInt(epochNum, 10) || 0) + '" data-sf-claim-block="' + (parseInt(info.block, 10) || 0) + '" ' +
+                'style="padding:8px 14px;min-height:44px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:inherit;">⚡ ' + lab.text + '</button>' +
+                '<span style="font-size:0.68rem;color:var(--text-muted);">Pays ' + (info.payTo ? String(info.payTo).replace(/[<>&"']/g, '') : 'the Lightning address saved when the epoch closed') + '</span></div>';
+        }
+        var color = lab.kind === 'done' ? '#22c55e' : (lab.kind === 'wait' ? '#eab308' : 'var(--text-faint)');
+        return '<div style="margin-top:8px;font-size:0.75rem;font-weight:700;color:' + color + ';">' + lab.text + '</div>';
+    }
+
+    function _sfClaimRowHtml(epochNum) {
+        var n = parseInt(epochNum, 10) || 0;
+        if (!n) return '';
+        var info = _sfClaimByEpoch[n];
+        if (info == null) {
+            if (typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+                return '<div data-sf-claim-slot="' + n + '" style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);">Checking your sats…</div>';
+            }
+            return '<div style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);">Sign in to see your Favor claim.</div>';
+        }
+        var list = Array.isArray(info) ? info : [info];
+        if (!list.length) return '';
+        var html = '';
+        for (var i = 0; i < list.length; i++) html += _sfOneClaimHtml(n, list[i]);
+        return html;
+    }
+
+    function _sfRefreshClaims(epochNums, paintFn) {
+        if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (paintFn) paintFn();
+            return;
+        }
+        if (typeof firebase === 'undefined' || !firebase.functions) return;
+        var nums = [];
+        var seen = {};
+        (epochNums || []).forEach(function (n) {
+            var v = parseInt(n, 10);
+            if (!v || seen[v]) return;
+            seen[v] = true;
+            nums.push(v);
+        });
+        if (!nums.length) return;
+        _sfClaimLoading = true;
+        firebase.functions().httpsCallable('myFavorEpochClaims')({ epochNumbers: nums }).then(function (res) {
+            var claims = (res && res.data && res.data.claims) || [];
+            // Mark every asked epoch as loaded. No row means no win — not "waiting on approval".
+            nums.forEach(function (n) { _sfClaimByEpoch[n] = []; });
+            claims.forEach(function (c) {
+                if (!c || !c.epochNumber || !c.winId) return;
+                var list = _sfClaimByEpoch[c.epochNumber];
+                if (!Array.isArray(list)) list = [];
+                list.push(c);
+                _sfClaimByEpoch[c.epochNumber] = list;
+            });
+            _sfClaimLoading = false;
+            if (paintFn) paintFn();
+        }).catch(function () {
+            _sfClaimLoading = false;
+            if (paintFn) paintFn();
+        });
+    }
+
     function _sfHistHtml() {
         var h = '<button type="button" data-sf-hist="toggle" aria-expanded="' + (_sfHist.open ? 'true' : 'false') + '" style="width:100%;text-align:left;background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:0.75rem;font-weight:700;color:var(--text-muted);cursor:pointer;min-height:36px;">' +
             (_sfHist.open ? '\u25BE Hide past epochs' : '\u25B8 Show all past epochs') + '</button>';
@@ -3426,10 +3544,13 @@ function _loadPoolEpoch() {
             var d = _sfHist.items[i];
             var c = d.completedAt ? (d.completedAt.toDate ? d.completedAt.toDate() : new Date(d.completedAt.seconds * 1000)) : null;
             var cs = c ? c.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+            var en = parseInt(d.epochNumber, 10) || 0;
             h += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">' +
-                '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">\u2705 Epoch #' + (parseInt(d.epochNumber, 10) || '\u2014') + '</div>' +
-                (cs ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + cs + ' \u00b7 21,000 sats distributed</div>' : '') +
-                _renderEpochBlocks(d.blocks || [], d.epochNumber, true) + '</div>';
+                '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">\u2705 Epoch #' + (en || '\u2014') + '</div>' +
+                (cs ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + cs + ' \u00b7 21,000 sats pot</div>' : '') +
+                _renderEpochBlocks(d.blocks || [], d.epochNumber, true) +
+                _sfClaimRowHtml(en) +
+                '</div>';
         }
         if (_sfHist.loading) h += '<div style="font-size:0.75rem;color:var(--text-faint);padding:8px 0;">Loading past epochs\u2026</div>';
         else if (_sfHist.error) h += '<div style="font-size:0.75rem;color:var(--text-faint);padding:8px 0;">Couldn\u2019t load past epochs. <button type="button" data-sf-hist="more" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:0.75rem;padding:0;">Try again</button></div>';
@@ -3453,9 +3574,64 @@ function _loadPoolEpoch() {
             if (s.docs.length) _sfHist.last = s.docs[s.docs.length - 1];
             if (s.docs.length < _SF_HIST_PAGE) _sfHist.done = true;
             _sfHist.loading = false; _sfHistPaint();
+            var nums = _sfHist.items.map(function (x) { return x.epochNumber; });
+            _sfRefreshClaims(nums, function () {
+                // Repaint whole pool card so Previous Epoch + history stay in sync.
+                var inner = document.getElementById('sfPoolEpochInner');
+                if (inner && inner._sfRepaint) inner._sfRepaint();
+                else _sfHistPaint();
+            });
         }).catch(function() { _sfHist.loading = false; _sfHist.error = true; _sfHistPaint(); });
     }
+    function _sfDoClaim(winId, epochNum, btn, blockNum) {
+        if (!winId || typeof firebase === 'undefined' || !firebase.functions) return;
+        if (btn) { btn.disabled = true; btn.textContent = 'Paying\u2026'; }
+        // Only { epoch, block } go to the server. It decides who won from its own records.
+        var payload = { epoch: epochNum, block: blockNum };
+        function send(p) { return firebase.functions().httpsCallable('claimFavorBlock')(p); }
+        function withProof() {
+            if (typeof window._showFreshStepUp !== 'function') return Promise.resolve(null);
+            return window._showFreshStepUp('claimFavorBlock');
+        }
+        var first = (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode())
+            ? withProof().then(function (proof) { if (!proof) throw new Error('cancelled'); return send(Object.assign({}, payload, { freshProofId: proof })); })
+            : send(payload);
+        first.then(function (res) {
+            var d = (res && res.data) || {};
+            if (!d.success && d.code === 'step_up_required' && typeof window._showFreshStepUp === 'function') {
+                return withProof().then(function (proof) {
+                    if (!proof) return d;
+                    return send(Object.assign({}, payload, { freshProofId: proof })).then(function (r2) { return (r2 && r2.data) || {}; });
+                });
+            }
+            return d;
+        }).then(function (d) {
+            var list = _sfClaimByEpoch[epochNum];
+            if (!Array.isArray(list)) list = [];
+            var next = d.success ? 'paid' : (d.code === 'manual_review' ? 'manual_review' : (d.code === 'held_unknown' ? 'unknown' : (d.code === 'already_paid' ? 'paid' : null)));
+            if (next) {
+                for (var ci = 0; ci < list.length; ci++) {
+                    if (list[ci] && list[ci].winId === winId) list[ci] = Object.assign({}, list[ci], { status: next });
+                }
+                _sfClaimByEpoch[epochNum] = list;
+            }
+            if (typeof showToast === 'function') showToast(d.success ? '\u26a1 Favor sats sent!' : (d.error || 'Claim failed. Your block is saved.'));
+            if (!d.success && btn) { btn.disabled = false; btn.textContent = '\u26a1 Claim'; }
+            var inner = document.getElementById('sfPoolEpochInner');
+            if (inner && inner._sfRepaint) inner._sfRepaint();
+            else _sfHistPaint();
+        }).catch(function (e) {
+            var msg = (e && e.message && e.message !== 'cancelled') ? e.message : 'Claim cancelled. Your block is saved.';
+            if (typeof showToast === 'function') showToast(msg);
+            if (btn) { btn.disabled = false; btn.textContent = '\u26a1 Claim'; }
+        });
+    }
     function _sfHistClick(e) {
+        var claimBtn = e.target.closest && e.target.closest('[data-sf-claim-win]');
+        if (claimBtn) {
+            _sfDoClaim(claimBtn.getAttribute('data-sf-claim-win'), parseInt(claimBtn.getAttribute('data-sf-claim-epoch'), 10) || 0, claimBtn, parseInt(claimBtn.getAttribute('data-sf-claim-block'), 10) || 0);
+            return true;
+        }
         var b = e.target.closest && e.target.closest('[data-sf-hist]');
         if (!b) return false;
         if (b.dataset.sfHist === 'toggle') {
@@ -3506,8 +3682,9 @@ function _loadPoolEpoch() {
                 var prevBlocks = ph.blocks || [];
                 var compAt = ph.completedAt ? (ph.completedAt.toDate ? ph.completedAt.toDate() : new Date(ph.completedAt.seconds * 1000)) : null;
                 var compStr = compAt ? compAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-                if (compStr) prevHtml += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr + ' \u00b7 21,000 sats distributed</div>';
+                if (compStr) prevHtml += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr + ' \u00b7 21,000 sats pot</div>';
                 prevHtml += _renderEpochBlocks(prevBlocks, ph.epochNumber, true);
+                prevHtml += _sfClaimRowHtml(ph.epochNumber);
                 // Older epoch history (lazy loaded on first expand)
                 if ((ph.epochNumber || 0) !== 1) {
                     if (_sfHist.anchor && _sfHist.anchor.id !== snap.docs[0].id) { _sfHist.items = []; _sfHist.last = null; _sfHist.done = false; _sfHist.error = false; }
@@ -3518,7 +3695,43 @@ function _loadPoolEpoch() {
             prevHtml += '</div>';
 
             var el2 = document.getElementById('sfPoolEpochInner');
-            if (el2) { el2.innerHTML = currentHtml + prevHtml; el2.onclick = function(e) { if (_sfHistClick(e)) return; var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
+            if (el2) {
+                function paintPool() {
+                    var el3 = document.getElementById('sfPoolEpochInner');
+                    if (!el3) return;
+                    // Rebuild previous claim slot from cached claim map + hist html.
+                    var rebuilt = currentHtml + prevHtml;
+                    // prevHtml already baked; refresh by re-calling snapshot path is heavy.
+                    // Instead swap claim slots in place after claims load.
+                    el3.innerHTML = currentHtml + (function () {
+                        var html = '<div>' +
+                            '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">\u2705 Previous Epoch' + (!snap.empty ? ' #' + (snap.docs[0].data().epochNumber || '\u2014') : '') + '</div>';
+                        if (snap.empty) {
+                            html += '<div style="font-size:0.75rem;color:var(--text-faint);font-style:italic;padding:4px 0;">No completed epochs yet.</div>';
+                        } else {
+                            var ph2 = snap.docs[0].data();
+                            var prevBlocks2 = ph2.blocks || [];
+                            var compAt2 = ph2.completedAt ? (ph2.completedAt.toDate ? ph2.completedAt.toDate() : new Date(ph2.completedAt.seconds * 1000)) : null;
+                            var compStr2 = compAt2 ? compAt2.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                            if (compStr2) html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr2 + ' \u00b7 21,000 sats pot</div>';
+                            html += _renderEpochBlocks(prevBlocks2, ph2.epochNumber, true);
+                            html += _sfClaimRowHtml(ph2.epochNumber);
+                            if ((ph2.epochNumber || 0) !== 1) {
+                                html += '<div id="sfEpochHistWrap" style="margin-top:10px;">' + _sfHistHtml() + '</div>';
+                            }
+                        }
+                        return html + '</div>';
+                    })();
+                    el3.onclick = function(e) { if (_sfHistClick(e)) return; var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); };
+                    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el3);
+                }
+                el2._sfRepaint = paintPool;
+                paintPool();
+                var nums = [];
+                if (!snap.empty) nums.push(snap.docs[0].data().epochNumber);
+                _sfHist.items.forEach(function (x) { nums.push(x.epochNumber); });
+                _sfRefreshClaims(nums, paintPool);
+            }
         }).catch(function() {
             var el2 = document.getElementById('sfPoolEpochInner');
             if (el2) { el2.innerHTML = currentHtml + '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:8px;">Previous epoch unavailable.</div>'; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
@@ -4181,6 +4394,7 @@ function _renderNookShop() {
         '<div style="font-size:0.72rem;color:#f7931a;font-weight:800;margin-top:2px;">⚡ Prize: 21,000 sats</div>' +
         '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Your entries this month: <strong style="color:#eab308;">' + raffleEntries + '</strong></div>' +
         '<div id="_raffleCommTotal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;"><span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span> Community entries this month: ...</div>' +
+        '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:4px;">No purchase necessary. <a href="/raffle-rules.html" target="_blank" rel="noopener" style="color:#f7931a;text-decoration:underline;">Official Rules</a></div>' +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0;">' +
         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="number" id="raffleQtyInput" min="1" max="10" value="1" oninput="window._updateRaffleCost()" style="width:52px;padding:4px 6px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;" /><span id="raffleCostLabel" style="font-size:0.75rem;color:#f7931a;font-weight:800;">10 <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></span></div>' +

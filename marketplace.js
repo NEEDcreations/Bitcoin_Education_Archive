@@ -24,8 +24,9 @@ var MARKETPLACE_RULES = [
 ];
 
 function showMarketRules(force) {
-    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
-        '<div style="background:rgba(15,23,42,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;-webkit-overflow-scrolling:touch;">' +
+    if (typeof window._bqEnsureRulesSheetCss === 'function') window._bqEnsureRulesSheetCss();
+    var html = '<div class="bq-rules-overlay" role="dialog" aria-modal="true" onclick="if(event.target===this){this.parentNode&&this.parentNode.remove()}">' +
+        '<div class="bq-rules-card"><div class="bq-rules-scroll">' +
             '<div style="text-align:center;margin-bottom:16px;">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">⚡</div>' +
                 '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 4px;">LightningMart Rules</h2>' +
@@ -43,7 +44,7 @@ function showMarketRules(force) {
         '</div>';
     }
 
-    html += '<button onclick="acceptMarketRules()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;touch-action:manipulation;">I Understand — Let\'s Trade! ⚡</button>';
+    html += '</div><div class="bq-rules-footer"><button type="button" class="bq-rules-accept" onclick="acceptMarketRules()">I Understand — Let\'s Trade! ⚡</button></div>';
     html += '</div></div>';
 
     var div = document.createElement('div');

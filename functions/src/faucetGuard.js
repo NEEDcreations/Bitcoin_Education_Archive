@@ -342,6 +342,28 @@ function networkKeys(ip) {
     };
 }
 
+// Key for network rate buckets. IPv4 (and ::ffff: mapped IPv4, in dotted or
+// hex form) stays the exact address, so existing IPv4 bucket ids do not move.
+// IPv6 is keyed by its /64, since one host usually gets a whole /64 and could
+// otherwise rotate through unlimited buckets. Brackets, a zone id and any
+// compressed form are normalized first. Values that are not an IP (a missing
+// IP, 'unknown', or a non-IP key such as an email) pass through unchanged.
+function rateKeyForIp(ip) {
+    const raw = String(ip == null ? '' : ip).trim();
+    if (!raw) return raw;
+    let s = raw;
+    const bracket = s.match(/^\[([^\]]+)\](?::\d+)?$/);
+    if (bracket) s = bracket[1];
+    if (s.indexOf(':') !== -1) s = s.replace(/%[0-9a-zA-Z._~-]+$/, '');
+    const v4 = _ipv4Parts(s);
+    if (v4) return v4.join('.');
+    const groups = _expandIPv6(s);
+    if (!groups) return raw;
+    const mapped = _fromMapped(groups);
+    if (mapped) return mapped.join('.');
+    return 'v6:' + groups.slice(0, 4).join(':') + '::/64';
+}
+
 function decideFaucetPayment(info) {
     const src = info || {};
     const action = cipher.payErrorAction({
@@ -352,13 +374,39 @@ function decideFaucetPayment(info) {
     if (action === 'paid') {
         return { action: 'record', preimage: (src.payResult && src.payResult.preimage) || '' };
     }
+    if (action === 'release' && src.phase !== 'pay') {
+        // The send never started, so nothing can settle.
+        return { action: 'refund', reason: 'balance' };
+    }
     if (action === 'release') {
-        return { action: 'refund', reason: src.phase === 'pay' ? 'refused' : 'balance' };
+        // An explicit refusal during the pay call is confirmed by lookup first.
+        // An HTLC can still be in flight when a node reports PAYMENT_FAILED.
+        return { action: 'lookup', refused: true, reason: 'refused' };
     }
     return { action: 'lookup' };
 }
 
-function decideFaucetLookupResult(settlement) {
+// Which side a definite failure came from. Callers use this only after
+// decideFaucetPayment returned refund.
+// 'ours': the send never started (our node unreachable, timed out or low), or
+//   our wallet refused with its own limit code. Pay-phase codes are matched on
+//   the exact NWC error code only, never on message text, which can carry
+//   wording from the receiving side.
+// 'theirs': everything else, including any failure whose side is not certain.
+const OUR_SIDE_REFUSALS = ['INSUFFICIENT_BALANCE', 'QUOTA_EXCEEDED', 'RATE_LIMITED'];
+function definiteFailureKind(info) {
+    const src = info || {};
+    if (src.phase !== 'pay') return 'ours';
+    const err = src.error || {};
+    const code = String(err.code || '').toUpperCase();
+    return OUR_SIDE_REFUSALS.indexOf(code) !== -1 ? 'ours' : 'theirs';
+}
+
+// Only an explicit failed lookup refunds. Pending, empty, error and
+// unclassified results are all held ('unknown'), even after an explicit
+// refusal code (opts.refused): an HTLC can still settle, so a refund here
+// could pay twice. opts is kept for callers; it no longer changes the result.
+function decideFaucetLookupResult(settlement, opts) { // eslint-disable-line no-unused-vars
     const d = settlement || {};
     if (d.action === 'paid') return { action: 'record', preimage: d.preimage || '' };
     if (d.action === 'release') return { action: 'refund', reason: 'lookup_failed' };
@@ -509,12 +557,14 @@ module.exports = {
     pruneAddressClaims: pruneAddressClaims,
     assessAddressRate: assessAddressRate,
     clientIpFromRequest: clientIpFromRequest,
+    rateKeyForIp: rateKeyForIp,
     accountsSeenRecently: accountsSeenRecently,
     assessExactIpSlot: assessExactIpSlot,
     assessSubnetSlot: assessSubnetSlot,
     networkKeys: networkKeys,
     decideFaucetPayment: decideFaucetPayment,
     decideFaucetLookupResult: decideFaucetLookupResult,
+    definiteFailureKind: definiteFailureKind,
     lookupSettlement: cipher.lookupSettlement,
     lookupRequestFromDecoded: cipher.lookupRequestFromDecoded,
     buildAbuseReport: buildAbuseReport,

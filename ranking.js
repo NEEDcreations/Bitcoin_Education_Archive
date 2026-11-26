@@ -35,6 +35,38 @@ function safeJSON(key, fallback) {
     }
 }
 
+// Join dates may be a Timestamp, a {seconds} object, an ISO string, or a Date.
+// A FieldValue sentinel or other placeholder must not become "Invalid Date".
+window.BQ_QUESTIONS_FIRST_SHIP_MS = window.BQ_QUESTIONS_FIRST_SHIP_MS || Date.UTC(2026, 10, 20, 0, 7, 0);
+function bqJoinDateMs(raw) {
+    if (raw == null || raw === '') return 0;
+    var ms = 0;
+    try {
+        if (raw instanceof Date) ms = raw.getTime();
+        else if (typeof raw === 'number' && isFinite(raw)) ms = raw < 1e12 ? raw * 1000 : raw;
+        else if (typeof raw === 'string') {
+            var n = Number(raw);
+            if (isFinite(n) && String(raw).trim() !== '' && /^\s*-?\d+(\.\d+)?\s*$/.test(raw)) ms = n < 1e12 ? n * 1000 : n;
+            else ms = Date.parse(raw);
+        } else if (typeof raw.toMillis === 'function') ms = raw.toMillis();
+        else if (typeof raw.toDate === 'function') {
+            var d = raw.toDate();
+            ms = d && typeof d.getTime === 'function' ? d.getTime() : 0;
+        } else if (typeof raw === 'object') {
+            if (typeof raw.seconds === 'number') ms = raw.seconds * 1000 + (typeof raw.nanoseconds === 'number' ? Math.floor(raw.nanoseconds / 1e6) : 0);
+            else if (typeof raw._seconds === 'number') ms = raw._seconds * 1000;
+        }
+    } catch (e) { ms = 0; }
+    return (typeof ms === 'number' && isFinite(ms) && ms > 0) ? ms : 0;
+}
+function bqFormatJoinDate(raw) {
+    var ms = bqJoinDateMs(raw);
+    if (!ms) return '';
+    try { return new Date(ms).toLocaleDateString(); } catch (e) { return ''; }
+}
+window.bqJoinDateMs = bqJoinDateMs;
+window.bqFormatJoinDate = bqFormatJoinDate;
+
 function mergeStoredStoryDays(serverDays) {
     try {
         var localDays = [];
@@ -383,26 +415,34 @@ function mfaClearDevice(uid) {
 var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
+    adminFreezeFavorEpoch: 1,
     adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
+    adminResolveFavorReview: 1,
+    adminSetFavorClaims: 1,
     adminSetKillSwitch: 1,
     answerTrivia: 1,
     armSayHi: 1,
     chooseFaction: 1,
     claimCipherSats: 1,
+    claimFavorBlock: 1,
     claimOnboardingQuestStep: 1,
     claimReplyBonus: 1,
     claimSats: 1,
     claimSayHi: 1,
     confirmAccountLink: 1,
     deleteAccount: 1,
+    deleteTopicComment: 1,
     gradeQuest: 1,
     gradeScholarExam: 1,
     issueCertificate: 1,
     leaderboardRank: 1,
     linkGuestAccount: 1,
     markIntroSeen: 1,
+    moderateTopicPost: 1,
+    myFavorEpochClaims: 1,
     noteNachoQuestion: 1,
+    postTopicComment: 1,
     prepareEmailChange: 1,
     prepareGuestLink: 1,
     pvpCreateMatch: 1,
@@ -411,6 +451,7 @@ var APP_CHECK_CALLABLES = {
     pvpTimeoutOpponent: 1,
     recordKnownPhoneFactor: 1,
     recordNachoAnalytics: 1,
+    reportTopicComment: 1,
     resetLightningAddressOnce: 1,
     startQuest: 1,
     startScholarExam: 1,
@@ -1142,7 +1183,7 @@ function initRanking() {
                                 console.log('[Auth] No real user after 8s - loading anon');
                                 _pendingRedirect = false;
                                 clearAuthDisplay();
-                                loadUserLocal(user.uid);
+                                hydrateAnonymousUser(user.uid);
                             }
                             localStorage.removeItem('btc_anon_uid');
                             localStorage.removeItem('btc_anon_data');
@@ -1154,7 +1195,7 @@ function initRanking() {
                             if (redirectUser) { clearTimeout(_redirectTimeout); return; }
                         });
                     } else {
-                        loadUserLocal(user.uid);
+                        hydrateAnonymousUser(user.uid);
                     }
                 } else {
                     // null user - WAIT for getRedirectResult before signing in anonymously
@@ -1201,7 +1242,7 @@ function initRanking() {
                 if (user.isAnonymous) {
                     clearAuthDisplay();
                     if (typeof stashGuestLink === 'function') stashGuestLink();
-                    loadUserLocal(user.uid);
+                    hydrateAnonymousUser(user.uid);
                 } else {
                     loadUser(user.uid);
                 }
@@ -3539,6 +3580,23 @@ async function sendMagicLink(email, opts) {
 }
 
 // Load anonymous user from localStorage only - no Firestore reads
+function hydrateAnonymousUser(uid) {
+    return Promise.resolve(loadUser(uid)).then(function () {
+        if (!currentUser || currentUser.uid !== uid || currentUser._isLocal) {
+            loadUserLocal(uid);
+            return;
+        }
+        if (currentUser.username || currentUser.introSeen === true) {
+            if (window.btcOnboardingQueue) {
+                try { window.btcOnboardingQueue.onSignedIn(); } catch (eQueue) {}
+            }
+        }
+    }).catch(function () {
+        loadUserLocal(uid);
+    });
+}
+window.hydrateAnonymousUser = hydrateAnonymousUser;
+
 function loadUserLocal(uid) {
     var localPoints = parseInt(localStorage.getItem('btc_points') || '0');
     var localChannels = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
@@ -3610,7 +3668,7 @@ function settleAdminClaim() {
 // admin is true (window._isAdminClaim, set from getIdTokenResult). Never email.
 // It carries no admin data. Tapping re-checks the claim, then lazy-loads
 // admin-panel.js, so non-admins never download the panel.
-var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261111_v2551';
+var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261116_v2581';
 
 function ensureHomeAdminBtnCss() {
     if (document.getElementById('homeAdminBtnCss')) return;
@@ -3932,14 +3990,19 @@ async function loadUser(uid, prefetchedDoc) {
                 var merged = [...new Set([...existing, ...currentUser.visibleBadges])];
                 localStorage.setItem('btc_badges', JSON.stringify(merged));
             }
-            // Mark onboarding complete for existing users on new devices.
-            // An existing user has a username in Firestore - they clearly already onboarded.
-            // This prevents the onboarding wizard from firing on every new device login.
-            if (currentUser.username || currentUser.introSeen) {
+            // Mark onboarding complete when the server flag is set, or when this
+            // account was created before the questions-first release.
+            if (currentUser.introSeen) {
                 try {
                     localStorage.setItem('btc_onboarding_done', 'true');
                     localStorage.setItem('btc_intro_seen', '1');
                 } catch(e) {}
+            } else if (typeof bqJoinDateMs === 'function' && bqJoinDateMs(currentUser.created) && bqJoinDateMs(currentUser.created) < (window.BQ_QUESTIONS_FIRST_SHIP_MS || Date.UTC(2026, 10, 20, 0, 7, 0))) {
+                try {
+                    localStorage.setItem('btc_onboarding_done', 'true');
+                    localStorage.setItem('btc_intro_seen', '1');
+                } catch(e) {}
+                try { firebase.functions().httpsCallable('markIntroSeen')({}).catch(function () {}); } catch (eMark) {}
             }
             if (typeof tryLinkGuest === 'function') { tryLinkGuest().catch(function () {}); }
             if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
@@ -4247,7 +4310,12 @@ async function loadUser(uid, prefetchedDoc) {
 var _authBtnSignedIn = false;
 
 function homeSignedInNow() {
-    return !!_authBtnSignedIn;
+    // Account A was cleared and B's profile is not in yet. Keep the guest home.
+    if (window._btcHoldGuestUntilProfile && !(typeof currentUser !== 'undefined' && currentUser)) return false;
+    var fu = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser : null;
+    // A guest battle name (displayName or localStorage) is not a signed-in account.
+    // The wallet strip and claimable-sats tile require a real, non-anonymous Firebase user.
+    return !!(fu && !fu.isAnonymous);
 }
 
 // Strip numbers come only from server-maintained counters.
@@ -4790,8 +4858,13 @@ function updateAuthButton() {
         guestBanner.style.display = 'none';
     }
     if (!(keepOptimistic && !_authBtnSignedIn)) {
-        document.documentElement.classList.toggle('home-signed-in', !!_authBtnSignedIn);
-        if (document.body) document.body.classList.toggle('home-signed-in', !!_authBtnSignedIn);
+        var walletSignedIn = homeSignedInNow();
+        // Keep optimistic signed-in chrome until Auth settles. A live anonymous
+        // session must not show the claimable-sats tile, even with a battle name.
+        if (!( !walletSignedIn && document.documentElement.getAttribute('data-auth-display') === '1' && !firebaseUser )) {
+            document.documentElement.classList.toggle('home-signed-in', walletSignedIn);
+            if (document.body) document.body.classList.toggle('home-signed-in', walletSignedIn);
+        }
         if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
     }
     if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
@@ -5248,6 +5321,10 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     // Increment global registered user count
     try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
     currentUser = { uid, ...userData };
+    if (!bqJoinDateMs(currentUser.created)) {
+        var born = (auth.currentUser && auth.currentUser.metadata && auth.currentUser.metadata.creationTime) ? new Date(auth.currentUser.metadata.creationTime) : new Date();
+        currentUser.created = born;
+    }
     rankingReady = true;
     window._badgesReady = true;
         if (typeof markVisibleBadgesReady === "function") markVisibleBadgesReady(); window._hiddenBadgesReady = true;
@@ -5256,6 +5333,20 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();
     hideUsernamePrompt();
+    if (window.btcOnboardingQueue) {
+        try {
+            if (typeof window.btcOnboardingQueue.skip === 'function') {
+                window.btcOnboardingQueue.skip('terms');
+                if (typeof window.btcOnboardingQueue.stateOf === 'function' && window.btcOnboardingQueue.stateOf('gift') === 'pending') {
+                    window.btcOnboardingQueue.skip('gift');
+                }
+            }
+            window.btcOnboardingQueue.onSignedIn();
+        } catch (eQueue) {}
+    }
+    if (typeof window.btcBeginSignedInOnboarding === 'function') {
+        try { window.btcBeginSignedInOnboarding(); } catch (eOnb) {}
+    }
     if (_signupLn) setTimeout(function() { showToast('Lightning address saved to your profile.'); }, 1200);
     if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
 
@@ -8675,28 +8766,14 @@ window._renderTitleFlairSection = function() {
         '.tf-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;box-sizing:border-box;max-width:100%;}' +
         '.tf-h{font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;}' +
         '.tf-sub{font-size:0.7rem;color:var(--text-muted);margin:14px 0 8px;font-weight:700;}' +
-        '.tf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}' +
-        '.tf-card{position:relative;box-sizing:border-box;min-height:64px;padding:8px 6px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;min-width:0;}' +
-        '.tf-card .tf-e{font-size:1.25rem;line-height:1;}' +
-        '.tf-card .tf-n{font-size:0.66rem;font-weight:700;line-height:1.2;overflow-wrap:anywhere;}' +
-        '.tf-card.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:rgba(247,147,26,0.10);}' +
-        '.tf-card.on::after{content:"✓";position:absolute;top:3px;right:6px;font-size:0.7rem;font-weight:900;color:var(--accent);}' +
-        '.tf-card.lock{opacity:0.45;filter:grayscale(1);cursor:help;}' +
         '.tf-prev{border:1px dashed var(--border);border-radius:10px;padding:10px;font-size:0.8rem;line-height:1.5;overflow-wrap:anywhere;}' +
         '.tf-pill{display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:1px 8px;font-size:0.7rem;font-weight:700;color:#f97316;margin-left:6px;}' +
         '.tf-select{display:block;width:100%;box-sizing:border-box;margin:0 0 4px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;font-size:16px;line-height:1.3;}' +
-        '@media (max-width:420px){.tf-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}.tf-card{min-height:58px;padding:6px 4px;}.tf-card .tf-n{font-size:0.6rem;}}' +
         '</style>';
     h += '<div class="tf-wrap" id="titleFlairSection">';
     h += '<div class="tf-h">🎖️ Title &amp; Flair</div>';
     h += '<div class="tf-prev" aria-live="polite"><div><strong>' + name + '</strong>' + (tDef ? '<span class="tf-pill">' + tDef.emoji + ' ' + _tfEsc(tDef.title) + '</span>' : '') + '</div>' +
         '<div style="color:var(--text-muted);">' + (showFlair ? _tfEsc(showFlair) + ' ' : '') + '<strong style="color:var(--text);">' + name + '</strong>: gm, stacking sats 🧡</div></div>';
-    function card(kind, id, emoji, label, isOn, lockTip) {
-        var attrs = lockTip
-            ? ' class="tf-card lock" aria-disabled="true" title="' + _tfEsc(lockTip) + '" onclick="if(typeof showToast===\'function\')showToast(this.title)"'
-            : ' class="tf-card' + (isOn ? ' on' : '') + '" aria-pressed="' + (isOn ? 'true' : 'false') + '" onmouseenter="window._tfHover(\'' + kind + '\',this.dataset.v)" onmouseleave="window._tfHover(\'' + kind + '\')" onclick="window._tfPick(\'' + kind + '\',this.dataset.v)"';
-        return '<button type="button" data-v="' + _tfEsc(id) + '"' + attrs + '><span class="tf-e">' + emoji + '</span><span class="tf-n">' + _tfEsc(label) + '</span></button>';
-    }
     // Titles: one compact dropdown. Locked collection titles stay visible but cannot be picked.
     h += '<label class="tf-sub" for="tfTitleSelect">Title</label>';
     h += '<select id="tfTitleSelect" class="tf-select" aria-label="Title" onchange="window._tfTitleChange(this)">';
@@ -8735,23 +8812,51 @@ window._renderTitleFlairSection = function() {
         h += '</optgroup>';
     }
     h += '</select>';
-    // Flair: None, Nook flair, then collection flair.
-    h += '<div class="tf-sub">Chat flair</div><div class="tf-grid">';
-    h += card('flair', '', '🚫', 'No flair', !flair, '');
+    // Chat flair: one compact dropdown. Locked Nook and collection flair stay visible but cannot be picked.
+    h += '<label class="tf-sub" for="tfFlairSelect">Chat flair</label>';
+    h += '<select id="tfFlairSelect" class="tf-select" aria-label="Chat flair" onchange="window._tfFlairChange(this)">';
+    h += '<option value=""' + (!flair ? ' selected' : '') + '>No flair</option>';
     var seenF = {};
+    var unlockedF = [];
+    var lockedF = [];
     var nookOwned = Array.isArray(u.ownedCosmetics) && u.ownedCosmetics.indexOf('chat_flair') !== -1;
     (window.CHAT_FLAIR_NOOK || []).forEach(function(e) {
         seenF[e] = true;
         var have = earnedF.indexOf(e) !== -1 || nookOwned;
-        h += card('flair', e, e, 'Nook', flair === e, have ? '' : '🔒 Buy Chat Flair in the Nook');
+        var item = { id: e, emoji: e, title: 'Nook', locked: !have, hint: have ? '' : 'Buy Chat Flair in the Nook' };
+        (have ? unlockedF : lockedF).push(item);
     });
     _tfCollections().forEach(function(col) {
         if (!col.flair || seenF[col.flair]) return;
         seenF[col.flair] = true;
         var have = earnedF.indexOf(col.flair) !== -1;
-        h += card('flair', col.flair, col.flair, col.name, flair === col.flair, have ? '' : '🔒 Complete the ' + col.name + ' collection');
+        var item = { id: col.flair, emoji: col.flair, title: col.name || col.flair, locked: !have, hint: have ? '' : ('Complete the ' + col.name + ' collection') };
+        (have ? unlockedF : lockedF).push(item);
     });
-    h += '</div></div>';
+    earnedF.forEach(function(fe) {
+        if (!fe || seenF[fe]) return;
+        seenF[fe] = true;
+        unlockedF.push({ id: fe, emoji: fe, title: '', locked: false, hint: '' });
+    });
+    if (flair && unlockedF.every(function(item) { return item.id !== flair; }) && lockedF.every(function(item) { return item.id !== flair; })) {
+        unlockedF.unshift({ id: flair, emoji: flair, title: '', locked: false, hint: '' });
+    }
+    function flairOpt(item) {
+        var label = ((item.emoji ? item.emoji + ' ' : '') + (item.title || '')).trim();
+        if (item.hint) label += ' — ' + item.hint;
+        return '<option value="' + _tfEsc(item.id) + '"' + (item.locked ? ' disabled' : '') + (flair === item.id ? ' selected' : '') + '>' + _tfEsc(label) + '</option>';
+    }
+    if (unlockedF.length) {
+        h += '<optgroup label="Unlocked">';
+        unlockedF.forEach(function(item) { h += flairOpt(item); });
+        h += '</optgroup>';
+    }
+    if (lockedF.length) {
+        h += '<optgroup label="Locked">';
+        lockedF.forEach(function(item) { h += flairOpt(item); });
+        h += '</optgroup>';
+    }
+    h += '</select></div>';
     return h;
 };
 window._tfRepaint = function() {
@@ -8782,6 +8887,12 @@ window._tfTitleChange = function(el) {
     var value = el.value || '';
     window._tfHover('title', value);
     window._tfPick('title', value);
+};
+window._tfFlairChange = function(el) {
+    if (!el) return;
+    var value = el.value || '';
+    window._tfHover('flair', value);
+    window._tfPick('flair', value);
 };
 window._tfPick = function(kind, value) {
     var user = auth ? auth.currentUser : null;
@@ -9130,9 +9241,9 @@ function showSettingsPage(tab) {
         _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Sign-in method</span><span style="color:var(--text);font-size:0.85rem;">' + provider + '</span></div>';
 
         // Account created
-        if (currentUser && currentUser.created) {
-            const created = currentUser.created.toDate ? currentUser.created.toDate().toLocaleDateString() : new Date(currentUser.created).toLocaleDateString();
-            _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Member since</span><span style="color:var(--text);font-size:0.85rem;">' + created + '</span></div>';
+        if (currentUser) {
+            const created = (typeof bqFormatJoinDate === 'function' ? bqFormatJoinDate(currentUser.created) : '') || (auth && auth.currentUser && auth.currentUser.metadata && auth.currentUser.metadata.creationTime ? bqFormatJoinDate(auth.currentUser.metadata.creationTime) : '');
+            if (created) _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Member since</span><span style="color:var(--text);font-size:0.85rem;">' + created + '</span></div>';
         }
         _acctDetailsHtml += '</div>';
 
@@ -9596,11 +9707,11 @@ function accountDeleteRowHtml(user) {
                 var inner = container.querySelector('div') || container;
                 var cardsHtml = '';
                 data.news.slice(0, 3).forEach(function(n, i) {
-                    var title = (n.title || '').replace(/<[^>]+>/g, '');
-                    var snippet = (n.snippet || '').replace(/<[^>]+>/g, '');
-                    var link = n.link || '';
+                    var title = escapeHtml(n.title || '');
+                    var snippet = escapeHtml(n.snippet || '');
+                    var link = (typeof n.link === 'string' && /^https:\/\/[^\s'"<>\\`]+$/.test(n.link)) ? n.link : '';
                     cardsHtml += '<div style="min-width:260px;max-width:300px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                        (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
+                        (link ? 'data-href="' + escapeHtml(link) + '" onclick="window.open(this.getAttribute(\'data-href\'),\'_blank\',\'noopener,noreferrer\')"' : '') +
                         ' onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
                             '<span style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:900;padding:2px 8px;border-radius:10px;">SIGNAL #' + (i + 1) + '</span>' +
@@ -11577,10 +11688,10 @@ window.loadSignalContent = function() {
         var inner = container.querySelector('div') || container;
         var cardsHtml = '';
         data.news.slice(0, 3).forEach(function(n, i) {
-            var title = (n.title || '').replace(/<[^>]+>/g, '');
-            var link = n.link || '';
+            var title = escapeHtml(n.title || '');
+            var link = (typeof n.link === 'string' && /^https:\/\/[^\s'"<>\\`]+$/.test(n.link)) ? n.link : '';
             cardsHtml += '<div style="min-width:240px;max-width:280px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
+                (link ? 'data-href="' + escapeHtml(link) + '" onclick="window.open(this.getAttribute(\'data-href\'),\'_blank\',\'noopener,noreferrer\')"' : '') +
                 '><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="background:var(--accent);color:#fff;font-size:0.55rem;font-weight:900;padding:2px 6px;border-radius:8px;">SIGNAL #' + (i + 1) + '</span></div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.82rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + title + '</div>' +
                 (link ? '<div style="color:var(--accent);font-size:0.7rem;font-weight:700;margin-top:6px;">Read →</div>' : '') + '</div>';
@@ -13361,7 +13472,11 @@ window._showFreshStepUp = function (action) {
         disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
         regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
         changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.',
-        adminSetKillSwitch: 'Enter a fresh authenticator code to flip the kill switch. A remembered device is not enough, and the authenticator must be at least 24 hours old.'
+        adminSetKillSwitch: 'Enter a fresh authenticator code to flip the kill switch. A remembered device is not enough, and the authenticator must be at least 24 hours old.',
+        claimFavorBlock: 'Enter a fresh authenticator code to claim your Favor block. A remembered device is not enough.',
+        adminSetFavorClaims: 'Enter a fresh authenticator code to change Favor claim settings.',
+        adminFreezeFavorEpoch: 'Enter a fresh authenticator code to freeze a Favor epoch.',
+        adminResolveFavorReview: 'Enter a fresh authenticator code to release a Favor review block.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');

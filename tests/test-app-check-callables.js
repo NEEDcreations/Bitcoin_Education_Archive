@@ -87,7 +87,12 @@ async function main() {
     const scanned = [...protectedNames()].sort();
     assert.ok(scanned.indexOf('claimSats') !== -1);
     assert.ok(scanned.indexOf('totpResumeDevice') !== -1);
-    ['setUsername', 'nostrAuth', 'lnAuthChallenge', 'lnAuthVerify', 'totpCheck', 'totpStatus', 'totpSetup', 'totpVerify', 'issueRecoveryCodes', 'recordDailyVisit', 'dailySpin', 'contributeRaid', 'contributeFavor', 'hashForFavor', 'searchUsers', 'pollVote', 'postTopicComment'].forEach(function (name) {
+    assert.ok(scanned.indexOf('postTopicComment') !== -1, 'postTopicComment enforces App Check');
+    ['reportTopicComment', 'moderateTopicPost', 'deleteTopicComment'].forEach(function (name) {
+        assert.ok(scanned.indexOf(name) !== -1, name + ' enforces App Check');
+    });
+    assert.strictEqual(scanned.length, 54, 'protected callable count');
+    ['setUsername', 'nostrAuth', 'lnAuthChallenge', 'lnAuthVerify', 'totpCheck', 'totpStatus', 'totpSetup', 'totpVerify', 'issueRecoveryCodes', 'recordDailyVisit', 'dailySpin', 'contributeRaid', 'contributeFavor', 'hashForFavor', 'searchUsers', 'pollVote'].forEach(function (name) {
         assert.strictEqual(scanned.indexOf(name), -1, name + ' is not an App Check callable');
     });
     const onboarding = fs.readFileSync(path.join(root, 'functions', 'src', 'onboardingApi.js'), 'utf8');
@@ -160,6 +165,39 @@ async function main() {
     assert.strictEqual(fast.message, 'Security check did not load. Refresh the page and try again.');
     assert.strictEqual(sandbox.waits, waitsBeforeFast);
     assert.strictEqual(sandbox.sent.length, 1);
+
+    // Topic discussion report, delete and admin moderation go through the same
+    // patched httpsCallable, so they wait for App Check before sending.
+    const topicSrc = fs.readFileSync(path.join(root, 'topic-discussions.js'), 'utf8');
+    const callFnSrc = (topicSrc.match(/function callFn\(name, payload\) \{[\s\S]*?\n    \}/) || [])[0];
+    assert.ok(callFnSrc && callFnSrc.indexOf('firebase.functions().httpsCallable(name)(payload)') !== -1, 'topic callFn uses the patched callable');
+    ['reportTopicComment', 'moderateTopicPost', 'deleteTopicComment'].forEach(function (name) {
+        assert.ok(topicSrc.indexOf("callFn('" + name + "'") !== -1, name + ' is called through callFn');
+    });
+    vm.runInContext(callFnSrc + '\nthis.topicCallFn = callFn;', sandbox);
+    sandbox._btcRecaptchaFailed = false;
+    for (const name of ['moderateTopicPost', 'deleteTopicComment', 'reportTopicComment']) {
+        let release = function () {};
+        const waitsBefore = sandbox.waits;
+        const sentBefore = sandbox.sent.length;
+        sandbox._btcAppCheckForClaim = function () {
+            sandbox.waits++;
+            return new Promise(function (resolve) { release = resolve; });
+        };
+        const pending = sandbox.topicCallFn(name, { channelId: 'whatisbitcoin', postId: 'p1', action: 'hide' });
+        const early = await Promise.race([
+            pending.then(function () { return 'sent'; }, function (err) { return err; }),
+            new Promise(function (resolve) { setTimeout(function () { resolve('waiting'); }, 20); })
+        ]);
+        assert.strictEqual(early, 'waiting', name + ' waits for App Check');
+        assert.strictEqual(sandbox.waits, waitsBefore + 1);
+        assert.strictEqual(sandbox.sent.length, sentBefore, name + ' sent before App Check was ready');
+        release('token');
+        const res = await pending;
+        assert.strictEqual(res.data.ok, true);
+        assert.strictEqual(sandbox.sent.length, sentBefore + 1);
+        assert.strictEqual(sandbox.sent[sandbox.sent.length - 1].name, name);
+    }
 
     const turn = extractTurnstile();
     const scripts = [];

@@ -74,12 +74,18 @@ function questRows(list) {
         if (!item || typeof item.q !== 'string' || typeof item.a !== 'string' || !Array.isArray(item.wrong)) {
             throw new Error('Malformed quiz question at index ' + i);
         }
-        rows.push({
+        const row = {
             q: item.q,
             a: item.a,
             wrong: item.wrong.slice(),
             questIndex: Math.floor(i / 5),
-        });
+        };
+        if (item.timeSensitive === true || item.time_sensitive === true || item.stale === true) {
+            row.timeSensitive = true;
+        }
+        if (typeof item.explain === 'string' && item.explain.trim()) row.explain = item.explain.trim();
+        else if (typeof item.explanation === 'string' && item.explanation.trim()) row.explain = item.explanation.trim();
+        rows.push(row);
     }
     return rows;
 }

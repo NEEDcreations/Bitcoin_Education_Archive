@@ -23,6 +23,8 @@ function test(name, fn) {
 }
 
 const admin = {
+    // Signed-in account for the guest gate (an email sign-in on record).
+    auth: function () { return { getUser: async function (uid) { return { uid: uid, providerData: [{ providerId: 'password' }] }; } }; },
     firestore: {
         FieldValue: {
             serverTimestamp: function () { return { _serverTimestamp: true }; },
@@ -124,7 +126,7 @@ queue.push(test('mode names and descriptions stay in one catalog', function () {
 }));
 
 queue.push(test('hidden explore apps are counted from the registry', function () {
-    assert.strictEqual(reg.bqHiddenExploreAppCount('lite'), 9);
+    assert.strictEqual(reg.bqHiddenExploreAppCount('lite'), 6);
     assert.strictEqual(reg.bqHiddenExploreAppCount('beginner'), 6);
     assert.strictEqual(reg.bqHiddenExploreAppCount('intermediate'), 0);
     assert.strictEqual(reg.bqHiddenExploreAppCount('advanced'), 0);
@@ -374,13 +376,22 @@ queue.push(test('home mode bar is available in every mode', function () {
     assert.strictEqual(row.selector, '#bqHomeModeBar');
     assert.deepStrictEqual(row.modes, ['lite', 'beginner', 'intermediate', 'advanced']);
     const src = read('onboarding.js.src');
+    const helperAt = src.indexOf('function homeModeBarBeforeNode');
+    assert.ok(helperAt > 0);
+    assert.ok(src.includes("getElementById('homeHero')"));
+    assert.ok(src.includes('function placeHomeModeBar'));
     const mountAt = src.indexOf('function mountHomeModeBar');
-    assert.ok(mountAt > 0);
+    assert.ok(mountAt > helperAt);
     const mountBody = src.slice(mountAt, src.indexOf('window.bqRefreshHomeModeBar', mountAt));
     assert.ok(mountBody.includes("bar.id = 'bqHomeModeBar'"));
-    assert.ok(mountBody.includes('insertBefore'));
+    assert.ok(mountBody.includes('placeHomeModeBar'));
+    assert.ok(!mountBody.includes("insertBefore(bar, inner.firstChild)"));
     assert.ok(!mountBody.includes('currentUser'));
     assert.ok(!mountBody.includes('signedIn'));
+    const refreshAt = src.indexOf('window.bqRefreshHomeModeBar = function');
+    const refreshBody = src.slice(refreshAt, src.indexOf('window.mountExperienceModeHome = function', refreshAt));
+    assert.ok(refreshBody.includes('placeHomeModeBar'));
+    assert.ok(!refreshBody.includes("insertBefore(bar, inner.firstChild)"));
     assert.ok(src.includes('bqFillHomeModeBar'));
     assert.ok(src.includes('bqRefreshHomeModeBar'));
     assert.ok(!src.includes('bq-mode-lite #bqHomeModeBar'));
@@ -427,9 +438,12 @@ queue.push(test('home mode bar is available in every mode', function () {
     buttons[2].click();
     assert.strictEqual(picked, 'intermediate');
     const toggle = nodes.filter(function (n) { return n.id === 'bqHomeModeToggle'; })[0];
-    // No stored choice yet -> forced open so the user can pick.
-    assert.strictEqual(toggle.attrs['aria-expanded'], 'true');
+    // No stored choice yet -> start closed so first-time guests see the title and sign-up.
+    assert.strictEqual(toggle.attrs['aria-expanded'], 'false');
+    assert.ok(!bar.classList.contains('is-open'));
+    toggle.click();
     assert.ok(bar.classList.contains('is-open'));
+    assert.strictEqual(toggle.attrs['aria-expanded'], 'true');
     toggle.click();
     assert.ok(!bar.classList.contains('is-open'));
     assert.strictEqual(toggle.attrs['aria-expanded'], 'false');

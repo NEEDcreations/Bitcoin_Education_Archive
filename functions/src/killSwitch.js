@@ -64,6 +64,8 @@ const GATED = Object.freeze({
         'claimSats',
         'claimCipherSats',
         'claimCipherWin',
+        'claimFavorBlock',
+        'adminResolveFavorReview',
         'adminResolveCipherSatsClaim',
         'adminMarkCipherWinPaid',
         'adminApproveFactionPayout',
@@ -301,8 +303,13 @@ function gateExport(fn, opts) {
     return wrapped;
 }
 
+// Gated names that are deliberately NOT exported from index.js so a deploy can
+// never ship them (Red Team #311). Still gated if ever exported again.
+const NEVER_EXPORTED = Object.freeze(['adminApproveFactionPayout']);
+
 function gateExports(target, names, opts) {
     names.forEach(function (n) {
+        if (typeof target[n] !== 'function' && NEVER_EXPORTED.indexOf(n) !== -1) return;
         if (typeof target[n] !== 'function') throw new Error('gateExports: missing export ' + n);
         target[n] = gateExport(target[n], Object.assign({}, opts, { name: n }));
     });

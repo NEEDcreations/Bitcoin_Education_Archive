@@ -7,6 +7,41 @@
     var QUEST_ACTIVE = 'btc_onboarding_active';
     var QUEST_STEP = 'btc_onboarding_step';
     var PENDING_KEY = 'btc_quest_pending';
+    // #385 questions-first merged Nov 19, 2026, 7:07 PM ET (Nov 20 00:07 UTC).
+    var QUESTIONS_FIRST_SHIP_MS = Date.UTC(2026, 10, 20, 0, 7, 0);
+    window.BQ_QUESTIONS_FIRST_SHIP_MS = QUESTIONS_FIRST_SHIP_MS;
+
+    function joinDateMs(raw) {
+        if (typeof window.bqJoinDateMs === 'function' && window.bqJoinDateMs !== joinDateMs) {
+            try { return window.bqJoinDateMs(raw); } catch (e) {}
+        }
+        if (raw == null || raw === '') return 0;
+        var ms = 0;
+        try {
+            if (raw instanceof Date) ms = raw.getTime();
+            else if (typeof raw === 'number' && isFinite(raw)) ms = raw < 1e12 ? raw * 1000 : raw;
+            else if (typeof raw === 'string') {
+                var n = Number(raw);
+                if (isFinite(n) && String(raw).trim() !== '' && /^\s*-?\d+(\.\d+)?\s*$/.test(raw)) ms = n < 1e12 ? n * 1000 : n;
+                else ms = Date.parse(raw);
+            } else if (typeof raw.toMillis === 'function') ms = raw.toMillis();
+            else if (typeof raw.toDate === 'function') {
+                var d = raw.toDate();
+                ms = d && typeof d.getTime === 'function' ? d.getTime() : 0;
+            } else if (typeof raw === 'object') {
+                if (typeof raw.seconds === 'number') ms = raw.seconds * 1000 + (typeof raw.nanoseconds === 'number' ? Math.floor(raw.nanoseconds / 1e6) : 0);
+                else if (typeof raw._seconds === 'number') ms = raw._seconds * 1000;
+            }
+        } catch (e2) { ms = 0; }
+        return (typeof ms === 'number' && isFinite(ms) && ms > 0) ? ms : 0;
+    }
+    function formatJoinDate(raw) {
+        var ms = joinDateMs(raw);
+        if (!ms) return '';
+        try { return new Date(ms).toLocaleDateString(); } catch (e) { return ''; }
+    }
+    window.bqJoinDateMs = window.bqJoinDateMs || joinDateMs;
+    window.bqFormatJoinDate = window.bqFormatJoinDate || formatJoinDate;
 
     var BEGINNER_QUEST = ['pick_topic', 'find_nacho', 'first_quiz'];
     var QUEST_MODES = {
@@ -129,6 +164,32 @@
         try {
             return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
         } catch (e) { return false; }
+    }
+
+    // Guest username accounts stay anonymous for rewards. They may still take
+    // the questions-first onboarding once a username is saved.
+    function onboardingEligible() {
+        if (signedInReal()) return true;
+        try {
+            if (typeof auth === 'undefined' || !auth || !auth.currentUser) return false;
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) return true;
+            if (localStorage.getItem('btc_username')) return true;
+        } catch (e) {}
+        return false;
+    }
+    window.bqOnboardingEligible = onboardingEligible;
+
+    function accountCreatedMs() {
+        try {
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.created) {
+                var fromProfile = joinDateMs(currentUser.created);
+                if (fromProfile) return fromProfile;
+            }
+            if (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.metadata && auth.currentUser.metadata.creationTime) {
+                return joinDateMs(auth.currentUser.metadata.creationTime);
+            }
+        } catch (e) {}
+        return 0;
     }
 
     function rememberPending(stepId) {
@@ -686,18 +747,28 @@
 
     function markIntroSeen() {
         try { localStorage.setItem(INTRO_KEY, '1'); localStorage.setItem('btc_onboarding_done', 'true'); } catch (e) {}
-        if (signedInReal()) callFn('markIntroSeen', {}).catch(function () {});
+        if (typeof currentUser !== 'undefined' && currentUser) currentUser.introSeen = true;
+        // Real accounts are stored by the existing markIntroSeen function.
+        // Guest sessions stay local until that function is allowed to write.
+        try { callFn('markIntroSeen', {}).catch(function () {}); } catch (e) {}
     }
 
     function alreadyOnboarded() {
         try {
             if (localStorage.getItem(INTRO_KEY) === '1' || localStorage.getItem('btc_onboarding_done') === 'true') return true;
-            if (localStorage.getItem('btc_username')) { localStorage.setItem(INTRO_KEY, '1'); return true; }
-            var cache = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
-            if (cache && cache.data && cache.data.username) { localStorage.setItem(INTRO_KEY, '1'); return true; }
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.introSeen === true) {
+                try { localStorage.setItem(INTRO_KEY, '1'); localStorage.setItem('btc_onboarding_done', 'true'); } catch (e0) {}
+                return true;
+            }
+            var born = accountCreatedMs();
+            if (born && born < QUESTIONS_FIRST_SHIP_MS) {
+                markIntroSeen();
+                return true;
+            }
         } catch (e) {}
         return false;
     }
+    window.bqAlreadyOnboarded = alreadyOnboarded;
 
     var PLAY_BODY = 'Watch Timechain TV, play Bitcoin Beats, duel in PvP, hash for Satoshi\'s Favor, open ciphers, join a raid, or share a referral. Orange tickets and XP add up. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible.';
     var TRY_FEATURE = {
@@ -719,8 +790,9 @@
     };
     var SLIDES = [
         {
-            kicker: 'Your pace',
-            title: 'How much do you want to see?',
+            kicker: 'Your experience',
+            tagline: 'Gamified free Bitcoin education app: learn topics/quests and earn real sats.',
+            title: 'Before you begin, select your experience!',
             body: 'You can change this anytime in Settings. Your XP stays either way.',
             mode: true
         },
@@ -815,8 +887,9 @@
     }
 
 
-    // Three-tap mode quiz shown before the welcome tour. Answers stay on this
-    // device (btc_mode_quiz); the result only highlights a mode in the picker.
+    // Three-tap mode quiz shown before the mode picker (queue order quiz, pace).
+    // Answers stay on this device (btc_mode_quiz); the result only highlights
+    // and preselects a mode in the picker. The user still makes the final pick.
     var MODE_QUIZ_KEY = 'btc_mode_quiz';
     var MODE_QUIZ = [
         { q: 'How much do you know about Bitcoin?', a: ['New', 'Some', 'A lot'] },
@@ -834,12 +907,44 @@
         var rec = (typeof window.bqRecommendMode === 'function') ? window.bqRecommendMode(answers) : 'beginner';
         try { localStorage.setItem(MODE_QUIZ_KEY, JSON.stringify({ a: answers.slice(0, 3), rec: skipped ? '' : rec })); } catch (eS) {}
     }
+    // Shown above every quiz question: logo, app name, and a short description.
+    var APP_BLURB = 'A free, gamified app for learning Bitcoin. Read topics, complete quests, and earn real sats as you go.';
+    function appIntroHeader() {
+        var wrap = document.createElement('div');
+        wrap.id = 'bqIntroAppHeader';
+        wrap.style.cssText = 'margin:0 0 14px;padding:0 0 12px;border-bottom:1px solid var(--border,#334155);';
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;margin:0 0 6px;';
+        var logo = document.createElement('img');
+        logo.src = '/icons/bq-logo-96.png?v=2578';
+        logo.setAttribute('srcset', '/icons/bq-logo-48.png?v=2578 48w, /icons/bq-logo-96.png?v=2578 96w, /icons/bq-logo-128.png?v=2578 128w');
+        logo.setAttribute('sizes', '36px');
+        logo.width = 36;
+        logo.height = 36;
+        logo.alt = '';
+        logo.setAttribute('aria-hidden', 'true');
+        logo.style.cssText = 'display:block;width:36px;height:36px;flex:0 0 36px;border-radius:8px;';
+        var name = document.createElement('div');
+        name.id = 'bqIntroAppName';
+        name.textContent = 'Bitcoin Quest';
+        name.style.cssText = 'color:var(--heading,#f8fafc);font-size:1.4rem;line-height:1.2;font-weight:900;';
+        row.appendChild(logo);
+        row.appendChild(name);
+        var blurb = document.createElement('p');
+        blurb.id = 'bqIntroAppBlurb';
+        blurb.textContent = APP_BLURB;
+        blurb.style.cssText = 'color:var(--text,#e2e8f0);font-size:1rem;line-height:1.45;margin:0;';
+        wrap.appendChild(row);
+        wrap.appendChild(blurb);
+        return wrap;
+    }
     function renderModeQuiz(step, answers, done) {
         var overlay = document.getElementById('btcIntroOverlay');
         if (!overlay) return;
         var card = overlay.querySelector('[data-intro-card]');
         card.textContent = '';
         var item = MODE_QUIZ[step];
+        card.appendChild(appIntroHeader());
         var top = document.createElement('div');
         top.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;';
         var count = document.createElement('span');
@@ -916,6 +1021,12 @@
         body.style.cssText = 'color:var(--text);font-size:1rem;line-height:1.45;margin:0 0 14px;';
         card.appendChild(top);
         card.appendChild(kicker);
+        if (data.tagline) {
+            var taglineEl = document.createElement('p');
+            taglineEl.textContent = data.tagline;
+            taglineEl.style.cssText = 'color:var(--heading,#f8fafc);font-size:1.05rem;line-height:1.35;margin:0 0 8px;font-weight:800;';
+            card.appendChild(taglineEl);
+        }
         card.appendChild(title);
         title.id = 'bqIntroTitle';
         if (data.deer) {
@@ -1010,13 +1121,26 @@
         try { stored = localStorage.getItem('btc_experience_mode') || ''; } catch (e) {}
         return paceAllowed(stored) ? stored : '';
     }
+    function closeAccountSheetForIntro() {
+        var modal = document.getElementById('usernameModal');
+        if (modal && modal.classList && modal.classList.contains('open')) {
+            if (typeof hideUsernamePrompt === 'function') {
+                try { hideUsernamePrompt(); } catch (e) { modal.classList.remove('open'); }
+            } else {
+                modal.classList.remove('open');
+            }
+        }
+    }
+
     function introShell() {
+        closeAccountSheetForIntro();
         var overlay = document.createElement('div');
         overlay.id = 'btcIntroOverlay';
         overlay.setAttribute('data-btc-sheet', '1');
         overlay.setAttribute('role', 'presentation');
         var wide = window.innerWidth > 800;
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:2100003;background:rgba(2,6,23,0.72);display:flex;align-items:' + (wide ? 'center' : 'flex-end') + ';justify-content:center;padding:' + (wide ? '24px' : '0') + ';box-sizing:border-box;';
+        // Above #usernameModal (2100008) so the account sheet cannot cover questions.
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:2100012;background:rgba(2,6,23,0.72);display:flex;align-items:' + (wide ? 'center' : 'flex-end') + ';justify-content:center;padding:' + (wide ? '24px' : '0') + ';box-sizing:border-box;';
         var card = document.createElement('div');
         card.setAttribute('data-intro-card', '1');
         card.setAttribute('role', 'dialog');
@@ -1033,7 +1157,9 @@
             if (overlay) overlay.remove();
             if (typeof done === 'function') done();
         };
-        var picked = readPace() || 'beginner';
+        // Questions run first, so their answer picks the starting highlight.
+        var rec = quizRecommended();
+        var picked = readPace() || rec || 'beginner';
         window.setExperienceMode(picked);
         var overlay = introShell();
         document.body.appendChild(overlay);
@@ -1046,26 +1172,32 @@
         var card = overlay.querySelector('[data-intro-card]');
         var title = document.createElement('h2');
         title.id = 'bqIntroTitle';
-        title.textContent = 'How much do you want to see?';
-        title.style.cssText = 'color:var(--heading);font-size:1.35rem;line-height:1.25;margin:0 0 8px;padding-right:48px;';
+        title.textContent = 'Now pick your experience';
+        title.style.cssText = 'color:var(--heading);font-size:1.25rem;line-height:1.3;margin:0 0 8px;padding-right:48px;';
         var body = document.createElement('p');
-        body.textContent = 'Pick a pace. You can change it anytime in Settings. Your XP stays either way.';
+        body.textContent = (rec ? 'We marked the best fit for your answers. ' : '') + 'You can pick any mode and change it anytime in Settings. Your XP stays either way.';
         body.style.cssText = 'color:var(--text);font-size:1rem;line-height:1.45;margin:0 0 14px;';
         card.appendChild(title);
         card.appendChild(body);
         var picker = document.createElement('div');
         picker.id = 'bqIntroModePicker';
         card.appendChild(picker);
-        if (typeof window.bqFillModePicker === 'function') {
+        var fillPicker = function () {
+            if (typeof window.bqFillModePicker !== 'function') return;
             window.bqFillModePicker(picker, {
-                recommended: quizRecommended(),
+                recommended: rec,
                 preselect: picked,
+                ignoreStored: true,
                 onPick: function (id) {
                     picked = id;
                     window.setExperienceMode(id);
+                    fillPicker();
+                    var again = picker.querySelector('button[data-mode="' + id + '"]');
+                    if (again && again.focus) again.focus();
                 }
             });
-        }
+        };
+        fillPicker();
         var next = document.createElement('button');
         next.type = 'button';
         next.textContent = 'Continue';
@@ -1091,27 +1223,47 @@
         renderModeQuiz(0, [], finish);
         if (window.btcSheet && window.btcSheet.sync) window.btcSheet.sync();
     };
+    function skipIdleQueueSteps(q) {
+        if (!q || typeof q.stateOf !== 'function') return;
+        if (q.stateOf('gift') === 'pending') q.skip('gift');
+        var tosOk = false;
+        try {
+            if (typeof TOS_CURRENT_VERSION !== 'undefined' && typeof currentUser !== 'undefined' && currentUser && currentUser.tosVersion === TOS_CURRENT_VERSION) tosOk = true;
+            if (typeof window.tosBlocking === 'function' && !window.tosBlocking()) {
+                var tosEl = document.getElementById('tosModal');
+                if (!tosEl || !tosEl.classList.contains('open')) {
+                    if (tosOk || (typeof currentUser !== 'undefined' && currentUser && currentUser.username)) tosOk = true;
+                }
+            }
+        } catch (e) {}
+        if (tosOk && q.stateOf('terms') === 'pending') q.skip('terms');
+    }
+
     window.btcBeginSignedInOnboarding = function () {
         if (window._bqOnboardingStarted) return;
-        if (!signedInReal()) return;
+        if (!onboardingEligible()) return;
         window._bqOnboardingStarted = true;
         hookNav();
         if (typeof window.mountExperienceModeHome === 'function') window.mountExperienceModeHome();
         var q = window.btcOnboardingQueue;
         if (!q) {
             if (!alreadyOnboarded()) window.showOnboardingIntro({ force: true });
+            else markIntroSeen();
             return;
         }
         if (alreadyOnboarded()) {
+            skipIdleQueueSteps(q);
             q.skip('pace');
             q.skip('quiz');
             q.skip('quest');
+            markIntroSeen();
             window.applySimplifiedHome();
             if (window.isNachoQuestActive() && !window.isNachoQuestDone()) {
                 window._showNachoQuestPill();
                 window.startNachoQuestDetection();
             }
         } else {
+            skipIdleQueueSteps(q);
             window.btcClaimSessionPopup('onboarding');
             q.ready('pace', function () { window.btcShowPaceStep(function () { q.done('pace'); }); });
             q.ready('quiz', function () { window.btcShowQuizStep(function () { q.done('quiz'); }); });
@@ -1135,7 +1287,7 @@
 
     window.showOnboardingIntro = function (opts) {
         var force = opts && opts.force;
-        if (!force && !signedInReal()) return false;
+        if (!force && !onboardingEligible()) return false;
         if (!force && alreadyOnboarded()) return false;
         // Terms first: do not stack the welcome tour over the Accept dialog.
         if (!force && typeof window.tosBlocking === 'function' && window.tosBlocking()) {
@@ -1154,6 +1306,7 @@
             }
         }
         window.btcClaimSessionPopup('onboarding');
+        closeAccountSheetForIntro();
         var old = document.getElementById('btcIntroOverlay');
         if (old) old.remove();
         var overlay = document.createElement('div');
@@ -1162,7 +1315,7 @@
         overlay.setAttribute('aria-label', 'Welcome tour');
         overlay.setAttribute('aria-labelledby', 'bqIntroTitle');
         var wide = window.innerWidth > 800;
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:2100003;background:var(--bg,#020617);display:flex;align-items:' + (wide ? 'center' : 'flex-end') + ';justify-content:center;padding:' + (wide ? '24px' : '0') + ';';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:2100012;background:var(--bg,#020617);display:flex;align-items:' + (wide ? 'center' : 'flex-end') + ';justify-content:center;padding:' + (wide ? '24px' : '0') + ';';
         var card = document.createElement('div');
         card.setAttribute('data-intro-card', '1');
         card.style.cssText = 'background:var(--bg-side,#0f172a);color:var(--text,#e2e8f0);width:100%;max-width:520px;max-height:100dvh;overflow:auto;border-radius:' + (wide ? '20px' : '20px 20px 0 0') + ';padding:18px 18px 28px;border:1px solid var(--border);box-sizing:border-box;';
@@ -1325,7 +1478,8 @@
             + '.bq-mode-card-grid{display:block;}'
             + '.bq-mode-card-grid button{min-height:44px;padding:10px 12px;border-radius:12px;border:1px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;text-align:left;}'
             + '.bq-mode-card-grid button[aria-pressed="true"]{border:2px solid var(--accent,#f7931a);color:var(--accent,#f7931a);}'
-            + '#bqModeHomeCard button:focus-visible,#btcIntroOverlay button:focus-visible{outline:2px solid #f7931a;outline-offset:2px;}'
+            + '#bqModeHomeCard button:focus-visible,#btcIntroOverlay button:focus-visible{outline:2px solid #f7931a;outline-offset:2px;}#bqIntroTagline{font-weight:800;}@media (max-width:360px){#bqIntroTagline{font-size:0.95rem;}#bqIntroTitle{font-size:1.1rem !important;}}[data-theme="light"] #bqIntroTagline{color:var(--heading,#0f172a);}'
+            + 'body:has(#btcIntroOverlay) #usernameModal{display:none !important;}'
             + 'body.bq-mode-lite #rankBar,body.bq-mode-lite #lbFloatBtn,body.bq-mode-lite #aiToolsBtn,body.bq-mode-lite #dashboardFloatBtn,body.bq-mode-lite #dailySpinBanner,body.bq-mode-lite #raidBossHomeCard,body.bq-mode-lite #dailyChallengeCard,body.bq-mode-lite #quoteOfDay,body.bq-mode-lite #hotTopicsSectionWrapper,body.bq-mode-lite #donateSection,body.bq-mode-lite #todayFavorStrip,body.bq-mode-lite #badgeCelebration,body.bq-mode-lite #confettiCanvas,body.bq-mode-lite #chatTabAnnouncements,body.bq-mode-lite #progressRings,body.bq-mode-lite #leaderboard,body.bq-mode-lite #chatOverlayBtn{display:none !important;}';
         document.head.appendChild(style);
     }
@@ -1358,6 +1512,20 @@
             });
         }
     }
+    // Place the Experience bar after #homeHero so first-time visitors
+    // see the title first. Falls back to the top of .home-inner if the
+    // hero is missing. insertBefore(bar, bar) is a no-op when it is
+    // already in the right spot (hero.nextSibling === bar).
+    function homeModeBarBeforeNode(inner) {
+        if (!inner) return null;
+        var hero = document.getElementById('homeHero');
+        if (hero && hero.parentNode === inner) return hero.nextSibling;
+        return inner.firstChild;
+    }
+    function placeHomeModeBar(inner, bar) {
+        if (!inner || !bar) return;
+        inner.insertBefore(bar, homeModeBarBeforeNode(inner));
+    }
     window.bqRefreshModeCard = function () {
         var existing = document.getElementById('bqModeHomeCard');
         if (!modeCardEligible()) {
@@ -1389,7 +1557,7 @@
             existing.appendChild(grid);
             var modeBar = document.getElementById('bqHomeModeBar');
             if (modeBar && modeBar.parentNode === inner) inner.insertBefore(existing, modeBar.nextSibling);
-            else inner.insertBefore(existing, inner.firstChild);
+            else placeHomeModeBar(inner, existing);
         }
         fillHomeCard(existing);
     };
@@ -1428,10 +1596,10 @@
         if (!bar) {
             bar = document.createElement('section');
             bar.id = 'bqHomeModeBar';
-            inner.insertBefore(bar, inner.firstChild);
+            placeHomeModeBar(inner, bar);
             bar.addEventListener('keydown', onHomeModeKey);
-        } else if (bar.parentNode === inner && inner.firstChild !== bar) {
-            inner.insertBefore(bar, inner.firstChild);
+        } else if (bar.parentNode === inner) {
+            placeHomeModeBar(inner, bar);
         }
         if (!window._bqHomeModeDoc) {
             window._bqHomeModeDoc = true;
@@ -1455,7 +1623,7 @@
         var bar = document.getElementById('bqHomeModeBar');
         if (!bar || typeof window.bqFillHomeModeBar !== 'function') return;
         var inner = document.querySelector('#home .home-inner');
-        if (inner && bar.parentNode === inner && inner.firstChild !== bar) inner.insertBefore(bar, inner.firstChild);
+        if (inner && bar.parentNode === inner) placeHomeModeBar(inner, bar);
         window.bqFillHomeModeBar(bar, {
             current: window.getExperienceMode(),
             onPick: function (id) {
@@ -1477,14 +1645,14 @@
         hookNav();
         setTimeout(hookNav, 1500);
         if (typeof window.mountExperienceModeHome === 'function') window.mountExperienceModeHome();
-        if (!signedInReal()) {
+        if (!onboardingEligible()) {
             if (window.btcOnboardingQueue) window.btcOnboardingQueue.holdUntilSignedIn();
             window.applySimplifiedHome();
             return;
         }
         window.btcBeginSignedInOnboarding();
         window.addEventListener('hashchange', function () {
-            if (!signedInReal() || alreadyOnboarded()) return;
+            if (!onboardingEligible() || alreadyOnboarded()) return;
             var still = false;
             try { still = !!(location.hash && location.hash.length > 1); } catch (e) {}
             if (!still && !document.getElementById('btcIntroOverlay') && window.btcOnboardingQueue && window.btcOnboardingQueue.isTurn('pace')) {

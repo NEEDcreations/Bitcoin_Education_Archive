@@ -60,7 +60,7 @@ const {
     assertSucceeds,
 } = require('@firebase/rules-unit-testing');
 const {
-    doc, setDoc, updateDoc, serverTimestamp, deleteDoc,
+    doc, setDoc, getDoc, updateDoc, serverTimestamp, deleteDoc,
 } = require('firebase/firestore');
 
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
@@ -114,8 +114,8 @@ async function main() {
     const alice = authed(env, 'alice', 'google.com');
     const anon = authed(env, 'anon', 'anonymous');
 
-    await check('anonymous lobby create is denied', function () {
-        return assertFails(setDoc(doc(anon, 'pvp_lobby', 'anon'), Object.assign(lobby(), { uid: 'anon' })));
+    await check('anonymous lobby create succeeds', function () {
+        return assertSucceeds(setDoc(doc(anon, 'pvp_lobby', 'anon'), Object.assign(lobby(), { uid: 'anon', name: 'Guest' })));
     });
     await check('lobby extra field is denied', function () {
         const data = lobby();
@@ -206,6 +206,127 @@ async function main() {
             questionWinner: null,
             questionStartedAt: serverTimestamp(),
         }));
+    });
+
+    await seedMatch(env, 'reroll-skip', 'question_result', { currentQ: 1, questionWinner: 'reroll' });
+    await check('client cannot advance currentQ after a reroll', function () {
+        return assertFails(updateDoc(doc(alice, 'pvp_matches', 'reroll-skip'), {
+            status: 'active',
+            currentQ: 2,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+        }));
+    });
+    await seedMatch(env, 'reroll-same', 'question_result', { currentQ: 1, questionWinner: 'reroll', roundExplain: 'old' });
+    await check('client can start the replacement question at the same currentQ and clear roundExplain', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'reroll-same'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+            roundExplain: '',
+        }));
+    });
+    // C8 after Red Team F1: the server clears roundExplain on its own advances
+    // and the client hides it, but rules do not require the field on a client
+    // advance. Live pvp.js (91118e09c) advances without sending roundExplain;
+    // refusing that would stall every old client's rounds.
+    await seedMatch(env, 'explain-next-keep', 'question_result', { currentQ: 0, questionWinner: 'player1', roundExplain: 'old' });
+    await check('C8/F1: old-client advance (roundExplain not sent, left unchanged) is allowed', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'explain-next-keep'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+        }));
+    });
+    await seedMatch(env, 'explain-next-clear', 'question_result', { currentQ: 0, questionWinner: 'player1', roundExplain: 'old' });
+    await check('C8: client can start the next question when it clears roundExplain', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'explain-next-clear'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+            roundExplain: '',
+        }));
+    });
+    await seedMatch(env, 'explain-next-set', 'question_result', { currentQ: 0, questionWinner: 'player1', roundExplain: 'old' });
+    await check('C8/F1: client still cannot set a non-empty roundExplain on an advance', function () {
+        return assertFails(updateDoc(doc(alice, 'pvp_matches', 'explain-next-set'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+            roundExplain: 'planted',
+        }));
+    });
+    await seedMatch(env, 'explain-reroll-keep', 'question_result', { currentQ: 1, questionWinner: 'reroll', roundExplain: 'old' });
+    await check('C8/F1: old-client replacement-question start (roundExplain not sent) is allowed', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'explain-reroll-keep'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+        }));
+    });
+    await seedMatch(env, 'explain-none', 'question_result', { currentQ: 0, questionWinner: 'player1' });
+    await check('C8: next question with no explanation on the match still starts', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'explain-none'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+        }));
+    });
+    await seedMatch(env, 'explain-heartbeat', 'question_result', { currentQ: 0, questionWinner: 'player1', roundExplain: 'old' });
+    await check('C8: heartbeat on the result screen is not affected', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'explain-heartbeat'), { player1LastSeen: Date.now() }));
+    });
+    // M5: the pair lock is server-only.
+    await check('M5: client cannot read a pair lock', function () {
+        return assertFails(getDoc(doc(alice, 'pvp_pair_locks', 'pair_x')));
+    });
+    await check('M5: client cannot write a pair lock', function () {
+        return assertFails(setDoc(doc(alice, 'pvp_pair_locks', 'pair_x'), { matchId: 'm' }));
+    });
+    await seedMatch(env, 'explain-set', 'question_result', { currentQ: 0, questionWinner: 'player1' });
+    await check('client cannot write a new roundExplain', function () {
+        return assertFails(updateDoc(doc(alice, 'pvp_matches', 'explain-set'), {
+            roundExplain: 'secret',
+        }));
+    });
+    // Guest battle names: markup / quote characters and staff or brand names.
+    const anon2 = authed(env, 'anon2', 'anonymous');
+    for (const bad of ['<b>Ada</b>', 'Ada "x"', "Ada's", 'Ada~', 'a|b', 'Phil', 'real phil', 'NEEDcreations', 'Nacho Fan', 'Rufus', 'admin', 'Bitcoin Quest', 'mod', '603btc']) {
+        await check('guest lobby name refused: ' + bad, function () {
+            return assertFails(setDoc(doc(anon2, 'pvp_lobby', 'anon2'), Object.assign(lobby(), { uid: 'anon2', name: bad })));
+        });
+    }
+    await check('guest lobby plain name accepted', function () {
+        return assertSucceeds(setDoc(doc(anon2, 'pvp_lobby', 'anon2'), Object.assign(lobby(), { uid: 'anon2', name: 'Hodler 21' })));
+    });
+    await env.withSecurityRulesDisabled(async function (ctx) {
+        await setDoc(doc(ctx.firestore(), 'users', 'nachofan'), { username: 'nachofan' });
+    });
+    const nachofan = authed(env, 'nachofan', 'google.com');
+    // K11: no server-username bypass. The lobby name is never used for a
+    // match when a username exists, so the list applies to every lobby name.
+    await check('a player with a server username is held to the staff-name list too', function () {
+        return assertFails(setDoc(doc(nachofan, 'pvp_lobby', 'nachofan'), Object.assign(lobby(), { uid: 'nachofan', name: 'nachofan' })));
+    });
+    await check('a player with a server username can join with a plain lobby name', function () {
+        return assertSucceeds(setDoc(doc(nachofan, 'pvp_lobby', 'nachofan'), Object.assign(lobby(), { uid: 'nachofan', name: 'Bitcoiner' })));
+    });
+    await env.withSecurityRulesDisabled(async function (ctx) {
+        await setDoc(doc(ctx.firestore(), 'users', 'rufusadmin'), { username: 'rufusadmin' });
+    });
+    const rufusadmin = authed(env, 'rufusadmin', 'google.com');
+    await check('a logged-in player cannot put Rufus Admin in a lobby name', function () {
+        return assertFails(setDoc(doc(rufusadmin, 'pvp_lobby', 'rufusadmin'), Object.assign(lobby(), { uid: 'rufusadmin', name: 'Rufus Admin' })));
+    });
+
+    await check('anonymous cannot write pvp_played', function () {
+        return assertFails(setDoc(doc(anon, 'pvp_played', 'm1'), { matchId: 'm1' }));
     });
 
     await deleteDoc(doc(alice, 'pvp_lobby', 'alice')).catch(function () {});

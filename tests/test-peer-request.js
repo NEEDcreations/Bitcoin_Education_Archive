@@ -554,7 +554,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.ok(!html.includes('learning-quests.js?v=20261023_v2324'));
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2279/g) || []).length, 0);
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2263/g) || []).length, 0);
-    assert.ok(html.includes('lightning-tips.js?v=20261022_v2279'));
+    assert.ok(html.includes('lightning-tips.js?v=20261119_v2666'));
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2246'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2245'), false);
