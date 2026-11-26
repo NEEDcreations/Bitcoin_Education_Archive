@@ -938,6 +938,102 @@ test('an under-18 profile without guardianOk is asked for the checkbox, not skip
     });
 });
 
+test('after a failed guardian save, an existing under-18 account can dismiss for this session only', function () {
+    let invokes = 0;
+    const env = bootClient({
+        _btcAppCheckForClaim: function () { return Promise.resolve(''); },
+        showToast: function () {},
+        firebase: {
+            auth: function () { return { onAuthStateChanged: function (cb) { cb({ uid: 'u1', isAnonymous: false }); } }; },
+            firestore: function () {
+                return {
+                    collection: function () {
+                        return {
+                            doc: function () {
+                                return { get: function () { return Promise.resolve({ exists: true, data: function () { return { points: 1, ageUnder18: true }; } }); } };
+                            }
+                        };
+                    }
+                };
+            },
+            functions: function () {
+                return {
+                    httpsCallable: function () {
+                        return function () {
+                            invokes++;
+                            return Promise.resolve({ data: { success: true, ageUnder18: true, guardianOk: true } });
+                        };
+                    }
+                };
+            }
+        }
+    });
+    return Promise.resolve().then(function () {
+        const overlay = env.document.getElementById('ageConfirmOverlay');
+        assert.ok(overlay);
+        assert.strictEqual(overlay.getAttribute('data-age-step'), 'guardian-required');
+        const card = overlay.children[0];
+        const closeBtn = card.children[0];
+        assert.strictEqual(closeBtn.getAttribute('aria-label'), 'Close');
+        assert.strictEqual(closeBtn.style.display, 'none');
+        assert.strictEqual(env.document.getElementById('ageGuardianNotNow'), null);
+        const box = env.document.getElementById('ageGuardianOk');
+        const continueBtn = env.document.getElementById('ageGuardianContinue');
+        box.checked = true;
+        const evs = (box._events && box._events.change) || [];
+        evs.forEach(function (fn) { fn({ target: box }); });
+        continueBtn.click();
+        return new Promise(function (resolve) { setTimeout(resolve, 5); });
+    }).then(function () {
+        assert.strictEqual(invokes, 0, 'App Check never ready, so the callable is not reached');
+        const overlay = env.document.getElementById('ageConfirmOverlay');
+        assert.ok(overlay);
+        const err = env.document.getElementById('ageGuardianError');
+        assert.ok(err);
+        assert.strictEqual(err.textContent, 'Security check is still loading. Wait a moment and tap again.');
+        assert.ok(err.textContent.indexOf('App Check token is not ready') === -1);
+        const card = overlay.children[0];
+        const closeBtn = card.children[0];
+        assert.strictEqual(closeBtn.style.display, '');
+        const notNow = env.document.getElementById('ageGuardianNotNow');
+        assert.ok(notNow);
+        notNow.click();
+        assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+        assert.strictEqual(env._bqAgeConfirmed18, false);
+        assert.strictEqual(env.sessionStorage.getItem('bq_age_confirm_dismissed'), '1');
+    });
+});
+
+test('a session-dismissed guardian prompt is not shown again until the next session', function () {
+    const store = { bq_age_confirm_dismissed: '1' };
+    const env = bootClient({
+        sessionStorage: {
+            getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+            setItem: function (k, v) { store[k] = String(v); },
+            removeItem: function (k) { delete store[k]; }
+        },
+        firebase: {
+            auth: function () { return { onAuthStateChanged: function (cb) { cb({ uid: 'u1', isAnonymous: false }); } }; },
+            firestore: function () {
+                return {
+                    collection: function () {
+                        return {
+                            doc: function () {
+                                return { get: function () { return Promise.resolve({ exists: true, data: function () { return { points: 1, ageUnder18: true }; } }); } };
+                            }
+                        };
+                    }
+                };
+            }
+        }
+    });
+    return Promise.resolve().then(function () {
+        assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+        assert.strictEqual(env._bqAgeConfirmed18, false);
+        assert.strictEqual(store.bq_age_confirm_dismissed, '1');
+    });
+});
+
 test('kids and under-13 accounts still skip the prompt and cannot gain guardianOk', function () {
     const env = bootClient({
         firebase: {

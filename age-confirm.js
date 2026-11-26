@@ -16,7 +16,8 @@
         under18: "I'm under 18",
         guardian: 'My parent or guardian says it\'s OK for me to play Bitcoin Quest.',
         continueLabel: 'Continue',
-        back: 'Back'
+        back: 'Back',
+        notNow: 'Not now'
     };
 
     var BUTTON_STYLE = 'min-height:44px;width:100%;padding:10px 16px;background:#334155;color:#f1f5f9;border:1px solid #64748b;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;';
@@ -431,6 +432,7 @@
                     syncContinue();
                     if (label) label.textContent = COPY.continueLabel;
                     if (typeof root.showToast === 'function') root.showToast(result.error);
+                    allowGuardianDismiss(result.error);
                 }
             });
         });
@@ -444,6 +446,28 @@
                 showModal();
             });
             actions.appendChild(backBtn);
+        }
+
+        function allowGuardianDismiss(msg) {
+            var err = document.getElementById('ageGuardianError');
+            if (!err) {
+                err = document.createElement('p');
+                err.id = 'ageGuardianError';
+                err.setAttribute('role', 'alert');
+                err.style.cssText = 'margin:10px 0 0;font-size:0.9rem;line-height:1.4;color:#fca5a5;text-align:left;';
+                actions.appendChild(err);
+            }
+            err.textContent = msg || MSG.generic;
+            if (closeBtn) closeBtn.style.display = '';
+            overlay.setAttribute('data-age-step', 'guardian');
+            if (!document.getElementById('ageGuardianNotNow')) {
+                var notNow = makeChoiceButton(document, 'ageGuardianNotNow', COPY.notNow);
+                notNow.addEventListener('click', dismiss);
+                actions.appendChild(notNow);
+            }
+            if (root.btcSheet && root.btcSheet.setCloser) {
+                try { root.btcSheet.setCloser(overlay, dismiss); } catch (e) {}
+            }
         }
 
         if (root.btcSheet && root.btcSheet.setCloser) {
@@ -487,6 +511,10 @@
         // the player can continue on a regular account. Do not honor a
         // session dismiss for that required step.
         if (isUnder18(user) && !hasGuardianOk(user)) {
+            if (sessionDismissed()) {
+                finishQueue('skip');
+                return;
+            }
             var showGuardian = function () { showModal({ needGuardian: true }); };
             var qg = queue();
             if (qg && typeof qg.ready === 'function') qg.ready('age', showGuardian);
