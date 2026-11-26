@@ -466,6 +466,7 @@ var APP_CHECK_CALLABLES = {
     recordNachoAnalytics: 1,
     reportTopicComment: 1,
     resetLightningAddressOnce: 1,
+    setPrivacyShareOptOut: 1,
     sparkCitizenTeaser: 1,
     startQuest: 1,
     startScholarExam: 1,

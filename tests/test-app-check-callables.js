@@ -91,7 +91,8 @@ async function main() {
     ['reportTopicComment', 'moderateTopicPost', 'deleteTopicComment'].forEach(function (name) {
         assert.ok(scanned.indexOf(name) !== -1, name + ' enforces App Check');
     });
-    assert.strictEqual(scanned.length, 62, 'protected callable count');
+    assert.strictEqual(scanned.length, 63, 'protected callable count');
+    assert.ok(scanned.indexOf('setPrivacyShareOptOut') !== -1, 'setPrivacyShareOptOut enforces App Check');
     ['confirmAge18', 'confirmAgeUnder18', 'adminUnconfirmAge18', 'adminResetAge18',
      'adminGetSitewideCaps', 'adminSetSitewideCaps', 'submitSurvey', 'sparkCitizenTeaser'].forEach(function (name) {
         assert.ok(scanned.indexOf(name) !== -1, name + ' enforces App Check');
