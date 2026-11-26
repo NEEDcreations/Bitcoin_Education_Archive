@@ -74,7 +74,7 @@
     try { if (localStorage.getItem('btc_last_signed_in') === '1') document.documentElement.classList.add('btc-signing-in'); } catch (e) {}
     </script>
     <script src="/auth-display.js?v=20261106_v2512"></script>
-    <script src="/twa-mode.js?v=20261126_v2699"></script>
+    <script src="/twa-mode.js?v=20261126_v2700"></script>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -92,7 +92,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
 
-    <link rel="preload" href="/bundle.min.js?v=20261126_v2682f" as="script">
+    <link rel="preload" href="/bundle.min.js?v=20261126_v2700" as="script">
 
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image" referrerpolicy="no-referrer">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
@@ -2502,12 +2502,12 @@
     <script src="/referral-tiers.js?v=20261105_v2499" defer></script>
     <script src="/popup-stack.js?v=20261125_v2691" defer></script>
     <script src="/sitewide-cap-card.js?v=20261125_v2691" defer></script>
-    <script src="/age-confirm.js?v=20261125_v2694" defer></script>
+    <script src="/age-confirm.js?v=20261126_v2700" defer></script>
 
     <script src="/kill-switch.js?v=20261126_v2696" defer></script>
     <script src="/survey.js?v=20261126_v2696" defer></script>
-    <script src="/ranking.js?v=20261126_v2696" defer></script>    <!-- Critical: needed for initial page render -->
-    <script src="/bundle.min.js?v=20261126_v2682f" defer fetchpriority="high"></script>
+    <script src="/ranking.js?v=20261126_v2700" defer></script>    <!-- Critical: needed for initial page render -->
+    <script src="/bundle.min.js?v=20261126_v2700" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="/features.registry.js?v=20261119_v2681" defer></script>
@@ -2540,7 +2540,7 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261126_v2698',
+            'global-chat.js?v=20261126_v2700',
             'satoshi-favor.js?v=20261119_v2682b'
         ];
         var _lazyScripts = [
@@ -2809,10 +2809,10 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2666', 'global-chat.js?v=20261126_v2698'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2666', 'global-chat.js?v=20261126_v2698'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261126_v2698'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261126_v2698'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2666', 'global-chat.js?v=20261126_v2700'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2666', 'global-chat.js?v=20261126_v2700'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261126_v2700'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261126_v2700'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261119_v2666'],
             'pvp':           ['pvp.js?v=20261118_v2605'],
