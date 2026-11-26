@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Policy - Bitcoin Education Archive</title>
+    <title>Privacy Policy - Bitcoin Quest</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #0f0f0f; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.7; padding: 40px 20px; }
@@ -31,12 +31,12 @@
 </head>
 <body>
 <div class="container">
-    <a href="/" class="back">← Back to Bitcoin Education Archive</a>
+    <a href="/" class="back">← Back to Bitcoin Quest</a>
     <h1>Privacy Policy</h1>
     <p class="subtitle">Last updated: November 14, 2026</p>
 
     <div class="highlight">
-        <strong>Our commitment: We do not sell your personal information for advertising.</strong>
+        <strong>Our commitment: We do not sell your personal information for money.</strong>
         <p style="margin-top:8px;margin-bottom:0;">We share data only with service providers listed below and as needed to run the Site.</p>
     </div>
 
@@ -137,6 +137,7 @@
         <tr><td>Say hi progress</td><td>Whether you armed and claimed the daily greeting, and which chat message was used</td></tr>
         <tr><td>Gifts, keys, and locked ciphers</td><td>Virtual items on your account, including keys you send to peers. A sent key stores the sender on the server. A cipher-share record stores the sender's account, the opener's display name, and the prize so the same open is not paid twice. It does not store the opener's account id</td></tr>
         <tr><td>Notification preferences</td><td>Which push categories you have turned on or off, including a master off switch</td></tr>
+        <tr><td>Privacy choice (privacyShareOptOut, privacyShareOptOutAt)</td><td>Whether you opted out of sharing for personalized ads with Your Privacy Choices, and when you last changed it. The server writes this when you change the choice while signed in, so it follows you to other devices. Guests keep the choice only in this browser</td></tr>
         <tr><td>Web push tokens</td><td>A token per device you opt in, so we can deliver push notifications. Older accounts may also have a single token on the profile</td></tr>
     </table>
 
@@ -390,7 +391,7 @@
         <tr><td>Device and browser signals, stored as a hash</td><td>Abuse checks on sats claims and some votes. The hash can reflect signals such as user agent, screen size, language, and timezone. It is not shown on your public profile</td></tr>
         <tr><td>IP address</td><td>Rate limiting and abuse prevention on sats claims, Nostr and Lightning sign-in, and some votes. Operator audit logs for admin actions can also store an IP address and user agent. We do not put your IP on your public profile</td></tr>
     </table>
-    <p>We do <strong>not</strong> use a third-party analytics product, advertising network, or tracking pixel. Thumbs up or down on a Nacho answer can be stored on our servers as feedback. We do not sell that feedback. We do <strong>not</strong> collect your real name, precise location, or browsing history outside the Site. The financial details we store are the ones you type in, such as a Lightning address for withdrawals and giveaways. A withdrawal address stays on the account. A one-time reset marker records that a fresh address was saved, and a later change is a support request to info.603btc@gmail.com. We do not receive your wallet seed or private keys.</p>
+    <p>We do <strong>not</strong> use a third-party analytics product or tracking pixel. We use two ad networks, Google AdSense and A-ADS, only for signed-in users who have confirmed they are 18 or older, as described in <a href="#advertising">Advertising</a>. Thumbs up or down on a Nacho answer can be stored on our servers as feedback. We do not sell that feedback. We do <strong>not</strong> collect your real name, precise location, or browsing history outside the Site. The financial details we store are the ones you type in, such as a Lightning address for withdrawals and giveaways. A withdrawal address stays on the account. A one-time reset marker records that a fresh address was saved, and a later change is a support request to info.603btc@gmail.com. We do not receive your wallet seed or private keys.</p>
     <p><strong>IP addresses are collected only for multi-account abuse checks</strong>: during sats faucet claims, and once at referral signup. The referral IP is not stored in raw form. The server keeps a one-way, non-reversible fingerprint of your network address, kept 90 days, in a server-only record. Other users cannot read it. That record is deleted when you delete your account. IPs are not collected during normal browsing or sign-in.</p>
 
     <h2>2. How We Use Your Data</h2>
@@ -468,6 +469,8 @@
         <tr><td>Alby (Nostr Wallet Connect)</td><td>Lightning payouts we send from the faucet and similar rewards. Your own NWC or WebLN wallet, if you connect one, sends tips you choose</td><td>For our payouts: the Lightning invoice we resolve from the address you provide. Your NWC secret stays in this browser and is sent to your wallet, not stored by us</td></tr>
         <tr><td>YouTube</td><td>Timechain TV video player</td><td>Whatever YouTube collects in its embedded player. We do not send your account id to YouTube</td></tr>
         <tr><td>Wavlake</td><td>Optional embedded music player inside Bitcoin Beats</td><td>Whatever Wavlake collects in its player. We do not send your account id to Wavlake</td></tr>
+        <tr><td>Google AdSense</td><td>Ads in the home, Learn, and arcade ad slots, only for signed-in users who have confirmed they are 18 or older. Users who opt out get non-personalized ads only</td><td>Whatever Google collects when it shows an ad, such as cookies and device identifiers, under its own policy. We do not send your name, email, Lightning Address, or account id to Google AdSense</td></tr>
+        <tr><td>A-ADS</td><td>Ads in the home, Learn, and arcade ad slots, only for signed-in users who have confirmed they are 18 or older and have not opted out</td><td>Whatever A-ADS collects when it shows an ad, under its own policy. We do not send your name, email, Lightning Address, or account id to A-ADS</td></tr>
         <tr><td>mempool.space API</td><td>Live BTC price, block height, fees</td><td>None (read-only public API)</td></tr>
         <tr><td>GitHub Pages</td><td>Website hosting</td><td>Standard web server logs</td></tr>
         <tr><td>CoinGecko API</td><td>Market data, price charts, dominance</td><td>None (read-only public API)</td></tr>
@@ -480,10 +483,10 @@
         <tr><td>Strava API</td><td>Proof of Walk — read activity metrics (steps, distance, duration) to award points</td><td>OAuth token (server-side only); activity metrics. No GPS routes, heart rate, or social data.</td></tr>
         <tr><td>Timechain Arcade / Sat Arcade / RyRacer / Galaxy Mind</td><td>Third-party Bitcoin games embedded in Proof of Play hub</td><td>None from us — games open on the third-party site; their own privacy policies apply</td></tr>
     </table>
-    <p>We do <strong>not</strong> use Google Analytics, Facebook Pixel, ad networks, or any tracking/analytics services.</p>
+    <p>We do <strong>not</strong> use Google Analytics, Facebook Pixel, or any tracking/analytics services. Google AdSense and A-ADS show ads only to signed-in users who have confirmed they are 18 or older, and they can use their own ad and measurement cookies, as described in <a href="#advertising">Advertising</a>.</p>
 
     <h2>6. Data Sharing</h2>
-    <p>We do not sell your personal information for advertising. We share data only with the service providers listed in Section 5 and as needed to run the Site. Information other users can see includes:</p>
+    <p>We do not sell your personal information for money. We share data only with the service providers listed in Section 5 and as needed to run the Site. Information other users can see includes:</p>
     <ul>
         <li>Your <strong>username, points, level, badges, and online status</strong> on the public leaderboard and user profiles</li>
         <li>Your <strong>posts and replies</strong> in the PlebTalk forum</li>
@@ -510,10 +513,10 @@
     <p>Firebase Authentication may set a short-lived <strong><code>__session</code></strong> cookie to manage your sign-in state. This is an HttpOnly, first-party session cookie. It contains no personal data beyond an opaque auth token and is cleared when you sign out or it expires.</p>
     <p>We do <strong>not</strong> use:</p>
     <ul>
-        <li>Advertising or marketing cookies</li>
-        <li>Cross-site tracking cookies</li>
+        <li>Advertising or marketing cookies of our own. When Google AdSense or A-ADS shows an ad to a signed-in user who has confirmed they are 18 or older, that network can set its own ad and measurement cookies, as described in <a href="#advertising">Advertising</a></li>
+        <li>Cross-site tracking cookies of our own</li>
         <li>Third-party analytics cookies (Google Analytics, Facebook Pixel, etc.)</li>
-        <li>Advertising fingerprints or supercookies. A separate device hash, described above, is used only for abuse checks on certain actions</li>
+        <li>Advertising fingerprints or supercookies. A separate device hash, described above, is used only for abuse checks on certain actions. The random ad device id described below is used only for the ad-free group</li>
     </ul>
     <p>We do not set advertising or cross-site tracking cookies of our own. When a Timechain TV video plays, YouTube's embedded player can set its own cookies and collect device and viewing data under <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>. Other embedded players, such as Wavlake, can do the same under their own policies. We do not control those cookies, and we do not send your account id to YouTube. localStorage on this device, described below, stays in your browser. Blocking third-party cookies in your browser can limit what an embedded player stores.</p>
 
@@ -527,11 +530,21 @@
         <li><strong>Game &amp; progress state:</strong> badges earned, PVP win history, daily spin timestamps, Satoshi&apos;s Favor data, quiz answers</li>
         <li><strong>Lightning wallet:</strong> your wallet connection method and NWC relay URL (if provided) in localStorage. The NWC secret, if you connect one, stays in sessionStorage and is cleared when the tab closes. We do not store that secret. It is sent to your own wallet or relay when you pay</li>
         <li><strong>Nacho AI:</strong> question history, friendship level, trivia scores, and closet items — all local only</li>
+        <li><strong>Ad-free group:</strong> <code>bq_ads_device</code> is a random device id used only to place this device in or out of the ad-free group. It does not contain your name, email, or account id</li>
+        <li><strong>Ad group counts:</strong> <code>bq_ads_agg_today</code> and <code>bq_ads_agg_yday</code> hold the date and the group (ads or ad-free) this device was counted in today and yesterday, so it is counted only once a day in the daily totals and in the next-day return count. They do not contain your name, email, or account id</li>
+        <li><strong>Privacy choice:</strong> <code>bq_privacy_share_opt_out</code> remembers whether you opted out with Your Privacy Choices on this device, and <code>bq_privacy_share_opt_out_at</code> holds the time you last changed it</li>
+        <li><strong>Ad region check (sessionStorage):</strong> <code>bq_ads_country</code> holds the two-letter country code from our network provider's connection check, used only to decide whether ads may show in your region. <code>btc_open_privacy_choices</code> is a one-time flag set when you follow a Your Privacy Choices link, so the app opens those settings, and it is removed once used. Both clear when the tab closes</li>
     </ul>
     <p>You can clear all localStorage data at any time from your browser settings, which will reset app preferences and cached progress. If you have a signed-in account, your server-side profile (XP, badges, wallet balance, posts) is unaffected.</p>
 
     <h3>Service Worker Cache</h3>
     <p>The app operates as a <strong>Progressive Web App (PWA)</strong>. A service worker caches app assets (scripts, stylesheets, images) on your device for offline access and faster loading. This cache contains only static app files — no personal data. You can clear it via your browser&apos;s &quot;Clear site data&quot; or &quot;Clear cache&quot; function.</p>
+
+    <h2 id="advertising">Advertising</h2>
+    <p><strong>Advertising and your choices.</strong> We show ads only to signed-in users who have confirmed they are 18 or older. We never show ads to guests or to Kids or Classroom accounts. We don't sell personal information for money. When Google AdSense shows you an ad, Google may collect cookie and device identifiers, which some state laws, including California's, may treat as 'sharing' for cross-context behavioral advertising. We don't show A-ADS ads to users who opt out or whose browser sends a Global Privacy Control signal. You can opt out of this sharing at any time with the Your Privacy Choices link at the bottom of every page. We also honor Global Privacy Control (GPC) signals from your browser as an opt-out. When you opt out, you'll see only non-personalized ads. You can also manage Google's ad personalization in <a href="https://adssettings.google.com" target="_blank" rel="noopener">Google's Ads Settings</a>. We don't knowingly sell or share personal information of anyone under 18. We don't currently show ads in the EEA, UK or Switzerland.</p>
+    <p>Premium accounts are ad-free. Google explains how it uses this data in <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">How Google uses information from sites or apps that use our services</a>.</p>
+    <p><strong>Ad-free group.</strong> To measure how ads affect the Site, about 20% of eligible users are placed in an ad-free group and see no ads. Signed-in users are placed by account, so the choice stays the same across visits. We record only daily totals for each group, not activity for individual users.</p>
+    <p>The ad-free group and its daily counts use the on-device keys <code>bq_ads_device</code>, <code>bq_ads_agg_today</code>, and <code>bq_ads_agg_yday</code>, described in <a href="#cookies">Cookies &amp; Local Storage</a>.</p>
 
     <h2>8. Nacho (AI Mascot) Privacy</h2>
     <p>Nacho's answers can be wrong. When a saved answer is not enough, the question goes to Cloudflare Workers AI, which runs <strong>Meta Llama 3.3 70B Instruct</strong>. Cloudflare processes that request under their <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacy Policy</a>. The model is Meta's. We do not use your questions to train our own models. A weekly summary of public posts may use a different Llama model on Cloudflare. That job reads public sources, not your account.</p>
@@ -721,7 +734,7 @@
     </ul>
 
     <h2>20. California and European privacy rights</h2>
-    <p>This section is for people in California and for people in the European Economic Area, the United Kingdom, and Switzerland. It does not change the commitment above: we do not sell your personal information for advertising.</p>
+    <p>This section is for people in California and for people in the European Economic Area, the United Kingdom, and Switzerland. It does not change the commitment above: we do not sell your personal information for money.</p>
     <h3>Categories we collect</h3>
     <ul>
         <li><strong>Identifiers:</strong> username, account id, email if you provide one, and sign-in provider</li>
@@ -733,7 +746,7 @@
     </ul>
     <p>We do not collect your real name unless you put it in a field yourself. We do not collect precise geolocation, a government ID, or your wallet seed or private keys.</p>
     <h3>Sale and share</h3>
-    <p>"Sale" and "share," under the California Consumer Privacy Act as amended by the CPRA, mean selling personal information or sharing it for cross-context behavioral advertising. We do not sell personal information for advertising, and we do not share it for cross-context behavioral advertising. There is no sale or share to opt out of. Disclosures to the service providers in Section 5 are so they can run the Site for us (hosting, sign-in, embedded players, payouts, and abuse checks). That is not a sale.</p>
+    <p>"Sale" and "share," under the California Consumer Privacy Act as amended by the CPRA, mean selling personal information or sharing it for cross-context behavioral advertising. <strong>Advertising and your choices.</strong> We show ads only to signed-in users who have confirmed they are 18 or older. We never show ads to guests or to Kids or Classroom accounts. We don't sell personal information for money. When Google AdSense shows you an ad, Google may collect cookie and device identifiers, which some state laws, including California's, may treat as 'sharing' for cross-context behavioral advertising. We don't show A-ADS ads to users who opt out or whose browser sends a Global Privacy Control signal. You can opt out of this sharing at any time with the Your Privacy Choices link at the bottom of every page. We also honor Global Privacy Control (GPC) signals from your browser as an opt-out. When you opt out, you'll see only non-personalized ads. You can also manage Google's ad personalization in <a href="https://adssettings.google.com" target="_blank" rel="noopener">Google's Ads Settings</a>. We don't knowingly sell or share personal information of anyone under 18. We don't currently show ads in the EEA, UK or Switzerland. Disclosures to the service providers in Section 5, other than Google AdSense and A-ADS, are so they can run the Site for us (hosting, sign-in, embedded players, payouts, and abuse checks). That is not a sale.</p>
     <h3>Legal bases if you are in Europe or the UK</h3>
     <ul>
         <li><strong>Contract:</strong> to provide the account and the features you use</li>
