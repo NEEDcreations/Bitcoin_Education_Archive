@@ -1,4 +1,4 @@
-// Cache-buster pin. staging/combo-1126b shared re-pin is btc-archive-v2700 (sw.js; ranking.js, age-confirm.js, global-chat.js, twa-mode.js and bundle.min.js at 20261126_v2700). Adds onboarding W1 (v2691), age-confirm App Check follow-up, Android app (TWA) hide (v2699), chat hub perf + routing (v2698) on top of staging/combo-1126 (v2696: ranking.js, citadel-spark.js, kill-switch.js, survey.js, ads.js, quests.js, waitlist.js, today-card.js; bundle 20261126_v2682f before this re-pin).
+// Cache-buster pin. staging/combo-1126b: SW btc-archive-v2710 (fresh, above every claimed number: v2701 hold banner, v2702 onboarding toasts, v2703 privacy text, v2704 guardian/join date, v2705 ads privacy). ranking.js and patches.js are 20261126_v2710. age-confirm.js, global-chat.js, twa-mode.js and bundle.min.js stay 20261126_v2700 (content unchanged since that pin; bundle was rebuilt for chat hub, so it cannot stay 20261126_v2682f, and branch v2682b pins never win). citadel-spark.js, kill-switch.js, survey.js, ads.js, quests.js, waitlist.js, today-card.js stay 20261126_v2696.
 // Cache-buster pin. Combined staging merge staging/combo-1126 shared re-pin is btc-archive-v2696 (ranking.js, citadel-spark.js, kill-switch.js, survey.js, ads.js, quests.js, waitlist.js, sw.js). Prior combo pins were temporary. includes #401 ads, #403 TCTV, #404 caps, #405 age confirm, #321 survey, and #402 Citadel Spark (SW temporarily v2695, bundle 20261126_v2682f). Shared re-pin is v2696+.
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
@@ -11,7 +11,7 @@
 // satoshi-favor.js stays 20261026_v2368.
 // onboarding.js is 20261109_v2542. today-card.js is 20261126_v2696.
 // features.registry.js stays 20261024_v2368. achievement-share.js is 20261109_v2536. miniapp-share.js is 20261107_v2526.
-// patches.js is 20261126_v2702. nacho-qa.js stays 20261024_v2350.
+// patches.js is 20261126_v2710. nacho-qa.js stays 20261024_v2350.
 // gifting.js is 20261030_v2439.
 // notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
@@ -52,9 +52,13 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     assert.ok(!html.includes('features.registry.js?v=20261109_v2538'));
 });
 
-test('service worker cache is v2700', () => {
+test('service worker cache is v2710', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2700'"))
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2710'"))
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2705'"))
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2702'"))
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2701'"))
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2700'"))
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2699'"))
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2698'"))
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2696'"))
@@ -343,7 +347,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
     assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
     assert.ok(html.includes('referral-tiers.js?v=20261105_v2499'));
-    assert.ok(html.includes('ranking.js?v=20261126_v2700'));
+    assert.ok(html.includes('ranking.js?v=20261126_v2710'));
     assert.ok(!html.includes('ranking.js?v=20261125_v2694'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2683'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2665'));
@@ -382,7 +386,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261029_v2420'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2416'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2403'));
-    assert.ok(html.indexOf('referral-tiers.js?v=20261105_v2499') < html.indexOf('ranking.js?v=20261126_v2700'));
+    assert.ok(html.indexOf('referral-tiers.js?v=20261105_v2499') < html.indexOf('ranking.js?v=20261126_v2710'));
     assert.ok(html.includes('auth-display.js?v=20261106_v2512'));
     assert.ok(!html.includes('auth-display.js?v=20261028_v2425'));
     assert.ok(!html.includes('auth-display.js?v=20261029_v2420'));
@@ -408,8 +412,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261026_v2373'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261126_v2700'));
-    assert.ok(html.indexOf('username-repick.js?v=20261104_v2476') < html.indexOf('ranking.js?v=20261126_v2700'));
+    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261126_v2710'));
+    assert.ok(html.indexOf('username-repick.js?v=20261104_v2476') < html.indexOf('ranking.js?v=20261126_v2710'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -734,7 +738,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('guide.js?v=20261104_v2482'));
     assert.ok(!html.includes('guide.js?v=20261023_v2349'));
     assert.ok(!html.includes('guide.js?v=20261023_v2339'));
-    assert.ok(html.includes('patches.js?v=20261126_v2702'));
+    assert.ok(html.includes('patches.js?v=20261126_v2710'));
     assert.ok(!html.includes('patches.js?v=20261026_v2385'));
     assert.ok(!html.includes('patches.js?v=20261027_v2425'));
     assert.ok(!html.includes('patches.js?v=20261024_v2360'));
@@ -748,7 +752,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2700');
+    assert.ok(swVersion && swVersion[1] === 'v2710');
     assert.notStrictEqual(swVersion[1], 'v2699');
     assert.notStrictEqual(swVersion[1], 'v2698');
     assert.notStrictEqual(swVersion[1], 'v2696');
@@ -924,7 +928,7 @@ test('PR #252 asset busters are v2512 (popup-stack bumped to v2519)', () => {
     assert.ok(!html.includes('popup-stack.js?v=20261119_v2681'));
     assert.ok(!html.includes('popup-stack.js?v=20261106_v2515'));
     assert.ok(!html.includes('popup-stack.js?v=20261106_v2512'));
-    assert.ok(html.includes('ranking.js?v=20261126_v2700'));
+    assert.ok(html.includes('ranking.js?v=20261126_v2710'));
     assert.ok(!html.includes('ranking.js?v=20261125_v2694'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2683'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2635'));
@@ -956,7 +960,7 @@ test('kill switch client and SW v2551 pins', () => {
     const html404 = read('404.html');
     assert.ok(html.includes('kill-switch.js?v=20261126_v2696'));
     assert.ok(html404.includes('kill-switch.js?v=20261126_v2696'));
-    assert.ok(html.indexOf('kill-switch.js?v=20261126_v2696') < html.indexOf('ranking.js?v=20261126_v2700'));
+    assert.ok(html.indexOf('kill-switch.js?v=20261126_v2696') < html.indexOf('ranking.js?v=20261126_v2710'));
     const ranking = read('ranking.js');
     assert.ok(ranking.includes("/admin-panel.js?v=20261116_v2581"));
     assert.ok(!ranking.includes("/admin-panel.js?v=20261111_v2551"));
@@ -1015,7 +1019,7 @@ test('18+ age confirmation script is pinned and identical on 404', () => {
 });
 
 
-test('combo-1126b v2700 pins (twa-mode, age-confirm, bundle, global-chat, ranking)', () => {
+test('combo-1126b pins (SW v2710; ranking.js + patches.js v2710; twa-mode, age-confirm, bundle, global-chat v2700)', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('<script src="/twa-mode.js?v=20261126_v2700"></script>'));
@@ -1028,9 +1032,15 @@ test('combo-1126b v2700 pins (twa-mode, age-confirm, bundle, global-chat, rankin
     assert.ok(!html.includes('bundle.min.js?v=20261126_v2682f'));
     assert.ok(!html.includes('bundle.min.js?v=20261126_v2698'));
     assert.strictEqual((html.match(/global-chat\.js\?v=20261126_v2698/g) || []).length, 0);
-    assert.ok(html.includes('ranking.js?v=20261126_v2700'));
+    assert.ok(html.includes('ranking.js?v=20261126_v2710'));
     assert.ok(!html.includes('ranking.js?v=20261126_v2696'));
     assert.ok(!html.includes('ranking.js?v=20261125_v2691'));
+    assert.ok(!html.includes('ranking.js?v=20261126_v2700'));
+    assert.ok(!html.includes('ranking.js?v=20261126_v2701'));
+    assert.ok(!html.includes('ranking.js?v=20261126_v2702'));
+    assert.ok(html.includes('patches.js?v=20261126_v2710'));
+    assert.ok(!html.includes('patches.js?v=20261126_v2702'));
+    assert.ok(!html.includes('bundle.min.js?v=20261119_v2682b'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
