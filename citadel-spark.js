@@ -72,8 +72,10 @@
             '.cs-title{font-size:1.15rem;font-weight:800;color:var(--heading);line-height:1.4;margin-bottom:12px}' +
             '.cs-desc{font-size:.85rem;color:var(--text-muted);line-height:1.5}' +
             '.cs-player{position:relative;max-width:300px;margin:20px auto 0;border-radius:12px;overflow:hidden;border:1px solid #2c3246;background:#000;aspect-ratio:9/16}' +
-            '.cs-player video{display:block;width:100%;height:100%;object-fit:contain;background:#000}' +
-            '.cs-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:50%;border:2px solid #fff;background:rgba(124,58,237,.78);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 0 24px rgba(59,130,246,.6)}' +
+            '.cs-player video{position:relative;z-index:0;display:block;width:100%;height:100%;object-fit:contain;background:#000}' +
+            // Until it plays, the video never takes the tap, so the button always gets it (QA mobile 390px).
+            '.cs-player:not(.cs-on) video{pointer-events:none}' +
+            '.cs-play{position:absolute;z-index:2;top:50%;left:50%;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:50%;border:2px solid #fff;background:rgba(124,58,237,.78);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 0 24px rgba(59,130,246,.6)}' +
             '.cs-play:focus-visible{outline:3px solid #f7931a;outline-offset:3px}' +
             '.cs-play svg{width:38px;height:38px;margin-left:6px;fill:currentColor}' +
             '.cs-play[hidden]{display:none}' +
@@ -126,10 +128,11 @@
             try { v.volume = 1; } catch (_) {}
             v.controls = true;
             btn.hidden = true;
+            wrap.classList.add('cs-on');
             var p = v.play();
-            if (p && typeof p.catch === 'function') p.catch(function () { btn.hidden = false; });
+            if (p && typeof p.catch === 'function') p.catch(function () { btn.hidden = false; wrap.classList.remove('cs-on'); });
         });
-        v.addEventListener('ended', function () { btn.hidden = false; });
+        v.addEventListener('ended', function () { btn.hidden = false; wrap.classList.remove('cs-on'); });
         wrap.appendChild(v);
         wrap.appendChild(btn);
         return wrap;

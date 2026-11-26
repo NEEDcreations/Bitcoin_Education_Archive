@@ -38,8 +38,10 @@
   video.teaser{display:block;width:auto;height:auto;max-width:min(100%,360px);max-height:min(70vh,640px);margin:0 auto 18px;border-radius:12px;border:1px solid #232838;background:#000}
   video.teaser:not([src]){display:none}
   .player{position:relative;max-width:min(100%,360px);margin:0 auto 18px}
-  .player video.teaser{margin:0 auto}
-  .play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:92px;height:92px;padding:0;border-radius:50%;border:2px solid #fff;background:rgba(124,58,237,.8);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 26px rgba(59,130,246,.6);cursor:pointer}
+  .player video.teaser{position:relative;z-index:0;margin:0 auto}
+  /* Until it plays, the video never takes the tap, so the button always gets it (QA mobile 390px). */
+  .player:not(.on) video.teaser{pointer-events:none}
+  .play{position:absolute;z-index:2;top:50%;left:50%;transform:translate(-50%,-50%);width:92px;height:92px;padding:0;border-radius:50%;border:2px solid #fff;background:rgba(124,58,237,.8);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 26px rgba(59,130,246,.6);cursor:pointer}
   .play:focus-visible{outline:3px solid #f7931a;outline-offset:3px}
   .play svg{width:40px;height:40px;margin-left:6px;fill:currentColor}
   .play[hidden]{display:none}

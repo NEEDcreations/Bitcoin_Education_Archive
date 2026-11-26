@@ -6,16 +6,19 @@
 (function () {
   var v = document.getElementById('wlTeaser');
   var play = document.getElementById('wlPlay');
+  var box = document.getElementById('wlPlayer');
   if (!v || !play) return;
+  function on(x) { if (box) box.classList[x ? 'add' : 'remove']('on'); }
   play.addEventListener('click', function () {
     v.muted = false;
     try { v.volume = 1; } catch (_) {}
     v.controls = true;
     play.hidden = true;
+    on(true);
     var p = v.play();
-    if (p && typeof p.catch === 'function') p.catch(function () { play.hidden = false; });
+    if (p && typeof p.catch === 'function') p.catch(function () { play.hidden = false; on(false); });
   });
-  v.addEventListener('ended', function () { play.hidden = false; });
+  v.addEventListener('ended', function () { play.hidden = false; on(false); });
 })();
 
 (function () {

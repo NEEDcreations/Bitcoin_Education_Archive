@@ -17,7 +17,7 @@ function makeEl(tag) {
     const n = {
         tagName: String(tag).toUpperCase(), children: [], attrs: {}, listeners: {}, style: {},
         _text: '', className: '', hidden: false, parentNode: null,
-        classList: { _s: new Set(), add(c) { this._s.add(c); }, contains(c) { return this._s.has(c); } },
+        classList: { _s: new Set(), add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); }, contains(c) { return this._s.has(c); } },
         setAttribute(k, v) { this.attrs[k] = String(v); },
         getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
         appendChild(c) { c.parentNode = n; n.children.push(c); return c; },
@@ -121,6 +121,10 @@ test('Citadel tab after launch: label, teaser, 3 images, waitlist form', () => {
     assert.strictEqual(video.muted, false);
     assert.strictEqual(video.controls, true);
     assert.strictEqual(play.hidden, true);
+    assert.strictEqual(play.parentNode.classList.contains('cs-on'), true, 'video takes taps only once playing');
+    video.dispatch('ended');
+    assert.strictEqual(play.hidden, false);
+    assert.strictEqual(play.parentNode.classList.contains('cs-on'), false);
     const imgs = nodes.filter((n) => n.tagName === 'IMG').map((n) => n.src);
     assert.deepStrictEqual(imgs, ['/images/waitlist/citadel-demo-1-overview.jpg', '/images/waitlist/citadel-demo-2-raid.jpg', '/images/waitlist/citadel-demo-3-nook-shop.jpg']);
     const email = nodes.find((n) => n.type === 'email');
@@ -193,6 +197,19 @@ test('Waitlist page teaser: no autoplay, not muted, big play button, social link
     assert.ok(/\.play\{[^}]*top:50%;left:50%;transform:translate\(-50%,-50%\);width:92px;height:92px/.test(h));
     const js = read('waitlist.js');
     assert.ok(/v\.muted = false;[\s\S]*v\.play\(\)/.test(js));
+});
+
+test('QA mobile: play buttons sit above the video and the idle video never takes the tap', () => {
+    const js = read('citadel-spark.js');
+    assert.ok(/\.cs-play\{position:absolute;z-index:2;/.test(js), 'cs-play z-index');
+    assert.ok(/\.cs-player video\{position:relative;z-index:0;/.test(js));
+    assert.ok(js.includes('.cs-player:not(.cs-on) video{pointer-events:none}'));
+    const h = read('waitlist.html');
+    assert.ok(/\.play\{position:absolute;z-index:2;/.test(h), '/waitlist .play z-index');
+    assert.ok(/\.player video\.teaser\{position:relative;z-index:0;/.test(h));
+    assert.ok(h.includes('.player:not(.on) video.teaser{pointer-events:none}'));
+    const w = read('waitlist.js');
+    assert.ok(/play\.hidden = true;\s*on\(true\);/.test(w) && /'ended', function \(\) \{ play\.hidden = false; on\(false\); \}/.test(w));
 });
 
 (async () => {
