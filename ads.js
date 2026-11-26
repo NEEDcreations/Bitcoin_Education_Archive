@@ -173,8 +173,10 @@
 
     function isKidsAccount(user) {
         if (!user) return false;
-        // Fields used by premium checkout and the upcoming Family/Classroom seats:
-        // isMinor, under13, and ageBand ('under13' | 'minor').
+        // isMinor, under13, and ageBand ('under13' | 'minor') are not set
+        // anywhere in this repo yet. When Family/Classroom seats ship, the
+        // server must set these exact fields, plus premium.plan
+        // family_monthly / family_months, on the user doc.
         if (user.isMinor === true || user.under13 === true) return true;
         if (user.kids === true || user.isKids === true || user.kidsMode === true) return true;
         var band = ageBandOf(user);
