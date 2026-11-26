@@ -93,7 +93,8 @@ const parts = emu.split(':');
                 claimReq: { chatAt: 1 },
             });
         }, false);
-        const admin = require(path.join(root, 'functions', 'node_modules', 'firebase-admin'));
+        // firebase-admin 14 dropped admin.apps; the repo shim restores the namespace.
+        const admin = require(path.join(root, 'functions', 'src', 'firebaseAdmin.js'));
         if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-claimreq' });
         const claimReqs = require(path.join(root, 'functions', 'src', 'claimReqs'));
         const adb = admin.firestore();

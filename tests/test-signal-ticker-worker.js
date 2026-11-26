@@ -1,5 +1,20 @@
 // Signal ticker Worker: KV serve, 24h stale origin fallback, refresh auth.
 const assert = require('assert');
+
+// Fixed clock so the 2026-11-14 fixtures stay fresh no matter when this runs,
+// and no live network: any real fetch fails the test.
+const RealDate = Date;
+const FIXED_NOW = RealDate.parse('2026-11-14T22:30:00.000Z');
+class FixedDate extends RealDate {
+    constructor(...args) {
+        if (args.length === 0) super(FIXED_NOW);
+        else super(...args);
+    }
+    static now() { return FIXED_NOW; }
+}
+global.Date = FixedDate;
+global.fetch = function() { return Promise.reject(new Error('live fetch is not allowed in this test')); };
+
 const handlers = require('../workers/signal-ticker/handlers.js');
 const ticker = require('../workers/signal-ticker/ticker-core.js');
 
@@ -94,7 +109,8 @@ test('GET / also serves the ticker JSON', async function() {
     const env = {
         TICKER: mockKV({
             'newsletter-data.json': { value: JSON.stringify(FRESH), metadata: { generatedAt: FRESH.updated } }
-        })
+        }),
+        __fetcher: function() { throw new Error('origin should not be called'); }
     };
     const res = await handlers.handleFetch(new Request('https://ticker.test/'), env);
     assert.strictEqual(res.status, 200);

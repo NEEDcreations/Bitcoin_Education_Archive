@@ -28,6 +28,11 @@ function test(name, fn) {
 }
 
 const admin = {
+    // awardBadge treats a failed Auth lookup as a guest (guestGate), so the
+    // fixture users need a real sign-in provider.
+    auth: function () {
+        return { getUser: async function (uid) { return { uid: uid, providerData: [{ providerId: 'password' }] }; } };
+    },
     firestore: {
         FieldValue: {
             serverTimestamp: function () { return { _serverTimestamp: true }; },
@@ -771,8 +776,13 @@ queue.push(test('combo tiers follow server zones and trivia is graded before the
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
     const awardAt = index.indexOf('exports.awardPoints');
     const award = index.slice(awardAt, index.indexOf('exports.getFaucetStats', awardAt));
-    assert.ok(award.indexOf('triviaBank') !== -1);
-    assert.ok(award.indexOf('triviaGrade') < award.indexOf('progressBadges.progressSpec'));
+    // Since d2dfecd36 awardPoints refuses trivia and quiz XP; answerTrivia /
+    // gradeQuest grade on the server instead.
+    assert.ok(award.includes("error: 'Quiz and trivia rewards are graded on the server'"));
+    assert.ok(award.indexOf('graded on the server') < award.indexOf('progressBadges.progressSpec'));
+    assert.strictEqual(award.indexOf('triviaChoice'), -1);
+    const questCallables = fs.readFileSync(path.join(root, 'functions', 'src', 'questCallables.js'), 'utf8');
+    assert.ok(questCallables.includes('loadTriviaKey'));
     assert.ok(!award.includes("source: 'combo_bonus'"));
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
     assert.ok(quests.includes("httpsCallable('answerTrivia')"));
@@ -851,34 +861,52 @@ queue.push(test('badge ladders never pay a harder rung less, and the UI table ma
     const catalogOnly = catalogIds.filter(function (id) { return tableIds.indexOf(id) === -1 && !require('../functions/src/badgeTiers').isTierId(id) && !require('../functions/src/badgeTiers').isCollectionId(id); });
     assert.deepStrictEqual(sheetOnly, ['anon', 'flex_']);
     // Merged collection bonuses stay out of badge-xp.json so the sheet cannot
-    // replace the remainder amount. The server pays from collection-sets.json.
-    assert.deepStrictEqual(catalogOnly, [
-        'col_arena_bonus', 'col_builder_bonus', 'col_community_bonus', 'col_daily_habits_bonus',
-        'col_entertainment_bonus', 'col_fitness_bonus', 'col_foresight_bonus', 'col_learning_bonus',
-        'col_lightning_bonus', 'col_mining_bonus', 'col_profile_bonus',
-    ]);
-    const serverBonus = {
-        col_arena_bonus: 1150,
-        col_builder_bonus: 650,
-        col_community_bonus: 800,
-        col_daily_habits_bonus: 4150,
-        col_entertainment_bonus: 150,
-        col_fitness_bonus: 0,
-        col_foresight_bonus: 1000,
-        col_learning_bonus: 300,
-        col_lightning_bonus: 150,
-        col_mining_bonus: 500,
-        col_profile_bonus: 300,
-    };
-    catalogOnly.forEach(function (id) {
-        assert.strictEqual(catalog.badges[id].hidden, true, id);
-        assert.strictEqual(catalog.badges[id].xp, serverBonus[id], id);
+    // replace the remainder amount. The server pays from collection-sets.json,
+    // so the expected amounts come from collectionBonus, not a copy here.
+    const liveBonus = {};
+    require('../functions/src/collectionBonus').collections().forEach(function (col) {
+        liveBonus[col.bonusId] = col.bonusPts;
     });
+    // Old bonus ids still in the generated catalog at 0 XP. No collection pays them.
+    const retiredBonus = ['col_community_bonus', 'col_entertainment_bonus'];
+    const colOnly = catalogOnly.filter(function (id) { return /^col_[a-z0-9_]+_bonus$/.test(id); });
+    colOnly.forEach(function (id) {
+        assert.strictEqual(catalog.badges[id].hidden, true, id);
+        assert.strictEqual(badgeRules.ruleFor(id).xp, 0, id);
+        if (Object.prototype.hasOwnProperty.call(liveBonus, id)) {
+            assert.strictEqual(catalog.badges[id].xp, liveBonus[id], id);
+        } else {
+            assert.ok(retiredBonus.indexOf(id) !== -1, id);
+            assert.strictEqual(catalog.badges[id].xp, 0, id);
+        }
+    });
+    Object.keys(liveBonus).forEach(function (id) {
+        assert.ok(colOnly.indexOf(id) !== -1, id);
+        assert.ok(!table.badges[id], id);
+    });
+    // Not in the sheet yet, waiting on a tier decision: 75 XP has no tier on
+    // the scale, and the three title ids are titles the catalog parser reads
+    // as badges. The server pays the catalog value (capped) until then.
+    const awaitingTier = [
+        'bip_118', 'bip_119', 'bip_324', 'bip_347', 'bip_348', 'bip_349', 'bip_352', 'bip_353',
+        'bip_360', 'bip_443', 'bip_85', 'bip_86',
+        'core_contributor', 'hive_mind_champion', 'honey_badger_champion',
+        'race_badger_dont_quit', 'race_still_buzzing',
+    ];
+    assert.deepStrictEqual(catalogOnly.filter(function (id) { return colOnly.indexOf(id) === -1; }), awaitingTier);
+    awaitingTier.forEach(function (id) {
+        const rule = badgeRules.ruleFor(id);
+        assert.strictEqual(rule.cosmetic ? rule.displayXp : rule.xp, catalog.badges[id].xp, id);
+    });
+    // The generated catalog predates these sheet rows (client shows 0, the
+    // server pays the sheet). A catalog rebuild clears this list.
+    const staleCatalog = ['pvp_win_streak_3', 'pvp_win_streak_5'];
     assert.strictEqual(table.badges.flex_.xp, 0);
     assert.strictEqual(table.badges.anon.xp, 0);
     tableIds.forEach(function (id) {
         if (!catalog.badges[id]) return;
-        assert.strictEqual(catalog.badges[id].xp, table.badges[id].xp, id);
+        if (staleCatalog.indexOf(id) !== -1) assert.strictEqual(catalog.badges[id].xp, 0, id);
+        else assert.strictEqual(catalog.badges[id].xp, table.badges[id].xp, id);
         const rule = badgeRules.ruleFor(id);
         if (rule.cosmetic) assert.strictEqual(rule.displayXp, table.badges[id].xp, id);
         else assert.strictEqual(rule.xp, table.badges[id].xp, id);
@@ -925,6 +953,26 @@ queue.push(test('badge ladders never pay a harder rung less, and the UI table ma
     assert.strictEqual(client.streak_365.xp, 2000);
 }));
 
+
+queue.push(test('faction race badges pay their catalog tier from badge-xp.json', function () {
+    const table = require('../functions/src/badge-xp.json');
+    const badgeXp = require('../functions/src/badgeXpTable');
+    const want = { race_10k_finisher: 50, race_champion_hornets: 150, race_champion_badgers: 150 };
+    Object.keys(want).forEach(function (id) {
+        const row = table.badges[id];
+        assert.ok(row, id);
+        assert.strictEqual(row.xp, want[id], id);
+        assert.strictEqual(table.scale[row.tier], row.xp, id);
+        assert.strictEqual(badgeRules.catalog.badges[id].xp, row.xp, id);
+        assert.strictEqual(badgeXp.oldXpOf(id), null, id);
+        const rule = badgeRules.ruleFor(id);
+        assert.strictEqual(rule.cosmetic, false, id);
+        assert.strictEqual(rule.xp, row.xp, id);
+        assert.strictEqual(rule.source.field, 'factionRaceBadges', id);
+        assert.strictEqual(badgeRules.meets(rule, { factionRaceBadges: [] }, {}), false, id);
+        assert.strictEqual(badgeRules.meets(rule, { factionRaceBadges: [id] }, {}), true, id);
+    });
+}));
 queue.push(test('badge XP tapers at 500, 900, and 1,000 and the backfill bypasses it', async function () {
     const { applyDailyXp, taperDailyXp } = require('../functions/src/applyDailyXp');
     const full = taperDailyXp(2000, 0);

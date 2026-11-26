@@ -3527,12 +3527,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     if (!resolved.ok) {
         return { success: false, error: resolved.error || 'Unknown action', awarded: 0, tickets: 0 };
     }
-    // dailySpin is the only spin reward. Do not write points, tickets, or a
-    // claim. success + awarded 0 matches a normal zero grant so a cached
-    // client that still calls this phrase does not throw.
-    if (resolved.id === 'daily_spin') {
-        return { success: true, awarded: 0, tickets: 0 };
-    }
+    // dailySpin is the only spin reward. resolveAction rejects the old
+    // 'Daily Spin' phrase above, so it never reaches the grant below.
     // Guest progress moves only through linkGuestAccount, which marks it
     // unclaimable. This legacy action grants nothing and writes nothing.
     if (resolved.id === 'anon_merge') {

@@ -60,8 +60,8 @@ test('only totpStatus and syncEmailChange keep a warm instance', function () {
     const email = fs.readFileSync(path.join(root, 'functions', 'src', 'emailChange.js'), 'utf8');
     const bound = email.slice(email.indexOf('return {'), email.indexOf('module.exports'));
     assert.ok(bound.includes("syncEmailChange: onCall('syncEmailChange', handlers.syncEmailChange, true)"));
-    assert.ok(bound.includes("prepareEmailChange: onCall('prepareEmailChange', handlers.prepareEmailChange),"));
-    assert.ok(bound.includes("confirmAccountLink: onCall('confirmAccountLink', handlers.confirmAccountLink),"));
+    assert.ok(bound.includes("prepareEmailChange: onCall('prepareEmailChange', handlers.prepareEmailChange, false, true),"));
+    assert.ok(bound.includes("confirmAccountLink: onCall('confirmAccountLink', handlers.confirmAccountLink, false, true),"));
     assert.strictEqual(bound.includes("prepareEmailChange: onCall('prepareEmailChange', handlers.prepareEmailChange, true)"), false);
     assert.strictEqual(bound.includes("confirmAccountLink: onCall('confirmAccountLink', handlers.confirmAccountLink, true)"), false);
     assert.ok(email.includes('if (warm === true) opts.minInstances = 1;'));
