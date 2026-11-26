@@ -64,6 +64,10 @@
         faucet: true
     };
 
+    // Server-sourced users/{uid} snapshot used for the 18+ gate. Never
+    // filled from localStorage btc_profile_cache or window flags.
+    var freshUserDoc = null;
+
     function holdoutPct() {
         var raw = (root && root.BQ_ADS_HOLDOUT_PCT != null) ? root.BQ_ADS_HOLDOUT_PCT : HOLDOUT_PCT;
         var n = Number(raw);
@@ -191,27 +195,104 @@
         return t === 'kids' || t === 'kid' || t === 'child' || t === 'family-child' || t === 'minor';
     }
 
-    // Every ad, including A-ADS, is only for a signed-in user with an
-    // explicit adult age. Guests, anonymous sessions, and accounts with
-    // no age fields get no ads. These adult fields are not set in the
-    // repo yet; the server must write them the same way Family/Classroom
-    // seats must write the kids fields. A kids account is never treated
-    // as adult.
-    function numericAge(user) {
-        if (!user) return null;
-        var n = Number(user.age != null ? user.age : user.ageYears);
-        if (!isFinite(n) || n <= 0) return null;
-        return n;
+    // Every ad, including A-ADS, is only for a signed-in user whose own
+    // fresh Firestore user doc says over18===true, and does not say
+    // ageUnder18 or ageConfirmBlocked. Guests, anonymous sessions, kids
+    // accounts, and accounts with no age fields get no ads. This function
+    // reads only the provided doc-shaped object; it never reads
+    // localStorage btc_profile_cache, window._bqAgeConfirmed18, or any
+    // other client flag, so an admin un-confirm sticks and the console
+    // cannot turn ads on by setting a flag.
+    function hasKnownAdultAge(user) {
+        if (!user || user.isAnonymous === true || !user.uid) return false;
+        if (isKidsAccount(user)) return false;
+        return user.over18 === true && user.ageUnder18 !== true && user.ageConfirmBlocked !== true;
     }
 
-    function hasKnownAdultAge(user) {
-        if (!user || user.isAnonymous === true) return false;
-        if (isKidsAccount(user)) return false;
-        if (user.isAdult === true || user.over18 === true) return true;
-        var band = ageBandOf(user);
-        if (band === 'adult' || band === 'over18' || band === '18+' || band === '18plus') return true;
-        var age = numericAge(user);
-        return age != null && age >= 18;
+    function allowExplicitUser(input) {
+        input = input || {};
+        if (input._bqAdsAllowExplicitUser === true) return true;
+        // Node unit tests may pass a doc-shaped user. In the browser,
+        // ignore a caller-supplied user so the console cannot turn ads on.
+        return typeof document === 'undefined';
+    }
+
+    function signedInUid() {
+        try {
+            var u = null;
+            if (typeof firebase !== 'undefined' && firebase.auth) u = firebase.auth().currentUser;
+            else if (typeof auth !== 'undefined' && auth) u = auth.currentUser;
+            if (u && u.uid && u.isAnonymous !== true) return String(u.uid);
+        } catch (e) {}
+        return '';
+    }
+
+    function adsFirestore(db) {
+        if (db) return db;
+        if (typeof firebase !== 'undefined' && firebase.firestore) {
+            try { return firebase.firestore(); } catch (e) { return null; }
+        }
+        return null;
+    }
+
+    function applyFreshUserSnap(uid, snap) {
+        var id = String(uid || '');
+        var signed = signedInUid();
+        if (!id || !signed || signed !== id || !snap || !snap.exists) {
+            freshUserDoc = null;
+            return null;
+        }
+        if (snap.metadata && snap.metadata.fromCache === true) {
+            return freshUserDoc;
+        }
+        var data = {};
+        try { data = snap.data() || {}; } catch (e) { data = {}; }
+        freshUserDoc = { uid: id };
+        var key;
+        for (key in data) {
+            if (Object.prototype.hasOwnProperty.call(data, key)) freshUserDoc[key] = data[key];
+        }
+        return freshUserDoc;
+    }
+
+    function fetchFreshUserDoc(uid, firestore) {
+        var id = String(uid || signedInUid() || '');
+        if (!id) {
+            freshUserDoc = null;
+            return Promise.resolve(null);
+        }
+        var signed = signedInUid();
+        if (signed && signed !== id) {
+            freshUserDoc = null;
+            return Promise.resolve(null);
+        }
+        var db = adsFirestore(firestore);
+        if (!db) return Promise.resolve(null);
+        var ref = db.collection('users').doc(id);
+        var req;
+        try { req = ref.get({ source: 'server' }); } catch (e) { req = ref.get(); }
+        return Promise.resolve(req).then(function (snap) {
+            if (signedInUid() !== id) return null;
+            return applyFreshUserSnap(id, snap);
+        }).catch(function () {
+            if (signedInUid() === id) freshUserDoc = null;
+            return null;
+        });
+    }
+
+    function getFreshUserDoc() {
+        return freshUserDoc;
+    }
+
+    // The 18+ gate uses only an explicit test/doc user (non-DOM) or the
+    // server-sourced snapshot. Never currentUser (may be cache-painted),
+    // never btc_profile_cache, never window._bqAgeConfirmed18.
+    function userForAge(input) {
+        input = input || {};
+        if (allowExplicitUser(input) && Object.prototype.hasOwnProperty.call(input, 'user')) {
+            return input.user;
+        }
+        return freshUserDoc;
     }
 
     function isGuestUser(user) {
@@ -292,12 +373,13 @@
 
     function isUserUnknown(input) {
         input = input || {};
-        if (Object.prototype.hasOwnProperty.call(input, 'user')) return false;
+        if (allowExplicitUser(input) && Object.prototype.hasOwnProperty.call(input, 'user')) return false;
         if (input.userUnknown === true) return true;
         if (input.userUnknown === false) return false;
         if (root && root._bqAdsUserUnknown === true) return true;
+        if (freshUserDoc && freshUserDoc.uid) return false;
         if (root && root._bqAdsAuthReady === true) return false;
-        // In the browser, ads stay off until auth (and the user doc, when signed in) is ready.
+        // In the browser, ads stay off until auth (and a fresh user doc, when signed in) is ready.
         if (typeof document !== 'undefined' && !(root && root._bqAdsAuthReady === true)) return true;
         return false;
     }
@@ -351,8 +433,7 @@
      */
     function decide(input) {
         input = input || {};
-        var user = input.user;
-        if (user === undefined && typeof currentUser !== 'undefined') user = currentUser;
+        var user = userForAge(input);
         var surface = currentSurface(input);
         var tctv = isTimechainTvSurface(input) || surface === 'timechain-tv';
         var kidsSurface = isKidsSurface(input);
@@ -436,8 +517,7 @@
         if (!ADSENSE_SURFACES[decision.surface]) return false;
         if (isSensitiveSurface(input) || sensitiveUiOpen()) return false;
         input = input || {};
-        var user = input.user;
-        if (user === undefined && typeof currentUser !== 'undefined') user = currentUser;
+        var user = userForAge(input);
         if (!hasKnownAdultAge(user)) return false;
         return true;
     }
@@ -699,20 +779,33 @@
         window._bqAdsAuthHooked = true;
         authObj.onAuthStateChanged(function (signed) {
             if (!signed || signed.isAnonymous === true) {
+                freshUserDoc = null;
                 markUserKnown();
                 return;
             }
-            if (typeof currentUser !== 'undefined' && userDocLooksLoaded(currentUser, signed.uid)) {
-                markUserKnown();
-                return;
-            }
+            var uid = String(signed.uid || '');
             if (root) {
                 root._bqAdsAuthReady = true;
                 root._bqAdsUserUnknown = true;
             }
             sync({ userUnknown: true });
+            fetchFreshUserDoc(uid).then(function (doc) {
+                if (signedInUid() !== uid) return;
+                if (doc) markUserKnown();
+            });
         });
-        hookFn(window, 'loadUser', function () { markUserKnown(); });
+        hookFn(window, 'loadUser', function () {
+            var uid = signedInUid();
+            if (!uid) {
+                freshUserDoc = null;
+                markUserKnown();
+                return;
+            }
+            fetchFreshUserDoc(uid).then(function (doc) {
+                if (signedInUid() !== uid) return;
+                if (doc) markUserKnown();
+            });
+        });
     }
 
     function hookNavigation() {
@@ -770,6 +863,8 @@
         isPremiumAccount: isPremiumAccount,
         isKidsAccount: isKidsAccount,
         hasKnownAdultAge: hasKnownAdultAge,
+        fetchFreshUserDoc: fetchFreshUserDoc,
+        getFreshUserDoc: getFreshUserDoc,
         isGuestUser: isGuestUser,
         isClassroomAccount: isClassroomAccount,
         isFamilyOrClassroomPlan: isFamilyOrClassroomPlan,

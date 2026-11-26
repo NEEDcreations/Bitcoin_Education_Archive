@@ -1,4 +1,4 @@
-// Cache-buster pin. RLDA-40 ads.js is 20261125_v2694 (index.html, 404.html). Patch notes banner refresh + Back to app is btc-archive-v2690 (index.html, 404.html, patch-notes.html; no JS pins). Patch notes Faster Loads + Timelines is btc-archive-v2687 (patch-notes.html; no JS pins). Terms 16g + raffle Official Rules is btc-archive-v2686 (terms.html, raffle-rules.html, resets.html, quests.js 20261120_v2686). Timelines & Odds page + what's-new banner is btc-archive-v2684 (resets.html, index.html, 404.html, patch-notes.html; no JS pins). Guest onboarding fixes are btc-archive-v2683 (ranking.js, onboarding.js 20261119_v2683). Proof of Play + chat CTA links + 10 Timechain games is btc-archive-v2682 (proof-of-play.js, global-chat.js, bundle.min.js 20261119_v2682). Onboarding questions-first is btc-archive-v2681 (popup-stack.js, features.registry.js 20261119_v2681). Dry run v3 step 3 is btc-archive-v2667 (article; bundle.min.js 20261119_v2667). Step 2 v2666: beats.js, lightning-tips.js. Step 1 v2665: global-chat.js, ranking.js.
+// Cache-buster pin. RLDA-40 ads.js is 20261125_v2695 (index.html, 404.html). Patch notes banner refresh + Back to app is btc-archive-v2690 (index.html, 404.html, patch-notes.html; no JS pins). Patch notes Faster Loads + Timelines is btc-archive-v2687 (patch-notes.html; no JS pins). Terms 16g + raffle Official Rules is btc-archive-v2686 (terms.html, raffle-rules.html, resets.html, quests.js 20261120_v2686). Timelines & Odds page + what's-new banner is btc-archive-v2684 (resets.html, index.html, 404.html, patch-notes.html; no JS pins). Guest onboarding fixes are btc-archive-v2683 (ranking.js, onboarding.js 20261119_v2683). Proof of Play + chat CTA links + 10 Timechain games is btc-archive-v2682 (proof-of-play.js, global-chat.js, bundle.min.js 20261119_v2682). Onboarding questions-first is btc-archive-v2681 (popup-stack.js, features.registry.js 20261119_v2681). Dry run v3 step 3 is btc-archive-v2667 (article; bundle.min.js 20261119_v2667). Step 2 v2666: beats.js, lightning-tips.js. Step 1 v2665: global-chat.js, ranking.js.
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
@@ -956,11 +956,11 @@ test('patch notes page has a sticky Back to app button', () => {
     assert.ok(notes.includes('Faster Loads + Timelines'));
     assert.ok(notes.includes('id="week-2026-11-20"'));
 });
-test('RLDA-40 ads.js is pinned at 20261125_v2694 and not protocol-relative', () => {
+test('RLDA-40 ads.js is pinned at 20261125_v2695 and not protocol-relative', () => {
     const html = read('index.html');
     const html404 = read('404.html');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('src="/ads.js?v=20261125_v2694"'));
+    assert.ok(html.includes('src="/ads.js?v=20261125_v2695"'));
     assert.ok(html.includes('id="bqAadsHome"'));
     assert.ok(!html.includes('src="ads.js'));
     const ads = read('ads.js');

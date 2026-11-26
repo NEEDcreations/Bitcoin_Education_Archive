@@ -297,7 +297,7 @@ test('index.html and 404.html include ads.js, the homepage slot, and the AdSense
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const html404 = fs.readFileSync(path.join(root, '404.html'), 'utf8');
     assert.strictEqual(html, html404, '404.html must match index.html');
-    assert.ok(html.includes('src="/ads.js?v=20261125_v2694"'));
+    assert.ok(html.includes('src="/ads.js?v=20261125_v2695"'));
     assert.ok(html.includes('defer') && html.includes('ads.js'));
     assert.ok(html.includes('id="bqAadsHome"'));
     assert.ok(html.includes('name="google-adsense-account"'));
@@ -459,11 +459,8 @@ test('over18 users get A-ADS on the homepage and AdSense on Learn and PoP', func
     const ads = loadAds();
     const uid = findEligibleUid(ads, 'adult');
     const adults = [
-        { uid: uid, ageBand: 'adult' },
-        { uid: uid, ageBand: 'over18' },
-        { uid: uid, age: 18 },
-        { uid: uid, isAdult: true },
-        { uid: uid, over18: true }
+        { uid: uid, over18: true },
+        { uid: uid, over18: true, ageUnder18: false, ageConfirmBlocked: false }
     ];
     adults.forEach(function (user) {
         assert.strictEqual(ads.hasKnownAdultAge(user), true, JSON.stringify(user));
@@ -475,6 +472,11 @@ test('over18 users get A-ADS on the homepage and AdSense on Learn and PoP', func
         // Homepage stays A-ADS even for adults.
         assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'home', path: '/' }), { user: user, surface: 'home' }), false);
     });
+    // Only over18 on the user doc counts. Other age-looking fields do not.
+    [{ uid: uid, ageBand: 'adult' }, { uid: uid, ageBand: 'over18' }, { uid: uid, age: 18 }, { uid: uid, isAdult: true }, { uid: uid, ageConfirmed18: true }].forEach(function (u) {
+        assert.strictEqual(ads.hasKnownAdultAge(u), false, JSON.stringify(u));
+        assert.strictEqual(ads.shouldShowAds({ user: u, surface: 'home', path: '/' }), false, JSON.stringify(u));
+    });
     const under = { uid: uid, age: 17 };
     assert.strictEqual(ads.hasKnownAdultAge(under), false);
     assert.strictEqual(ads.shouldShowAds({ user: under, surface: 'home', path: '/' }), false);
@@ -483,5 +485,205 @@ test('over18 users get A-ADS on the homepage and AdSense on Learn and PoP', func
     assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: under, surface: 'learning-quests' }), { user: under, surface: 'learning-quests' }), false);
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed > 0 ? 1 : 0);
+test('ageUnder18 on the user doc gives no ads, even with over18', function () {
+    const ads = loadAds();
+    const uid = findEligibleUid(ads, 'u18');
+    const user = { uid: uid, over18: true, ageUnder18: true };
+    assert.strictEqual(ads.hasKnownAdultAge(user), false);
+    ['home', 'learning-quests', 'proof-of-play', 'arcade'].forEach(function (surface) {
+        const input = { user: user, surface: surface, path: surface === 'home' ? '/' : undefined };
+        const d = ads.decide(input);
+        assert.strictEqual(d.show, false, surface);
+        assert.strictEqual(d.reason, 'age', surface);
+        assert.strictEqual(ads.adsenseAllowed(d, input), false, surface);
+    });
+});
+
+test('ageConfirmBlocked (admin un-confirm) gives no ads, even with over18', function () {
+    const ads = loadAds();
+    const uid = findEligibleUid(ads, 'blk');
+    const user = { uid: uid, over18: true, ageConfirmBlocked: true };
+    assert.strictEqual(ads.hasKnownAdultAge(user), false);
+    ['home', 'learning-quests', 'proof-of-play', 'arcade'].forEach(function (surface) {
+        const input = { user: user, surface: surface, path: surface === 'home' ? '/' : undefined };
+        const d = ads.decide(input);
+        assert.strictEqual(d.show, false, surface);
+        assert.strictEqual(d.reason, 'age', surface);
+        assert.strictEqual(ads.adsenseAllowed(d, input), false, surface);
+    });
+});
+
+test('kids accounts with over18 still get no ads', function () {
+    const ads = loadAds();
+    const user = { uid: findEligibleUid(ads, 'kid18'), over18: true, isMinor: true };
+    assert.strictEqual(ads.hasKnownAdultAge(user), false);
+    assert.strictEqual(ads.decide({ user: user, surface: 'home', path: '/' }).reason, 'kids');
+});
+
+// Browser-like sandbox: document is defined, so a caller-supplied user and
+// currentUser are ignored, and only a server-fresh users/{uid} read counts.
+function loadBrowserAds(opts) {
+    opts = opts || {};
+    const reads = [];
+    const authState = { currentUser: opts.signedIn === false ? null : { uid: opts.uid, isAnonymous: false } };
+    const sandbox = {
+        console, Date, Math, Intl, Uint8Array, Number, String, Boolean, Array, Object, JSON, Promise, isFinite,
+        module: { exports: {} }, exports: {},
+        BQ_ADS_NO_BOOT: true,
+        localStorage: {
+            getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+            setItem: function (k, v) { store[k] = String(v); },
+            removeItem: function (k) { delete store[k]; }
+        },
+        firebase: {
+            auth: function () { return authState; },
+            firestore: function () {
+                return {
+                    collection: function (name) {
+                        return {
+                            doc: function (id) {
+                                return {
+                                    get: function (o) {
+                                        reads.push({ collection: name, id: id, source: o && o.source });
+                                        const data = (opts.docs || {})[name + '/' + id];
+                                        return Promise.resolve({
+                                            exists: !!data,
+                                            metadata: { fromCache: opts.fromCache === true },
+                                            data: function () { return data ? Object.assign({}, data) : undefined; }
+                                        });
+                                    },
+                                    set: function () { return Promise.resolve(); }
+                                };
+                            }
+                        };
+                    }
+                };
+            }
+        },
+        currentUser: opts.currentUser || null,
+        currentPage: 'home',
+        location: { pathname: '/', hash: '', search: '' },
+        document: {
+            readyState: 'complete',
+            getElementById: function () { return null; },
+            querySelector: function () { return null; },
+            querySelectorAll: function () { return []; },
+            createElement: function () { return { setAttribute: function () {}, classList: { contains: function () { return false; } } }; },
+            body: null
+        }
+    };
+    sandbox.firebase.firestore.FieldValue = { increment: function (n) { return { _inc: n }; } };
+    sandbox.global = sandbox;
+    sandbox.root = sandbox;
+    sandbox.window = sandbox;
+    if (opts.windowFlag) sandbox._bqAgeConfirmed18 = true;
+    sandbox._bqAdsAuthReady = true;
+    sandbox._bqAdsUserUnknown = false;
+    const code = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
+    vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
+    return { ads: sandbox.bqAds || sandbox.module.exports, reads: reads, sandbox: sandbox, authState: authState };
+}
+
+function asyncTest(name, fn) {
+    pending.push(Promise.resolve().then(function () {
+        Object.keys(store).forEach(function (k) { delete store[k]; });
+        return fn();
+    }).then(function () {
+        console.log('✅ ' + name);
+        passed++;
+    }).catch(function (e) {
+        console.log('❌ ' + name + ': ' + (e && e.stack ? e.stack : e));
+        failed++;
+    }));
+}
+const pending = [];
+
+function cacheSaysAdult(uid) {
+    store['btc_profile_cache'] = JSON.stringify({ uid: uid, ts: Date.now(), twoFa: false, data: { username: 'x', over18: true, ageConfirmed18: true } });
+}
+
+asyncTest('btc_profile_cache over18 alone gives no ads', async function () {
+    const uid = 'cacheonly-' + findEligibleUid(loadAds(), 'c');
+    const env = loadBrowserAds({ uid: uid, docs: { ['users/' + uid]: { username: 'x' } } });
+    cacheSaysAdult(uid);
+    await env.ads.fetchFreshUserDoc(uid);
+    assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
+    assert.strictEqual(env.ads.decide({ surface: 'learning-quests' }).reason, 'age');
+});
+
+asyncTest('window._bqAgeConfirmed18 alone gives no ads', async function () {
+    const uid = 'flagonly-' + findEligibleUid(loadAds(), 'f');
+    const env = loadBrowserAds({ uid: uid, windowFlag: true, docs: { ['users/' + uid]: { username: 'x' } } });
+    await env.ads.fetchFreshUserDoc(uid);
+    assert.strictEqual(env.sandbox._bqAgeConfirmed18, true);
+    assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
+});
+
+asyncTest('currentUser over18 and a console-passed user give no ads without a fresh doc', async function () {
+    const uid = 'console-' + findEligibleUid(loadAds(), 'k');
+    const env = loadBrowserAds({ uid: uid, currentUser: { uid: uid, over18: true }, docs: {} });
+    cacheSaysAdult(uid);
+    assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
+    assert.strictEqual(env.ads.shouldShowAds({ user: { uid: uid, over18: true }, surface: 'home', path: '/' }), false);
+    assert.strictEqual(env.ads.adsenseAllowed({ show: true, surface: 'learning-quests' }, { user: { uid: uid, over18: true }, surface: 'learning-quests' }), false);
+});
+
+asyncTest('a fresh server read of the own user doc with over18 gives ads', async function () {
+    const base = loadAds();
+    let uid = null;
+    for (let i = 0; i < 500; i++) { if (!base.inHoldout('fresh' + i)) { uid = 'fresh' + i; break; } }
+    const env = loadBrowserAds({ uid: uid, docs: { ['users/' + uid]: { username: 'x', over18: true } } });
+    await env.ads.fetchFreshUserDoc(uid);
+    assert.deepStrictEqual(env.reads.map(function (r) { return r.collection + '/' + r.id + ':' + r.source; }), ['users/' + uid + ':server']);
+    assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), true);
+    assert.strictEqual(env.ads.adsenseAllowed(env.ads.decide({ surface: 'learning-quests' }), { surface: 'learning-quests' }), true);
+});
+
+asyncTest('fresh doc ageUnder18 or ageConfirmBlocked gives no ads in the browser', async function () {
+    const base = loadAds();
+    let uid = null;
+    for (let i = 0; i < 500; i++) { if (!base.inHoldout('fb' + i)) { uid = 'fb' + i; break; } }
+    for (const extra of [{ ageUnder18: true }, { ageConfirmBlocked: true }]) {
+        const env = loadBrowserAds({ uid: uid, windowFlag: true, docs: { ['users/' + uid]: Object.assign({ over18: true }, extra) } });
+        cacheSaysAdult(uid);
+        await env.ads.fetchFreshUserDoc(uid);
+        assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false, JSON.stringify(extra));
+    }
+});
+
+asyncTest('an admin un-confirm sticks on the next fresh read', async function () {
+    const base = loadAds();
+    let uid = null;
+    for (let i = 0; i < 500; i++) { if (!base.inHoldout('un' + i)) { uid = 'un' + i; break; } }
+    const docs = { ['users/' + uid]: { over18: true } };
+    const env = loadBrowserAds({ uid: uid, docs: docs });
+    await env.ads.fetchFreshUserDoc(uid);
+    assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), true);
+    docs['users/' + uid] = { over18: false, ageConfirmBlocked: true };
+    cacheSaysAdult(uid);
+    await env.ads.fetchFreshUserDoc(uid);
+    assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
+});
+
+asyncTest('a cache-only Firestore snapshot is not trusted as fresh', async function () {
+    const uid = 'cachesnap-' + findEligibleUid(loadAds(), 's');
+    const env = loadBrowserAds({ uid: uid, fromCache: true, docs: { ['users/' + uid]: { over18: true } } });
+    await env.ads.fetchFreshUserDoc(uid);
+    assert.strictEqual(env.ads.getFreshUserDoc(), null);
+    assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
+});
+
+asyncTest('guests and another uid doc give no ads in the browser', async function () {
+    const env = loadBrowserAds({ signedIn: false, docs: { 'users/x': { over18: true } } });
+    await env.ads.fetchFreshUserDoc('x');
+    assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
+    const env2 = loadBrowserAds({ uid: 'me', docs: { 'users/other': { over18: true } } });
+    await env2.ads.fetchFreshUserDoc('other');
+    assert.strictEqual(env2.ads.getFreshUserDoc(), null);
+    assert.strictEqual(env2.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
+});
+
+Promise.all(pending).then(function () {
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(failed > 0 ? 1 : 0);
+});
