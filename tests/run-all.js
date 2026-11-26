@@ -49,6 +49,7 @@ const TESTS = [
     { name: 'Reserved names need the admin claim', file: 'test-reserved-name-claim.js' },
     { name: 'Chat pinned scroll', file: 'test-chat-pinned-scroll.js' },
     { name: 'DM image box (CLS)', file: 'test-dm-image-box.js' },
+    { name: 'Chat hub routing', file: 'test-chat-hub-routing.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
     { name: 'Nacho Radio shuffle', file: 'test-nacho-radio.js' },
