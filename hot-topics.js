@@ -138,11 +138,14 @@
         var channelList = document.getElementById('channelList');
         if (!channelList) return;
 
-        // Don't double-inject
-        if (document.getElementById(HT_CONTAINER_ID + 'Wrapper')) return;
+        // Don't double-inject once the section itself exists.
+        // An empty #hotTopicsSectionWrapper may already be in the HTML to reserve height.
+        if (document.getElementById(HT_CONTAINER_ID)) return;
 
         // CSS
+        if (!document.getElementById('hotTopicsStyles')) {
         var style = document.createElement('style');
+        style.id = 'hotTopicsStyles';
         style.textContent = `
             #hotTopicsSectionWrapper {
                 border-bottom: 1px solid var(--border);
@@ -386,10 +389,15 @@
             }
         `;
         document.head.appendChild(style);
+        }
 
-        // HTML wrapper — injected before channelList content
-        var wrapper = document.createElement('div');
-        wrapper.id = HT_CONTAINER_ID + 'Wrapper';
+        // HTML wrapper — use the reserved slot when present.
+        var wrapper = document.getElementById(HT_CONTAINER_ID + 'Wrapper');
+        if (!wrapper) {
+            wrapper = document.createElement('div');
+            wrapper.id = HT_CONTAINER_ID + 'Wrapper';
+            channelList.insertBefore(wrapper, channelList.firstChild);
+        }
         wrapper.innerHTML =
             '<div class="ht-header-bar" onclick="window._htSectionToggle(this)">' +
                 '<div class="ht-header-title">' +
@@ -400,7 +408,6 @@
             '</div>' +
             '<div id="' + HT_CONTAINER_ID + '"></div>';
 
-        channelList.insertBefore(wrapper, channelList.firstChild);
         injectCitadelWirePanel(wrapper);
     }
 

@@ -51,9 +51,10 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     assert.ok(!html.includes('features.registry.js?v=20261109_v2538'));
 });
 
-test('service worker cache is v2690', () => {
+test('service worker cache is v2712', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2690'"))
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2712'"))
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2690'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2687'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2686'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2684'"));
@@ -240,7 +241,7 @@ test('service worker cache is v2690', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2682b/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261126_v2712/g) || []).length, 2);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2656/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2666/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2657/g) || []).length, 0);
@@ -262,7 +263,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2418'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2415'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2411'));
-    assert.ok(html.includes('bundle.min.js?v=20261119_v2682b'));
+    assert.ok(html.includes('bundle.min.js?v=20261126_v2712'));
+    assert.ok(!html.includes('bundle.min.js?v=20261119_v2682b'));
     assert.ok(!html.includes('bundle.min.js?v=20261119_v2635'));
     assert.ok(!html.includes('bundle.min.js?v=20261118_v2602'));
     assert.ok(!html.includes('bundle.min.js?v=20261114_v2565'));
@@ -723,7 +725,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2690');
+    assert.ok(swVersion && swVersion[1] === 'v2712');
+    assert.notStrictEqual(swVersion[1], 'v2690');
     assert.notStrictEqual(swVersion[1], 'v2687');
     assert.notStrictEqual(swVersion[1], 'v2682');
     assert.notStrictEqual(swVersion[1], 'v2656');
@@ -895,7 +898,8 @@ test('PR #252 asset busters are v2512 (popup-stack bumped to v2519)', () => {
     assert.ok(html.includes('ranking.js?v=20261119_v2683'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2635'));
     assert.ok(!html.includes('ranking.js?v=20261116_v2581'));
-    assert.ok(html.includes('bundle.min.js?v=20261119_v2682b'));
+    assert.ok(html.includes('bundle.min.js?v=20261126_v2712'));
+    assert.ok(!html.includes('bundle.min.js?v=20261119_v2682b'));
     assert.ok(!html.includes('bundle.min.js?v=20261119_v2635'));
     assert.ok(!html.includes('bundle.min.js?v=20261118_v2602'));
     assert.ok(!html.includes('bundle.min.js?v=20261106_v2512'));
