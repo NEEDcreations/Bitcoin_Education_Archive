@@ -180,7 +180,12 @@ test('index.html and 404.html load citadel-spark.js and tag the Citadel row', ()
 
 test('Waitlist page: Citadel Spark arrives copy, no back/offline wording', () => {
     const h = read('waitlist.html');
-    assert.ok(h.includes('Citadel Spark arrives January 3, 2027. Want a heads-up when the gates open?'));
+    assert.ok(h.includes('<h1>Your Citadel starts January 3.</h1>'));
+    assert.ok(h.includes('Premium members collect the parts for their Citadel with Orange Tickets earned through real play. Building opens later.'));
+    assert.ok(h.includes('placeholder="Your email"'));
+    assert.ok(h.includes('>Save my spot</button>'));
+    assert.ok(!/No spam/i.test(h));
+    assert.ok(read('waitlist.js').includes("You're on the list. We'll email you on January 3 when Citadels open. Until then, keep playing."));
     assert.ok(h.includes('to tell you when Citadel Spark launches'));
     assert.ok(!/Back January 3/i.test(h));
     assert.ok(!/when we're back|we're back|offline/i.test(h));

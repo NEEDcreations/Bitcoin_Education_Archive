@@ -30,7 +30,7 @@
   var embed = document.getElementById('wlSubstackEmbed');
   if (!form) return;
   var MESSAGES = {
-    ok: ["You're on the list.", 'ok'],
+    ok: ["You're on the list. We'll email you on January 3 when Citadels open. Until then, keep playing.", 'ok'],
     retry: ["You're on our list. We'll finish setting up your email updates shortly.", 'ok'],
     err: ["That email doesn't look right. Please check it and try again.", 'err'],
     check: ['Please wait for the security check to finish, then tap the button again.', 'err'],
