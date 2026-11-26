@@ -95,14 +95,6 @@
     }
     adsFirebase();
 
-    function isNodeProcess() {
-        try {
-            return typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
-        } catch (e) {
-            return false;
-        }
-    }
-
     var OPT_OUT_KEY = 'bq_privacy_share_opt_out';
     var OPT_OUT_AT_KEY = 'bq_privacy_share_opt_out_at';
     var COUNTRY_SESSION_KEY = 'bq_ads_country';
@@ -1462,29 +1454,12 @@
         ensurePrivacyChoicesFooter: ensurePrivacyChoicesFooter
     };
 
-    // Console must not get fill/rememberCountry hooks (same class as
-    // allowExplicitUser). Node tests with no document get them on the
-    // public api. Browser-like tests opt in with BQ_ADS_TEST_EXPORTS,
-    // which adds the hooks to module.exports only, never window.bqAds.
-    if (typeof document === 'undefined') {
-        api.rememberCountry = rememberCountry;
-        api.fillAads = fillAads;
-        api.fillAdsense = fillAdsense;
-        api.fillSlot = fillSlot;
-    }
-
+    // rememberCountry, fillAads, fillAdsense, and fillSlot stay internal.
+    // Tests seed geo through a /cdn-cgi/trace fetch stub and drive fills
+    // through sync() and the DOM.
     root.bqAds = api;
     if (typeof module !== 'undefined' && module.exports) {
-        if (isNodeProcess() && root && root.BQ_ADS_TEST_EXPORTS && typeof document !== 'undefined') {
-            module.exports = Object.assign({}, api, {
-                rememberCountry: rememberCountry,
-                fillAads: fillAads,
-                fillAdsense: fillAdsense,
-                fillSlot: fillSlot
-            });
-        } else {
-            module.exports = api;
-        }
+        module.exports = api;
     }
     if (!root.BQ_ADS_NO_BOOT) {
         if (typeof document !== 'undefined' && document.readyState === 'loading') {

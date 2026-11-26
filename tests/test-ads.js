@@ -9,6 +9,16 @@ const root = path.join(__dirname, '..');
 const store = {};
 const increments = [];
 
+function traceFetch(loc) {
+    const body = 'fl=1\nh=bitcoineducation.quest\nloc=' + String(loc || 'US').toUpperCase() + '\ncolo=IAD\n';
+    return function () {
+        return Promise.resolve({
+            ok: true,
+            text: function () { return Promise.resolve(body); }
+        });
+    };
+}
+
 function loadAds(opts) {
     opts = opts || {};
     increments.length = 0;
@@ -522,7 +532,7 @@ test('kids accounts with over18 still get no ads', function () {
 
 // Browser-like sandbox: document is defined, so a caller-supplied user and
 // currentUser are ignored, and only a server-fresh users/{uid} read counts.
-function loadBrowserAds(opts) {
+async function loadBrowserAds(opts) {
     opts = opts || {};
     const reads = [];
     const authState = { currentUser: opts.signedIn === false ? null : { uid: opts.uid, isAnonymous: false } };
@@ -530,8 +540,6 @@ function loadBrowserAds(opts) {
         console, Date, Math, Intl, Uint8Array, Number, String, Boolean, Array, Object, JSON, Promise, isFinite,
         module: { exports: {} }, exports: {},
         BQ_ADS_NO_BOOT: true,
-        BQ_ADS_TEST_EXPORTS: true,
-        process: { versions: { node: process.versions.node } },
         localStorage: {
             getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
             setItem: function (k, v) { store[k] = String(v); },
@@ -565,6 +573,9 @@ function loadBrowserAds(opts) {
         currentUser: opts.currentUser || null,
         currentPage: 'home',
         location: { pathname: '/', hash: '', search: '' },
+        fetch: opts.geo === false
+            ? function () { return Promise.reject(new Error('geo disabled')); }
+            : traceFetch(opts.country || 'US'),
         document: {
             readyState: 'complete',
             getElementById: function () { return null; },
@@ -585,9 +596,7 @@ function loadBrowserAds(opts) {
     vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
     const ads = sandbox.module.exports || sandbox.bqAds;
     // Browser tests assume a finished geo lookup unless they are testing geo.
-    if (ads && typeof ads.rememberCountry === 'function' && opts.geo !== false) {
-        ads.rememberCountry(opts.country || 'US');
-    }
+    if (opts.geo !== false) await ads.ensureGeo();
     return { ads: ads, reads: reads, sandbox: sandbox, authState: authState };
 }
 
@@ -611,7 +620,7 @@ function cacheSaysAdult(uid) {
 
 asyncTest('btc_profile_cache over18 alone gives no ads', async function () {
     const uid = 'cacheonly-' + findEligibleUid(loadAds(), 'c');
-    const env = loadBrowserAds({ uid: uid, docs: { ['users/' + uid]: { username: 'x' } } });
+    const env = await loadBrowserAds({ uid: uid, docs: { ['users/' + uid]: { username: 'x' } } });
     cacheSaysAdult(uid);
     await env.ads.fetchFreshUserDoc(uid);
     assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
@@ -620,7 +629,7 @@ asyncTest('btc_profile_cache over18 alone gives no ads', async function () {
 
 asyncTest('window._bqAgeConfirmed18 alone gives no ads', async function () {
     const uid = 'flagonly-' + findEligibleUid(loadAds(), 'f');
-    const env = loadBrowserAds({ uid: uid, windowFlag: true, docs: { ['users/' + uid]: { username: 'x' } } });
+    const env = await loadBrowserAds({ uid: uid, windowFlag: true, docs: { ['users/' + uid]: { username: 'x' } } });
     await env.ads.fetchFreshUserDoc(uid);
     assert.strictEqual(env.sandbox._bqAgeConfirmed18, true);
     assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
@@ -628,7 +637,7 @@ asyncTest('window._bqAgeConfirmed18 alone gives no ads', async function () {
 
 asyncTest('currentUser over18 and a console-passed user give no ads without a fresh doc', async function () {
     const uid = 'console-' + findEligibleUid(loadAds(), 'k');
-    const env = loadBrowserAds({ uid: uid, currentUser: { uid: uid, over18: true }, docs: {} });
+    const env = await loadBrowserAds({ uid: uid, currentUser: { uid: uid, over18: true }, docs: {} });
     cacheSaysAdult(uid);
     assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
     assert.strictEqual(env.ads.shouldShowAds({ user: { uid: uid, over18: true }, surface: 'home', path: '/' }), false);
@@ -637,7 +646,7 @@ asyncTest('currentUser over18 and a console-passed user give no ads without a fr
 
 asyncTest('the explicit-user flag plus a doc-shaped over18 user is ignored when document is present', async function () {
     const uid = 'flaguser-' + findEligibleUid(loadAds(), 'e');
-    const env = loadBrowserAds({ uid: uid, docs: {} });
+    const env = await loadBrowserAds({ uid: uid, docs: {} });
     const input = { _bqAdsAllowExplicitUser: true, user: { uid: uid, over18: true }, surface: 'home', path: '/' };
     assert.strictEqual(env.ads.shouldShowAds(input), false);
     assert.strictEqual(env.ads.decide(input).show, false);
@@ -647,7 +656,7 @@ asyncTest('a fresh server read of the own user doc with over18 gives ads', async
     const base = loadAds();
     let uid = null;
     for (let i = 0; i < 500; i++) { if (!base.inHoldout('fresh' + i)) { uid = 'fresh' + i; break; } }
-    const env = loadBrowserAds({ uid: uid, docs: { ['users/' + uid]: { username: 'x', over18: true } } });
+    const env = await loadBrowserAds({ uid: uid, docs: { ['users/' + uid]: { username: 'x', over18: true } } });
     await env.ads.fetchFreshUserDoc(uid);
     assert.deepStrictEqual(env.reads.map(function (r) { return r.collection + '/' + r.id + ':' + r.source; }), ['users/' + uid + ':server']);
     assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), true);
@@ -659,7 +668,7 @@ asyncTest('fresh doc ageUnder18 or ageConfirmBlocked gives no ads in the browser
     let uid = null;
     for (let i = 0; i < 500; i++) { if (!base.inHoldout('fb' + i)) { uid = 'fb' + i; break; } }
     for (const extra of [{ ageUnder18: true }, { ageConfirmBlocked: true }]) {
-        const env = loadBrowserAds({ uid: uid, windowFlag: true, docs: { ['users/' + uid]: Object.assign({ over18: true }, extra) } });
+        const env = await loadBrowserAds({ uid: uid, windowFlag: true, docs: { ['users/' + uid]: Object.assign({ over18: true }, extra) } });
         cacheSaysAdult(uid);
         await env.ads.fetchFreshUserDoc(uid);
         assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false, JSON.stringify(extra));
@@ -671,7 +680,7 @@ asyncTest('an admin un-confirm sticks on the next fresh read', async function ()
     let uid = null;
     for (let i = 0; i < 500; i++) { if (!base.inHoldout('un' + i)) { uid = 'un' + i; break; } }
     const docs = { ['users/' + uid]: { over18: true } };
-    const env = loadBrowserAds({ uid: uid, docs: docs });
+    const env = await loadBrowserAds({ uid: uid, docs: docs });
     await env.ads.fetchFreshUserDoc(uid);
     assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), true);
     docs['users/' + uid] = { over18: false, ageConfirmBlocked: true };
@@ -682,17 +691,17 @@ asyncTest('an admin un-confirm sticks on the next fresh read', async function ()
 
 asyncTest('a cache-only Firestore snapshot is not trusted as fresh', async function () {
     const uid = 'cachesnap-' + findEligibleUid(loadAds(), 's');
-    const env = loadBrowserAds({ uid: uid, fromCache: true, docs: { ['users/' + uid]: { over18: true } } });
+    const env = await loadBrowserAds({ uid: uid, fromCache: true, docs: { ['users/' + uid]: { over18: true } } });
     await env.ads.fetchFreshUserDoc(uid);
     assert.strictEqual(env.ads.getFreshUserDoc(), null);
     assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
 });
 
 asyncTest('guests and another uid doc give no ads in the browser', async function () {
-    const env = loadBrowserAds({ signedIn: false, docs: { 'users/x': { over18: true } } });
+    const env = await loadBrowserAds({ signedIn: false, docs: { 'users/x': { over18: true } } });
     await env.ads.fetchFreshUserDoc('x');
     assert.strictEqual(env.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
-    const env2 = loadBrowserAds({ uid: 'me', docs: { 'users/other': { over18: true } } });
+    const env2 = await loadBrowserAds({ uid: 'me', docs: { 'users/other': { over18: true } } });
     await env2.ads.fetchFreshUserDoc('other');
     assert.strictEqual(env2.ads.getFreshUserDoc(), null);
     assert.strictEqual(env2.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
@@ -771,13 +780,14 @@ asyncTest('Firestore calls keep using the firebase object captured at load', asy
     assert.strictEqual(laterCalls.firestore, 0);
 });
 
-test('BQ_ADS_TEST_EXPORTS adds fill hooks only when process.versions.node is present, and never on window.bqAds', function () {
-    function run(proc) {
+test('rememberCountry and fill hooks are not exported, even with a forged process and BQ_ADS_TEST_EXPORTS', function () {
+    function run(extra) {
         const sandbox = {
             console, Date, Math, Object, JSON, Promise, Array, String, Number, Boolean,
             module: { exports: {} }, exports: {},
             BQ_ADS_NO_BOOT: true,
             BQ_ADS_TEST_EXPORTS: true,
+            process: { versions: { node: process.versions.node } },
             localStorage: { getItem: function () { return null; }, setItem: function () {}, removeItem: function () {} },
             document: {
                 readyState: 'complete',
@@ -794,26 +804,21 @@ test('BQ_ADS_TEST_EXPORTS adds fill hooks only when process.versions.node is pre
         sandbox.global = sandbox;
         sandbox.root = sandbox;
         sandbox.window = sandbox;
-        if (proc) sandbox.process = proc;
+        if (extra) Object.assign(sandbox, extra);
         const code = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
         vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
         return sandbox;
     }
-    const withNode = run({ versions: { node: process.versions.node } });
-    assert.strictEqual(typeof withNode.bqAds.rememberCountry, 'undefined');
-    assert.strictEqual(typeof withNode.bqAds.fillAdsense, 'undefined');
-    assert.strictEqual(typeof withNode.module.exports.rememberCountry, 'function');
-    assert.strictEqual(typeof withNode.module.exports.fillAdsense, 'function');
-
-    const noProcess = run(undefined);
-    assert.strictEqual(typeof noProcess.bqAds.rememberCountry, 'undefined');
-    assert.strictEqual(typeof noProcess.module.exports.rememberCountry, 'undefined');
-    assert.strictEqual(typeof noProcess.module.exports.fillAdsense, 'undefined');
-
-    const noNode = run({ versions: {} });
-    assert.strictEqual(typeof noNode.module.exports.rememberCountry, 'undefined');
-    assert.strictEqual(typeof noNode.module.exports.fillSlot, 'undefined');
+    function assertHooksAbsent(sandbox) {
+        ['rememberCountry', 'fillAdsense', 'fillAads', 'fillSlot'].forEach(function (name) {
+            assert.strictEqual(typeof sandbox.bqAds[name], 'undefined', 'bqAds.' + name);
+            assert.strictEqual(typeof sandbox.module.exports[name], 'undefined', 'exports.' + name);
+        });
+    }
+    assertHooksAbsent(run({}));
+    assertHooksAbsent(run({ document: undefined }));
 });
+
 
 Promise.all(pending).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -9,6 +9,38 @@ const root = path.join(__dirname, '..');
 const increments = [];
 const callableCalls = [];
 
+function traceFetch(loc) {
+    const body = 'fl=1\nh=bitcoineducation.quest\nloc=' + String(loc || 'US').toUpperCase() + '\ncolo=IAD\n';
+    return function (url) {
+        return Promise.resolve({
+            ok: true,
+            text: function () { return Promise.resolve(body); }
+        });
+    };
+}
+
+function mountHome(document) {
+    let hero = document.getElementById('homeHero');
+    if (!hero) {
+        hero = document.createElement('div');
+        hero.id = 'homeHero';
+        document.body.appendChild(hero);
+    }
+    return hero;
+}
+
+function mountLearn(document) {
+    let hub = document.getElementById('lqHub');
+    if (!hub) {
+        hub = document.createElement('div');
+        hub.id = 'lqHub';
+        const inner = document.createElement('div');
+        hub.appendChild(inner);
+        document.body.appendChild(hub);
+    }
+    return hub;
+}
+
 function loadAds(opts) {
     opts = opts || {};
     increments.length = 0;
@@ -32,8 +64,6 @@ function loadAds(opts) {
         module: { exports: {} },
         exports: {},
         BQ_ADS_NO_BOOT: true,
-        BQ_ADS_TEST_EXPORTS: true,
-        process: { versions: { node: process.versions.node } },
         BQ_ADS_HOLDOUT_PCT: opts.holdoutPct,
         ADS_EEA_ENABLED: opts.eeaEnabled,
         BQ_ADS_EEA_ENABLED: opts.bqEeaEnabled,
@@ -105,6 +135,9 @@ function loadAds(opts) {
     sandbox.authState = authState;
     sandbox.docs = docs;
     if (opts.clearStore) Object.keys(store).forEach(function (k) { delete store[k]; });
+    if (!sandbox.fetch && sandbox.document && opts.geo !== false) {
+        sandbox.fetch = traceFetch(opts.country || 'US');
+    }
     const code = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
     vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
     sandbox.store = store;
@@ -281,6 +314,9 @@ function makeDocument() {
             },
             addEventListener: function () {},
             focus: function () {},
+            contains: function (other) {
+                return walk(node, []).indexOf(other) !== -1;
+            },
             querySelector: function (sel) { return qAll(node, sel)[0] || null; },
             querySelectorAll: function (sel) { return qAll(node, sel); }
         };
@@ -610,17 +646,15 @@ pending.push(test('opt-out does not put AdSense on home, including when the clai
     const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
     const ads = env.api;
     const document = env.document;
-    ads.rememberCountry('US');
+    await ads.ensureGeo();
     const user = await withEligibleDoc(env, 'f1home');
     ads.setShareOptOut(true);
-    const home = document.createElement('div');
-    home.className = 'bq-ad-slot';
-    document.body.appendChild(home);
-    const d = ads.decide({ user: user, surface: 'home', country: 'US', gpc: false });
+    mountHome(document);
+    const d = ads.sync({ surface: 'home' });
     assert.strictEqual(d.show, true);
     assert.strictEqual(d.skipAads, true);
-    ads.fillSlot(home, d, { user: user, surface: 'home', country: 'US', gpc: false }, false);
-    assert.ok(home.hidden || !home.innerHTML || home.innerHTML.indexOf('adsbygoogle') === -1);
+    const home = document.getElementById('bqAadsHome');
+    assert.ok(!home || home.hidden || !home.innerHTML || home.innerHTML.indexOf('adsbygoogle') === -1);
     assert.strictEqual(adsenseScripts(document).length, 0);
 
     ads.setShareOptOut(false);
@@ -628,15 +662,13 @@ pending.push(test('opt-out does not put AdSense on home, including when the clai
     claim.id = 'claimModal';
     claim.hidden = false;
     document.body.appendChild(claim);
-    const learn = document.createElement('div');
-    learn.className = 'bq-ad-slot';
-    document.body.appendChild(learn);
-    const d2 = ads.decide({ user: user, surface: 'learning-quests', country: 'US', gpc: false });
+    mountLearn(document);
+    const d2 = ads.sync({ surface: 'learning-quests' });
     assert.strictEqual(d2.show, true);
-    ads.fillSlot(learn, d2, { user: user, surface: 'learning-quests', country: 'US', gpc: false }, true);
-    assert.ok(learn.hidden || !learn.innerHTML || learn.innerHTML.indexOf('adsbygoogle') === -1);
+    const learn = document.getElementById('bqAdsenseLearn');
+    assert.ok(!learn || learn.hidden || !learn.innerHTML || learn.innerHTML.indexOf('adsbygoogle') === -1);
     assert.strictEqual(adsenseScripts(document).length, 0);
-    assert.strictEqual(ads.adsenseAllowed(d2, { user: user, surface: 'learning-quests', country: 'US' }), false);
+    assert.strictEqual(ads.adsenseAllowed(d2, { surface: 'learning-quests' }), false);
 }));
 
 pending.push(test('a mid-session opt-out removes the personalized tag so the next fill loads npa=1', async function () {
@@ -645,18 +677,16 @@ pending.push(test('a mid-session opt-out removes the personalized tag so the nex
     env.BQ_ADS_RELOAD = function () { reloads.push(1); };
     const ads = env.api;
     const document = env.document;
-    ads.rememberCountry('US');
+    await ads.ensureGeo();
     const user = await withEligibleDoc(env, 'f2npa');
-    const slot = document.createElement('div');
-    slot.className = 'bq-ad-slot';
-    document.body.appendChild(slot);
-    const d = ads.decide({ user: user, surface: 'learning-quests', country: 'US', gpc: false });
+    mountLearn(document);
+    const d = ads.sync({ surface: 'learning-quests' });
     assert.strictEqual(d.npa, false);
-    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests', country: 'US', gpc: false }, true);
+    const slot = document.getElementById('bqAdsenseLearn');
     const before = adsenseScripts(document);
     assert.strictEqual(before.length, 1);
     assert.ok(before[0].src.indexOf('npa=1') === -1);
-    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+    assert.ok(slot && slot.innerHTML.indexOf('adsbygoogle') !== -1);
 
     ads.setShareOptOut(true);
     assert.ok(slot.hidden || !slot.innerHTML || slot.innerHTML.indexOf('adsbygoogle') === -1);
@@ -666,15 +696,15 @@ pending.push(test('a mid-session opt-out removes the personalized tag so the nex
         assert.ok(s.src.indexOf('npa=1') !== -1);
     });
 
-    const d2 = ads.decide({ user: user, surface: 'learning-quests', country: 'US', gpc: false });
+    const d2 = ads.sync({ surface: 'learning-quests' });
     assert.strictEqual(d2.npa, true);
-    ads.fillSlot(slot, d2, { user: user, surface: 'learning-quests', country: 'US', gpc: false }, true);
+    const afterSlot = document.getElementById('bqAdsenseLearn');
     const after = adsenseScripts(document);
     assert.ok(after.length >= 1);
     after.forEach(function (s) {
         assert.ok(s.src.indexOf('npa=1') !== -1, s.src);
     });
-    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+    assert.ok(afterSlot && afterSlot.innerHTML.indexOf('adsbygoogle') !== -1);
 }));
 
 pending.push(test('a mid-page GPC signal clears personalized slots immediately', async function () {
@@ -683,38 +713,33 @@ pending.push(test('a mid-page GPC signal clears personalized slots immediately',
     env.BQ_ADS_RELOAD = function () {};
     const ads = env.api;
     const document = env.document;
-    ads.rememberCountry('US');
+    await ads.ensureGeo();
     const user = await withEligibleDoc(env, 'gpcnow');
-    const slot = document.createElement('div');
-    slot.className = 'bq-ad-slot';
-    document.body.appendChild(slot);
-    const d = ads.decide({ user: user, surface: 'learning-quests', country: 'US' });
-    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests', country: 'US' }, true);
-    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+    mountLearn(document);
+    ads.sync({ surface: 'learning-quests' });
+    const slot = document.getElementById('bqAdsenseLearn');
+    assert.ok(slot && slot.innerHTML.indexOf('adsbygoogle') !== -1);
     nav.globalPrivacyControl = true;
     ads.watchPrivacySignals();
     assert.ok(slot.hidden || !slot.innerHTML || slot.innerHTML.indexOf('adsbygoogle') === -1);
     assert.strictEqual(ads.isPrivacyShareOptedOut({ user: user }), true);
 }));
 
-pending.push(test('a fill before boot or geo starts is blocked when document is present', function () {
+pending.push(test('a fill before boot or geo starts is blocked when document is present', async function () {
     const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
     const ads = env.api;
     const document = env.document;
     const user = eligibleUser(ads, 'pregeo');
     assert.strictEqual(ads.fillsBlocked({ user: user, surface: 'home' }), true);
     assert.strictEqual(ads.isGeoBlocked({ user: user, surface: 'home' }), true);
-    const slot = document.createElement('div');
-    slot.className = 'bq-ad-slot';
-    slot.innerHTML = 'pending';
-    document.body.appendChild(slot);
-    const d = ads.decide({ user: user, surface: 'learning-quests' });
-    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests' }, true);
-    assert.ok(slot.hidden || slot.innerHTML.indexOf('adsbygoogle') === -1);
-    assert.ok(slot.innerHTML.indexOf('acceptable.a-ads.com') === -1);
+    mountLearn(document);
+    ads.sync({ surface: 'learning-quests' });
+    const slot = document.getElementById('bqAdsenseLearn');
+    assert.ok(!slot || slot.hidden || (slot.innerHTML || '').indexOf('adsbygoogle') === -1);
+    assert.ok(!slot || (slot.innerHTML || '').indexOf('acceptable.a-ads.com') === -1);
     assert.strictEqual(adsenseScripts(document).length, 0);
-    ads.rememberCountry('US');
-    assert.strictEqual(ads.fillsBlocked({ user: user, surface: 'home', country: 'US' }), false);
+    await ads.ensureGeo();
+    assert.strictEqual(ads.fillsBlocked({ surface: 'home' }), false);
 }));
 
 pending.push(test('ads.js peeks at btc_open_privacy_choices and does not consume it', function () {
@@ -756,19 +781,16 @@ pending.push(test('DEPLOY-LIST.md lists the callable and CSP publishes as needin
 }));
 
 pending.push(test('browser console cannot fill ads or override country', async function () {
-    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false }, country: 'DE' });
     const pub = env.bqAdsPublic;
     const ads = env.api;
-    const document = env.document;
     assert.ok(pub);
-    assert.strictEqual(typeof pub.fillAdsense, 'undefined');
-    assert.strictEqual(typeof pub.fillAads, 'undefined');
-    assert.strictEqual(typeof pub.fillSlot, 'undefined');
-    assert.strictEqual(typeof pub.rememberCountry, 'undefined');
-    assert.strictEqual(typeof ads.fillAdsense, 'function');
-    assert.strictEqual(typeof ads.rememberCountry, 'function');
+    ['fillAdsense', 'fillAads', 'fillSlot', 'rememberCountry'].forEach(function (name) {
+        assert.strictEqual(typeof pub[name], 'undefined', 'bqAds.' + name);
+        assert.strictEqual(typeof ads[name], 'undefined', 'exports.' + name);
+    });
 
-    ads.rememberCountry('DE');
+    await ads.ensureGeo();
     const adult = await withEligibleDoc(env, 'n1geo');
     const d = pub.decide({ user: adult, surface: 'home', country: 'US' });
     assert.strictEqual(d.show, false);
@@ -777,16 +799,21 @@ pending.push(test('browser console cannot fill ads or override country', async f
     const dSync = pub.sync({ country: 'US', surface: 'home' });
     assert.ok(!dSync || dSync.show !== true);
 
-    ads.rememberCountry('US');
-    env.docs['users/' + adult.uid] = { username: 'x', over18: false, ageUnder18: true };
-    await ads.fetchFreshUserDoc(adult.uid);
-    const slot = document.createElement('div');
-    slot.className = 'bq-ad-slot';
-    document.body.appendChild(slot);
-    ads.fillAdsense(slot, { surface: 'learning-quests', country: 'US' });
-    assert.ok(slot.hidden || !slot.innerHTML || slot.innerHTML.indexOf('adsbygoogle') === -1);
-    ads.fillAads(slot, { surface: 'home', country: 'US' });
-    assert.ok(slot.hidden || !slot.innerHTML || slot.innerHTML.indexOf('acceptable.a-ads.com') === -1);
+    const envUs = loadAdsDom({ navigator: { globalPrivacyControl: false }, country: 'US' });
+    const adsUs = envUs.api;
+    const document = envUs.document;
+    await adsUs.ensureGeo();
+    const young = await withEligibleDoc(envUs, 'n1young');
+    envUs.docs['users/' + young.uid] = { username: 'x', over18: false, ageUnder18: true };
+    await adsUs.fetchFreshUserDoc(young.uid);
+    mountLearn(document);
+    adsUs.sync({ surface: 'learning-quests' });
+    const learn = document.getElementById('bqAdsenseLearn');
+    assert.ok(!learn || learn.hidden || !learn.innerHTML || learn.innerHTML.indexOf('adsbygoogle') === -1);
+    mountHome(document);
+    adsUs.sync({ surface: 'home' });
+    const home = document.getElementById('bqAadsHome');
+    assert.ok(!home || home.hidden || !home.innerHTML || home.innerHTML.indexOf('acceptable.a-ads.com') === -1);
     assert.strictEqual(adsenseScripts(document).length, 0);
 }));
 
@@ -797,14 +824,12 @@ pending.push(test('a GPC reload waits until the claim modal closes', async funct
     env.BQ_ADS_RELOAD = function () { reloads.push(1); };
     const ads = env.api;
     const document = env.document;
-    ads.rememberCountry('US');
+    await ads.ensureGeo();
     const user = await withEligibleDoc(env, 'n2gpc');
-    const slot = document.createElement('div');
-    slot.className = 'bq-ad-slot';
-    document.body.appendChild(slot);
-    const d = ads.decide({ user: user, surface: 'learning-quests', country: 'US' });
-    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests', country: 'US' }, true);
-    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+    mountLearn(document);
+    ads.sync({ surface: 'learning-quests' });
+    const slot = document.getElementById('bqAdsenseLearn');
+    assert.ok(slot && slot.innerHTML.indexOf('adsbygoogle') !== -1);
     const scripts = adsenseScripts(document);
     assert.ok(scripts.some(function (el) { return (el.src || '').indexOf('npa=1') === -1; }));
 
@@ -832,7 +857,7 @@ pending.push(test('getFreshUserDoc returns a frozen copy, so mutating it cannot 
     const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
     const ads = env.api;
     const pub = env.bqAdsPublic;
-    ads.rememberCountry('US');
+    await ads.ensureGeo();
     const adult = await withEligibleDoc(env, 'n4age');
     env.docs['users/' + adult.uid] = { username: 'x', over18: false, ageUnder18: true };
     await ads.fetchFreshUserDoc(adult.uid);
@@ -857,7 +882,7 @@ pending.push(test('fetchFreshUserDoc ignores a caller-supplied db in the browser
     const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
     const ads = env.api;
     const pub = env.bqAdsPublic;
-    ads.rememberCountry('US');
+    await ads.ensureGeo();
     const adult = await withEligibleDoc(env, 'n5db');
     env.docs['users/' + adult.uid] = { username: 'x', over18: false, ageUnder18: true };
     await ads.fetchFreshUserDoc(adult.uid);
@@ -898,14 +923,12 @@ pending.push(test('sync does not refill while a privacy reload is deferred', asy
     env.BQ_ADS_RELOAD = function () { reloads.push(1); };
     const ads = env.api;
     const document = env.document;
-    ads.rememberCountry('US');
+    await ads.ensureGeo();
     const user = await withEligibleDoc(env, 'n7sync');
-    const slot = document.createElement('div');
-    slot.className = 'bq-ad-slot';
-    document.body.appendChild(slot);
-    const d = ads.decide({ user: user, surface: 'learning-quests', country: 'US' });
-    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests', country: 'US' }, true);
-    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+    mountLearn(document);
+    ads.sync({ surface: 'learning-quests' });
+    const slot = document.getElementById('bqAdsenseLearn');
+    assert.ok(slot && slot.innerHTML.indexOf('adsbygoogle') !== -1);
 
     const claim = document.createElement('div');
     claim.id = 'claimModal';
@@ -929,14 +952,12 @@ pending.push(test('opting back in while the claim modal is open clears the defer
     env.BQ_ADS_RELOAD = function () { reloads.push(1); };
     const ads = env.api;
     const document = env.document;
-    ads.rememberCountry('US');
+    await ads.ensureGeo();
     const user = await withEligibleDoc(env, 'n8opt');
-    const slot = document.createElement('div');
-    slot.className = 'bq-ad-slot';
-    document.body.appendChild(slot);
-    const d = ads.decide({ user: user, surface: 'learning-quests', country: 'US' });
-    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests', country: 'US' }, true);
-    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+    mountLearn(document);
+    ads.sync({ surface: 'learning-quests' });
+    const slot = document.getElementById('bqAdsenseLearn');
+    assert.ok(slot && slot.innerHTML.indexOf('adsbygoogle') !== -1);
 
     const claim = document.createElement('div');
     claim.id = 'claimModal';
