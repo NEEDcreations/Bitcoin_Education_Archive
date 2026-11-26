@@ -508,8 +508,10 @@
         }
         setHelper(false);
         // A saved under-18 answer still needs the guardian checkbox before
-        // the player can continue on a regular account. Do not honor a
-        // session dismiss for that required step.
+        // the player can continue on a regular account. A session dismiss
+        // ('Not now' or Close, offered after a save error) IS honored for
+        // this tab; the step asks again on the next visit. A dismiss writes
+        // nothing and never counts as consent.
         if (isUnder18(user) && !hasGuardianOk(user)) {
             if (sessionDismissed()) {
                 finishQueue('skip');
