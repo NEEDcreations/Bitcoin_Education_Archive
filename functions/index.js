@@ -3589,7 +3589,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     evidenceTrackIds = prechecked.trackIds || null;
 
     const absMax = badgeKnown ? 100000 : 2200;
-    if (pts < 0 || pts > absMax) {
+    if (!Number.isFinite(pts) || pts < 0 || pts > absMax) {
         return { success: false, error: 'Invalid points amount', awarded: 0, tickets: 0 };
     }
     if (pts === 0 && matchedAction !== 'anon_merge') {
