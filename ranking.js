@@ -2398,12 +2398,20 @@ async function finishEmailSignIn(email, _signInUrl) {
             }
             try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
             if (typeof attachReferral === 'function') attachReferral(emailUid);
+        }
+        // New email-link accounts (and existing docs with no name) must get
+        // the username step. showUsernamePrompt opens Settings for a signed-in
+        // user, so use showNewAccountNamePrompt, matching social sign-in.
+        var existingName = (existingDoc.exists && existingDoc.data() && existingDoc.data().username) || '';
+        if (!String(existingName).trim()) {
             if (pendingUsername) {
                 try { await applyServerUsername(pendingUsername); }
                 catch (nameErr) {
                     showToast(nameErr.message || 'Pick a different username.');
                     showNewAccountNamePrompt();
                 }
+            } else {
+                showNewAccountNamePrompt();
             }
         }
         var guestHold = false;
@@ -5026,9 +5034,26 @@ function usernameRepickFailure(e) {
     return msg;
 }
 
+function ageConfirmBlocking() {
+    try {
+        if (typeof document !== 'undefined' && document.getElementById && document.getElementById('ageConfirmOverlay')) return true;
+    } catch (eAgeEl) {}
+    var q = (typeof window !== 'undefined') ? window.btcOnboardingQueue : null;
+    if (!q || typeof q.stateOf !== 'function') return false;
+    if (typeof q.isSignedIn === 'function' && !q.isSignedIn()) return false;
+    var st = q.stateOf('age');
+    return st === 'pending' || st === 'ready' || st === 'showing';
+}
+
 function showUsernameRepickPrompt(opts) {
     if (tosBlocking()) {
         window.runAfterTos(function() { showUsernameRepickPrompt(opts); });
+        return;
+    }
+    // New accounts: Terms, then the age step, then the username step. Do not
+    // stack this sheet on the age overlay. Other repick callers stay immediate.
+    if (opts && opts.fresh && ageConfirmBlocking()) {
+        setTimeout(function () { showUsernameRepickPrompt(opts); }, 300);
         return;
     }
     if (document.getElementById('usernameRepick')) return;

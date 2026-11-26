@@ -97,6 +97,139 @@ test('new-account paths never send a signed-in user to the sign-up prompt', func
     assert.ok(helper.includes('showUsernameRepickPrompt({ fresh: true })'));
     const prompt = fnSource(src, 'showUsernameRepickPrompt');
     assert.ok(prompt.includes('opts && opts.fresh'));
+    assert.ok(prompt.includes('ageConfirmBlocking()'));
+    assert.ok(fnSource(src, 'ageConfirmBlocking').includes('ageConfirmOverlay'));
+});
+
+// Run finishEmailSignIn for a brand-new (or unnamed) account with stubs and
+// record which prompt it opens.
+async function emailLinkSignupPrompt(opts) {
+    opts = opts || {};
+    const src = read('ranking.js');
+    const calls = [];
+    const store = {};
+    if (opts.pendingName) store.btc_pending_username = opts.pendingName;
+    const userDoc = {
+        exists: !!opts.existing,
+        data: function () { return opts.existingData || {}; },
+        get: async function () { return userDoc; },
+        set: async function () {},
+        delete: async function () {}
+    };
+    const sandbox = {
+        console: { log: function () {}, error: function () {} },
+        setTimeout: function (fn) { fn(); return 0; },
+        localStorage: {
+            getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+            setItem: function (k, v) { store[k] = String(v); },
+            removeItem: function (k) { delete store[k]; }
+        },
+        window: { history: { replaceState: function () {} } },
+        history: { replaceState: function () {} },
+        location: { pathname: '/', hash: '' },
+        TOS_CURRENT_VERSION: 1,
+        firebase: { firestore: { FieldValue: { serverTimestamp: function () { return 'ts'; }, increment: function (n) { return n; } } } },
+        auth: {
+            currentUser: null,
+            signInWithEmailLink: async function () { return { user: { uid: 'emailuid1', isAnonymous: false } }; }
+        },
+        db: {
+            collection: function () {
+                return {
+                    doc: function () { return userDoc; },
+                    set: async function () { return {}; }
+                };
+            }
+        },
+        finishAccountEmailLink: async function () { return false; },
+        clientCreatePayload: function (x) { return Object.assign({}, x); },
+        normalizeClientLn: function (x) { return x; },
+        clientLnValid: function () { return false; },
+        flushSignupFaction: async function () {},
+        applyServerUsername: async function () { if (opts.nameFails) throw new Error('taken'); return opts.pendingName; },
+        tryLinkGuest: async function () { return null; },
+        loadUser: function () {},
+        attachReferral: function () {},
+        showToast: function () {},
+        showUsernamePrompt: function () { calls.push('settings'); },
+        showNewAccountNamePrompt: function () { calls.push('username-step'); },
+        showUsernameRepickPrompt: function () { calls.push('username-step'); },
+        surfaceMfaRequired: function () { return false; },
+        anonymousSignInBlockedNow: function () { return false; }
+    };
+    sandbox.window = Object.assign(sandbox.window, sandbox);
+    vm.createContext(sandbox);
+    vm.runInContext(fnSource(src, 'finishEmailSignIn') + '\nthis._run = finishEmailSignIn;', sandbox);
+    await sandbox._run('new@example.com', 'https://example.com/link');
+    return calls;
+}
+
+test('a new email-link account with no name opens the username step', async function () {
+    const calls = await emailLinkSignupPrompt({});
+    assert.deepStrictEqual(calls, ['username-step']);
+});
+
+test('a new email-link account whose typed name is taken opens the username step', async function () {
+    const calls = await emailLinkSignupPrompt({ pendingName: 'takenname', nameFails: true });
+    assert.deepStrictEqual(calls, ['username-step']);
+});
+
+test('a new email-link account whose typed name saves does not open the username step', async function () {
+    const calls = await emailLinkSignupPrompt({ pendingName: 'freshname', nameFails: false });
+    assert.deepStrictEqual(calls, []);
+});
+
+test('an email-link return with a username already set does not open the username step', async function () {
+    const calls = await emailLinkSignupPrompt({ existing: true, existingData: { username: 'QuestFan' } });
+    assert.deepStrictEqual(calls, []);
+});
+
+test('the fresh username step waits for the age overlay, then opens', function () {
+    const src = read('ranking.js');
+    const timers = [];
+    const nodes = { ageConfirmOverlay: { id: 'ageConfirmOverlay' } };
+    const created = [];
+    const document = {
+        getElementById: function (id) { return nodes[id] || null; },
+        addEventListener: function () {},
+        createElement: function (tag) {
+            const el = {
+                tagName: String(tag).toUpperCase(),
+                style: {},
+                id: '',
+                innerHTML: '',
+                setAttribute: function () {},
+                addEventListener: function () {},
+                appendChild: function () { return el; }
+            };
+            return el;
+        },
+        head: { appendChild: function () {} },
+        body: { appendChild: function (el) { if (el && el.id) nodes[el.id] = el; created.push(el && el.id); } }
+    };
+    const sandbox = {
+        document: document,
+        window: { runAfterTos: function (fn) { fn(); } },
+        tosBlocking: function () { return false; },
+        setTimeout: function (fn) { timers.push(fn); return timers.length; }
+    };
+    sandbox.window.document = document;
+    sandbox.window.btcOnboardingQueue = null;
+    vm.createContext(sandbox);
+    vm.runInContext(
+        fnSource(src, 'ageConfirmBlocking') + '\n' +
+        fnSource(src, 'ensureUsernameRepickStyle') + '\n' +
+        fnSource(src, 'showUsernameRepickPrompt') + '\n' +
+        'this.ageConfirmBlocking = ageConfirmBlocking;\n' +
+        'this.showUsernameRepickPrompt = showUsernameRepickPrompt;',
+        sandbox
+    );
+    sandbox.showUsernameRepickPrompt({ fresh: true });
+    assert.deepStrictEqual(created, []);
+    assert.strictEqual(timers.length, 1);
+    delete nodes.ageConfirmOverlay;
+    timers.shift()();
+    assert.ok(created.indexOf('usernameRepick') !== -1);
 });
 
 test('the username step sits above the onboarding questions', function () {
