@@ -33,6 +33,7 @@ function loadAds(opts) {
         exports: {},
         BQ_ADS_NO_BOOT: true,
         BQ_ADS_TEST_EXPORTS: true,
+        process: { versions: { node: process.versions.node } },
         BQ_ADS_HOLDOUT_PCT: opts.holdoutPct,
         ADS_EEA_ENABLED: opts.eeaEnabled,
         BQ_ADS_EEA_ENABLED: opts.bqEeaEnabled,
@@ -571,7 +572,7 @@ pending.push(test('index.html and 404.html have the footer link, the hash handof
     assert.ok(html.indexOf('href="#privacy-choices"') !== -1);
     assert.ok(html.indexOf("btc_open_privacy_choices") !== -1);
     assert.ok(html.indexOf('id="bqSitePrivacyFooter"') !== -1);
-    assert.ok(html.indexOf('src="/ads.js?v=20261126_v2706"') !== -1);
+    assert.ok(html.indexOf('src="/ads.js?v=20261126_v2713"') !== -1);
     assert.ok(html.indexOf('src="/ranking.js?v=20261126_v2706"') !== -1);
     const settings = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
     assert.ok(settings.indexOf('id="bqPrivacyChoices"') !== -1);
@@ -602,7 +603,7 @@ pending.push(test('the callable name is setPrivacyShareOptOut and the default EE
     const src = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     assert.ok(src.indexOf('exports.setPrivacyShareOptOut') !== -1);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.indexOf("const CACHE_NAME = 'btc-archive-v2706'") !== -1);
+    assert.ok(sw.indexOf("const CACHE_NAME = 'btc-archive-v2713'") !== -1);
 }));
 
 pending.push(test('opt-out does not put AdSense on home, including when the claim modal is open', async function () {

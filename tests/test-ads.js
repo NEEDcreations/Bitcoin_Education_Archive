@@ -297,7 +297,7 @@ test('index.html and 404.html include ads.js, the homepage slot, and the AdSense
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const html404 = fs.readFileSync(path.join(root, '404.html'), 'utf8');
     assert.strictEqual(html, html404, '404.html must match index.html');
-    assert.ok(html.includes('src="/ads.js?v=20261126_v2706"'));
+    assert.ok(html.includes('src="/ads.js?v=20261126_v2713"'));
     assert.ok(html.includes('defer') && html.includes('ads.js'));
     assert.ok(html.includes('id="bqAadsHome"'));
     assert.ok(html.includes('name="google-adsense-account"'));
@@ -531,6 +531,7 @@ function loadBrowserAds(opts) {
         module: { exports: {} }, exports: {},
         BQ_ADS_NO_BOOT: true,
         BQ_ADS_TEST_EXPORTS: true,
+        process: { versions: { node: process.versions.node } },
         localStorage: {
             getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
             setItem: function (k, v) { store[k] = String(v); },
@@ -695,6 +696,123 @@ asyncTest('guests and another uid doc give no ads in the browser', async functio
     await env2.ads.fetchFreshUserDoc('other');
     assert.strictEqual(env2.ads.getFreshUserDoc(), null);
     assert.strictEqual(env2.ads.shouldShowAds({ surface: 'home', path: '/' }), false);
+});
+
+asyncTest('Firestore calls keep using the firebase object captured at load', async function () {
+    const origCalls = { firestore: 0, fieldValue: 0 };
+    const laterCalls = { firestore: 0, fieldValue: 0 };
+    function makeFb(bucket) {
+        const fb = {
+            firestore: function () {
+                bucket.firestore++;
+                return {
+                    collection: function (name) {
+                        return {
+                            doc: function (id) {
+                                return {
+                                    get: function () {
+                                        return Promise.resolve({
+                                            exists: true,
+                                            metadata: { fromCache: false },
+                                            data: function () { return { over18: true, username: 'x' }; }
+                                        });
+                                    },
+                                    set: function (data, maybe) {
+                                        increments.push({ collection: name, id: id, data: data, merge: !!(maybe && maybe.merge) });
+                                        return Promise.resolve();
+                                    }
+                                };
+                            }
+                        };
+                    }
+                };
+            },
+            auth: function () {
+                return { currentUser: { uid: 'r1user', isAnonymous: false } };
+            }
+        };
+        fb.firestore.FieldValue = {
+            increment: function (n) {
+                bucket.fieldValue++;
+                return { _inc: n };
+            }
+        };
+        return fb;
+    }
+    const original = makeFb(origCalls);
+    const sandbox = {
+        console, Date, Math, Intl, Uint8Array, Number, String, Boolean, Array, Object, JSON, Promise, isFinite,
+        module: { exports: {} }, exports: {},
+        BQ_ADS_NO_BOOT: true,
+        localStorage: {
+            getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+            setItem: function (k, v) { store[k] = String(v); },
+            removeItem: function (k) { delete store[k]; }
+        },
+        firebase: original,
+        document: undefined,
+        window: undefined
+    };
+    sandbox.global = sandbox;
+    sandbox.root = sandbox;
+    sandbox.window = sandbox;
+    const code = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
+    vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
+    const ads = sandbox.module.exports || sandbox.bqAds;
+    sandbox.firebase = makeFb(laterCalls);
+    const wrote = await ads.incrementAggregate('2026-11-26', 'adsDau');
+    assert.strictEqual(wrote, true);
+    assert.ok(origCalls.firestore >= 1);
+    assert.ok(origCalls.fieldValue >= 1);
+    assert.strictEqual(laterCalls.firestore, 0);
+    assert.strictEqual(laterCalls.fieldValue, 0);
+    await ads.fetchFreshUserDoc('r1user');
+    assert.ok(origCalls.firestore >= 2);
+    assert.strictEqual(laterCalls.firestore, 0);
+});
+
+test('BQ_ADS_TEST_EXPORTS adds fill hooks only when process.versions.node is present, and never on window.bqAds', function () {
+    function run(proc) {
+        const sandbox = {
+            console, Date, Math, Object, JSON, Promise, Array, String, Number, Boolean,
+            module: { exports: {} }, exports: {},
+            BQ_ADS_NO_BOOT: true,
+            BQ_ADS_TEST_EXPORTS: true,
+            localStorage: { getItem: function () { return null; }, setItem: function () {}, removeItem: function () {} },
+            document: {
+                readyState: 'complete',
+                getElementById: function () { return null; },
+                querySelector: function () { return null; },
+                querySelectorAll: function () { return []; },
+                getElementsByTagName: function () { return []; },
+                createElement: function () { return { setAttribute: function () {}, classList: { contains: function () { return false; } } }; },
+                body: null
+            },
+            firebase: { firestore: function () { return { collection: function () { return { doc: function () { return { set: function () { return Promise.resolve(); } }; } }; } }; } }
+        };
+        sandbox.firebase.firestore.FieldValue = { increment: function (n) { return { _inc: n }; } };
+        sandbox.global = sandbox;
+        sandbox.root = sandbox;
+        sandbox.window = sandbox;
+        if (proc) sandbox.process = proc;
+        const code = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
+        vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
+        return sandbox;
+    }
+    const withNode = run({ versions: { node: process.versions.node } });
+    assert.strictEqual(typeof withNode.bqAds.rememberCountry, 'undefined');
+    assert.strictEqual(typeof withNode.bqAds.fillAdsense, 'undefined');
+    assert.strictEqual(typeof withNode.module.exports.rememberCountry, 'function');
+    assert.strictEqual(typeof withNode.module.exports.fillAdsense, 'function');
+
+    const noProcess = run(undefined);
+    assert.strictEqual(typeof noProcess.bqAds.rememberCountry, 'undefined');
+    assert.strictEqual(typeof noProcess.module.exports.rememberCountry, 'undefined');
+    assert.strictEqual(typeof noProcess.module.exports.fillAdsense, 'undefined');
+
+    const noNode = run({ versions: {} });
+    assert.strictEqual(typeof noNode.module.exports.rememberCountry, 'undefined');
+    assert.strictEqual(typeof noNode.module.exports.fillSlot, 'undefined');
 });
 
 Promise.all(pending).then(function () {
