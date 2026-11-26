@@ -297,7 +297,7 @@ test('index.html and 404.html include ads.js, the homepage slot, and the AdSense
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const html404 = fs.readFileSync(path.join(root, '404.html'), 'utf8');
     assert.strictEqual(html, html404, '404.html must match index.html');
-    assert.ok(html.includes('src="/ads.js?v=20261125_v2692"'));
+    assert.ok(html.includes('src="/ads.js?v=20261125_v2693"'));
     assert.ok(html.includes('defer') && html.includes('ads.js'));
     assert.ok(html.includes('id="bqAadsHome"'));
     assert.ok(html.includes('name="google-adsense-account"'));
@@ -385,6 +385,77 @@ test('holdout rules text limits writable days to a today/yesterday window', func
     assert.ok(rules.indexOf('adsHoldoutDayOk(day)') >= 0);
     assert.ok(rules.indexOf("duration.value(1, 'd')") >= 0);
     assert.ok(rules.indexOf("duration.value(2, 'd')") >= 0);
+});
+
+
+function findEligibleUid(ads, prefix) {
+    let uid = prefix + '0';
+    for (let i = 0; i < 800; i++) {
+        if (!ads.inHoldout(prefix + i)) { uid = prefix + i; break; }
+    }
+    return uid;
+}
+
+function findEligibleDevice(ads) {
+    for (let i = 0; i < 800; i++) {
+        const id = ('0000000000000000' + i.toString(16)).slice(-16);
+        if (!ads.inHoldout('dev:' + id)) return id;
+    }
+    return 'abcdef0123456789';
+}
+
+test('guests can see A-ADS but AdSense never loads for them, including Learn and PoP', function () {
+    const ads = loadAds();
+    store['bq_ads_device'] = findEligibleDevice(ads);
+    const guest = { user: null };
+    const home = ads.decide(Object.assign({ surface: 'home', path: '/' }, guest));
+    assert.strictEqual(home.show, true);
+    assert.strictEqual(ads.adsenseAllowed(home, Object.assign({ surface: 'home' }, guest)), false);
+    const lq = ads.decide(Object.assign({ surface: 'learning-quests' }, guest));
+    assert.strictEqual(lq.show, true);
+    assert.strictEqual(ads.adsenseAllowed(lq, Object.assign({ surface: 'learning-quests' }, guest)), false);
+    const pop = ads.decide(Object.assign({ surface: 'proof-of-play' }, guest));
+    assert.strictEqual(pop.show, true);
+    assert.strictEqual(ads.adsenseAllowed(pop, Object.assign({ surface: 'proof-of-play' }, guest)), false);
+    assert.strictEqual(ads.hasKnownAdultAge(null), false);
+    assert.strictEqual(ads.hasKnownAdultAge({ uid: 'anon', isAnonymous: true }), false);
+});
+
+test('signed-in users with no age fields get A-ADS only, never AdSense', function () {
+    const ads = loadAds();
+    const uid = findEligibleUid(ads, 'noage');
+    const user = { uid: uid };
+    assert.strictEqual(ads.hasKnownAdultAge(user), false);
+    assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'home', path: '/' }), true);
+    assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'learning-quests' }), true);
+    assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'proof-of-play' }), true);
+    assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'learning-quests' }), { user: user, surface: 'learning-quests' }), false);
+    assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'proof-of-play' }), { user: user, surface: 'proof-of-play' }), false);
+    assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'arcade' }), { user: user, surface: 'arcade' }), false);
+});
+
+test('only users with a known adult age can get AdSense on Learn and PoP', function () {
+    const ads = loadAds();
+    const uid = findEligibleUid(ads, 'adult');
+    const adults = [
+        { uid: uid, ageBand: 'adult' },
+        { uid: uid, ageBand: 'over18' },
+        { uid: uid, age: 18 },
+        { uid: uid, isAdult: true },
+        { uid: uid, over18: true }
+    ];
+    adults.forEach(function (user) {
+        assert.strictEqual(ads.hasKnownAdultAge(user), true, JSON.stringify(user));
+        assert.strictEqual(ads.shouldShowAds({ user: user, surface: 'learning-quests' }), true);
+        assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'learning-quests' }), { user: user, surface: 'learning-quests' }), true);
+        assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'proof-of-play' }), { user: user, surface: 'proof-of-play' }), true);
+        // Homepage stays A-ADS even for adults.
+        assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: user, surface: 'home', path: '/' }), { user: user, surface: 'home' }), false);
+    });
+    const under = { uid: uid, age: 17 };
+    assert.strictEqual(ads.hasKnownAdultAge(under), false);
+    assert.strictEqual(ads.shouldShowAds({ user: under, surface: 'learning-quests' }), true);
+    assert.strictEqual(ads.adsenseAllowed(ads.decide({ user: under, surface: 'learning-quests' }), { user: under, surface: 'learning-quests' }), false);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

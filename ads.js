@@ -2,7 +2,10 @@
  * Bitcoin Quest ads (RLDA-40).
  *
  * Homepage: A-ADS unit 2463147 (https iframe, in-flow, no z-index 99998).
- * Learn + arcade: AdSense script (ca-pub-7244515226002177) in reserved slots.
+ * Learn + arcade: AdSense script (ca-pub-7244515226002177) in reserved slots,
+ * but only for users with a known adult age. Guests and users with no age
+ * field get A-ADS only (Phil, Nov 25: "A. Guests and no-age users get
+ * A-ADS only, no AdSense").
  * Hard rule (Phil, Nov 25): no ads of any kind on Timechain TV screens —
  * no paid ads, no ad breaks, nothing overlaying or pausing the player.
  *
@@ -183,6 +186,28 @@
         if (band === 'under13' || band === 'minor' || band === 'child' || band === 'kids' || band === 'kid') return true;
         var t = accountLabel(user);
         return t === 'kids' || t === 'kid' || t === 'child' || t === 'family-child' || t === 'minor';
+    }
+
+    // AdSense is only for a signed-in user with an explicit adult age.
+    // Guests, anonymous sessions, and accounts with no age fields stay on
+    // A-ADS. These adult fields are not set in the repo yet; the server
+    // must write them the same way Family/Classroom seats must write the
+    // kids fields. A kids account is never treated as adult.
+    function numericAge(user) {
+        if (!user) return null;
+        var n = Number(user.age != null ? user.age : user.ageYears);
+        if (!isFinite(n) || n <= 0) return null;
+        return n;
+    }
+
+    function hasKnownAdultAge(user) {
+        if (!user || user.isAnonymous === true) return false;
+        if (isKidsAccount(user)) return false;
+        if (user.isAdult === true || user.over18 === true) return true;
+        var band = ageBandOf(user);
+        if (band === 'adult' || band === 'over18' || band === '18+' || band === '18plus') return true;
+        var age = numericAge(user);
+        return age != null && age >= 18;
     }
 
     function premiumPlanId(user) {
@@ -390,6 +415,10 @@
         if (!decision || decision.show !== true) return false;
         if (!ADSENSE_SURFACES[decision.surface]) return false;
         if (isSensitiveSurface(input) || sensitiveUiOpen()) return false;
+        input = input || {};
+        var user = input.user;
+        if (user === undefined && typeof currentUser !== 'undefined') user = currentUser;
+        if (!hasKnownAdultAge(user)) return false;
         return true;
     }
 
@@ -720,6 +749,7 @@
         assignmentId: assignmentId,
         isPremiumAccount: isPremiumAccount,
         isKidsAccount: isKidsAccount,
+        hasKnownAdultAge: hasKnownAdultAge,
         isClassroomAccount: isClassroomAccount,
         isFamilyOrClassroomPlan: isFamilyOrClassroomPlan,
         isKidsSurface: isKidsSurface,
