@@ -9760,12 +9760,14 @@ const sayHiFns = bindSayHi(functionsV1, admin, db);
 exports.armSayHi = sayHiFns.armSayHi;
 exports.claimSayHi = sayHiFns.claimSayHi;
 
-// One-tap 18+ confirmation. App Check is required. Writes over18 and
-// over18ConfirmedAt (and ageConfirmed18) on the user doc; clients cannot.
+// Two-button age confirmation. App Check is required. Writes over18 /
+// ageConfirmed18 or ageUnder18 on the user doc; clients cannot.
 const { bindConfirmAge18 } = require('./src/confirmAge18');
 const confirmAge18Fns = bindConfirmAge18(functionsV1, { admin: admin, db: db });
 exports.confirmAge18 = confirmAge18Fns.confirmAge18;
+exports.confirmAgeUnder18 = confirmAge18Fns.confirmAgeUnder18;
 exports.adminUnconfirmAge18 = confirmAge18Fns.adminUnconfirmAge18;
+exports.adminResetAge18 = confirmAge18Fns.adminResetAge18;
 
 // Hidden reply bonus. App Check is required, same as claimSats. The handler
 // grants XP only inside a transaction after it reads the chat message.

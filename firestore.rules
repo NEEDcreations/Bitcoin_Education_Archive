@@ -250,9 +250,9 @@ service cloud.firestore {
         'coreContributorUntil', 'coreContributorTitle',
         // Faction race end prizes (server-only; onFactionTotalsWritten awards)
         'factionRaceBadges', 'factionChampionUntil', 'factionChampionFlair',
-        // 18+ confirmation. confirmAge18 callable only.
+        // Age confirmation. confirmAge18 / confirmAgeUnder18 callables only.
         'over18', 'over18ConfirmedAt', 'ageConfirmed18', 'ageConfirmed18At',
-        'ageConfirmBlocked'
+        'ageConfirmBlocked', 'ageUnder18', 'ageUnder18At'
       ];
     }
 
@@ -389,9 +389,9 @@ service cloud.firestore {
                         'anonBadgesMerged',
                         // Premium — must never be client-writable (self-grant exploit)
                         'premium',
-                        // 18+ confirmation. confirmAge18 callable only.
+                        // Age confirmation. confirmAge18 / confirmAgeUnder18 callables only.
                         'over18', 'over18ConfirmedAt', 'ageConfirmed18', 'ageConfirmed18At',
-                        'ageConfirmBlocked',
+                        'ageConfirmBlocked', 'ageUnder18', 'ageUnder18At',
                         // Daily quest gating (CF)
                         'dailyAllThreeDate', 'dailyQuizDone', 'dailyTriviaDone', 'dailyPollDone',
                         // Admin / anti-fraud fields — NEVER writable by clients

@@ -1,18 +1,24 @@
 // © 2024-2026 603BTC LLC. All rights reserved.
-// One-tap 18+ confirmation for new sign-ups and existing users at next login.
-// The server callable confirmAge18 writes over18 + over18ConfirmedAt (and
-// ageConfirmed18). Ads should keep reading the user doc field over18
-// (PR #401 hasKnownAdultAge). window._bqAgeConfirmed18 is a same-tab helper.
+// Two-button age confirmation for new sign-ups and existing users at next login.
+// "I'm 18 or older" calls confirmAge18, which writes over18 + over18ConfirmedAt
+// (and ageConfirmed18). "I'm under 18" calls confirmAgeUnder18, which writes
+// server-only ageUnder18 + ageUnder18At. Ads should keep reading the user doc
+// field over18 (PR #401 hasKnownAdultAge). window._bqAgeConfirmed18 is a
+// same-tab helper and stays false when the user is under 18 or dismisses.
+// Dismissing asks again on the next visit; a saved under-18 answer does not.
 (function (root) {
     'use strict';
 
     var COPY = {
-        title: 'Quick check',
-        body: 'Bitcoin Quest is for adults 18 and older.',
-        button: "I'm 18 or older"
+        title: 'Quick age check',
+        body: 'Please tell us your age group. You can keep playing either way.',
+        over18: "I'm 18 or older",
+        under18: "I'm under 18"
     };
 
-    // Lucide "badge-check".
+    var BUTTON_STYLE = 'min-height:44px;width:100%;padding:10px 16px;background:#334155;color:#f1f5f9;border:1px solid #64748b;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;';
+
+    // Lucide "badge-check". Used on the header only, not on a choice button.
     var LUCIDE_BADGE_CHECK = '<svg class="lucide-badge-check" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.78 4.78 4 4 0 0 1-6.74 0 4 4 0 0 1-4.78-4.78 4 4 0 0 1 0-6.74Z"></path><path d="m9 12 2 2 4-4"></path></svg>';
 
     var SESSION_DISMISS = 'bq_age_confirm_dismissed';
@@ -20,9 +26,41 @@
     var waiting = false;
     var watchTimer = null;
 
+    var KIDS_BOOL_FLAGS = ['isMinor', 'under13', 'kids', 'isKids', 'kidsMode'];
+    var KIDS_AGE_BANDS = ['under13', 'minor', 'child', 'kids', 'kid'];
+    var KIDS_ACCOUNT_LABELS = ['kids', 'kid', 'child', 'family-child', 'minor'];
+
     function isConfirmed(user) {
         if (!user) return false;
         return user.over18 === true || user.ageConfirmed18 === true;
+    }
+
+    function isUnder18(user) {
+        return !!(user && user.ageUnder18 === true);
+    }
+
+    function isBlocked(user) {
+        return !!(user && user.ageConfirmBlocked === true);
+    }
+
+    function isKidsAccount(user) {
+        if (root.bqKidsAccount && typeof root.bqKidsAccount.isKidsAccount === 'function') {
+            return !!root.bqKidsAccount.isKidsAccount(user);
+        }
+        if (!user) return false;
+        var i;
+        for (i = 0; i < KIDS_BOOL_FLAGS.length; i++) {
+            if (user[KIDS_BOOL_FLAGS[i]] === true) return true;
+        }
+        var band = String(user.ageBand || user.age_band || '').toLowerCase();
+        for (i = 0; i < KIDS_AGE_BANDS.length; i++) {
+            if (band === KIDS_AGE_BANDS[i]) return true;
+        }
+        var label = String(user.accountType || user.planType || user.plan || user.role || user.mode || '').toLowerCase();
+        for (i = 0; i < KIDS_ACCOUNT_LABELS.length; i++) {
+            if (label === KIDS_ACCOUNT_LABELS[i]) return true;
+        }
+        return false;
     }
 
     function setHelper(value) {
@@ -93,6 +131,63 @@
         setHelper(false);
     }
 
+    function callAge(name) {
+        function fail() { return Promise.resolve(false); }
+        try {
+            if (!root.firebase || !root.firebase.functions) return fail();
+            var fn = root.firebase.functions().httpsCallable(name);
+            return Promise.resolve(fn({})).then(function (res) {
+                var data = (res && res.data) || {};
+                if (name === 'confirmAgeUnder18') {
+                    return data.success === true || data.ageUnder18 === true;
+                }
+                return data.success === true || data.over18 === true || data.ageConfirmed18 === true;
+            }).catch(function () { return false; });
+        } catch (e) {
+            return fail();
+        }
+    }
+
+    function fireAgeEvent(name, detail) {
+        try {
+            if (typeof root.dispatchEvent === 'function' && typeof root.CustomEvent === 'function') {
+                root.dispatchEvent(new root.CustomEvent(name, { detail: detail }));
+            }
+        } catch (e) {}
+    }
+
+    function bindChoice(btn, labelText, callable, onOk) {
+        var busy = false;
+        btn.addEventListener('click', function () {
+            if (busy) return;
+            busy = true;
+            btn.disabled = true;
+            var label = btn.querySelector('span');
+            if (label) label.textContent = 'Saving...';
+            callAge(callable).then(function (ok) {
+                if (ok) {
+                    onOk();
+                } else {
+                    busy = false;
+                    btn.disabled = false;
+                    if (label) label.textContent = labelText;
+                    if (typeof root.showToast === 'function') root.showToast('Error saving. Please try again.');
+                }
+            });
+        });
+    }
+
+    function makeChoiceButton(document, id, labelText) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = id;
+        btn.style.cssText = BUTTON_STYLE;
+        var span = document.createElement('span');
+        span.textContent = labelText;
+        btn.appendChild(span);
+        return btn;
+    }
+
     function showModal() {
         var document = root.document;
         if (!document || !document.body) return;
@@ -129,6 +224,7 @@
 
         var title = document.createElement('h2');
         title.id = 'ageConfirmTitle';
+        title.setAttribute('tabindex', '-1');
         title.textContent = COPY.title;
         title.style.cssText = 'margin:0 0 8px;font-size:1.25rem;font-weight:800;color:#f1f5f9;';
 
@@ -136,46 +232,36 @@
         body.textContent = COPY.body;
         body.style.cssText = 'margin:0 0 20px;font-size:0.95rem;line-height:1.45;color:#e2e8f0;';
 
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.id = 'ageConfirmBtn';
-        btn.style.cssText = 'min-height:44px;width:100%;padding:10px 16px;background:#f7931a;color:#0f172a;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:8px;';
-        btn.innerHTML = LUCIDE_BADGE_CHECK + '<span></span>';
-        btn.querySelector('span').textContent = COPY.button;
+        var actions = document.createElement('div');
+        actions.style.cssText = 'display:flex;flex-direction:column;gap:10px;width:100%;';
 
-        var busy = false;
-        btn.addEventListener('click', function () {
-            if (busy) return;
-            busy = true;
-            btn.disabled = true;
-            var label = btn.querySelector('span');
-            if (label) label.textContent = 'Saving...';
-            confirmOnServer().then(function (ok) {
-                if (ok) {
-                    setHelper(true);
-                    patchProfileCache({ over18: true, ageConfirmed18: true });
-                    try {
-                        if (typeof root.dispatchEvent === 'function' && typeof root.CustomEvent === 'function') {
-                            root.dispatchEvent(new root.CustomEvent('bq-age-confirmed', { detail: { over18: true } }));
-                        }
-                    } catch (e) {}
-                    closeOverlay();
-                    finishQueue('done');
-                } else {
-                    busy = false;
-                    btn.disabled = false;
-                    if (label) label.textContent = COPY.button;
-                    if (typeof root.showToast === 'function') root.showToast('Error saving. Please try again.');
-                }
-            });
+        var overBtn = makeChoiceButton(document, 'ageConfirmBtn', COPY.over18);
+        var underBtn = makeChoiceButton(document, 'ageUnder18Btn', COPY.under18);
+
+        bindChoice(overBtn, COPY.over18, 'confirmAge18', function () {
+            setHelper(true);
+            patchProfileCache({ over18: true, ageConfirmed18: true });
+            fireAgeEvent('bq-age-confirmed', { over18: true });
+            closeOverlay();
+            finishQueue('done');
         });
+        bindChoice(underBtn, COPY.under18, 'confirmAgeUnder18', function () {
+            setHelper(false);
+            patchProfileCache({ ageUnder18: true });
+            fireAgeEvent('bq-age-under18', { ageUnder18: true });
+            closeOverlay();
+            finishQueue('done');
+        });
+
+        actions.appendChild(overBtn);
+        actions.appendChild(underBtn);
 
         overlay.addEventListener('click', function (e) { if (e.target === overlay) dismiss(); });
         card.appendChild(closeBtn);
         card.appendChild(iconWrap);
         card.appendChild(title);
         card.appendChild(body);
-        card.appendChild(btn);
+        card.appendChild(actions);
         overlay.appendChild(card);
         document.body.appendChild(overlay);
         if (root.btcSheet && root.btcSheet.setCloser) {
@@ -184,21 +270,7 @@
         if (root.btcSheet && root.btcSheet.sync) {
             try { root.btcSheet.sync(); } catch (e) {}
         }
-        try { btn.focus(); } catch (e) {}
-    }
-
-    function confirmOnServer() {
-        function fail() { return Promise.resolve(false); }
-        try {
-            if (!root.firebase || !root.firebase.functions) return fail();
-            var fn = root.firebase.functions().httpsCallable('confirmAge18');
-            return Promise.resolve(fn({})).then(function (res) {
-                var data = (res && res.data) || {};
-                return data.success === true || data.over18 === true || data.ageConfirmed18 === true;
-            }).catch(function () { return false; });
-        } catch (e) {
-            return fail();
-        }
+        try { title.focus(); } catch (e) {}
     }
 
     function skipPrompt() {
@@ -208,10 +280,15 @@
 
     function consider(user, found) {
         // No user doc (or a failed load after retries): skip. Do not show
-        // the prompt, and never call confirmAge18 until sign-up has created
-        // the profile.
+        // the prompt, and never call the age callables until sign-up has
+        // created the profile.
         if (found === false || user == null) {
             skipPrompt();
+            return;
+        }
+        if (isUnder18(user) || isBlocked(user) || isKidsAccount(user)) {
+            setHelper(false);
+            finishQueue('skip');
             return;
         }
         if (isConfirmed(user)) {
@@ -295,6 +372,7 @@
     setHelper(false);
     root.bqAgeConfirmCopy = COPY;
     root.bqAgeConfirmed18FromUser = isConfirmed;
+    root.bqAgeUnder18FromUser = isUnder18;
     root.showAgeConfirmPrompt = showModal;
     root._bqDismissAgeConfirm = dismiss;
 

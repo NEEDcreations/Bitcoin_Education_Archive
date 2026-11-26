@@ -35,6 +35,7 @@ const FRESH_ACTIONS = {
     adminFreezeFavorEpoch: true,
     adminResolveFavorReview: true,
     adminUnconfirmAge18: true,
+    adminResetAge18: true,
 };
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

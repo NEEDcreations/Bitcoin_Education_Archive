@@ -24,6 +24,8 @@ const FIELDS = [
     'ageConfirmed18',
     'ageConfirmed18At',
     'ageConfirmBlocked',
+    'ageUnder18',
+    'ageUnder18At',
 ];
 
 (async function main() {

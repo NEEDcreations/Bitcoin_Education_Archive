@@ -123,8 +123,19 @@ function bootClient(extras) {
         },
         addEventListener: function () {},
         getElementById: function (id) {
+            function find(el) {
+                if (!el) return null;
+                if (el.id === id) return el;
+                var kids = el.children || [];
+                for (var i = 0; i < kids.length; i++) {
+                    var hit = find(kids[i]);
+                    if (hit) return hit;
+                }
+                return null;
+            }
             for (var i = 0; i < bodyKids.length; i++) {
-                if (bodyKids[i] && bodyKids[i].id === id) return bodyKids[i];
+                var hit = find(bodyKids[i]);
+                if (hit) return hit;
             }
             return null;
         },
@@ -288,9 +299,14 @@ test('client helper and copy', function () {
     assert.strictEqual(env.bqAgeConfirmed18FromUser({ over18: true }), true);
     assert.strictEqual(env.bqAgeConfirmed18FromUser({ ageConfirmed18: true }), true);
     assert.strictEqual(env.bqAgeConfirmed18FromUser({ over18: false, ageBand: 'adult' }), false);
-    assert.strictEqual(env.bqAgeConfirmCopy.title, 'Quick check');
-    assert.strictEqual(env.bqAgeConfirmCopy.body, 'Bitcoin Quest is for adults 18 and older.');
-    assert.strictEqual(env.bqAgeConfirmCopy.button, "I'm 18 or older");
+    assert.strictEqual(env.bqAgeUnder18FromUser({}), false);
+    assert.strictEqual(env.bqAgeUnder18FromUser({ ageUnder18: true }), true);
+    assert.strictEqual(env.bqAgeConfirmed18FromUser({ ageUnder18: true, over18: true }), true);
+    assert.strictEqual(env.bqAgeConfirmCopy.title, 'Quick age check');
+    assert.strictEqual(env.bqAgeConfirmCopy.body, 'Please tell us your age group. You can keep playing either way.');
+    assert.strictEqual(env.bqAgeConfirmCopy.over18, "I'm 18 or older");
+    assert.strictEqual(env.bqAgeConfirmCopy.under18, "I'm under 18");
+    assert.strictEqual(/\bads?\b|\boffers?\b|\bperks?\b|\brewards?\b/i.test(env.bqAgeConfirmCopy.title + ' ' + env.bqAgeConfirmCopy.body + ' ' + env.bqAgeConfirmCopy.over18 + ' ' + env.bqAgeConfirmCopy.under18), false);
 });
 
 test('dismiss keeps the no-age state and does not call the server', function () {
@@ -309,10 +325,12 @@ test('dismiss keeps the no-age state and does not call the server', function () 
 
 test('a confirmed profile skips the prompt', function () {
     const src = fs.readFileSync(path.join(root, 'age-confirm.js'), 'utf8');
-    assert.ok(src.includes('httpsCallable(\'confirmAge18\')'));
+    assert.ok(src.includes('confirmAge18'));
     assert.ok(src.includes("q.ready('age'"));
     assert.ok(src.includes('over18'));
     assert.ok(src.includes('ageConfirmed18'));
+    assert.ok(src.includes('confirmAgeUnder18'));
+    assert.ok(src.includes('ageUnder18'));
     assert.ok(src.includes('hasKnownAdultAge') || src.includes('PR #401'));
 });
 
@@ -324,7 +342,7 @@ test('bindConfirmAge18 enforces App Check', function () {
     };
     confirmAge.bindConfirmAge18(fakeFn, { admin: {}, db: {} });
     assert.ok(calls.some(function (o) { return o && o.enforceAppCheck === true; }));
-    assert.strictEqual(calls.length, 2);
+    assert.strictEqual(calls.length, 4);
 });
 
 test('a successful confirm writes an audit row with only the uid', async function () {
@@ -470,8 +488,12 @@ test('audit rows are created, not overwritten', function () {
     const src = fs.readFileSync(path.join(root, 'functions/src/confirmAge18.js'), 'utf8');
     const confirm = src.match(/t\.create\(auditRef\('confirm'/);
     const unconfirm = src.match(/t\.create\(auditRef\('unconfirm'/);
+    const under18 = src.match(/t\.create\(auditRef\('under18'/);
+    const reset = src.match(/t\.create\(auditRef\('reset'/);
     assert.ok(confirm, 'confirm audit uses t.create');
     assert.ok(unconfirm, 'unconfirm audit uses t.create');
+    assert.ok(under18, 'under-18 audit uses t.create');
+    assert.ok(reset, 'reset audit uses t.create');
     assert.strictEqual((src.match(/t\.set\(auditRef/g) || []).length, 0);
 });
 
@@ -479,6 +501,7 @@ test('adminUnconfirmAge18 is on the real FRESH_ACTIONS list', async function () 
     const src = fs.readFileSync(path.join(root, 'functions/src/secondFactor.js'), 'utf8');
     const block = src.slice(src.indexOf('const FRESH_ACTIONS'), src.indexOf('const RECOVERY_COUNT'));
     assert.ok(/adminUnconfirmAge18:\s*true/.test(block));
+    assert.ok(/adminResetAge18:\s*true/.test(block));
 
     const SF = require(path.join(root, 'functions/src/secondFactor'));
     const store = {};
@@ -520,6 +543,269 @@ test('adminUnconfirmAge18 is on the real FRESH_ACTIONS list', async function () 
         if (unknown) throw err;
     }
     assert.strictEqual(unknown, false);
+    unknown = false;
+    try {
+        await api.requireFreshStepUp(ctx, 'adminResetAge18');
+    } catch (err) {
+        unknown = err.code === 'invalid-argument' && /Unknown action/.test(String(err.message || err));
+        if (unknown) throw err;
+    }
+    assert.strictEqual(unknown, false);
+});
+
+
+test('sets ageUnder18 with a server timestamp and an audit row', async function () {
+    const world = createWorld({ 'users/alice': { points: 42, sats: 9, displayName: 'Alice' } });
+    const out = await world.handlers.confirmAgeUnder18({ ageUnder18: false, ageUnder18At: 'forged' }, auth('alice'));
+    assert.strictEqual(out.success, true);
+    assert.strictEqual(out.ageUnder18, true);
+    assert.strictEqual(out.already, false);
+    const doc = world.docs['users/alice'];
+    assert.strictEqual(doc.ageUnder18, true);
+    assert.ok(doc.ageUnder18At && doc.ageUnder18At._server === true);
+    assert.strictEqual(doc.over18, undefined);
+    assert.strictEqual(doc.points, 42);
+    assert.strictEqual(doc.sats, 9);
+    const auditKeys = Object.keys(world.docs).filter(function (k) { return k.indexOf('admin_audit_log/age18_under18_alice_') === 0; });
+    assert.strictEqual(auditKeys.length, 1);
+    const row = world.docs[auditKeys[0]];
+    assert.strictEqual(row.action, 'age_under18');
+    assert.strictEqual(row.uid, 'alice');
+    assert.ok(row.at && row.at._server === true);
+    assert.strictEqual(row.email, undefined);
+    const throttle = world.docs['age_confirm_throttle/alice'];
+    assert.ok(throttle);
+    assert.strictEqual(throttle.uid, 'alice');
+});
+
+test('a second under-18 call is idempotent and keeps the first timestamp', async function () {
+    const world = createWorld({ 'users/bob': { points: 1 } });
+    await world.handlers.confirmAgeUnder18({}, auth('bob'));
+    const first = world.docs['users/bob'].ageUnder18At;
+    const out = await world.handlers.confirmAgeUnder18({}, auth('bob'));
+    assert.strictEqual(out.already, true);
+    assert.strictEqual(world.docs['users/bob'].ageUnder18At, first);
+    assert.strictEqual(world.docs['users/bob'].points, 1);
+});
+
+test('an under-18 user cannot self-confirm 18+', async function () {
+    const world = createWorld({ 'users/alice': { points: 3 } });
+    await world.handlers.confirmAgeUnder18({}, auth('alice'));
+    await assert.rejects(function () { return world.handlers.confirmAge18({}, auth('alice')); }, function (err) {
+        return err.code === 'permission-denied';
+    });
+    const doc = world.docs['users/alice'];
+    assert.strictEqual(doc.ageUnder18, true);
+    assert.strictEqual(doc.over18, undefined);
+    assert.strictEqual(doc.ageConfirmed18, undefined);
+    assert.strictEqual(doc.points, 3);
+});
+
+test('a confirmed 18+ user cannot self-set under 18', async function () {
+    const world = createWorld({ 'users/alice': { points: 3 } });
+    await world.handlers.confirmAge18({}, auth('alice'));
+    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('alice')); }, function (err) {
+        return err.code === 'permission-denied';
+    });
+    const doc = world.docs['users/alice'];
+    assert.strictEqual(doc.over18, true);
+    assert.strictEqual(doc.ageUnder18, undefined);
+});
+
+test('a blocked account cannot set under 18', async function () {
+    const world = createWorld({
+        'users/alice': { over18: true, ageConfirmed18: true, points: 4 }
+    });
+    await world.handlers.adminUnconfirmAge18({ uid: 'alice' }, adminAuth('admin1'));
+    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('alice')); }, function (err) {
+        return err.code === 'permission-denied';
+    });
+    assert.strictEqual(world.docs['users/alice'].ageUnder18, undefined);
+    assert.strictEqual(world.docs['users/alice'].ageConfirmBlocked, true);
+});
+
+test('kids accounts cannot save an under-18 answer', async function () {
+    const world = createWorld({ 'users/kid_isMinor': { points: 3, isMinor: true } });
+    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('kid_isMinor')); }, function (err) {
+        return err.code === 'permission-denied';
+    });
+    assert.strictEqual(world.docs['users/kid_isMinor'].ageUnder18, undefined);
+});
+
+test('anonymous accounts cannot save under 18', async function () {
+    const world = createWorld({ 'users/guest': { points: 10 } });
+    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('guest', 'anonymous')); }, function (err) {
+        return err.code === 'permission-denied';
+    });
+    assert.strictEqual(world.docs['users/guest'].ageUnder18, undefined);
+});
+
+test('a missing user doc fails closed for under 18 and is not created', async function () {
+    const world = createWorld();
+    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('newbie')); }, function (err) {
+        return err.code === 'failed-precondition';
+    });
+    assert.strictEqual(world.docs['users/newbie'], undefined);
+});
+
+test('under-18 and 18+ share the same throttle window', async function () {
+    const world = createWorld();
+    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('ghost')); }, function (err) {
+        return err.code === 'failed-precondition';
+    });
+    await assert.rejects(function () { return world.handlers.confirmAge18({}, auth('ghost')); }, function (err) {
+        return err.code === 'resource-exhausted';
+    });
+    assert.strictEqual(world.docs['users/ghost'], undefined);
+});
+
+test('an admin reset clears under-18 and the block so the user can confirm', async function () {
+    const priorUnder = { _server: true, id: 'under' };
+    const world = createWorld({
+        'users/alice': { ageUnder18: true, ageUnder18At: priorUnder, points: 4 }
+    });
+    await assert.rejects(function () { return world.handlers.confirmAge18({}, auth('alice')); }, function (err) {
+        return err.code === 'permission-denied';
+    });
+    const out = await world.handlers.adminResetAge18({ uid: 'alice' }, adminAuth('admin1'));
+    assert.strictEqual(out.success, true);
+    assert.strictEqual(out.reset, true);
+    assert.strictEqual(world.stepCalls.length, 1);
+    const doc = world.docs['users/alice'];
+    assert.strictEqual(doc.ageUnder18, undefined);
+    assert.strictEqual(doc.ageUnder18At, undefined);
+    assert.strictEqual(doc.ageConfirmBlocked, undefined);
+    assert.strictEqual(doc.points, 4);
+    const auditKeys = Object.keys(world.docs).filter(function (k) { return k.indexOf('admin_audit_log/age18_reset_alice_') === 0; });
+    assert.strictEqual(auditKeys.length, 1);
+    const row = world.docs[auditKeys[0]];
+    assert.strictEqual(row.action, 'age_reset');
+    assert.strictEqual(row.uid, 'alice');
+    assert.strictEqual(row.adminUid, 'admin1');
+    assert.strictEqual(row.ageUnder18, true);
+    assert.strictEqual(row.ageUnder18At, priorUnder);
+    const again = await world.handlers.confirmAge18({}, auth('alice'));
+    assert.strictEqual(again.success, true);
+    assert.strictEqual(world.docs['users/alice'].over18, true);
+});
+
+test('a non-admin cannot reset and step-up is not called', async function () {
+    const world = createWorld({ 'users/alice': { ageUnder18: true, points: 4 } });
+    await assert.rejects(function () { return world.handlers.adminResetAge18({ uid: 'alice' }, auth('alice')); }, function (err) {
+        return err.code === 'permission-denied';
+    });
+    assert.strictEqual(world.stepCalls.length, 0);
+    assert.strictEqual(world.docs['users/alice'].ageUnder18, true);
+});
+
+test('an invalid reset target is rejected before step-up', async function () {
+    const world = createWorld({ 'users/alice': { ageUnder18: true, points: 1 } });
+    await assert.rejects(function () {
+        return world.handlers.adminResetAge18({ uid: 'alice/../admin' }, adminAuth('admin1'));
+    }, function (err) {
+        return err.code === 'invalid-argument';
+    });
+    assert.strictEqual(world.stepCalls.length, 0);
+    assert.strictEqual(world.docs['users/alice'].ageUnder18, true);
+});
+
+test('two age buttons have equal visual weight and mention no ads', function () {
+    const env = bootClient();
+    env.showAgeConfirmPrompt();
+    const overBtn = env.document.getElementById('ageConfirmBtn');
+    const underBtn = env.document.getElementById('ageUnder18Btn');
+    assert.ok(overBtn);
+    assert.ok(underBtn);
+    assert.strictEqual(overBtn.style.cssText, underBtn.style.cssText);
+    assert.ok(overBtn.style.cssText.indexOf('min-height:44px') !== -1);
+    const src = fs.readFileSync(path.join(root, 'age-confirm.js'), 'utf8');
+    const copyBlock = src.slice(src.indexOf('var COPY ='), src.indexOf('var BUTTON_STYLE'));
+    assert.strictEqual(/ads?|offers?|perks?|rewards?/i.test(copyBlock), false);
+});
+
+test('dismiss means no ads for the session and the prompt can return later', function () {
+    const env = bootClient();
+    env.showAgeConfirmPrompt();
+    env._bqDismissAgeConfirm();
+    assert.strictEqual(env._bqAgeConfirmed18, false);
+    assert.strictEqual(env.sessionStorage.getItem('bq_age_confirm_dismissed'), '1');
+});
+
+test('a dismissed session skips the prompt and keeps ads off', function () {
+    const store = { bq_age_confirm_dismissed: '1' };
+    const env = bootClient({
+        sessionStorage: {
+            getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+            setItem: function (k, v) { store[k] = String(v); },
+            removeItem: function (k) { delete store[k]; }
+        },
+        firebase: {
+            auth: function () { return { onAuthStateChanged: function (cb) { cb({ uid: 'u1', isAnonymous: false }); } }; },
+            firestore: function () {
+                return {
+                    collection: function () {
+                        return {
+                            doc: function () {
+                                return { get: function () { return Promise.resolve({ exists: true, data: function () { return { points: 1 }; } }); } };
+                            }
+                        };
+                    }
+                };
+            }
+        }
+    });
+    return Promise.resolve().then(function () {
+        assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+        assert.strictEqual(env._bqAgeConfirmed18, false);
+    });
+});
+
+test('a saved under-18 profile skips the prompt and keeps ads off', function () {
+    const env = bootClient({
+        firebase: {
+            auth: function () { return { onAuthStateChanged: function (cb) { cb({ uid: 'u1', isAnonymous: false }); } }; },
+            firestore: function () {
+                return {
+                    collection: function () {
+                        return {
+                            doc: function () {
+                                return { get: function () { return Promise.resolve({ exists: true, data: function () { return { points: 1, ageUnder18: true }; } }); } };
+                            }
+                        };
+                    }
+                };
+            }
+        }
+    });
+    return Promise.resolve().then(function () {
+        assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+        assert.strictEqual(env._bqAgeConfirmed18, false);
+    });
+});
+
+test('tapping I am under 18 saves through the callable and does not enable ads', function () {
+    let called = [];
+    const env = bootClient({
+        firebase: {
+            functions: function () {
+                return {
+                    httpsCallable: function (name) {
+                        called.push(name);
+                        return function () { return Promise.resolve({ data: { success: true, ageUnder18: true } }); };
+                    }
+                };
+            }
+        }
+    });
+    env.showAgeConfirmPrompt();
+    const underBtn = env.document.getElementById('ageUnder18Btn');
+    assert.ok(underBtn);
+    underBtn.click();
+    assert.deepStrictEqual(called, ['confirmAgeUnder18']);
+    return new Promise(function (resolve) { setTimeout(resolve, 0); }).then(function () {
+        assert.strictEqual(env._bqAgeConfirmed18, false);
+        assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+    });
 });
 
 Promise.all(queue).then(function () {
