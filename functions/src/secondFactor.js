@@ -34,6 +34,8 @@ const FRESH_ACTIONS = {
     adminSetFavorClaims: true,
     adminFreezeFavorEpoch: true,
     adminResolveFavorReview: true,
+    adminSetSitewideCaps: true,
+    adminGetSitewideCaps: true,
 };
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

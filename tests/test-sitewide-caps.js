@@ -571,6 +571,66 @@ function alertsAtEightyAndTrip() {
     assert.strictEqual(caps.faucetAlert(fTrip, '2026-11-25').type, 'sitewide_faucet_cap_trip');
 }
 
+
+async function adminCapActionsAreOnRealFreshActionsList() {
+    const fs = require('fs');
+    const path = require('path');
+    const root = path.join(__dirname, '..');
+    const src = fs.readFileSync(path.join(root, 'functions/src/secondFactor.js'), 'utf8');
+    const block = src.slice(src.indexOf('const FRESH_ACTIONS'), src.indexOf('const RECOVERY_COUNT'));
+    assert.ok(/adminSetSitewideCaps:\s*true/.test(block));
+    assert.ok(/adminGetSitewideCaps:\s*true/.test(block));
+
+    function HttpsError(code, message) {
+        const err = new Error(message);
+        err.code = code;
+        return err;
+    }
+    const SF = require(path.join(root, 'functions/src/secondFactor'));
+    const store = {};
+    const db = {
+        collection: function (name) {
+            return {
+                doc: function (id) {
+                    const key = name + '/' + id;
+                    return {
+                        get: async function () {
+                            return {
+                                exists: store[key] != null,
+                                data: function () { return store[key] ? Object.assign({}, store[key]) : undefined; }
+                            };
+                        }
+                    };
+                }
+            };
+        }
+    };
+    const api = SF.initSecondFactor({
+        db: db,
+        admin: { auth: function () { return {}; }, firestore: { FieldValue: { serverTimestamp: function () { return new Date(); } } } },
+        HttpsError: HttpsError,
+        authenticator: { generateSecret: function () { return 'x'; }, keyuri: function () { return 'otpauth'; }, checkDelta: function () { return null; }, options: {} },
+        QRCode: { toDataURL: async function () { return ''; } }
+    });
+    const ctx = { auth: { uid: 'admin1', token: { admin: true, auth_time: Math.floor(Date.now() / 1000) - 60, firebase: {} } }, rawRequest: { headers: {} } };
+    await assert.rejects(function () {
+        return api.requireFreshStepUp(ctx, 'notARealAction');
+    }, function (err) {
+        return err.code === 'invalid-argument' && /Unknown action/.test(err.message);
+    });
+    const actions = ['adminSetSitewideCaps', 'adminGetSitewideCaps'];
+    for (let i = 0; i < actions.length; i++) {
+        var unknown = false;
+        try {
+            await api.requireFreshStepUp(ctx, actions[i]);
+        } catch (err) {
+            unknown = err.code === 'invalid-argument' && /Unknown action/.test(String(err.message || err));
+            if (unknown) throw err;
+        }
+        assert.strictEqual(unknown, false, actions[i] + ' must be a known fresh action');
+    }
+}
+
 async function main() {
     accountsBurnDownUnlocks();
     raceAtSlot30();
@@ -586,7 +646,8 @@ async function main() {
     capHitCopyIsOneConstant();
     alertsAtEightyAndTrip();
     await nonAdminCapCallablesWriteNothing();
-    console.log('test-sitewide-caps: 14 groups passed');
+    await adminCapActionsAreOnRealFreshActionsList();
+    console.log('test-sitewide-caps: 15 groups passed');
 }
 
 main().catch(function (err) {
