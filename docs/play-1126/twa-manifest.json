@@ -17,8 +17,9 @@
     "path": "PLACEHOLDER_DO_NOT_COMMIT_KEYSTORE",
     "alias": "upload"
   },
-  "appVersionName": "1.0.0",
+  "appVersion": "1.0.0",
   "appVersionCode": 1,
+  "minSdkVersion": 24,
   "shortcuts": [],
   "generatorApp": "bubblewrap",
   "webManifestUrl": "https://bitcoineducation.quest/manifest.json",
