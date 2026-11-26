@@ -137,6 +137,7 @@
         <tr><td>Say hi progress</td><td>Whether you armed and claimed the daily greeting, and which chat message was used</td></tr>
         <tr><td>Gifts, keys, and locked ciphers</td><td>Virtual items on your account, including keys you send to peers. A sent key stores the sender on the server. A cipher-share record stores the sender's account, the opener's display name, and the prize so the same open is not paid twice. It does not store the opener's account id</td></tr>
         <tr><td>Notification preferences</td><td>Which push categories you have turned on or off, including a master off switch</td></tr>
+        <tr><td>Privacy choice (privacyShareOptOut, privacyShareOptOutAt)</td><td>Whether you opted out of sharing for personalized ads with Your Privacy Choices, and when you last changed it. The server writes this when you change the choice while signed in, so it follows you to other devices. Guests keep the choice only in this browser</td></tr>
         <tr><td>Web push tokens</td><td>A token per device you opt in, so we can deliver push notifications. Older accounts may also have a single token on the profile</td></tr>
     </table>
 
@@ -468,8 +469,8 @@
         <tr><td>Alby (Nostr Wallet Connect)</td><td>Lightning payouts we send from the faucet and similar rewards. Your own NWC or WebLN wallet, if you connect one, sends tips you choose</td><td>For our payouts: the Lightning invoice we resolve from the address you provide. Your NWC secret stays in this browser and is sent to your wallet, not stored by us</td></tr>
         <tr><td>YouTube</td><td>Timechain TV video player</td><td>Whatever YouTube collects in its embedded player. We do not send your account id to YouTube</td></tr>
         <tr><td>Wavlake</td><td>Optional embedded music player inside Bitcoin Beats</td><td>Whatever Wavlake collects in its player. We do not send your account id to Wavlake</td></tr>
-        <tr><td>Google AdSense</td><td>Ads on some Learn and arcade pages, only for signed-in users who have confirmed they are 18 or older</td><td>Whatever Google collects when it shows an ad, such as cookies and device identifiers, under its own policy. We do not send your name, email, Lightning Address, or account id to Google AdSense</td></tr>
-        <tr><td>A-ADS</td><td>An ad on the home page, only for signed-in users who have confirmed they are 18 or older</td><td>Whatever A-ADS collects when it shows an ad, under its own policy. We do not send your name, email, Lightning Address, or account id to A-ADS</td></tr>
+        <tr><td>Google AdSense</td><td>Ads in the home, Learn, and arcade ad slots, only for signed-in users who have confirmed they are 18 or older. Users who opt out get non-personalized ads only</td><td>Whatever Google collects when it shows an ad, such as cookies and device identifiers, under its own policy. We do not send your name, email, Lightning Address, or account id to Google AdSense</td></tr>
+        <tr><td>A-ADS</td><td>Ads in the home, Learn, and arcade ad slots, only for signed-in users who have confirmed they are 18 or older and have not opted out</td><td>Whatever A-ADS collects when it shows an ad, under its own policy. We do not send your name, email, Lightning Address, or account id to A-ADS</td></tr>
         <tr><td>mempool.space API</td><td>Live BTC price, block height, fees</td><td>None (read-only public API)</td></tr>
         <tr><td>GitHub Pages</td><td>Website hosting</td><td>Standard web server logs</td></tr>
         <tr><td>CoinGecko API</td><td>Market data, price charts, dominance</td><td>None (read-only public API)</td></tr>
@@ -531,6 +532,8 @@
         <li><strong>Nacho AI:</strong> question history, friendship level, trivia scores, and closet items — all local only</li>
         <li><strong>Ad-free group:</strong> <code>bq_ads_device</code> is a random device id used only to place this device in or out of the ad-free group. It does not contain your name, email, or account id</li>
         <li><strong>Ad group counts:</strong> <code>bq_ads_agg_today</code> and <code>bq_ads_agg_yday</code> hold the date and the group (ads or ad-free) this device was counted in today and yesterday, so it is counted only once a day in the daily totals and in the next-day return count. They do not contain your name, email, or account id</li>
+        <li><strong>Privacy choice:</strong> <code>bq_privacy_share_opt_out</code> remembers whether you opted out with Your Privacy Choices on this device, and <code>bq_privacy_share_opt_out_at</code> holds the time you last changed it</li>
+        <li><strong>Ad region check (sessionStorage):</strong> <code>bq_ads_country</code> holds the two-letter country code from our network provider's connection check, used only to decide whether ads may show in your region. <code>btc_open_privacy_choices</code> is a one-time flag set when you follow a Your Privacy Choices link, so the app opens those settings, and it is removed once used. Both clear when the tab closes</li>
     </ul>
     <p>You can clear all localStorage data at any time from your browser settings, which will reset app preferences and cached progress. If you have a signed-in account, your server-side profile (XP, badges, wallet balance, posts) is unaffected.</p>
 

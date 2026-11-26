@@ -124,7 +124,10 @@ test('Section 5 lists Google AdSense and A-ADS as providers', function () {
     const s5 = privacy.slice(privacy.indexOf('<h2>5. Third-Party Services</h2>'), privacy.indexOf('<h2>6. Data Sharing</h2>'));
     assert.ok(s5.includes('<tr><td>Google AdSense</td>'));
     assert.ok(s5.includes('<tr><td>A-ADS</td>'));
-    assert.strictEqual((s5.match(/confirmed they are 18 or older<\/td>/g) || []).length, 2);
+    assert.ok(s5.includes('Ads in the home, Learn, and arcade ad slots, only for signed-in users who have confirmed they are 18 or older. Users who opt out get non-personalized ads only</td>'));
+    assert.ok(s5.includes('Ads in the home, Learn, and arcade ad slots, only for signed-in users who have confirmed they are 18 or older and have not opted out</td>'));
+    assert.ok(!s5.includes('Ads on some Learn and arcade pages'));
+    assert.ok(!s5.includes('An ad on the home page'));
 });
 
 test('the storage list has the ad group count keys', function () {
@@ -155,6 +158,16 @@ test('Terms no longer says it does not sell for advertising', function () {
     const terms = read('terms.html');
     assert.ok(!terms.includes('sell your personal information for advertising'));
     assert.ok(terms.includes('We do not sell your personal information for money.'));
+});
+
+test('privacy choice storage keys and account fields are listed', function () {
+    const storage = privacy.slice(privacy.indexOf('<h3>Browser localStorage</h3>'), privacy.indexOf('<h3>Service Worker Cache</h3>'));
+    ['bq_privacy_share_opt_out', 'bq_privacy_share_opt_out_at', 'bq_ads_country', 'btc_open_privacy_choices'].forEach(function (k) {
+        assert.ok(storage.includes('<code>' + k + '</code>'), k);
+    });
+    assert.ok(storage.includes('Both clear when the tab closes'));
+    const account = privacy.slice(privacy.indexOf('<h3>Account Data (stored in Firebase)</h3>'), privacy.indexOf('<h3>Direct Messages'));
+    assert.ok(account.includes('<tr><td>Privacy choice (privacyShareOptOut, privacyShareOptOutAt)</td>'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
