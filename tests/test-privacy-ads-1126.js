@@ -113,5 +113,34 @@ test('the CCPA line has a Do not sell or share draft marked [LEGAL REVIEW]', fun
     assert.ok(!sale.includes('\u2014'));
 });
 
+test('Terms 34a no longer says there are no ad cookies and points to Advertising', function () {
+    const terms = read('terms.html');
+    assert.ok(!terms.includes('We do <strong>not</strong> use advertising cookies, cross-site tracking cookies, or third-party analytics'));
+    assert.ok(terms.includes('We do <strong>not</strong> set advertising cookies or cross-site tracking cookies of our own'));
+    assert.ok(terms.includes('Google AdSense and A-ADS may set their own ad and measurement cookies only when they show an ad to a signed-in user who has confirmed they are 18 or older'));
+    assert.ok(terms.includes('href="/privacy.html#advertising"'));
+    assert.ok(terms.includes('We do not set advertising cookies of our own.'));
+});
+
+test('Section 5 lists Google AdSense and A-ADS as providers', function () {
+    const s5 = privacy.slice(privacy.indexOf('<h2>5. Third-Party Services</h2>'), privacy.indexOf('<h2>6. Data Sharing</h2>'));
+    assert.ok(s5.includes('<tr><td>Google AdSense</td>'));
+    assert.ok(s5.includes('<tr><td>A-ADS</td>'));
+    assert.strictEqual((s5.match(/confirmed they are 18 or older<\/td>/g) || []).length, 2);
+});
+
+test('the storage list has the ad group count keys', function () {
+    const storage = privacy.slice(privacy.indexOf('<h3>Browser localStorage</h3>'), privacy.indexOf('<h3>Service Worker Cache</h3>'));
+    assert.ok(storage.includes('<code>bq_ads_agg_today</code>'));
+    assert.ok(storage.includes('<code>bq_ads_agg_yday</code>'));
+});
+
+test('the Do not sell or share draft has no email opt-out promise', function () {
+    const sale = privacy.slice(privacy.indexOf('<h3>Sale and share</h3>'), privacy.indexOf('<h3>Legal bases'));
+    assert.ok(!sale.includes('with the subject'));
+    assert.ok(!sale.includes('info.603btc@gmail.com'));
+    assert.ok(sale.includes('Google Ads Settings</a> or by using'));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);
