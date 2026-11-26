@@ -23,6 +23,7 @@ const FIELDS = [
     'over18ConfirmedAt',
     'ageConfirmed18',
     'ageConfirmed18At',
+    'ageConfirmBlocked',
 ];
 
 (async function main() {
@@ -69,6 +70,13 @@ const FIELDS = [
     await expect('ghostMode update still succeeds', function () {
         return updateDoc(user, { ghostMode: true });
     }, true);
+
+    await expect('client cannot create an age_confirm_throttle doc', function () {
+        return setDoc(doc(alice, 'age_confirm_throttle/alice'), { lastAtMs: 1 });
+    }, false);
+    await expect('client cannot update an age_confirm_throttle doc', function () {
+        return updateDoc(doc(alice, 'age_confirm_throttle/alice'), { lastAtMs: 2 });
+    }, false);
 
     await env.cleanup();
     process.exit(failed > 0 ? 1 : 0);

@@ -29,7 +29,7 @@ const FIELDS = [
     'bipBreakthroughClaimedBipId', 'bipBadges',
     'coreContributorUntil', 'coreContributorTitle',
     'factionJoinedAt', 'factionBonusUntil',
-    'over18', 'over18ConfirmedAt', 'ageConfirmed18', 'ageConfirmed18At',
+    'over18', 'over18ConfirmedAt', 'ageConfirmed18', 'ageConfirmed18At', 'ageConfirmBlocked',
 ];
 
 (async function main() {

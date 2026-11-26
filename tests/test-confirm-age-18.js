@@ -330,6 +330,10 @@ test('a successful confirm writes an audit row with only the uid', async functio
     assert.ok(row.at && row.at._server === true);
     assert.strictEqual(row.email, undefined);
     assert.strictEqual(row.displayName, undefined);
+    const throttle = world.docs['age_confirm_throttle/alice'];
+    assert.ok(throttle);
+    assert.strictEqual(throttle.uid, 'alice');
+    assert.ok(typeof throttle.lastAtMs === 'number');
 });
 
 test('a second confirm within the throttle window is rejected', async function () {
@@ -374,12 +378,37 @@ test('an admin un-confirm clears the fields and writes an audit row', async func
     assert.strictEqual(doc.over18, undefined);
     assert.strictEqual(doc.ageConfirmed18, undefined);
     assert.strictEqual(doc.over18ConfirmedAt, undefined);
+    assert.strictEqual(doc.ageConfirmBlocked, true);
     assert.strictEqual(doc.points, 4);
     const auditKeys = Object.keys(world.docs).filter(function (k) { return k.indexOf('admin_audit_log/age18_unconfirm_alice_') === 0; });
     assert.strictEqual(auditKeys.length, 1);
     assert.strictEqual(world.docs[auditKeys[0]].action, 'age_unconfirm');
     assert.strictEqual(world.docs[auditKeys[0]].uid, 'alice');
     assert.strictEqual(world.docs[auditKeys[0]].adminUid, 'admin1');
+});
+
+test('a blocked account cannot confirm again', async function () {
+    const world = createWorld({
+        'users/alice': { over18: true, ageConfirmed18: true, points: 4 }
+    });
+    await world.handlers.adminUnconfirmAge18({ uid: 'alice' }, adminAuth('admin1'));
+    await assert.rejects(function () { return world.handlers.confirmAge18({}, auth('alice')); }, function (err) {
+        return err.code === 'permission-denied';
+    });
+    assert.strictEqual(world.docs['users/alice'].over18, undefined);
+    assert.strictEqual(world.docs['users/alice'].ageConfirmBlocked, true);
+    assert.strictEqual(world.docs['users/alice'].points, 4);
+});
+
+test('an invalid un-confirm target is rejected before step-up', async function () {
+    const world = createWorld({ 'users/alice': { over18: true, points: 1 } });
+    await assert.rejects(function () {
+        return world.handlers.adminUnconfirmAge18({ uid: 'alice/../admin' }, adminAuth('admin1'));
+    }, function (err) {
+        return err.code === 'invalid-argument';
+    });
+    assert.strictEqual(world.stepCalls.length, 0);
+    assert.strictEqual(world.docs['users/alice'].over18, true);
 });
 
 test('a missing user doc skips the prompt after failed loads', async function () {
@@ -412,6 +441,53 @@ test('a missing user doc skips the prompt after failed loads', async function ()
         assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
         assert.strictEqual(env._bqAgeConfirmed18, false);
     });
+});
+
+test('adminUnconfirmAge18 is on the real FRESH_ACTIONS list', async function () {
+    const src = fs.readFileSync(path.join(root, 'functions/src/secondFactor.js'), 'utf8');
+    const block = src.slice(src.indexOf('const FRESH_ACTIONS'), src.indexOf('const RECOVERY_COUNT'));
+    assert.ok(/adminUnconfirmAge18:\s*true/.test(block));
+
+    const SF = require(path.join(root, 'functions/src/secondFactor'));
+    const store = {};
+    const db = {
+        collection: function (name) {
+            return {
+                doc: function (id) {
+                    const key = name + '/' + id;
+                    return {
+                        get: async function () {
+                            return {
+                                exists: store[key] != null,
+                                data: function () { return store[key] ? Object.assign({}, store[key]) : undefined; }
+                            };
+                        }
+                    };
+                }
+            };
+        }
+    };
+    const api = SF.initSecondFactor({
+        db: db,
+        admin: { auth: function () { return {}; }, firestore: { FieldValue: { serverTimestamp: function () { return new Date(); } } } },
+        HttpsError: HttpsError,
+        authenticator: { generateSecret: function () { return 'x'; }, keyuri: function () { return 'otpauth'; }, checkDelta: function () { return null; }, options: {} },
+        QRCode: { toDataURL: async function () { return ''; } }
+    });
+    const ctx = { auth: { uid: 'admin1', token: { admin: true, auth_time: Math.floor(Date.now() / 1000) - 60, firebase: {} } }, rawRequest: { headers: {} } };
+    await assert.rejects(function () {
+        return api.requireFreshStepUp(ctx, 'notARealAction');
+    }, function (err) {
+        return err.code === 'invalid-argument' && /Unknown action/.test(err.message);
+    });
+    var unknown = false;
+    try {
+        await api.requireFreshStepUp(ctx, 'adminUnconfirmAge18');
+    } catch (err) {
+        unknown = err.code === 'invalid-argument' && /Unknown action/.test(String(err.message || err));
+        if (unknown) throw err;
+    }
+    assert.strictEqual(unknown, false);
 });
 
 Promise.all(queue).then(function () {

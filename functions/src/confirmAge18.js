@@ -5,12 +5,15 @@
 // Ads (PR #401 hasKnownAdultAge) already treats user.over18 === true as a
 // known adult, so no ads-code change is required once this field is present.
 // Never create a user doc here: a missing doc fails closed so sign-up can
-// still create the profile.
+// still create the profile. An admin un-confirm sets ageConfirmBlocked so
+// the user cannot just confirm again.
 
 const kidsAccount = require('../kids-account');
 
 const THROTTLE_MS = 30000;
 const AUDIT = 'admin_audit_log';
+const THROTTLE = 'age_confirm_throttle';
+const TARGET_UID = /^[A-Za-z0-9_-]{1,128}$/;
 
 function isAnonymous(context) {
     const token = (context && context.auth && context.auth.token) || {};
@@ -25,6 +28,10 @@ function alreadyConfirmed(user) {
 
 function isKidsAccount(user) {
     return kidsAccount.isKidsAccount(user);
+}
+
+function isBlocked(user) {
+    return !!(user && user.ageConfirmBlocked === true);
 }
 
 function createConfirmAge18Handlers(deps) {
@@ -58,7 +65,7 @@ function createConfirmAge18Handlers(deps) {
     }
 
     function throttleRef(uid) {
-        return db.collection(AUDIT).doc('age18_throttle_' + uid);
+        return db.collection(THROTTLE).doc(uid);
     }
 
     function auditRef(kind, uid, ms) {
@@ -72,20 +79,8 @@ function createConfirmAge18Handlers(deps) {
         return (nowFn() - last) < throttleMs;
     }
 
-    async function writeThrottle(uid, atMs) {
-        await throttleRef(uid).set({ uid: uid, lastAtMs: atMs, lastAt: stamp() }, { merge: true });
-    }
-
-    async function writeAudit(kind, uid, extra, atMs) {
-        const row = Object.assign({
-            action: kind === 'unconfirm' ? 'age_unconfirm' : 'age_confirm',
-            uid: uid,
-            at: stamp(),
-            atMs: atMs
-        }, extra || {});
-        try {
-            await auditRef(kind, uid, atMs).set(row);
-        } catch (e) { /* audit is best-effort and has no PII beyond uid */ }
+    function throttleFields(uid, atMs, now) {
+        return { uid: uid, lastAtMs: atMs, lastAt: now };
     }
 
     async function confirmAge18(data, context) {
@@ -98,36 +93,44 @@ function createConfirmAge18Handlers(deps) {
 
         const uid = context.auth.uid;
         const userRef = db.collection('users').doc(uid);
-        // Idempotent success is never throttled, so a double-tap after a
-        // confirmed write still returns already.
-        const prior = await userRef.get();
-        if (prior && prior.exists && alreadyConfirmed(prior.data() || {})) {
-            return { success: true, over18: true, ageConfirmed18: true, already: true };
-        }
+        const atMs = nowFn();
+        const now = stamp();
+        const outcome = { already: false, missing: false, kids: false, blocked: false, throttled: false };
 
-        const tSnap = await throttleRef(uid).get();
-        const tData = tSnap && tSnap.exists ? (tSnap.data() || {}) : null;
-        if (tooSoon(tData)) {
-            throw new HttpsError('resource-exhausted', 'Please try again in a moment.');
-        }
-
-        const outcome = { already: false, missing: false, kids: false };
         await db.runTransaction(async function (t) {
             const snap = await t.get(userRef);
+            const tSnap = await t.get(throttleRef(uid));
+            const tData = tSnap && tSnap.exists ? (tSnap.data() || {}) : null;
+
             if (!snap || !snap.exists) {
+                if (tooSoon(tData)) {
+                    outcome.throttled = true;
+                    return;
+                }
                 outcome.missing = true;
+                t.set(throttleRef(uid), throttleFields(uid, atMs, now), { merge: true });
                 return;
             }
+
             const user = snap.data() || {};
-            if (isKidsAccount(user)) {
-                outcome.kids = true;
+            if (isBlocked(user)) {
+                outcome.blocked = true;
                 return;
             }
             if (alreadyConfirmed(user)) {
                 outcome.already = true;
                 return;
             }
-            const now = stamp();
+            if (tooSoon(tData)) {
+                outcome.throttled = true;
+                return;
+            }
+            if (isKidsAccount(user)) {
+                outcome.kids = true;
+                t.set(throttleRef(uid), throttleFields(uid, atMs, now), { merge: true });
+                return;
+            }
+
             const patch = {
                 over18: true,
                 ageConfirmed18: true
@@ -135,23 +138,30 @@ function createConfirmAge18Handlers(deps) {
             if (!user.over18ConfirmedAt) patch.over18ConfirmedAt = now;
             if (!user.ageConfirmed18At) patch.ageConfirmed18At = now;
             t.set(userRef, patch, { merge: true });
+            t.set(auditRef('confirm', uid, atMs), {
+                action: 'age_confirm',
+                uid: uid,
+                at: now,
+                atMs: atMs
+            });
+            t.set(throttleRef(uid), throttleFields(uid, atMs, now), { merge: true });
         });
 
-        const atMs = nowFn();
+        if (outcome.throttled) {
+            throw new HttpsError('resource-exhausted', 'Please try again in a moment.');
+        }
+        if (outcome.blocked) {
+            throw new HttpsError('permission-denied', 'This account cannot change its age confirmation.');
+        }
         if (outcome.missing) {
-            await writeThrottle(uid, atMs);
             throw new HttpsError('failed-precondition', 'Account not found.');
         }
         if (outcome.kids) {
-            await writeThrottle(uid, atMs);
             throw new HttpsError('permission-denied', 'This account cannot confirm adult age.');
         }
         if (outcome.already) {
             return { success: true, over18: true, ageConfirmed18: true, already: true };
         }
-
-        await writeThrottle(uid, atMs);
-        await writeAudit('confirm', uid, null, atMs);
         return { success: true, over18: true, ageConfirmed18: true, already: false };
     }
 
@@ -159,29 +169,45 @@ function createConfirmAge18Handlers(deps) {
         if (!context || !context.auth || !context.auth.token || context.auth.token.admin !== true) {
             throw new HttpsError('permission-denied', 'Admins only.');
         }
-        await stepUp(data, context);
 
         const targetUid = String((data && data.uid) || '').trim();
-        if (!targetUid) {
+        if (!TARGET_UID.test(targetUid)) {
             throw new HttpsError('invalid-argument', 'Enter the account id.');
         }
 
+        await stepUp(data, context);
+
         const userRef = db.collection('users').doc(targetUid);
-        const snap = await userRef.get();
-        if (!snap || !snap.exists) {
+        const atMs = nowFn();
+        const now = stamp();
+        const del = deleted();
+        const outcome = { missing: false };
+
+        await db.runTransaction(async function (t) {
+            const snap = await t.get(userRef);
+            if (!snap || !snap.exists) {
+                outcome.missing = true;
+                return;
+            }
+            t.set(userRef, {
+                over18: del,
+                over18ConfirmedAt: del,
+                ageConfirmed18: del,
+                ageConfirmed18At: del,
+                ageConfirmBlocked: true
+            }, { merge: true });
+            t.set(auditRef('unconfirm', targetUid, atMs), {
+                action: 'age_unconfirm',
+                uid: targetUid,
+                adminUid: context.auth.uid,
+                at: now,
+                atMs: atMs
+            });
+        });
+
+        if (outcome.missing) {
             throw new HttpsError('failed-precondition', 'Account not found.');
         }
-
-        const del = deleted();
-        await userRef.set({
-            over18: del,
-            over18ConfirmedAt: del,
-            ageConfirmed18: del,
-            ageConfirmed18At: del
-        }, { merge: true });
-
-        const atMs = nowFn();
-        await writeAudit('unconfirm', targetUid, { adminUid: context.auth.uid }, atMs);
         return { success: true, over18: false, uid: targetUid };
     }
 
@@ -209,5 +235,6 @@ module.exports = {
     bindConfirmAge18: bindConfirmAge18,
     alreadyConfirmed: alreadyConfirmed,
     isKidsAccount: isKidsAccount,
-    THROTTLE_MS: THROTTLE_MS
+    THROTTLE_MS: THROTTLE_MS,
+    TARGET_UID: TARGET_UID
 };
