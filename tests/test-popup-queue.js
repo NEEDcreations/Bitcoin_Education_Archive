@@ -51,12 +51,13 @@ function test(name, fn) {
     catch (e) { console.log('  FAIL ' + name + ': ' + (e && e.message ? e.message : e)); failed++; }
 }
 
-test('queue waits for sign-in and shows gift, then terms, then quiz, then pace', function () {
+test('queue waits for sign-in and shows gift, then terms, then age, then quiz, then pace', function () {
     const env = bootQueue();
     const q = env.sandbox.btcOnboardingQueue;
     const seen = [];
     q.ready('gift', function () { seen.push('gift'); });
     q.ready('terms', function () { seen.push('terms'); });
+    q.ready('age', function () { seen.push('age'); });
     q.ready('pace', function () { seen.push('pace'); });
     q.ready('quiz', function () { seen.push('quiz'); });
     assert.deepStrictEqual(seen, []);
@@ -65,9 +66,11 @@ test('queue waits for sign-in and shows gift, then terms, then quiz, then pace',
     q.done('gift');
     assert.deepStrictEqual(seen, ['gift', 'terms']);
     q.done('terms');
-    assert.deepStrictEqual(seen, ['gift', 'terms', 'quiz']);
+    assert.deepStrictEqual(seen, ['gift', 'terms', 'age']);
+    q.done('age');
+    assert.deepStrictEqual(seen, ['gift', 'terms', 'age', 'quiz']);
     q.done('quiz');
-    assert.deepStrictEqual(seen, ['gift', 'terms', 'quiz', 'pace']);
+    assert.deepStrictEqual(seen, ['gift', 'terms', 'age', 'quiz', 'pace']);
 });
 
 test('a skipped gift does not block terms', function () {

@@ -54,7 +54,7 @@ function byMode(box, id) { return buttons(box).filter(function (b) { return b.ge
 
 test('queue order puts the questions before the mode picker', function () {
     const src = read('popup-stack.js');
-    assert.ok(src.includes("var ORDER = ['gift', 'terms', 'quiz', 'pace', 'quest'];"));
+    assert.ok(src.includes("var ORDER = ['gift', 'terms', 'age', 'quiz', 'pace', 'quest'];"));
     const sandbox = {
         setTimeout: function () { return 0; }, clearTimeout: function () {}, WeakMap: WeakMap,
         MutationObserver: function () { this.observe = function () {}; },
@@ -66,7 +66,7 @@ test('queue order puts the questions before the mode picker', function () {
     vm.runInContext(src, sandbox);
     const q = sandbox.btcOnboardingQueue;
     const seen = [];
-    q.skip('gift'); q.skip('terms');
+    q.skip('gift'); q.skip('terms'); q.skip('age');
     q.ready('pace', function () { seen.push('pace'); });
     q.ready('quiz', function () { seen.push('quiz'); });
     q.ready('quest', function () { seen.push('quest'); });
