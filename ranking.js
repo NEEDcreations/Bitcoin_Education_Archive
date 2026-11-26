@@ -2410,19 +2410,16 @@ async function finishEmailSignIn(email, _signInUrl) {
         }
 
         // New email-link accounts (and existing docs with no name) must get
-        // the username step. Wait until after tryLinkGuest so a guest who
-        // already has a name does not see the pick-a-name sheet. showUsernamePrompt
-        // opens Settings for a signed-in user, so use showNewAccountNamePrompt.
-        var existingName = (existingDoc.exists && existingDoc.data() && existingDoc.data().username) || '';
-        if (!String(existingName).trim()) {
-            try {
-                var afterLink = await db.collection('users').doc(emailUid).get();
-                if (afterLink && afterLink.exists && afterLink.data()) existingName = afterLink.data().username || '';
-            } catch (eName) {}
-        }
-        if (!String(existingName).trim() && typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
-            existingName = currentUser.username;
-        }
+        // the username step. Wait until after tryLinkGuest, then read the
+        // merged account from the server — never the guest's in-memory
+        // profile. showUsernamePrompt opens Settings for a signed-in user,
+        // so use showNewAccountNamePrompt. The prompt re-checks the server
+        // name again before it opens (and after Terms / the age step).
+        var existingName = '';
+        try {
+            var afterLink = await db.collection('users').doc(emailUid).get();
+            if (afterLink && afterLink.exists && afterLink.data()) existingName = afterLink.data().username || '';
+        } catch (eName) {}
         if (!String(existingName).trim()) {
             if (pendingUsername) {
                 try { await applyServerUsername(pendingUsername); }
@@ -5045,36 +5042,131 @@ function usernameRepickFailure(e) {
     return msg;
 }
 
-function ageConfirmBlocking() {
+function ageOverlayOpen() {
     try {
-        if (typeof document !== 'undefined' && document.getElementById && document.getElementById('ageConfirmOverlay')) return true;
-    } catch (eAgeEl) {}
-    var q = (typeof window !== 'undefined') ? window.btcOnboardingQueue : null;
-    if (!q || typeof q.stateOf !== 'function') return false;
-    if (typeof q.isSignedIn === 'function' && !q.isSignedIn()) return false;
-    var st = q.stateOf('age');
-    return st === 'pending' || st === 'ready' || st === 'showing';
+        return !!(typeof document !== 'undefined' && document.getElementById && document.getElementById('ageConfirmOverlay'));
+    } catch (eAgeEl) { return false; }
+}
+
+// True only when the age overlay is on screen or age-confirm has started
+// a decision for the current user and has not finished it yet. A leftover
+// queue state from a prior guest session (often 'skip') is not "done" and
+// is not used here — that gap is how the name sheet opened on top of age.
+function ageDecisionPending() {
+    if (ageOverlayOpen()) return true;
+    try {
+        if (typeof window !== 'undefined' && window._bqAgeDecision === 'pending') return true;
+    } catch (eDec) {}
+    return false;
+}
+
+function ageConfirmBlocking() {
+    return ageDecisionPending();
+}
+
+function runAfterAge(fn) {
+    if (typeof fn !== 'function') return;
+    if (!ageDecisionPending()) { fn(); return; }
+    if (typeof window === 'undefined') { fn(); return; }
+    window._deferUntilAge = window._deferUntilAge || [];
+    window._deferUntilAge.push(fn);
+}
+
+function flushAfterAge() {
+    if (typeof window !== 'undefined') {
+        window._bqAgeDecision = 'done';
+        var queued = window._deferUntilAge || [];
+        window._deferUntilAge = [];
+        queued.forEach(function(fn) { try { fn(); } catch (e) {} });
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.runAfterAge = runAfterAge;
+    window.flushAfterAge = flushAfterAge;
+}
+
+function signedInEmailUid() {
+    try {
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            return auth.currentUser.uid || '';
+        }
+    } catch (eUid) {}
+    return '';
+}
+
+function readServerUsername(uid, cb) {
+    if (typeof cb !== 'function') return;
+    if (!uid || typeof db === 'undefined' || !db || typeof db.collection !== 'function') {
+        cb('');
+        return;
+    }
+    db.collection('users').doc(uid).get().then(function (snap) {
+        var name = '';
+        try {
+            if (snap && snap.exists && typeof snap.data === 'function') {
+                name = String((snap.data() || {}).username || '').trim();
+            }
+        } catch (eName) {}
+        cb(name);
+    }).catch(function () { cb(''); });
+}
+
+function copyUsernamePromptOpts(opts) {
+    var next = {};
+    if (!opts) return next;
+    for (var k in opts) {
+        if (Object.prototype.hasOwnProperty.call(opts, k)) next[k] = opts[k];
+    }
+    return next;
 }
 
 function showUsernameRepickPrompt(opts) {
+    opts = opts || {};
     if (tosBlocking()) {
         window.runAfterTos(function() { showUsernameRepickPrompt(opts); });
         return;
     }
-    // New accounts: Terms, then the age step, then the username step. Do not
-    // stack this sheet on the age overlay. Other repick callers stay immediate.
-    // Cap the wait so a stuck age step cannot poll forever (~30s).
-    if (opts && opts.fresh && ageConfirmBlocking()) {
-        var waitTries = (opts && opts._ageWaitTries) || 0;
-        if (waitTries >= 100) return;
-        var nextOpts = {};
-        for (var k in opts) {
-            if (Object.prototype.hasOwnProperty.call(opts, k)) nextOpts[k] = opts[k];
+    // Fresh sign-up: re-read the signed-in account from the server before
+    // opening, so a guest name merged by tryLinkGuest is not missed. The
+    // in-memory guest profile is never used as the source of truth.
+    if (opts.fresh && !opts._nameChecked) {
+        var uid = signedInEmailUid();
+        if (uid && typeof db !== 'undefined' && db && typeof db.collection === 'function') {
+            readServerUsername(uid, function (name) {
+                if (name) return;
+                var checked = copyUsernamePromptOpts(opts);
+                checked._nameChecked = true;
+                showUsernameRepickPrompt(checked);
+            });
+            return;
         }
-        nextOpts._ageWaitTries = waitTries + 1;
-        setTimeout(function () { showUsernameRepickPrompt(nextOpts); }, 300);
-        return;
     }
+    // New accounts: Terms, then the age step, then the username step.
+    // Hook to the age queue's done/confirm (flushAfterAge), not a polled
+    // queue-state check. Keep the 100-try cap as a fallback, but never
+    // open while the age overlay is visible.
+    if (opts.fresh && ageDecisionPending()) {
+        var waitTries = opts._ageWaitTries || 0;
+        if (waitTries < 100) {
+            if (!opts._ageHooked) {
+                var hooked = copyUsernamePromptOpts(opts);
+                hooked._nameChecked = false;
+                hooked._ageHooked = true;
+                runAfterAge(function () { showUsernameRepickPrompt(hooked); });
+            }
+            var nextOpts = copyUsernamePromptOpts(opts);
+            nextOpts._ageWaitTries = waitTries + 1;
+            nextOpts._ageHooked = true;
+            nextOpts._nameChecked = false;
+            setTimeout(function () { showUsernameRepickPrompt(nextOpts); }, 300);
+            return;
+        }
+        // Cap hit: stop quietly if the overlay is still up. If it is gone,
+        // fall through so the Friday prompt is not lost.
+        if (ageOverlayOpen()) return;
+    }
+    if (opts.fresh && ageOverlayOpen()) return;
     if (document.getElementById('usernameRepick')) return;
     ensureUsernameRepickStyle();
     var signup = document.getElementById('usernameModal');

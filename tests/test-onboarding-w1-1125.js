@@ -96,11 +96,14 @@ test('new-account paths never send a signed-in user to the sign-up prompt', func
     const helper = fnSource(src, 'showNewAccountNamePrompt');
     assert.ok(helper.includes('showUsernameRepickPrompt({ fresh: true })'));
     const prompt = fnSource(src, 'showUsernameRepickPrompt');
-    assert.ok(prompt.includes('opts && opts.fresh'));
-    assert.ok(prompt.includes('ageConfirmBlocking()'));
+    assert.ok(prompt.includes('opts.fresh'));
+    assert.ok(prompt.includes('ageDecisionPending()'));
+    assert.ok(prompt.includes('runAfterAge'));
     assert.ok(prompt.includes('_ageWaitTries'));
-    assert.ok(prompt.includes('waitTries >= 100'));
-    assert.ok(fnSource(src, 'ageConfirmBlocking').includes('ageConfirmOverlay'));
+    assert.ok(prompt.includes('waitTries < 100'));
+    assert.ok(prompt.includes('ageOverlayOpen()'));
+    assert.ok(fnSource(src, 'ageOverlayOpen').includes('ageConfirmOverlay'));
+    assert.ok(fnSource(src, 'ageDecisionPending').includes("_bqAgeDecision === 'pending'"));
 });
 
 // Run finishEmailSignIn for a brand-new (or unnamed) account with stubs and
@@ -198,11 +201,13 @@ test('an email-link merge that brings a guest username does not open the usernam
     assert.deepStrictEqual(calls, []);
 });
 
-test('the fresh username step waits for the age overlay, then opens', function () {
+function loadFreshPromptSandbox(opts) {
+    opts = opts || {};
     const src = read('ranking.js');
     const timers = [];
-    const nodes = { ageConfirmOverlay: { id: 'ageConfirmOverlay' } };
+    const nodes = Object.assign({}, opts.nodes || {});
     const created = [];
+    const getCalls = [];
     const document = {
         getElementById: function (id) { return nodes[id] || null; },
         addEventListener: function () {},
@@ -225,74 +230,135 @@ test('the fresh username step waits for the age overlay, then opens', function (
         document: document,
         window: { runAfterTos: function (fn) { fn(); } },
         tosBlocking: function () { return false; },
-        setTimeout: function (fn) { timers.push(fn); return timers.length; }
+        setTimeout: function (fn) { timers.push(fn); return timers.length; },
+        console: { log: function () {}, error: function () {} }
     };
+    if (opts.auth) sandbox.auth = opts.auth;
+    if (opts.withDb) {
+        sandbox.db = {
+            collection: function () {
+                return {
+                    doc: function (uid) {
+                        return {
+                            get: async function () {
+                                getCalls.push(uid);
+                                const name = typeof opts.serverName === 'function' ? opts.serverName() : (opts.serverName || '');
+                                return { exists: true, data: function () { return name ? { username: name } : {}; } };
+                            }
+                        };
+                    }
+                };
+            }
+        };
+    }
+    if (opts.ageDecision) sandbox.window._bqAgeDecision = opts.ageDecision;
     sandbox.window.document = document;
     sandbox.window.btcOnboardingQueue = null;
     vm.createContext(sandbox);
+    const names = [
+        'ageOverlayOpen', 'ageDecisionPending', 'ageConfirmBlocking',
+        'runAfterAge', 'flushAfterAge', 'signedInEmailUid',
+        'readServerUsername', 'copyUsernamePromptOpts',
+        'ensureUsernameRepickStyle', 'showUsernameRepickPrompt'
+    ];
     vm.runInContext(
-        fnSource(src, 'ageConfirmBlocking') + '\n' +
-        fnSource(src, 'ensureUsernameRepickStyle') + '\n' +
-        fnSource(src, 'showUsernameRepickPrompt') + '\n' +
-        'this.ageConfirmBlocking = ageConfirmBlocking;\n' +
-        'this.showUsernameRepickPrompt = showUsernameRepickPrompt;',
+        names.map(function (n) { return fnSource(src, n); }).join('\n') + '\n' +
+        names.map(function (n) { return 'this.' + n + ' = ' + n + ';'; }).join('\n') + '\n' +
+        'this.window.runAfterAge = runAfterAge;\n' +
+        'this.window.flushAfterAge = flushAfterAge;',
         sandbox
     );
-    sandbox.showUsernameRepickPrompt({ fresh: true });
-    assert.deepStrictEqual(created, []);
-    assert.strictEqual(timers.length, 1);
-    delete nodes.ageConfirmOverlay;
-    timers.shift()();
-    assert.ok(created.indexOf('usernameRepick') !== -1);
+    return { sandbox: sandbox, nodes: nodes, created: created, timers: timers, getCalls: getCalls };
+}
+
+test('the fresh username step waits for the age overlay, then opens', function () {
+    const ctx = loadFreshPromptSandbox({ nodes: { ageConfirmOverlay: { id: 'ageConfirmOverlay' } } });
+    ctx.sandbox.showUsernameRepickPrompt({ fresh: true });
+    assert.deepStrictEqual(ctx.created, []);
+    assert.strictEqual(ctx.timers.length, 1);
+    delete ctx.nodes.ageConfirmOverlay;
+    ctx.timers.shift()();
+    assert.ok(ctx.created.indexOf('usernameRepick') !== -1);
 });
 
 test('the fresh username step stops quietly after 100 age-wait tries', function () {
-    const src = read('ranking.js');
-    const timers = [];
-    const nodes = { ageConfirmOverlay: { id: 'ageConfirmOverlay' } };
-    const created = [];
-    const document = {
-        getElementById: function (id) { return nodes[id] || null; },
-        addEventListener: function () {},
-        createElement: function (tag) {
-            const el = {
-                tagName: String(tag).toUpperCase(),
-                style: {},
-                id: '',
-                innerHTML: '',
-                setAttribute: function () {},
-                addEventListener: function () {},
-                appendChild: function () { return el; }
-            };
-            return el;
-        },
-        head: { appendChild: function () {} },
-        body: { appendChild: function (el) { if (el && el.id) nodes[el.id] = el; created.push(el && el.id); } }
-    };
-    const sandbox = {
-        document: document,
-        window: { runAfterTos: function (fn) { fn(); } },
-        tosBlocking: function () { return false; },
-        setTimeout: function (fn) { timers.push(fn); return timers.length; }
-    };
-    sandbox.window.document = document;
-    sandbox.window.btcOnboardingQueue = null;
-    vm.createContext(sandbox);
-    vm.runInContext(
-        fnSource(src, 'ageConfirmBlocking') + '\n' +
-        fnSource(src, 'ensureUsernameRepickStyle') + '\n' +
-        fnSource(src, 'showUsernameRepickPrompt') + '\n' +
-        'this.ageConfirmBlocking = ageConfirmBlocking;\n' +
-        'this.showUsernameRepickPrompt = showUsernameRepickPrompt;',
-        sandbox
-    );
-    sandbox.showUsernameRepickPrompt({ fresh: true });
+    const ctx = loadFreshPromptSandbox({ nodes: { ageConfirmOverlay: { id: 'ageConfirmOverlay' } } });
+    ctx.sandbox.showUsernameRepickPrompt({ fresh: true });
     for (let i = 0; i < 100; i++) {
-        assert.strictEqual(timers.length, 1, 'age-wait try ' + i);
-        timers.shift()();
+        assert.strictEqual(ctx.timers.length, 1, 'age-wait try ' + i);
+        ctx.timers.shift()();
     }
-    assert.deepStrictEqual(created, []);
-    assert.strictEqual(timers.length, 0);
+    assert.deepStrictEqual(ctx.created, []);
+    assert.strictEqual(ctx.timers.length, 0);
+});
+
+test('the fresh username step never opens while the age overlay is still visible', function () {
+    const ctx = loadFreshPromptSandbox({ nodes: { ageConfirmOverlay: { id: 'ageConfirmOverlay' } } });
+    ctx.sandbox.showUsernameRepickPrompt({ fresh: true });
+    for (let i = 0; i < 100; i++) ctx.timers.shift()();
+    assert.deepStrictEqual(ctx.created, []);
+    // Cap hit and overlay still up: do not open, even if we try again.
+    ctx.sandbox.showUsernameRepickPrompt({ fresh: true, _ageWaitTries: 100 });
+    assert.deepStrictEqual(ctx.created, []);
+});
+
+test('the fresh username step waits for the age decision with no overlay, then opens on flushAfterAge', function () {
+    const ctx = loadFreshPromptSandbox({ ageDecision: 'pending' });
+    ctx.sandbox.showUsernameRepickPrompt({ fresh: true });
+    assert.deepStrictEqual(ctx.created, []);
+    assert.ok(ctx.timers.length >= 1, 'fallback timer armed');
+    ctx.sandbox.flushAfterAge();
+    assert.ok(ctx.created.indexOf('usernameRepick') !== -1);
+});
+
+test('an email-link sign-in does not trust an in-memory guest username when the server doc has none', async function () {
+    const calls = await emailLinkSignupPrompt({
+        existing: true,
+        existingData: {},
+        currentUser: { username: 'GuestName' }
+    });
+    assert.deepStrictEqual(calls, ['username-step']);
+});
+
+test('a fresh username step does not open when the server account already has a username', async function () {
+    const ctx = loadFreshPromptSandbox({
+        withDb: true,
+        serverName: 'GuestName',
+        auth: { currentUser: { uid: 'emailuid1', isAnonymous: false } }
+    });
+    ctx.sandbox.showUsernameRepickPrompt({ fresh: true });
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.deepStrictEqual(ctx.created, []);
+    assert.deepStrictEqual(ctx.getCalls, ['emailuid1']);
+});
+
+test('a deferred fresh prompt does not open if the server name lands before the age step finishes', async function () {
+    let name = '';
+    const ctx = loadFreshPromptSandbox({
+        withDb: true,
+        serverName: function () { return name; },
+        auth: { currentUser: { uid: 'emailuid1', isAnonymous: false } },
+        ageDecision: 'pending'
+    });
+    ctx.sandbox.showUsernameRepickPrompt({ fresh: true });
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.deepStrictEqual(ctx.created, []);
+    name = 'GuestName';
+    ctx.sandbox.flushAfterAge();
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.deepStrictEqual(ctx.created, []);
+});
+
+test('age-confirm marks the age decision pending on sign-in and flushes after finishQueue', function () {
+    const src = read('age-confirm.js');
+    const finish = fnSource(src, 'finishQueue');
+    assert.ok(finish.includes('flushAfterAge'), 'finishQueue flushes the age wait');
+    assert.ok(finish.includes('_bqAgeDecision'), 'finishQueue records the decision');
+    const onAuth = fnSource(src, 'onAuthUser');
+    assert.ok(onAuth.includes("_bqAgeDecision = 'pending'"), 'sign-in marks age pending');
 });
 
 test('the username step sits above the onboarding questions', function () {

@@ -120,6 +120,21 @@
             if (kind === 'skip' && typeof q.skip === 'function') q.skip('age');
             else if (typeof q.done === 'function') q.done('age');
         } catch (e) {}
+        // Tell the username step the age step is fully done (confirmed or
+        // dismissed). Sign-out is not a decision for the next account.
+        try {
+            var signedOut = false;
+            try {
+                signedOut = !(root.firebase && typeof root.firebase.auth === 'function' && root.firebase.auth().currentUser);
+            } catch (eAuth) { signedOut = false; }
+            if (signedOut) {
+                root._bqAgeDecision = 'none';
+                root._deferUntilAge = [];
+                return;
+            }
+            root._bqAgeDecision = 'done';
+            if (typeof root.flushAfterAge === 'function') root.flushAfterAge();
+        } catch (eFlush) {}
     }
 
     function patchProfileCache(fields) {
@@ -576,12 +591,17 @@
 
     function onAuthUser(user) {
         if (!user) {
+            try {
+                root._bqAgeDecision = 'none';
+                root._deferUntilAge = [];
+            } catch (eClear) {}
             setHelper(false);
             clearDismissed();
             closeOverlay();
             finishQueue('skip');
             return;
         }
+        try { root._bqAgeDecision = 'pending'; } catch (ePend) {}
         loadUserDoc(user.uid, 0, !!user.isAnonymous);
     }
 
