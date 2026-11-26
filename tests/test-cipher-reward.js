@@ -102,7 +102,8 @@ test('published Terms odds match the cipher roll and Satoshi\'s Favor difficulty
     const root = path.join(__dirname, '..');
     const terms = fs.readFileSync(path.join(root, 'terms.html'), 'utf8');
     const oddsAt = terms.indexOf('id="odds"');
-    const next = terms.indexOf('<h2>14.', oddsAt);
+    // The odds table lives in section 16g (90e90b4ac); section 17 follows it.
+    const next = terms.indexOf('<h2>17.', oddsAt);
     assert.ok(oddsAt !== -1 && next > oddsAt, 'odds section missing');
     const section = terms.slice(oddsAt, next);
     const rows = [];

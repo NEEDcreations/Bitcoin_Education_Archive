@@ -771,8 +771,13 @@ queue.push(test('combo tiers follow server zones and trivia is graded before the
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
     const awardAt = index.indexOf('exports.awardPoints');
     const award = index.slice(awardAt, index.indexOf('exports.getFaucetStats', awardAt));
-    assert.ok(award.indexOf('triviaBank') !== -1);
-    assert.ok(award.indexOf('triviaGrade') < award.indexOf('progressBadges.progressSpec'));
+    // Since d2dfecd36 awardPoints refuses trivia and quiz XP; answerTrivia /
+    // gradeQuest grade on the server instead.
+    assert.ok(award.includes("error: 'Quiz and trivia rewards are graded on the server'"));
+    assert.ok(award.indexOf('graded on the server') < award.indexOf('progressBadges.progressSpec'));
+    assert.strictEqual(award.indexOf('triviaChoice'), -1);
+    const questCallables = fs.readFileSync(path.join(root, 'functions', 'src', 'questCallables.js'), 'utf8');
+    assert.ok(questCallables.includes('loadTriviaKey'));
     assert.ok(!award.includes("source: 'combo_bonus'"));
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
     assert.ok(quests.includes("httpsCallable('answerTrivia')"));

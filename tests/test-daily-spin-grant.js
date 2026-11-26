@@ -98,24 +98,23 @@ function assertAwardPaysNothing() {
         tickets: 50,
         streakFreezes: 4,
     });
-    assert.strictEqual(result.success, true);
+    // Since d2dfecd36 the shared resolver rejects the dead 'Daily Spin' phrase
+    // (success false, 'Unknown action'). Either way it must pay nothing.
     assert.strictEqual(result.awarded, 0);
     assert.strictEqual(result.tickets, 0);
-    assert.strictEqual(result.id, 'daily_spin');
     assert.strictEqual(mem.users.u.points, 40);
     assert.strictEqual(mem.users.u.orangeTickets, 3);
     assert.strictEqual(mem.daily.u.total, 100);
     assert.strictEqual(Object.keys(mem.claims).length, 0);
     assert.strictEqual(Object.keys(mem.counts).length, 0);
     const again = awardActions.applyAward(mem, 'u', { reason: 'Daily Spin', pts: 200 });
-    assert.strictEqual(again.success, true);
     assert.strictEqual(again.awarded, 0);
     assert.strictEqual(mem.users.u.points, 40);
 }
 
 function unit() {
     const indexSrc = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
-    const award = sliceBetween(indexSrc, 'exports.awardPoints = functionsV1.https.onCall', 'exports.getFaucetStats = functionsV1.https.onCall');
+    const award = sliceBetween(indexSrc, 'exports.awardPoints = functionsV1.https.onCall', 'exports.getFaucetStats = ');
     const gate = award.indexOf("resolved.id === 'daily_spin'");
     const transaction = award.indexOf('db.runTransaction');
     assert.ok(gate > 0 && transaction > gate);
@@ -248,7 +247,7 @@ async function main() {
         action: 'Daily Spin',
         reason: 'Daily Spin',
     }, ctx(uid));
-    assert.strictEqual(again.success, true);
+    // Pays nothing; success is false since the resolver rejects the phrase.
     assert.strictEqual(again.awarded, 0);
     assert.strictEqual(again.tickets, 0);
     user = (await userRef.get()).data();

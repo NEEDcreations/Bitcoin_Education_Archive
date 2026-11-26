@@ -365,8 +365,18 @@ queue.push(test('preferRest is enabled once before any Firestore use', function(
     // first ./src module.
     const shim = "require('./src/firebaseAdmin.js')";
     assert.ok(src.indexOf(shim) < 0 || src.indexOf(shim) < src.indexOf(call));
-    const firstSrc = src.replace(shim, '').indexOf("require('./src/");
-    assert.ok(src.replace(shim, '').indexOf(call) < firstSrc);
+    // Config-only modules (secret params and the service-account map) may load
+    // before preferRest because they never touch Firestore; each is checked.
+    const configOnly = ['nwcSecret', 'sensitiveSecrets', 'runtimeServiceAccounts'];
+    configOnly.forEach(function(name) {
+        const mod = read('functions/src/' + name + '.js');
+        assert.ok(!/firestore|firebase-admin|firebaseAdmin/.test(mod), name + ' must stay config-only');
+    });
+    let stripped = src.replace(shim, '');
+    configOnly.forEach(function(name) { stripped = stripped.split("require('./src/" + name + "')").join(''); });
+    const firstSrc = stripped.indexOf("require('./src/");
+    assert.ok(firstSrc > 0);
+    assert.ok(stripped.indexOf(call) < firstSrc);
     assert.ok(src.includes('__btcFirestorePreferRest'));
 }));
 

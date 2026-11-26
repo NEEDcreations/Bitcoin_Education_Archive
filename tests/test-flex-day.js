@@ -70,7 +70,8 @@ test('flex_all badges require that many full days, and the day bonus is 50 XP on
 test('awardPoints uses the same goal for the counter, the day bonus, and flex_all badges', function () {
     const src = read('functions/index.js');
     const start = src.indexOf('exports.awardPoints = functionsV1.https.onCall');
-    const end = src.indexOf('exports.getFaucetStats = functionsV1.https.onCall');
+    const end = src.indexOf('exports.getFaucetStats = ', start);
+    assert.ok(start > 0 && end > start);
     const body = src.slice(start, end);
     assert.ok(body.indexOf('nextFlexFullDays') > 0);
     assert.ok(body.indexOf('flexFullDays') > 0);

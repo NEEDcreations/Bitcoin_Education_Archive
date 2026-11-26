@@ -54,7 +54,8 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
 
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('./rules/node_modules/@firebase/rules-unit-testing');
 const { doc, setDoc, getDoc, updateDoc, deleteDoc } = require('./rules/node_modules/firebase/firestore');
-const admin = require('../functions/node_modules/firebase-admin');
+// firebase-admin 14 dropped admin.apps; the repo shim restores the namespace.
+const admin = require('../functions/src/firebaseAdmin.js');
 const engine = require('../functions/src/raidBossEngine');
 
 if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-raid' });

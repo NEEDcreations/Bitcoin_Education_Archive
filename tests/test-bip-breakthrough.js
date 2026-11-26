@@ -67,7 +67,9 @@ function testStreakAndClaim() {
     assert.strictEqual(last.streak, 7);
     assert.ok(last.bip && last.bip.number);
     assert.strictEqual(user.bipBreakthroughClaimedWeek, week);
-    assert.ok(user.coreContributorUntil > Date.now() - 1000);
+    // Fixed clock: the title runs 7 days from the day-7 claim, not from today.
+    const claimMs = Date.parse(start + 'T17:00:00Z') + 6 * 86400000;
+    assert.strictEqual(user.coreContributorUntil, claimMs + bip.TITLE_DAYS_MS);
 
     // Idempotent: another spin same day does not re-complete
     const again = bip.planStreak(user, Date.parse(start + 'T17:00:00Z') + 6 * 86400000);
