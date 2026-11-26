@@ -1895,6 +1895,29 @@ queue.push(test('tier collection reached only through grandfathered tiers pays 0
     assert.strictEqual(grandfatheredOnlyFrom(snap([]), []), false);
 }));
 
+queue.push(test('explore and streak phrases reject inherited object keys, and awardPoints rejects non-finite pts', function () {
+    const awardActions = require('../functions/src/awardActions');
+    const okExplore = awardActions.resolveAction({ action: '🗺️ 25% Explored' });
+    assert.strictEqual(okExplore.ok, true);
+    assert.strictEqual(okExplore.id, 'explore_25');
+    const okStreak = awardActions.resolveAction({ action: '🔥 3-day chat streak!', pts: 10 });
+    assert.strictEqual(okStreak.ok, true);
+    assert.strictEqual(okStreak.id, 'chat_streak_3');
+    ['constructor', '__proto__', 'toString'].forEach(function (key) {
+        const exploreHit = awardActions.resolveAction({ action: key });
+        assert.strictEqual(exploreHit.ok, false, 'explore ' + key);
+        assert.strictEqual(exploreHit.error, 'Unknown action', 'explore ' + key);
+        const streakHit = awardActions.resolveAction({ actionKey: '', action: key });
+        assert.strictEqual(streakHit.ok, false, 'streak ' + key);
+    });
+    const awardSrc = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
+    const awardAt = awardSrc.indexOf('exports.awardPoints');
+    const awardEnd = awardSrc.indexOf('exports.getFaucetStats');
+    assert.ok(awardAt > 0 && awardEnd > awardAt);
+    const body = awardSrc.slice(awardAt, awardEnd);
+    assert.ok(/if\s*\(\s*!Number\.isFinite\(\s*pts\s*\)/.test(body));
+}));
+
 Promise.all(queue).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);
