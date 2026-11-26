@@ -597,7 +597,8 @@
         body:has(#tosModal.open) #totpSignInOverlay,
         body:has(#tosModal.open) #mfaSignInOverlay,
         body:has(#tosModal.open) #pushOptIn { display:none !important; }
-        body:has(#usernameModal.open) .rank-toast { display:none !important; }
+        body:has(#usernameModal.open #signupStartBtn) .rank-toast,
+        body:has(#usernameModal.open #usernameInput) .rank-toast { display:none !important; }
 
         /* FAB row: Chat | AI | Metrics | Leaderboard (L→R) */
         .fab-btn { position:fixed; bottom:10px; z-index:200001; width:48px; height:48px; border-radius:50%; border:none; color:#fff; font-size:1.4rem; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; transition:transform 0.2s,opacity 0.2s,box-shadow 0.2s; -webkit-transform:translateZ(0); transform:translateZ(0); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
@@ -2527,7 +2528,7 @@
     
     <script src="/miniapp-share.js?v=20261107_v2526" defer></script>
     <script src="/pvp-lobby-alert.js?v=20261118_v2605" defer></script>
-    <script src="/patches.js?v=20261026_v2385" defer></script>
+    <script src="/patches.js?v=20261126_v2702" defer></script>
     <script src="/onboarding.js?v=20261119_v2683" defer></script>
     <script src="/learning-quests.js?v=20261026_v2377" defer></script>
     <script src="/ads.js?v=20261126_v2696" defer></script>

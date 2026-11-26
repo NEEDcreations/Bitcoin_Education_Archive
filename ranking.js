@@ -286,11 +286,18 @@ function tosBlocking() {
 }
 window.tosBlocking = tosBlocking;
 
+// True only while the sign-up / sign-in form is on screen. Settings reuses
+// #usernameModal but replaces the form, so it must not hold toasts back.
+function signupFormOpen() {
+    var signup = document.getElementById('usernameModal');
+    if (!signup || !signup.classList.contains('open')) return false;
+    return !!signup.querySelector('#signupStartBtn, #usernameInput');
+}
+window.signupFormOpen = signupFormOpen;
+
 function chromeBlocksToasts() {
     if (tosBlocking()) return true;
-    var signup = document.getElementById('usernameModal');
-    if (signup && signup.classList.contains('open')) return true;
-    return false;
+    return signupFormOpen();
 }
 
 window._deferUntilTos = window._deferUntilTos || [];
@@ -8417,12 +8424,21 @@ window._showToastNow = function _showToastNow(msg, duration) {
     requestAnimationFrame(() => t.classList.add('show'));
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, ms);
 }
-// Flush queued toasts when Nacho is no longer busy
-setInterval(function() {
-    if (!window._nachoBusy && !chromeBlocksToasts() && _toastQueue.length > 0) {
-        _showToastNow(_toastQueue.shift());
-    }
-}, 2000);
+// Flush queued toasts as soon as Nacho, Terms and sign-up stop blocking.
+// Checked every 250ms so the first queued toast shows right away, then the
+// rest follow 1.2s apart instead of waiting up to 2s each.
+var TOAST_QUEUE_TICK_MS = 250;
+var TOAST_QUEUE_GAP_MS = 1200;
+var _toastQueueLastShow = 0;
+function _flushToastQueueTick(now) {
+    if (!_toastQueue.length || window._nachoBusy || chromeBlocksToasts()) return false;
+    now = now || Date.now();
+    if (now - _toastQueueLastShow < TOAST_QUEUE_GAP_MS) return false;
+    _toastQueueLastShow = now;
+    _showToastNow(_toastQueue.shift());
+    return true;
+}
+setInterval(function() { _flushToastQueueTick(); }, TOAST_QUEUE_TICK_MS);
 
 // Capture all sign-up form fields to localStorage before any auth provider fires.
 // This ensures username, LN address, faction, and country survive popup/redirect auth.
@@ -11569,8 +11585,9 @@ async function saveProfile() {
         // Update local currentUser object
         Object.assign(currentUser, updateData);
 
-        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Profile saved!</span>';
-        if (typeof showToast === 'function') showToast('✅ Profile saved successfully!');
+        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Saved</span>';
+        // Settings stays open, so this toast shows over it right away.
+        if (typeof showToast === 'function') showToast('✅ Saved');
         if (_profileFreshLn) openWithdrawalAddress({ mode: 'reset', address: _profileFreshLn, start: 'confirm' });
 
         // Small delay then close or refresh settings view
