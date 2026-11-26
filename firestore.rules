@@ -1590,14 +1590,16 @@ service cloud.firestore {
 
     // Like and unlike must move likes and likedBy together, by exactly one.
     function beatsLikeOk() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+      return request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
         && resource.data.get('likes', 0) is int
         && request.resource.data.likes == resource.data.get('likes', 0) + 1
         && !(request.auth.uid in resource.data.get('likedBy', []))
         && request.resource.data.likedBy == resource.data.get('likedBy', []).concat([request.auth.uid]);
     }
     function beatsUnlikeOk() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+      return request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
         && resource.data.get('likes', 0) is int
         && resource.data.get('likes', 0) > 0
         && request.auth.uid in resource.data.get('likedBy', [])
@@ -1645,6 +1647,7 @@ service cloud.firestore {
                       // Author can update their own track (with coverUrl + XSS validation)
                       (resource.data.authorId == request.auth.uid
                         && serverCountersUnchanged()
+                        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['likes', 'likedBy'])
                         && v4vSplitsFieldOk(request.resource.data)
                         && (!('coverUrl' in request.resource.data)
                             || request.resource.data.coverUrl == ''

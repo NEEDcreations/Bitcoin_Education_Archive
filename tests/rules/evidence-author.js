@@ -255,6 +255,30 @@ const parts = emu.split(':');
                 likedBy: ['cy'],
             });
         }, true);
+        await expect('a guest cannot like a track', function () {
+            return updateDoc(doc(guest, 'beats_tracks', 'track1'), {
+                likes: 1,
+                likedBy: ['guest'],
+            });
+        }, false);
+        await expect('a signed-in user can like a fresh track', function () {
+            return updateDoc(doc(dee, 'beats_tracks', 'track1'), {
+                likes: 1,
+                likedBy: ['dee'],
+            });
+        }, true);
+        await expect('the author cannot set likes on their own track', function () {
+            return updateDoc(doc(ada, 'beats_tracks', 'track1'), { likes: 9 });
+        }, false);
+        await expect('the author cannot rewrite likedBy', function () {
+            return updateDoc(doc(ada, 'beats_tracks', 'track1'), { likedBy: ['ada'] });
+        }, false);
+        await expect('the author cannot change the title and likes together', function () {
+            return updateDoc(doc(ada, 'beats_tracks', 'track1'), { title: 'Genesis Rewritten', likes: 9 });
+        }, false);
+        await expect('the author can still edit the title', function () {
+            return updateDoc(doc(ada, 'beats_tracks', 'track1'), { title: 'Genesis After Review' });
+        }, true);
         await expect('client cannot write an award claim marker', function () {
             return setDoc(doc(bea, 'award_doc_claims', 'forum_posts__post1'), { uid: 'bea' });
         }, false);
