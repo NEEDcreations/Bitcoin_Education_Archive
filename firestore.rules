@@ -249,7 +249,10 @@ service cloud.firestore {
         'bipBreakthroughClaimedBipId', 'bipBadges',
         'coreContributorUntil', 'coreContributorTitle',
         // Faction race end prizes (server-only; onFactionTotalsWritten awards)
-        'factionRaceBadges', 'factionChampionUntil', 'factionChampionFlair'
+        'factionRaceBadges', 'factionChampionUntil', 'factionChampionFlair',
+        // Age confirmation. confirmAge18 / confirmAgeUnder18 callables only.
+        'over18', 'over18ConfirmedAt', 'ageConfirmed18', 'ageConfirmed18At',
+        'ageConfirmBlocked', 'ageUnder18', 'ageUnder18At'
       ];
     }
 
@@ -386,6 +389,9 @@ service cloud.firestore {
                         'anonBadgesMerged',
                         // Premium — must never be client-writable (self-grant exploit)
                         'premium',
+                        // Age confirmation. confirmAge18 / confirmAgeUnder18 callables only.
+                        'over18', 'over18ConfirmedAt', 'ageConfirmed18', 'ageConfirmed18At',
+                        'ageConfirmBlocked', 'ageUnder18', 'ageUnder18At',
                         // Daily quest gating (CF)
                         'dailyAllThreeDate', 'dailyQuizDone', 'dailyTriviaDone', 'dailyPollDone',
                         // Admin / anti-fraud fields — NEVER writable by clients
@@ -2934,6 +2940,11 @@ service cloud.firestore {
     // =============================================
     match /admin_audit_log/{logId} {
       allow read, write: if false; // Cloud Function (Admin SDK) only
+    }
+
+    // Per-uid 18+ confirm throttle. Server only.
+    match /age_confirm_throttle/{uid} {
+      allow read, write: if false;
     }
 
     // One-time withdrawal-address reset. Server only, including the marker.

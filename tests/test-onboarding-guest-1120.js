@@ -212,6 +212,7 @@ test('a guest signup can start the questions step immediately', function () {
     const seen = [];
     q.skip('gift');
     q.skip('terms');
+    q.skip('age');
     q.ready('quiz', function () { seen.push('quiz'); });
     q.ready('pace', function () { seen.push('pace'); });
     q.onSignedIn();

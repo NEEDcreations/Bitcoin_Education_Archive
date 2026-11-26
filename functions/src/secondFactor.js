@@ -36,6 +36,8 @@ const FRESH_ACTIONS = {
     adminResolveFavorReview: true,
     adminSetSitewideCaps: true,
     adminGetSitewideCaps: true,
+    adminUnconfirmAge18: true,
+    adminResetAge18: true,
 };
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

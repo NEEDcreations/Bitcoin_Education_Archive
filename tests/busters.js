@@ -1,4 +1,4 @@
-// Cache-buster pin. Combined staging merge: RLDA-40 ads.js is 20261125_v2695 (index.html, 404.html). TCTV watch-timer fallback + App Check notices is btc-archive-v2692 (tctv-watch.js, tctv-drip.js, tctv-originals.js, tctv-originals-player.js, tctv-chrome.js, sw.js; timechain-tv.js still 20261125_v2691). Shared re-pin stays for the end of this merge. Patch notes banner refresh + Back to app is btc-archive-v2690 (index.html, 404.html, patch-notes.html; no JS pins). Patch notes Faster Loads + Timelines is btc-archive-v2687 (patch-notes.html; no JS pins). Terms 16g + raffle Official Rules is btc-archive-v2686 (terms.html, raffle-rules.html, resets.html, quests.js 20261120_v2686). Timelines & Odds page + what's-new banner is btc-archive-v2684 (resets.html, index.html, 404.html, patch-notes.html; no JS pins). Guest onboarding fixes are btc-archive-v2683 (ranking.js, onboarding.js 20261119_v2683). Proof of Play + chat CTA links + 10 Timechain games is btc-archive-v2682 (proof-of-play.js, global-chat.js, bundle.min.js 20261119_v2682). Onboarding questions-first is btc-archive-v2681 (popup-stack.js, features.registry.js 20261119_v2681). Dry run v3 step 3 is btc-archive-v2667 (article; bundle.min.js 20261119_v2667). Step 2 v2666: beats.js, lightning-tips.js. Step 1 v2665: global-chat.js, ranking.js.
+// Cache-buster pin. Combined staging merge (shared re-pin at the end): RLDA-40 ads.js is 20261125_v2695. TCTV is included from #403. Sitewide caps add sitewide-cap-card.js and gifting.js 20261125_v2691. Age confirmation is btc-archive-v2694 (sw.js, age-confirm.js, ranking.js 20261125_v2694). Patch notes banner refresh + Back to app is btc-archive-v2690 (index.html, 404.html, patch-notes.html; no JS pins). Patch notes Faster Loads + Timelines is btc-archive-v2687 (patch-notes.html; no JS pins). Terms 16g + raffle Official Rules is btc-archive-v2686 (terms.html, raffle-rules.html, resets.html, quests.js 20261120_v2686). Timelines & Odds page + what's-new banner is btc-archive-v2684 (resets.html, index.html, 404.html, patch-notes.html; no JS pins). Guest onboarding fixes are btc-archive-v2683 (ranking.js, onboarding.js 20261119_v2683). Proof of Play + chat CTA links + 10 Timechain games is btc-archive-v2682 (proof-of-play.js, global-chat.js, bundle.min.js 20261119_v2682). Onboarding questions-first is btc-archive-v2681 (popup-stack.js, features.registry.js 20261119_v2681). Dry run v3 step 3 is btc-archive-v2667 (article; bundle.min.js 20261119_v2667). Step 2 v2666: beats.js, lightning-tips.js. Step 1 v2665: global-chat.js, ranking.js.
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261125_v2691. scholar.js is 20261105_v2490.
@@ -51,9 +51,11 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     assert.ok(!html.includes('features.registry.js?v=20261109_v2538'));
 });
 
-test('service worker cache is v2692', () => {
+test('service worker cache is v2694', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2692'"))
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2694'"))
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2693'"));
+    assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2692'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2691'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2690'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2687'"));
@@ -334,6 +336,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
     assert.ok(html.includes('referral-tiers.js?v=20261105_v2499'));
     assert.ok(html.includes('ranking.js?v=20261125_v2694'));
+    assert.ok(!html.includes('ranking.js?v=20261119_v2683'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2665'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2635'));
     assert.ok(!html.includes('ranking.js?v=20261118_v2605'));
@@ -732,7 +735,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2692');
+    assert.ok(swVersion && swVersion[1] === 'v2694');
+    assert.notStrictEqual(swVersion[1], 'v2693');
+    assert.notStrictEqual(swVersion[1], 'v2692');
+    assert.notStrictEqual(swVersion[1], 'v2691');
     assert.notStrictEqual(swVersion[1], 'v2690');
     assert.notStrictEqual(swVersion[1], 'v2687');
     assert.notStrictEqual(swVersion[1], 'v2682');
@@ -899,10 +905,12 @@ test('terms publish Satoshi\'s Favor and cipher sats odds', () => {
 
 test('PR #252 asset busters are v2512 (popup-stack bumped to v2519)', () => {
     const html = read('index.html');
-    assert.ok(html.includes('popup-stack.js?v=20261119_v2681'));
+    assert.ok(html.includes('popup-stack.js?v=20261125_v2691'));
+    assert.ok(!html.includes('popup-stack.js?v=20261119_v2681'));
     assert.ok(!html.includes('popup-stack.js?v=20261106_v2515'));
     assert.ok(!html.includes('popup-stack.js?v=20261106_v2512'));
     assert.ok(html.includes('ranking.js?v=20261125_v2694'));
+    assert.ok(!html.includes('ranking.js?v=20261119_v2683'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2635'));
     assert.ok(!html.includes('ranking.js?v=20261116_v2581'));
     assert.ok(html.includes('bundle.min.js?v=20261119_v2682b'));
@@ -976,7 +984,13 @@ test('RLDA-40 ads.js is pinned at 20261125_v2695 and not protocol-relative', () 
     assert.ok(!html.includes('src="ads.js'));
     const ads = read('ads.js');
     assert.ok(ads.includes("https://acceptable.a-ads.com/2463147/?size=Adaptive"));
-    assert.ok(!ads.includes("src = '//"));
+    assert.ok(!ads.includes("src = '//"));test('18+ age confirmation script is pinned and identical on 404', () => {
+    const html = read('index.html');
+    const html404 = read('404.html');
+    assert.strictEqual(html, html404);
+    assert.ok(html.includes('src="/age-confirm.js?v=20261125_v2694"'));
+    assert.ok(html.includes('popup-stack.js?v=20261125_v2691'));
+    assert.ok(fs.existsSync(path.join(root, 'age-confirm.js')));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
