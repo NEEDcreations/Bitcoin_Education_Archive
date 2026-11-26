@@ -127,7 +127,7 @@ test('firebase config is one literal shared by both boot paths', () => {
 });
 
 test('bundle preload is restored and the ready signal follows the bundle', () => {
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2682b/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261125_v2696/g) || []).length, 2);
     assert.ok(!html.includes('bundle.min.js?v=20261119_v2656'));
     assert.ok(!html.includes('bundle.min.js?v=20261119_v2635'));
     assert.ok(!html.includes('bundle.min.js?v=20261101_v2455'));
