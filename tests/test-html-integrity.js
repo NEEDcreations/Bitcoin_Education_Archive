@@ -48,11 +48,15 @@ test('all external scripts are deferred', () => {
     const scriptTags = html.match(/<script src="[^"]*"[^>]*>/g) || [];
     // auth-display.js is intentionally blocking. It only paints a display-only
     // signed-in class during HTML parse, before first paint. It grants nothing.
-    const nonDeferred = scriptTags.filter(s => !s.includes('defer') && !s.includes('async') && !s.includes('gstatic') && !s.includes('security-patches') && !s.includes('beats-censor.js') && !s.includes('auth-display.js'));
+    // twa-mode.js is also blocking: in the Android app it must hide Premium and
+    // Kids entry points before first paint and before the deferred app runs.
+    const nonDeferred = scriptTags.filter(s => !s.includes('defer') && !s.includes('async') && !s.includes('gstatic') && !s.includes('security-patches') && !s.includes('beats-censor.js') && !s.includes('auth-display.js') && !s.includes('/twa-mode.js?'));
     assert(nonDeferred.length === 0, `Non-deferred scripts: ${nonDeferred.join(', ')}`);
     const blockingDisplay = scriptTags.filter(s => s.includes('auth-display.js'));
     assert(blockingDisplay.length === 1, 'auth-display.js should be the one blocking local painter');
     assert(!blockingDisplay[0].includes('defer') && !blockingDisplay[0].includes('async'), 'auth-display.js stays parser-blocking so the class is set before first paint');
+    const blockingTwa = scriptTags.filter(s => s.includes('/twa-mode.js?'));
+    assert(blockingTwa.length === 1 && !blockingTwa[0].includes('defer') && !blockingTwa[0].includes('async'), 'twa-mode.js stays parser-blocking');
 });
 
 // Firebase SDK loaded
