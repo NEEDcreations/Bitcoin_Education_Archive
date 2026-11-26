@@ -14,6 +14,10 @@ function test(name, fn) {
 }
 
 const privacy = read('privacy.html');
+
+// Insurance/Legal text, verbatim. Link tags are stripped before comparing.
+const LEGAL_TEXT = "We show ads only to signed-in users who have confirmed they are 18 or older. We never show ads to guests or to Kids or Classroom accounts. We don't sell personal information for money. When Google AdSense shows you an ad, Google may collect cookie and device identifiers, which some state laws, including California's, may treat as 'sharing' for cross-context behavioral advertising. [A-ADS SENTENCE TBD] You can opt out of this sharing at any time with the Your Privacy Choices link at the bottom of every page. We also honor Global Privacy Control (GPC) signals from your browser as an opt-out. When you opt out, you'll see only non-personalized ads. You can also manage Google's ad personalization in Google's Ads Settings. We don't knowingly sell or share personal information of anyone under 18. We don't currently show ads in the EEA, UK or Switzerland.";
+function plain(html) { return html.replace(/<[^>]+>/g, ''); }
 function adsSection() {
     const start = privacy.indexOf('<h2 id="advertising">Advertising</h2>');
     assert.ok(start > 0, 'advertising section missing');
@@ -29,27 +33,18 @@ test('privacy has one Advertising section between Cookies and Nacho', function (
     assert.ok(ads < privacy.indexOf('<h2>8. Nacho (AI Mascot) Privacy</h2>'));
 });
 
-test('the section names AdSense, cookies, and the 18+ and guest rules', function () {
-    const s = adsSection();
-    assert.ok(s.includes('Google AdSense'));
-    assert.ok(s.includes('Google and its partners may use cookies, device identifiers, or similar technologies'));
-    assert.ok(s.includes('only to signed-in users who have confirmed they are 18 or older'));
-    assert.ok(s.includes('Guests never see ads.'));
-    assert.ok(s.includes('A-ADS'));
-    assert.ok(s.includes('Timechain TV'));
+test('the section carries the Insurance/Legal text verbatim', function () {
+    const s = plain(adsSection());
+    assert.ok(s.includes('Advertising and your choices. ' + LEGAL_TEXT));
+    assert.ok(s.includes('[A-ADS SENTENCE TBD]'));
 });
 
-test('the section links Google Ads Settings, partner sites, and the opt-out pages', function () {
+test('the section links Google Ads Settings and nothing else from the old draft', function () {
     const s = adsSection();
-    [
-        'https://adssettings.google.com',
-        'https://policies.google.com/technologies/partner-sites',
-        'https://www.aboutads.info/choices',
-        'https://youronlinechoices.eu',
-        'https://aads.com/privacy_policy/',
-    ].forEach(function (u) { assert.ok(s.includes('href="' + u + '"'), u); });
+    assert.ok(s.includes('href="https://adssettings.google.com"'));
+    assert.ok(!s.includes('youronlinechoices.eu'));
     const links = s.match(/<a [^>]*>/g) || [];
-    links.forEach(function (a) { assert.ok(a.includes('rel="noopener"'), a); });
+    links.forEach(function (a) { assert.ok(a.includes('rel="noopener"') || a.includes('href="#'), a); });
 });
 
 test('the section has no em-dashes', function () {
@@ -97,19 +92,21 @@ test('reworded lines match ads.js: 18+ only, AdSense plus A-ADS, ad cookies', fu
     assert.ok(privacy.includes('<li>Cross-site tracking cookies of our own</li>'));
 });
 
-test('the ad-free group is 20% and bq_ads_device is in the storage list', function () {
-    assert.ok(adsSection().includes('about 20% of eligible users are placed in an ad-free group'));
+test('the ad-free group is 20% and the section names the storage keys', function () {
+    const sec = adsSection();
+    assert.ok(sec.includes('about 20% of eligible users are placed in an ad-free group'));
+    ['bq_ads_device', 'bq_ads_agg_today', 'bq_ads_agg_yday'].forEach(function (k) { assert.ok(sec.includes('<code>' + k + '</code>'), k); });
+    assert.ok(sec.indexOf('Advertising and your choices.') < sec.indexOf('Ad-free group.'));
     assert.ok(privacy.includes('<code>bq_ads_device</code> is a random device id used only to place this device in or out of the ad-free group'));
     const storage = privacy.slice(privacy.indexOf('<h3>Browser localStorage</h3>'), privacy.indexOf('<h3>Service Worker Cache</h3>'));
     assert.ok(storage.includes('bq_ads_device'));
 });
 
-test('the CCPA line has a Do not sell or share draft marked [LEGAL REVIEW]', function () {
+test('S20 Sale and share uses the same text and drops the [LEGAL REVIEW] draft', function () {
     const sale = privacy.slice(privacy.indexOf('<h3>Sale and share</h3>'), privacy.indexOf('<h3>Legal bases'));
-    assert.ok(sale.includes('[LEGAL REVIEW]'));
-    assert.ok(sale.includes('Do not sell or share:'));
-    assert.ok(sale.includes('href="https://adssettings.google.com"'));
-    assert.ok(sale.includes('href="https://www.aboutads.info/choices"'));
+    assert.ok(plain(sale).includes('Advertising and your choices. ' + LEGAL_TEXT));
+    assert.ok(!privacy.includes('[LEGAL REVIEW]'));
+    assert.ok(sale.includes('other than Google AdSense and A-ADS, are so they can run the Site'));
     assert.ok(!sale.includes('\u2014'));
 });
 
@@ -135,11 +132,12 @@ test('the storage list has the ad group count keys', function () {
     assert.ok(storage.includes('<code>bq_ads_agg_yday</code>'));
 });
 
-test('the Do not sell or share draft has no email opt-out promise', function () {
+test('no email opt-out promise and no sell-for-advertising line remain', function () {
     const sale = privacy.slice(privacy.indexOf('<h3>Sale and share</h3>'), privacy.indexOf('<h3>Legal bases'));
     assert.ok(!sale.includes('with the subject'));
     assert.ok(!sale.includes('info.603btc@gmail.com'));
-    assert.ok(sale.includes('Google Ads Settings</a> or by using'));
+    assert.ok(!privacy.includes('sell your personal information for advertising'));
+    assert.ok(privacy.includes('Our commitment: We do not sell your personal information for money.'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
