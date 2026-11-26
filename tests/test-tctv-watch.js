@@ -346,6 +346,11 @@ test('callable reads playback flags but ignores elapsed time, day, and prizes', 
     assert.ok(src.includes('nyDateKey(nowMs)'));
     assert.ok(src.includes('originalOk'));
     assert.ok(src.includes('body.videoId'));
+    assert.ok(src.includes('killSwitch.isOffline(db)'));
+    assert.ok(src.includes('nyDateKey(nowMs)'));
+    assert.ok(src.includes('offsetDateKey(nowMs)'));
+    assert.ok(src.includes('daily_points') && src.includes('xpDay'));
+    assert.ok(src.includes('The XP cap'));
     assert.ok(src.includes('runTransaction'));
     assert.ok(src.includes('orangeTickets'));
     assert.ok(src.includes('REWARD_TICKETS'));

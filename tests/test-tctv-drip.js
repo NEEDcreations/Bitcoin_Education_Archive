@@ -253,3 +253,11 @@ console.log('tctv-drip client prompt: ok');
     assert.ok(rules.indexOf('match /tctv_drip_backfill_audit/{docId}') !== -1 && /allow read, write: if false/.test(auditBlock), 'deny-all rules for backfill audit');
 }
 console.log('tctv pot backfill planner: ok');
+
+const dripSrc = require('fs').readFileSync(require('path').join(__dirname, '..', 'functions/tctv-drip.js'), 'utf8');
+assert.ok(dripSrc.includes('const DRIP_SATS_PAYOUTS_DISABLED = true'));
+assert.ok(dripSrc.includes("reason: 'hard-disabled'"));
+assert.ok(dripSrc.indexOf('DRIP_SATS_PAYOUTS_DISABLED') < dripSrc.indexOf('cipherSatsBalance'));
+assert.ok(dripSrc.includes('killSwitch.isOffline(db)'));
+assert.ok(dripSrc.includes("tick: sats payouts hard-disabled; pot left as-is"));
+console.log('tctv-drip sats payout hard-disable: ok');

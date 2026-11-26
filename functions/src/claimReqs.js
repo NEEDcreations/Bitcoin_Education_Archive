@@ -10,8 +10,12 @@
 // filter accepted. Claim time re-reads that message. tctvAt: the watch
 // meter has recorded one watch-credit block. That block is
 // tctvWatch.CREDIT_SECONDS, because the first heartbeat only starts the
-// clock and the next one is the first credit. (A referral-visit step was
-// dropped on Nov 4; only chat and TCTV are required.)
+// clock and the next one is the first credit. While the Originals library
+// is too thin, the same anti-bot step is met by one server-written lesson
+// or quiz pass (questsPassed, lqPassed, or triviaCorrect). A prior tctvAt
+// or learnAt stamp also counts, including after Originals go live.
+// completedQuests is a client field and is ignored. (A referral-visit
+// step was dropped on Nov 4.)
 
 const { classifyChatText } = require('./chatProfanity');
 const tctvWatch = require('./tctvWatch');
@@ -39,6 +43,7 @@ const CHAT_MSG_CAP = 5;
 const ITEM_LABEL = {
     chat: 'send 1 chat message',
     tctv: 'watch Bitcoin Quest Originals for ' + MIN_TCTV_SECONDS + ' seconds',
+    learn: 'complete 1 lesson or quiz',
 };
 
 const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/;
@@ -76,13 +81,30 @@ function claimReqOf(user) {
     return req && typeof req === 'object' ? req : {};
 }
 
+// Server-written progress only. Ignore client-owned arrays such as completedQuests.
+function learnQualifies(user) {
+    const row = user || {};
+    const quests = Math.floor(Number(row.questsPassed) || 0);
+    const lessons = Math.floor(Number(row.lqPassed) || 0);
+    const trivia = Math.floor(Number(row.triviaCorrect) || 0);
+    return quests >= 1 || lessons >= 1 || trivia >= 1;
+}
+
+function antiBotMet(user) {
+    const req = claimReqOf(user);
+    if (stampMillis(req.tctvAt) || stampMillis(req.learnAt)) return true;
+    return learnQualifies(user);
+}
+
 function missingItems(user, createdMs) {
     if (isExempt(createdMs)) return [];
     const req = claimReqOf(user);
     const missing = [];
     if (!stampMillis(req.chatAt)) missing.push('chat');
-    // Hidden while the Originals library is too thin; do not block claims.
-    if (originals.taskEnabled() && !stampMillis(req.tctvAt)) missing.push('tctv');
+    // Do not drop the anti-bot step while the Originals list is empty.
+    if (!antiBotMet(user)) {
+        missing.push(originals.taskEnabled() ? 'tctv' : 'learn');
+    }
     return missing;
 }
 
@@ -188,6 +210,8 @@ module.exports = {
     isExempt: isExempt,
     missingItems: missingItems,
     missingError: missingError,
+    learnQualifies: learnQualifies,
+    antiBotMet: antiBotMet,
     chatQualifies: chatQualifies,
     normalizeChatMsgId: normalizeChatMsgId,
     chatMsgIdsOf: chatMsgIdsOf,

@@ -19,6 +19,7 @@ const { rewardBlocked } = require('./src/cipherClaim');
 const claimReqs = require('./src/claimReqs');
 const originals = require('./src/tctvOriginals');
 const { nyDateKey } = require('./src/offsetDay');
+const killSwitch = require('./src/killSwitch');
 
 const db = admin.firestore();
 
@@ -44,6 +45,9 @@ const tctvWatchHeartbeat = functionsV1.runWith({
     if (provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Sign in required');
     }
+    if (await killSwitch.isOffline(db)) {
+        throw new functionsV1.https.HttpsError('unavailable', killSwitch.OFFLINE_MESSAGE);
+    }
 
     // Playback flags are read and validated. Elapsed time, day, and prize
     // amounts from the client are never read.
@@ -57,6 +61,10 @@ const tctvWatchHeartbeat = functionsV1.runWith({
     const muted = body.muted === true;
     const paused = body.paused === true;
     const playbackRate = Number(body.playbackRate);
+    // Task progress and the ticket use the ET calendar day. The XP cap
+    // doc (daily_points) stays on the 5 AM UTC offset day so it shares
+    // the sitewide cap ledger. awardedDay on the watch doc prevents a
+    // second prize in the same ET day.
     const today = nyDateKey(nowMs);
     const xpDay = watch.offsetDateKey(nowMs);
     const watchRef = db.collection('tctv_watch').doc(uid);

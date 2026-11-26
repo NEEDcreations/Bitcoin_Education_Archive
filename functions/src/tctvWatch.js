@@ -9,7 +9,12 @@
 // heartbeat, and the first heartbeat after a longer gap, only starts the
 // clock (credit 0). Nothing is backfilled. Two tabs share one uid ledger.
 // The daily total stops at 600 seconds, so 10 minutes of credit takes at
-// least 10 real minutes. The prize is once per uid per 5 AM UTC day.
+// least 10 real minutes. The prize (100 XP and 1 OrangeTix) is once per
+// uid per America/New_York calendar day (awardedDay). The XP amount is
+// also counted toward the sitewide daily_points cap, which stays on the
+// 5 AM UTC offset day so this task cannot bypass that ledger. The two
+// keys can split between midnight and 1 AM EDT in summer; awardedDay
+// still prevents a second prize in the same ET day.
 
 const rewardNotify = require('./rewardNotify');
 const { planXpGrant } = require('./grantXp');
@@ -61,7 +66,7 @@ function noticeMessage(xp, tickets) {
     return '📺 +' + xp + ' XP and ' + ticketBit + ' for watching Bitcoin Quest Originals!';
 }
 
-// Same id the reward-notice writer uses: one doc per uid per offset day.
+// Same id the reward-notice writer uses: one doc per uid per ET day.
 function watchNoticeId(uid, day) {
     const cleanUid = rewardNotify.safeId(uid);
     const cleanDay = watchDayStamp(day);

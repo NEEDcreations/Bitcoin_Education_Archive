@@ -118,5 +118,13 @@ test('timer-fix App Check and retry notes are still in place', () => {
     assert.ok(player.includes('tctvWatchForApiUpgrade') || player.includes('Watch credit needs the full player'));
 });
 
+test('awardActions comment and drip payouts match Legal\'s no-sats rule', () => {
+    const actions = read('functions/src/awardActions.js');
+    assert.ok(actions.includes('once per America/New_York day'));
+    assert.ok(!actions.includes('once per offset day, from tctvWatchHeartbeat'));
+    const drip = read('functions/tctv-drip.js');
+    assert.ok(drip.includes('const DRIP_SATS_PAYOUTS_DISABLED = true'));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);
