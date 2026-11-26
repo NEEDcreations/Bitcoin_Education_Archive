@@ -2399,10 +2399,30 @@ async function finishEmailSignIn(email, _signInUrl) {
             try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
             if (typeof attachReferral === 'function') attachReferral(emailUid);
         }
+        var guestHold = false;
+        if (typeof tryLinkGuest === 'function') {
+            try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
+        }
+
+        // Keep the guest profile when the merge is waiting on the 2FA gate.
+        if (anonUid && anonUid !== emailUid && !guestHold) {
+            try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
+        }
+
         // New email-link accounts (and existing docs with no name) must get
-        // the username step. showUsernamePrompt opens Settings for a signed-in
-        // user, so use showNewAccountNamePrompt, matching social sign-in.
+        // the username step. Wait until after tryLinkGuest so a guest who
+        // already has a name does not see the pick-a-name sheet. showUsernamePrompt
+        // opens Settings for a signed-in user, so use showNewAccountNamePrompt.
         var existingName = (existingDoc.exists && existingDoc.data() && existingDoc.data().username) || '';
+        if (!String(existingName).trim()) {
+            try {
+                var afterLink = await db.collection('users').doc(emailUid).get();
+                if (afterLink && afterLink.exists && afterLink.data()) existingName = afterLink.data().username || '';
+            } catch (eName) {}
+        }
+        if (!String(existingName).trim() && typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
+            existingName = currentUser.username;
+        }
         if (!String(existingName).trim()) {
             if (pendingUsername) {
                 try { await applyServerUsername(pendingUsername); }
@@ -2413,15 +2433,6 @@ async function finishEmailSignIn(email, _signInUrl) {
             } else {
                 showNewAccountNamePrompt();
             }
-        }
-        var guestHold = false;
-        if (typeof tryLinkGuest === 'function') {
-            try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
-        }
-
-        // Keep the guest profile when the merge is waiting on the 2FA gate.
-        if (anonUid && anonUid !== emailUid && !guestHold) {
-            try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
         }
 
         // Clean URL
@@ -5052,8 +5063,16 @@ function showUsernameRepickPrompt(opts) {
     }
     // New accounts: Terms, then the age step, then the username step. Do not
     // stack this sheet on the age overlay. Other repick callers stay immediate.
+    // Cap the wait so a stuck age step cannot poll forever (~30s).
     if (opts && opts.fresh && ageConfirmBlocking()) {
-        setTimeout(function () { showUsernameRepickPrompt(opts); }, 300);
+        var waitTries = (opts && opts._ageWaitTries) || 0;
+        if (waitTries >= 100) return;
+        var nextOpts = {};
+        for (var k in opts) {
+            if (Object.prototype.hasOwnProperty.call(opts, k)) nextOpts[k] = opts[k];
+        }
+        nextOpts._ageWaitTries = waitTries + 1;
+        setTimeout(function () { showUsernameRepickPrompt(nextOpts); }, 300);
         return;
     }
     if (document.getElementById('usernameRepick')) return;

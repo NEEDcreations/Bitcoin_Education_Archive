@@ -98,6 +98,8 @@ test('new-account paths never send a signed-in user to the sign-up prompt', func
     const prompt = fnSource(src, 'showUsernameRepickPrompt');
     assert.ok(prompt.includes('opts && opts.fresh'));
     assert.ok(prompt.includes('ageConfirmBlocking()'));
+    assert.ok(prompt.includes('_ageWaitTries'));
+    assert.ok(prompt.includes('waitTries >= 100'));
     assert.ok(fnSource(src, 'ageConfirmBlocking').includes('ageConfirmOverlay'));
 });
 
@@ -147,7 +149,14 @@ async function emailLinkSignupPrompt(opts) {
         clientLnValid: function () { return false; },
         flushSignupFaction: async function () {},
         applyServerUsername: async function () { if (opts.nameFails) throw new Error('taken'); return opts.pendingName; },
-        tryLinkGuest: async function () { return null; },
+        tryLinkGuest: async function () {
+            if (opts.guestBringsName) {
+                userDoc.exists = true;
+                opts.existingData = Object.assign({}, opts.existingData || {}, { username: opts.guestBringsName });
+            }
+            return opts.guestLinkResult || null;
+        },
+        currentUser: opts.currentUser || null,
         loadUser: function () {},
         attachReferral: function () {},
         showToast: function () {},
@@ -181,6 +190,11 @@ test('a new email-link account whose typed name saves does not open the username
 
 test('an email-link return with a username already set does not open the username step', async function () {
     const calls = await emailLinkSignupPrompt({ existing: true, existingData: { username: 'QuestFan' } });
+    assert.deepStrictEqual(calls, []);
+});
+
+test('an email-link merge that brings a guest username does not open the username step', async function () {
+    const calls = await emailLinkSignupPrompt({ existing: true, existingData: {}, guestBringsName: 'GuestName' });
     assert.deepStrictEqual(calls, []);
 });
 
@@ -230,6 +244,55 @@ test('the fresh username step waits for the age overlay, then opens', function (
     delete nodes.ageConfirmOverlay;
     timers.shift()();
     assert.ok(created.indexOf('usernameRepick') !== -1);
+});
+
+test('the fresh username step stops quietly after 100 age-wait tries', function () {
+    const src = read('ranking.js');
+    const timers = [];
+    const nodes = { ageConfirmOverlay: { id: 'ageConfirmOverlay' } };
+    const created = [];
+    const document = {
+        getElementById: function (id) { return nodes[id] || null; },
+        addEventListener: function () {},
+        createElement: function (tag) {
+            const el = {
+                tagName: String(tag).toUpperCase(),
+                style: {},
+                id: '',
+                innerHTML: '',
+                setAttribute: function () {},
+                addEventListener: function () {},
+                appendChild: function () { return el; }
+            };
+            return el;
+        },
+        head: { appendChild: function () {} },
+        body: { appendChild: function (el) { if (el && el.id) nodes[el.id] = el; created.push(el && el.id); } }
+    };
+    const sandbox = {
+        document: document,
+        window: { runAfterTos: function (fn) { fn(); } },
+        tosBlocking: function () { return false; },
+        setTimeout: function (fn) { timers.push(fn); return timers.length; }
+    };
+    sandbox.window.document = document;
+    sandbox.window.btcOnboardingQueue = null;
+    vm.createContext(sandbox);
+    vm.runInContext(
+        fnSource(src, 'ageConfirmBlocking') + '\n' +
+        fnSource(src, 'ensureUsernameRepickStyle') + '\n' +
+        fnSource(src, 'showUsernameRepickPrompt') + '\n' +
+        'this.ageConfirmBlocking = ageConfirmBlocking;\n' +
+        'this.showUsernameRepickPrompt = showUsernameRepickPrompt;',
+        sandbox
+    );
+    sandbox.showUsernameRepickPrompt({ fresh: true });
+    for (let i = 0; i < 100; i++) {
+        assert.strictEqual(timers.length, 1, 'age-wait try ' + i);
+        timers.shift()();
+    }
+    assert.deepStrictEqual(created, []);
+    assert.strictEqual(timers.length, 0);
 });
 
 test('the username step sits above the onboarding questions', function () {
