@@ -9,7 +9,8 @@
       "Explain a transaction fee?",
       "What is a transaction fee?",
       "Define a Bitcoin transaction fee?",
-      "Explain a Bitcoin transaction fee?"
+      "Explain a Bitcoin transaction fee?",
+      "Describe a Bitcoin transaction fee?"
     ],
     "answer": "A fee is the difference between the inputs you spend and the outputs you create, and the miner who includes the transaction can claim it. It is not a charge sent to a company that owns Bitcoin. The rate rises when more people want limited block space.",
     "topics": [
