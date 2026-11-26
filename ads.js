@@ -211,10 +211,11 @@
 
     function allowExplicitUser(input) {
         input = input || {};
-        if (input._bqAdsAllowExplicitUser === true) return true;
-        // Node unit tests may pass a doc-shaped user. In the browser,
-        // ignore a caller-supplied user so the console cannot turn ads on.
-        return typeof document === 'undefined';
+        // Honor a caller-supplied user, and the test-only
+        // _bqAdsAllowExplicitUser flag, only in Node tests. In the
+        // browser, ignore both so a console caller cannot turn ads on.
+        if (typeof document !== 'undefined') return false;
+        return true;
     }
 
     function signedInUid() {

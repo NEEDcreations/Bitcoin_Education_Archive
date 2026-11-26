@@ -628,6 +628,14 @@ asyncTest('currentUser over18 and a console-passed user give no ads without a fr
     assert.strictEqual(env.ads.adsenseAllowed({ show: true, surface: 'learning-quests' }, { user: { uid: uid, over18: true }, surface: 'learning-quests' }), false);
 });
 
+asyncTest('the explicit-user flag plus a doc-shaped over18 user is ignored when document is present', async function () {
+    const uid = 'flaguser-' + findEligibleUid(loadAds(), 'e');
+    const env = loadBrowserAds({ uid: uid, docs: {} });
+    const input = { _bqAdsAllowExplicitUser: true, user: { uid: uid, over18: true }, surface: 'home', path: '/' };
+    assert.strictEqual(env.ads.shouldShowAds(input), false);
+    assert.strictEqual(env.ads.decide(input).show, false);
+});
+
 asyncTest('a fresh server read of the own user doc with over18 gives ads', async function () {
     const base = loadAds();
     let uid = null;
