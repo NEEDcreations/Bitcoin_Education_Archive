@@ -71,6 +71,11 @@ function createWorld(seed, extra) {
                 },
                 delete: function () { return { _delete: true }; },
             },
+            Timestamp: {
+                fromMillis: function (ms) {
+                    return { _timestamp: true, toMillis: function () { return ms; } };
+                },
+            },
         },
     };
     const db = {
@@ -360,6 +365,8 @@ test('a successful confirm writes an audit row with only the uid', async functio
     assert.ok(throttle);
     assert.strictEqual(throttle.uid, 'alice');
     assert.ok(typeof throttle.lastAtMs === 'number');
+    assert.ok(throttle.expireAt && throttle.expireAt._timestamp === true);
+    assert.strictEqual(throttle.expireAt.toMillis(), throttle.lastAtMs + confirmAge.THROTTLE_TTL_MS);
 });
 
 test('a second confirm within the throttle window is rejected', async function () {
@@ -576,6 +583,8 @@ test('sets ageUnder18 with a server timestamp and an audit row', async function 
     const throttle = world.docs['age_confirm_throttle/alice'];
     assert.ok(throttle);
     assert.strictEqual(throttle.uid, 'alice');
+    assert.ok(throttle.expireAt && throttle.expireAt._timestamp === true);
+    assert.strictEqual(throttle.expireAt.toMillis(), throttle.lastAtMs + confirmAge.THROTTLE_TTL_MS);
 });
 
 test('a second under-18 call is idempotent and keeps the first timestamp', async function () {
@@ -806,6 +815,37 @@ test('tapping I am under 18 saves through the callable and does not enable ads',
         assert.strictEqual(env._bqAgeConfirmed18, false);
         assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
     });
+});
+
+function assertThrottleExpireAt(docs, uid, atMs) {
+    const throttle = docs['age_confirm_throttle/' + uid];
+    assert.ok(throttle);
+    assert.strictEqual(throttle.lastAtMs, atMs);
+    assert.ok(throttle.expireAt && throttle.expireAt._timestamp === true);
+    assert.strictEqual(throttle.expireAt.toMillis(), atMs + confirmAge.THROTTLE_TTL_MS);
+    assert.strictEqual(confirmAge.THROTTLE_TTL_MS, 24 * 60 * 60 * 1000);
+}
+
+test('every throttle write sets expireAt to lastAt plus one day', async function () {
+    const confirmed = createWorld({ 'users/ann': { points: 1 } });
+    await confirmed.handlers.confirmAge18({}, auth('ann'));
+    assertThrottleExpireAt(confirmed.docs, 'ann', confirmed.clock.ms);
+
+    const under = createWorld({ 'users/ben': { points: 1 } });
+    await under.handlers.confirmAgeUnder18({}, auth('ben'));
+    assertThrottleExpireAt(under.docs, 'ben', under.clock.ms);
+
+    const missing = createWorld();
+    await assert.rejects(function () { return missing.handlers.confirmAge18({}, auth('ghost')); }, function (err) {
+        return err.code === 'failed-precondition';
+    });
+    assertThrottleExpireAt(missing.docs, 'ghost', missing.clock.ms);
+
+    const kids = createWorld({ 'users/kid1': { points: 1, isMinor: true } });
+    await assert.rejects(function () { return kids.handlers.confirmAge18({}, auth('kid1')); }, function (err) {
+        return err.code === 'permission-denied';
+    });
+    assertThrottleExpireAt(kids.docs, 'kid1', kids.clock.ms);
 });
 
 Promise.all(queue).then(function () {

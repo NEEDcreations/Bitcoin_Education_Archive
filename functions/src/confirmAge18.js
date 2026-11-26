@@ -13,6 +13,7 @@
 const kidsAccount = require('../kids-account');
 
 const THROTTLE_MS = 30000;
+const THROTTLE_TTL_MS = 24 * 60 * 60 * 1000;
 const AUDIT = 'admin_audit_log';
 const THROTTLE = 'age_confirm_throttle';
 const TARGET_UID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -74,6 +75,9 @@ function createConfirmAge18Handlers(deps) {
         return db.collection(THROTTLE).doc(uid);
     }
 
+    // TODO: After deletion, mask the plain uid in these admin_audit_log
+    // rows (doc ids age18_<kind>_<uid>_<ms>). Ride with the HMAC-uid
+    // deletion log due before Jan 3.
     function auditRef(kind, uid, ms) {
         return db.collection(AUDIT).doc('age18_' + kind + '_' + uid + '_' + ms);
     }
@@ -85,8 +89,16 @@ function createConfirmAge18Handlers(deps) {
         return (nowFn() - last) < throttleMs;
     }
 
+    function throttleExpireAt(atMs) {
+        const ms = atMs + THROTTLE_TTL_MS;
+        if (admin && admin.firestore && admin.firestore.Timestamp && typeof admin.firestore.Timestamp.fromMillis === 'function') {
+            return admin.firestore.Timestamp.fromMillis(ms);
+        }
+        return new Date(ms);
+    }
+
     function throttleFields(uid, atMs, now) {
-        return { uid: uid, lastAtMs: atMs, lastAt: now };
+        return { uid: uid, lastAtMs: atMs, lastAt: now, expireAt: throttleExpireAt(atMs) };
     }
 
     function requireSignedIn(context) {
@@ -389,5 +401,6 @@ module.exports = {
     alreadyUnder18: alreadyUnder18,
     isKidsAccount: isKidsAccount,
     THROTTLE_MS: THROTTLE_MS,
+    THROTTLE_TTL_MS: THROTTLE_TTL_MS,
     TARGET_UID: TARGET_UID
 };
