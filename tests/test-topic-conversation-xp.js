@@ -137,7 +137,11 @@ function makeApi() {
     return {
         db: db,
         api: api,
-        admin: { firestore: { Timestamp: { fromMillis: function(ms) { return new Timestamp(ms); } } } },
+        admin: {
+            firestore: { Timestamp: { fromMillis: function(ms) { return new Timestamp(ms); } } },
+            // Guest gate lookup: every seeded author has an email sign-in.
+            auth: function() { return { getUser: async function(uid) { return { uid: uid, providerData: [{ providerId: 'password' }] }; } }; },
+        },
         setNow: function(ms) { now = ms; },
         advance: function(ms) { now += ms; },
         now: function() { return now; },

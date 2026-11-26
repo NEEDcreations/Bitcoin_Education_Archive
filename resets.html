@@ -3,11 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Resets &amp; Timelines — Bitcoin Quest</title>
+<title>Resets, Timelines &amp; Odds | Bitcoin Quest</title>
+<meta name="description" content="Every Bitcoin Quest reset clock, the weekly BIP Breakthrough schedule, and the odds for the daily spin, gifts, locked ciphers, Satoshi's Favor and the raffle.">
+<meta name="theme-color" content="#0d0d14">
 <link rel="icon" type="image/svg+xml" href="/nacho-deer.svg">
 <style>
-  :root { --bg:#0d0d14; --card:#13131f; --border:rgba(255,255,255,.08); --accent:#f7931a; --text:#e2e8f0; --muted:#94a3b8; --faint:#64748b; }
+  :root { --bg:#0d0d14; --card:#13131f; --border:rgba(255,255,255,.08); --accent:#f7931a; --text:#e2e8f0; --muted:#94a3b8; --faint:#8b9bb0; }
   * { box-sizing:border-box; margin:0; padding:0; }
+  html { scroll-behavior:smooth; }
   body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; line-height:1.45; }
   header { padding:36px 20px 20px; text-align:center; border-bottom:1px solid var(--border); }
   header h1 { font-size:1.7rem; font-weight:900; margin-bottom:8px; }
@@ -21,7 +24,7 @@
   .remind { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px; margin-bottom:22px; }
   .remind h2 { font-size:1rem; }
   .remind p { color:var(--muted); font-size:.84rem; margin-top:4px; max-width:38rem; }
-  .remind a { display:inline-block; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; border-radius:999px; padding:8px 14px; font-size:.85rem; }
+  .remind a { display:inline-block; background:var(--accent); color:#111; text-decoration:none; font-weight:800; border-radius:999px; padding:8px 14px; font-size:.85rem; }
   h2.sec { font-size:1.15rem; margin:26px 0 8px; }
   .note { color:var(--muted); font-size:.84rem; margin-bottom:10px; }
   table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:8px; }
@@ -30,6 +33,20 @@
   tr:last-child td { border-bottom:none; }
   td.when { white-space:nowrap; font-weight:700; }
   td small { display:block; color:var(--faint); font-weight:500; margin-top:2px; }
+  .toc { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:14px; }
+  .toc a { color:var(--text); background:var(--card); border:1px solid var(--border); border-radius:999px; padding:6px 12px; font-size:.8rem; font-weight:700; text-decoration:none; }
+  .toc a:hover, .toc a:focus-visible { border-color:var(--accent); color:var(--accent); }
+  a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  h2.sec { scroll-margin-top:12px; }
+  .tbl { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:8px; border-radius:12px; }
+  .tbl table { margin-bottom:0; }
+  td.num { white-space:nowrap; font-variant-numeric:tabular-nums; font-weight:700; }
+  caption { text-align:left; color:var(--muted); font-size:.8rem; padding:0 0 6px; caption-side:top; }
+  .callout { background:var(--card); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:12px; padding:12px 14px; margin:10px 0 12px; font-size:.86rem; color:var(--text); }
+  .callout p + p { margin-top:6px; }
+  .note a, .callout a { color:var(--accent); }
+  .thisweek td { background:rgba(247,147,26,.08); }
+  .pill { display:inline-block; background:var(--accent); color:#111; font-size:.66rem; font-weight:800; border-radius:999px; padding:1px 7px; margin-left:6px; vertical-align:middle; }
   @media (max-width:640px) {
     td.when { white-space:normal; }
     th:nth-child(4), td:nth-child(4) { display:none; }
@@ -38,11 +55,14 @@
 </head>
 <body>
 <header>
-  <h1>Bitcoin Quest resets &amp; timelines</h1>
-  <p>Every clock below is the one the server enforces, read from the code on November 9, 2026. Eastern times are Eastern Standard Time (UTC−5) until the clocks spring forward on March 14, 2027. A job locked to UTC then shows one hour later on an Eastern clock. A job locked to America/New_York stays on the same Eastern clock.</p>
+  <h1>Bitcoin Quest resets, timelines &amp; odds</h1>
+  <p>Every clock and every odds figure below is the one the server enforces, read from the code on November 20, 2026. Eastern times are Eastern Standard Time (UTC−5) until the clocks spring forward on March 14, 2027. A job locked to UTC then shows one hour later on an Eastern clock. A job locked to America/New_York stays on the same Eastern clock.</p>
   <a class="home" href="/">Back to Bitcoin Quest</a>
+  <nav class="toc" aria-label="On this page">
+    <a href="#daily">Daily</a><a href="#weekly">Weekly</a><a href="#monthly">Monthly</a><a href="#other">Other</a><a href="#bip-breakthrough">BIP Breakthrough</a><a href="#odds">Odds</a>
+  </nav>
 </header>
-<div class="wrap">
+<main class="wrap" id="main">
   <div class="clocks">
     <div class="clock"><b>05:00 UTC</b><span>The game day. Midnight EST, 1:00 AM EDT. Spin, trivia, quests, gifts, streak, poll, flex, Timechain TV, and the daily XP cap.</span></div>
     <div class="clock"><b>00:00 UTC</b><span>A different day. 7:00 PM EST the evening before. Cipher opens, cipher sats, the faucet's daily cap, and the scholar exam.</span></div>
@@ -57,10 +77,10 @@
     <a href="/#reset-reminders">Turn on notifications</a>
   </section>
 
-  <h2 class="sec">Daily</h2>
+  <h2 class="sec" id="daily">Daily</h2>
   <p class="note">Most daily play shares the 05:00 UTC game day. A few caps still use the UTC calendar date, so they roll over five hours earlier.</p>
   <table>
-    <thead><tr><th>What</th><th>Resets</th><th>Cadence</th><th>Enforced by</th></tr></thead>
+    <thead><tr><th scope="col">What</th><th scope="col">Resets</th><th scope="col">Cadence</th><th scope="col">Enforced by</th></tr></thead>
     <tbody>
       <tr><td>Daily spin</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>Once each game day</td><td>getOffsetDateKey in the spin claim</td></tr>
       <tr><td>Trivia</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>One question each game day. Streak uses the previous offset day.</td><td>questReward.offsetDateKey, answerTrivia</td></tr>
@@ -89,10 +109,10 @@
     </tbody>
   </table>
 
-  <h2 class="sec">Weekly</h2>
+  <h2 class="sec" id="weekly">Weekly</h2>
   <p class="note">The week used for XP, quests, and prediction prizes ends Monday at 05:00 UTC.</p>
   <table>
-    <thead><tr><th>What</th><th>Resets</th><th>Cadence</th><th>Enforced by</th></tr></thead>
+    <thead><tr><th scope="col">What</th><th scope="col">Resets</th><th scope="col">Cadence</th><th scope="col">Enforced by</th></tr></thead>
     <tbody>
       <tr><td>Weekly XP leaderboard</td><td class="when">Monday 05:00 UTC<small>Monday 12:00 AM EST</small></td><td>Weekly XP starts over. Top 10 earn 25 orange tickets.</td><td>resetWeeklyXP</td></tr>
       <tr><td>Weekly quest leaderboard</td><td class="when">Monday 05:00 UTC<small>Monday 12:00 AM EST</small></td><td>Same Monday boundary as weekly XP</td><td>payWeeklyQuestLB</td></tr>
@@ -104,10 +124,10 @@
     </tbody>
   </table>
 
-  <h2 class="sec">Monthly</h2>
+  <h2 class="sec" id="monthly">Monthly</h2>
   <p class="note">Monthly XP and monthly prediction prizes close at 00:00 UTC on the 1st. The monthly quest board waits until 05:00 UTC that same morning. The raffle is later the same UTC day.</p>
   <table>
-    <thead><tr><th>What</th><th>Resets</th><th>Cadence</th><th>Enforced by</th></tr></thead>
+    <thead><tr><th scope="col">What</th><th scope="col">Resets</th><th scope="col">Cadence</th><th scope="col">Enforced by</th></tr></thead>
     <tbody>
       <tr><td>Monthly XP leaderboard</td><td class="when">00:00 UTC on the 1st<small>7:00 PM EST on the last day</small></td><td>Monthly XP starts over. Top 10 earn 100 orange tickets.</td><td>resetMonthlyXP</td></tr>
       <tr><td>Monthly prediction prizes</td><td class="when">00:00 UTC on the 1st<small>7:00 PM EST on the last day</small></td><td>Top 5 with at least 15 resolved predictions</td><td>payMonthlyPredictors</td></tr>
@@ -118,10 +138,10 @@
     </tbody>
   </table>
 
-  <h2 class="sec">Other</h2>
+  <h2 class="sec" id="other">Other</h2>
   <p class="note">These are not a daily, weekly, or monthly wall-clock reset.</p>
   <table>
-    <thead><tr><th>What</th><th>Resets</th><th>Cadence</th><th>Enforced by</th></tr></thead>
+    <thead><tr><th scope="col">What</th><th scope="col">Resets</th><th scope="col">Cadence</th><th scope="col">Enforced by</th></tr></thead>
     <tbody>
       <tr><td>Sats withdrawal</td><td class="when">24 hours after the last claim</td><td>100 to 200 sats per claim, 200 per UTC day, 15,000 lifetime, account at least 7 days old</td><td>FAUCET.COOLDOWN_HOURS</td></tr>
       <tr><td>Username change</td><td class="when">24 hours after the last rename</td><td>One free rename can skip the wait once</td><td>usernamePolicy.RENAME_MS</td></tr>
@@ -136,6 +156,160 @@
       <tr><td>Raid forum credit</td><td class="when">24 hours after a post</td><td>Checked hourly at :15</td><td>scheduleRaidForumCredit</td></tr>
     </tbody>
   </table>
-</div>
+  <h2 class="sec" id="bip-breakthrough">BIP Breakthrough (Bit Devs Socratic Seminar)</h2>
+  <p class="note">One real Bitcoin Improvement Proposal is featured each week, the same one for every player. The week starts Monday at 12:00 AM Eastern (America/New_York), so it does not move with daylight saving.</p>
+  <div class="callout">
+    <p><strong>How to complete a week:</strong> use your daily spin on 7 Eastern calendar days in a row inside the same week, Monday through Sunday. Only the free daily spin counts. Bonus spins do not. Miss a day and that week cannot be completed, and the count starts over the next Monday.</p>
+    <p><strong>Day 7 reward:</strong> the 7th spin lands on the 💎 Rare prize for sure, you collect that week's BIP badge (one per BIP), and you wear the Core Contributor chat title for 7 days.</p>
+  </div>
+  <div class="tbl">
+  <table id="bipSchedule">
+    <caption>Featured BIP by week. Picked from the same list and the same weekly rule the server uses.</caption>
+    <thead><tr><th scope="col">Week of (Monday, ET)</th><th scope="col">BIP</th><th scope="col">What it is</th></tr></thead>
+    <tbody id="bipScheduleRows">
+      <tr><td class="when">2026-11-16</td><td>BIP 119 · CTV</td><td>OP_CHECKTEMPLATEVERIFY</td></tr>
+      <tr><td class="when">2026-11-23</td><td>BIP 347 · OP_CAT</td><td>OP_CAT</td></tr>
+      <tr><td class="when">2026-11-30</td><td>BIP 118 · ANYPREVOUT</td><td>SIGHASH_ANYPREVOUT</td></tr>
+      <tr><td class="when">2026-12-07</td><td>BIP 324 · P2Pv2</td><td>Version 2 P2P Encrypted Transport</td></tr>
+      <tr><td class="when">2026-12-14</td><td>BIP 85 · BIP85</td><td>Deterministic Entropy From BIP32</td></tr>
+      <tr><td class="when">2026-12-21</td><td>BIP 86 · P2TR Keys</td><td>Key Derivation for Single-Key P2TR</td></tr>
+      <tr><td class="when">2026-12-28</td><td>BIP 119 · CTV</td><td>OP_CHECKTEMPLATEVERIFY</td></tr>
+      <tr><td class="when">2027-01-04</td><td>BIP 347 · OP_CAT</td><td>OP_CAT</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">A BIP can come around again, so some weeks repeat. Read each proposal at <a href="https://github.com/bitcoin/bips" rel="noopener" target="_blank">github.com/bitcoin/bips</a>.</p>
+
+  <h2 class="sec" id="odds">Odds</h2>
+  <p class="note">The server rolls every result. Your browser does not choose it, and Premium does not change any odds. Percentages are rounded. The official odds and rules are in the <a href="/terms.html#odds">Terms, section 16g</a>.</p>
+
+  <div class="tbl">
+  <table>
+    <caption>Daily spin, per spin. Bonus spins use the same wheel.</caption>
+    <thead><tr><th scope="col">Prize</th><th scope="col">Chance</th></tr></thead>
+    <tbody>
+      <tr><td>🎫 1 Orange Ticket</td><td class="num">25%</td></tr>
+      <tr><td>🎫 2 Orange Tickets</td><td class="num">22%</td></tr>
+      <tr><td>⭐ 10 XP</td><td class="num">18%</td></tr>
+      <tr><td>🎫 3 Orange Tickets</td><td class="num">12%</td></tr>
+      <tr><td>⭐ 25 XP</td><td class="num">8%</td></tr>
+      <tr><td>👔 Closet item, plus 25 XP</td><td class="num">5%</td></tr>
+      <tr><td>🧊 Streak freeze</td><td class="num">4%</td></tr>
+      <tr><td>⭐ 50 XP</td><td class="num">3%</td></tr>
+      <tr><td>🎫 5 Orange Tickets</td><td class="num">1.5%</td></tr>
+      <tr><td>💎 Rare (rolls again on the table below)</td><td class="num">1.5%</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="tbl">
+  <table>
+    <caption>💎 Rare prize, once you land Rare. The last column is the chance on any single spin.</caption>
+    <thead><tr><th scope="col">Prize</th><th scope="col">If Rare</th><th scope="col">Any spin</th></tr></thead>
+    <tbody>
+      <tr><td>🎫 10 Orange Tickets</td><td class="num">60.1%</td><td class="num">about 1 in 111</td></tr>
+      <tr><td>🎫 25 Orange Tickets</td><td class="num">30.1%</td><td class="num">about 1 in 222</td></tr>
+      <tr><td>🎫 50 Orange Tickets</td><td class="num">6.0%</td><td class="num">about 1 in 1,109</td></tr>
+      <tr><td>🎫 100 Orange Tickets</td><td class="num">3.0%</td><td class="num">about 1 in 2,217</td></tr>
+      <tr><td>🎫 500 Orange Tickets</td><td class="num">0.6%</td><td class="num">about 1 in 11,087</td></tr>
+      <tr><td>🎫 1,000 Orange Tickets</td><td class="num">0.18%</td><td class="num">about 1 in 36,956</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">XP from the spin follows the daily XP taper and Double XP like any other XP. Tickets and freezes are never doubled. The 7th spin of a BIP Breakthrough week always lands on Rare.</p>
+
+  <div class="tbl">
+  <table>
+    <caption>Gift drop. Each daily drop gives 2 gifts (15%), 3 (40%), 4 (30%) or 5 (15%). Each gift then rolls once.</caption>
+    <thead><tr><th scope="col">Gift</th><th scope="col">Chance</th><th scope="col">Details</th></tr></thead>
+    <tbody>
+      <tr><td>🎫 Orange Tickets</td><td class="num">29.5%</td><td>1 ticket (55%), 2 (30%) or 3 (15%)</td></tr>
+      <tr><td>🔒 Locked cipher</td><td class="num">28%</td><td>1 cipher (70%) or 2 (30%). If you hold keys with no matching cipher, about 70% of picks match one of them.</td></tr>
+      <tr><td>🔑 Key</td><td class="num">22%</td><td>Always 1 key. If you hold ciphers with no matching key, about 70% of key drops match one of them.</td></tr>
+      <tr><td>⭐ XP</td><td class="num">12%</td><td>50 XP (50%), 100 (35%) or 150 (15%)</td></tr>
+      <tr><td>🛡️ Streak shield</td><td class="num">5%</td><td></td></tr>
+      <tr><td>👔 Closet item</td><td class="num">3%</td><td></td></tr>
+      <tr><td>🦌 Nacho shoutout</td><td class="num">0.5%</td><td></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="tbl">
+  <table>
+    <caption>Locked cipher, per open. One roll decides at most one sats prize.</caption>
+    <thead><tr><th scope="col">Prize</th><th scope="col">Odds per open</th></tr></thead>
+    <tbody>
+      <tr><td>100,000 sats</td><td class="num">1 in 10,000,000</td></tr>
+      <tr><td>50,000 sats</td><td class="num">1 in 1,000,000</td></tr>
+      <tr><td>10,000 sats</td><td class="num">1 in 500,000</td></tr>
+      <tr><td>5,000 sats</td><td class="num">1 in 100,000</td></tr>
+      <tr><td>1,000 sats</td><td class="num">1 in 50,000</td></tr>
+      <tr><td>500 sats</td><td class="num">1 in 10,000</td></tr>
+      <tr><td>250 sats</td><td class="num">1 in 5,000</td></tr>
+      <tr><td>100 sats</td><td class="num">1 in 1,000</td></tr>
+      <tr><td>50 sats</td><td class="num">1 in 100</td></tr>
+      <tr><td>25 sats</td><td class="num">1 in 50</td></tr>
+      <tr><td>10 sats</td><td class="num">1 in 10</td></tr>
+      <tr><td>5 sats</td><td class="num">1 in 5</td></tr>
+      <tr><td>Otherwise: 50 to 250 XP and 0 to 10 Orange Tickets</td><td class="num">about 66.9%</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">Wins under 1,000 sats go to your cipher sats balance. Wins of 1,000 sats or more are paid by hand after review. Cashing out follows the cipher sats caps in the Daily table above.</p>
+
+  <div class="tbl">
+  <table>
+    <caption>Satoshi's Favor and the Orange Ticket raffle</caption>
+    <thead><tr><th scope="col">Game</th><th scope="col">Odds</th><th scope="col">How it works</th></tr></thead>
+    <tbody>
+      <tr><td>Satoshi's Favor, per hash</td><td class="num">1 in 4,000<small>difficulty target 25,000, set Nov 7, 2026</small></td><td>Each hash is a random number from 0 to 100,000,000. A hash under the target solves a block. The target moves only when an epoch fills 5 of 5 blocks, aiming for one epoch about every 14 days, so the live figure on the Satoshi's Favor screen wins if it differs.</td></tr>
+      <tr><td>Orange Ticket raffle</td><td class="num">Your entries ÷ all entries</td><td>One winner on the 1st at 18:00 UTC. Every entry is one equal chance. Accounts with sats turned off or banned are left out of the draw. No purchase necessary, and there is a free way to enter by email. See the <a href="/raffle-rules.html">Official Rules</a>.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</main>
+<script>
+// Rolls the BIP Breakthrough table forward. Must match functions/src/bipBreakthrough.js
+// (BIP_CATALOG order and bipForWeek). tests/test-resets-page.js checks both.
+(function () {
+  var BIPS = [
+    [360, 'P2MR', 'Pay-to-Merkle-Root'], [119, 'CTV', 'OP_CHECKTEMPLATEVERIFY'], [347, 'OP_CAT', 'OP_CAT'],
+    [118, 'ANYPREVOUT', 'SIGHASH_ANYPREVOUT'], [352, 'Silent Payments', 'Silent Payments'], [348, 'CSFS', 'OP_CHECKSIGFROMSTACK'],
+    [349, 'INTERNALKEY', 'OP_INTERNALKEY'], [443, 'CCV', 'OP_CHECKCONTRACTVERIFY'], [353, 'DNS Payments', 'DNS Payment Instructions'],
+    [324, 'P2Pv2', 'Version 2 P2P Encrypted Transport'], [85, 'BIP85', 'Deterministic Entropy From BIP32'], [86, 'P2TR Keys', 'Key Derivation for Single-Key P2TR']
+  ];
+  function bipForWeek(key) {
+    var hash = 0;
+    for (var i = 0; i < key.length; i++) hash = ((hash * 33) + key.charCodeAt(i)) >>> 0;
+    var digits = key.replace(/\D/g, '');
+    var extra = parseInt(digits.slice(-6) || '0', 10) || 0;
+    return BIPS[(hash + extra) % BIPS.length];
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function etMondayUtc(ms) {
+    var p = {};
+    new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' })
+      .formatToParts(new Date(ms)).forEach(function (x) { p[x.type] = x.value; });
+    var dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday);
+    var since = dow === 0 ? 6 : dow - 1;
+    return Date.UTC(+p.year, +p.month - 1, +p.day) - since * 86400000;
+  }
+  function keyOf(utcMs) { var d = new Date(utcMs); return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()); }
+  window.__bqBipForWeek = bipForWeek;
+  var body = document.getElementById('bipScheduleRows');
+  if (!body || typeof Intl === 'undefined') return;
+  try {
+    var start = etMondayUtc(Date.now());
+    var html = '';
+    for (var w = 0; w < 8; w++) {
+      var key = keyOf(start + w * 7 * 86400000);
+      var b = bipForWeek(key);
+      html += '<tr' + (w === 0 ? ' class="thisweek"' : '') + '><td class="when">' + key + (w === 0 ? '<span class="pill">This week</span>' : '') +
+        '</td><td>BIP ' + b[0] + ' · ' + b[1] + '</td><td>' + b[2] + '</td></tr>';
+    }
+    body.innerHTML = html;
+  } catch (e) {}
+})();
+</script>
 </body>
+
 </html>

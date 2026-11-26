@@ -4307,8 +4307,22 @@ window.beatsExecuteV4VTip = async function(trackId) {
         var keysendable   = invoices.filter(function(i) { return i.canKeysend && i.keysend; });
         var unpayable     = invoices.filter(function(i) { return !i.canPay; });
 
-        if (!lnurlPayable.length && !keysendable.length) {
+        if (!lnurlPayable.length && !keysendable.length && !unpayable.length) {
             result.innerHTML = '<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-size:0.82rem;text-align:center;">No payable routes found.</div>';
+            btn.disabled = false; btn.textContent = '⚡ Pay All Artists';
+            return;
+        }
+
+        var payableRows = lnurlPayable.concat(keysendable);
+        var splitTotal = 0;
+        var splitOk = true;
+        for (var si = 0; si < payableRows.length; si++) {
+            var rowSats = Number(payableRows[si].amountSats);
+            if (!Number.isSafeInteger(rowSats) || rowSats < 0) { splitOk = false; break; }
+            splitTotal += rowSats;
+        }
+        if (!splitOk || splitTotal > amount) {
+            result.innerHTML = '<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-size:0.82rem;text-align:center;">Split amounts do not match the tip. No payment was sent.</div>';
             btn.disabled = false; btn.textContent = '⚡ Pay All Artists';
             return;
         }
@@ -4319,6 +4333,19 @@ window.beatsExecuteV4VTip = async function(trackId) {
 
         var paidCount = 0;
         var rowHtml = '';
+
+        // Check each invoice (amount, network, expiry, route fees) with the
+        // tip checker before paying or showing it. Fails closed if missing.
+        var checkInv = window._tipCheckInvoice;
+        lnurlPayable = lnurlPayable.filter(function(inv) {
+            var ok = typeof checkInv === 'function' ? checkInv(inv.invoice, Number(inv.amountSats) * 1000) : null;
+            if (!ok) {
+                rowHtml += _v4vRow(inv.name, inv.amountSats, 'fail', 'Could not verify this invoice. No payment was sent.');
+                return false;
+            }
+            inv.invoice = ok;
+            return true;
+        });
 
         // 1. Pay LNURL invoices
         if (lnurlPayable.length && hasWallet) {
@@ -4391,7 +4418,8 @@ window.beatsExecuteV4VTip = async function(trackId) {
 
         if (unpayable.length) {
             unpayable.forEach(function(u) {
-                rowHtml += _v4vRow(u.name, u.amountSats, 'skip', 'no payment route available');
+                var zeroShare = Number(u.amountSats) === 0;
+                rowHtml += _v4vRow(u.name, u.amountSats, 'skip', zeroShare ? 'share rounds to 0 sats' : 'no payment route available');
             });
         }
 

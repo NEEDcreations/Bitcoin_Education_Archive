@@ -1,9 +1,9 @@
 'use strict';
 
 // Cross-posts a new topic thread into Pleb Talk and mirrors replies both ways.
-// The forum post is created with a plain placeholder. The model summary runs
-// only after that post is accepted, then patches the same doc. A rejected
-// post never calls the model. Later messages do not regenerate the summary.
+// The forum post body is the user's exact first message, sanitized as plain
+// text. Nacho's answer is mirrored only as a reply. A model summary is never
+// written into the body. Later messages do not rewrite the opener.
 //
 // Clients write one side. This module, running in a callable or a Firestore
 // trigger, writes the other. Copies carry origin and noAward. A copy is never
@@ -41,20 +41,20 @@ function forumPostIdFor(channelId, rootPostId) {
     const channel = cleanToken(channelId, 80);
     const post = cleanToken(rootPostId, 128);
     if (!channel || !post) return '';
-    return ('tdforum_' + channel + '_' + post).slice(0, 400);
+    return ('tdforum_' + channel + '_' + post).slice(0, 256);
 }
 
 function forumReplyIdFor(channelId, topicPostId) {
     const channel = cleanToken(channelId, 80);
     const post = cleanToken(topicPostId, 128);
     if (!channel || !post) return '';
-    return ('tdreply_' + channel + '_' + post).slice(0, 400);
+    return ('tdreply_' + channel + '_' + post).slice(0, 256);
 }
 
 function topicPostIdForForumReply(replyId) {
     const id = cleanToken(replyId, 200);
     if (!id) return '';
-    return ('tdfrom_' + id).slice(0, 400);
+    return ('tdfrom_' + id).slice(0, 256);
 }
 
 function acceptedAnchor(anchor) {
@@ -123,6 +123,21 @@ function escapeForumPlain(text, max) {
         .replace(/\s+/g, ' ')
         .trim();
     if (max && s.length > max) s = s.slice(0, max).trim();
+    return s;
+}
+
+// Keep the user's wording, including line breaks. Strip markup and controls.
+function escapeForumBody(text) {
+    let s = String(text || '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+        .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/[<>]/g, '');
+    s = s.split('\n').map(function(line) {
+        return line.replace(/[ \t]+/g, ' ').trim();
+    }).join('\n').replace(/\n{4,}/g, '\n\n\n').trim();
     return s;
 }
 
@@ -212,51 +227,16 @@ async function patchForumSummary(opts) {
     const o = opts || {};
     const channelId = cleanToken(o.channelId, 80);
     const postId = cleanToken(o.postId, 128);
-    const forumPostId = cleanToken(o.forumPostId, 400);
+    const forumPostId = cleanToken(o.forumPostId, 256);
     if (!o.db || !channelId || !postId || !forumPostId) return { patched: false, reason: 'bad_id' };
     const ref = o.db.collection('forum_posts').doc(forumPostId);
     const before = await ref.get();
     if (!before.exists) return { patched: false, reason: 'missing' };
     const current = before.data() || {};
     if (current.deleted === true || current.hidden === true) return { patched: false, reason: 'removed' };
-    let summary = '';
-    try {
-        summary = await withTimeout(
-            summarizeOpener(o.askNacho, o.text, o.title),
-            typeof o.timeoutMs === 'number' ? o.timeoutMs : SUMMARY_PATCH_MS
-        );
-    } catch (err) {
-        return { patched: false, reason: 'timeout' };
-    }
-    summary = acceptSummary(summary, placeholderSummary(o.title, o.text));
-    const body = forumBodyFor(summary, channelId, postId);
-    const patch = {
-        summary: summary,
-        body: body,
-        mirrorSync: mirrorSyncOf(body, false, false),
-    };
-    let wrote = { patched: false, reason: 'missing' };
-    try {
-        await o.db.runTransaction(async function(tx) {
-            const snap = await tx.get(ref);
-            if (!snap.exists) {
-                wrote = { patched: false, reason: 'missing' };
-                return;
-            }
-            const latest = snap.data() || {};
-            if (latest.deleted === true || latest.hidden === true) {
-                wrote = { patched: false, reason: 'removed' };
-                return;
-            }
-            tx.update(ref, patch);
-            wrote = { patched: true, summary: summary };
-        });
-    } catch (err) {
-        const code = err && (err.code || err.status);
-        if (code === 5 || code === 'not-found' || code === 'NOT_FOUND') return { patched: false, reason: 'missing' };
-        throw err;
-    }
-    return wrote;
+    // The opener body is the user's message. A delayed model summary must not
+    // replace it, even if an older caller still invokes this helper.
+    return { patched: false, reason: 'opener_body_fixed' };
 }
 
 function forumTitleFor(topicTitle) {
@@ -266,10 +246,10 @@ function forumTitleFor(topicTitle) {
     return title;
 }
 
-function forumBodyFor(summary) {
+function forumBodyFor(text) {
     // The topic link is a short labeled anchor in the forum renderer.
-    // The body stays plain text so a raw URL is not wrapped mid-word.
-    const body = String(summary || excerptSummary(''));
+    // The body is the user's exact message, kept as plain text.
+    const body = escapeForumBody(text);
     return body.slice(0, FORUM_BODY_MAX);
 }
 
@@ -305,10 +285,10 @@ function buildForumPostDoc(input) {
     const src = input || {};
     const channelId = cleanToken(src.channelId, 80);
     const postId = cleanToken(src.postId, 128);
-    const forumPostId = src.forumPostId || forumPostIdFor(channelId, postId);
+    const forumPostId = src.forumPostId ? cleanToken(src.forumPostId, 256) : forumPostIdFor(channelId, postId);
     if (!channelId || !postId || !forumPostId) return null;
-    const summary = acceptSummary(src.summary, excerptSummary(src.text));
-    const body = forumBodyFor(summary, channelId, postId);
+    const body = forumBodyFor(src.text);
+    const summary = excerptSummary(src.text);
     const anchor = acceptedAnchor(src.anchor);
     const link = topicPublicLink(channelId, postId, anchor).slice(0, 240);
     return {
@@ -344,8 +324,9 @@ function buildForumReplyDoc(input) {
     const src = input || {};
     const channelId = cleanToken(src.channelId, 80);
     const postId = cleanToken(src.postId, 128);
-    const forumPostId = cleanToken(src.forumPostId, 400);
-    const replyId = src.forumReplyId || forumReplyIdFor(channelId, postId);
+    const forumPostId = cleanToken(src.forumPostId, 256);
+    const rawReplyId = src.forumReplyId;
+    const replyId = rawReplyId ? cleanToken(rawReplyId, 256) : forumReplyIdFor(channelId, postId);
     if (!channelId || !postId || !forumPostId || !replyId) return null;
     let body = String(src.text || '').slice(0, FORUM_REPLY_MAX);
     if (src.deleted || src.hidden) body = '';
@@ -408,7 +389,7 @@ async function mirrorTopicPost(opts) {
     const parentSnap = await parentRef.get();
     if (!parentSnap.exists) return { mirrored: false, reason: 'no_parent' };
     const parent = parentSnap.data() || {};
-    const forumPostId = cleanToken(parent.forumPostId, 400);
+    const forumPostId = cleanToken(parent.forumPostId, 256);
     if (!forumPostId) return { mirrored: false, reason: 'no_forum' };
     const built = buildForumReplyDoc({
         channelId: channelId,
@@ -470,7 +451,7 @@ async function mirrorForumReplyToTopic(opts) {
     if (data.origin === 'topic' || data.origin === 'forum' || data.mirrorOf) {
         return { mirrored: false, reason: 'origin' };
     }
-    const forumPostId = cleanToken(data.postId, 400);
+    const forumPostId = cleanToken(data.postId, 256);
     if (!forumPostId) return { mirrored: false, reason: 'no_post' };
     const forumSnap = await db.collection('forum_posts').doc(forumPostId).get();
     if (!forumSnap.exists) return { mirrored: false, reason: 'no_post' };
@@ -483,6 +464,10 @@ async function mirrorForumReplyToTopic(opts) {
     const nowMs = typeof o.nowMs === 'number' ? o.nowMs : Date.now();
     const who = await authorProfile(db, data.authorId, nowMs);
     if (!who.ok) return { mirrored: false, reason: who.code === 'banned' ? 'banned' : who.code };
+    // Guests cannot post in topic discussions (the callable refuses them), and
+    // a mirrored reply pays topic XP. A guest's forum reply is not mirrored.
+    // A failed lookup counts as a guest.
+    if (await require('./guestGate').isGuestUid(o.admin, who.uid)) return { mirrored: false, reason: 'guest' };
     const api = topicApi();
     const topicId = topicPostIdForForumReply(replyId);
     const topicRef = db.collection('topic_discussions').doc(channelId).collection('posts').doc(topicId);
@@ -611,7 +596,8 @@ async function syncTopicToForum(opts) {
         visibleText = prepared.text;
     }
     if (source.parentId) {
-        const replyId = (after && after.forumReplyId) || (before && before.forumReplyId) || forumReplyIdFor(channelId, postId);
+        const rawReplyId = (after && after.forumReplyId) || (before && before.forumReplyId);
+        const replyId = rawReplyId ? cleanToken(rawReplyId, 256) : forumReplyIdFor(channelId, postId);
         if (!replyId) return { synced: false, reason: 'no_reply' };
         const replyRef = db.collection('forum_replies').doc(replyId);
         const snap = await replyRef.get();
@@ -635,7 +621,8 @@ async function syncTopicToForum(opts) {
         await replyRef.set(patch, { merge: true });
         return { synced: true, forumReplyId: replyId };
     }
-    const forumPostId = (after && after.forumPostId) || (before && before.forumPostId) || forumPostIdFor(channelId, postId);
+    const rawForumPostId = (after && after.forumPostId) || (before && before.forumPostId);
+    const forumPostId = rawForumPostId ? cleanToken(rawForumPostId, 256) : forumPostIdFor(channelId, postId);
     if (!forumPostId) return { synced: false, reason: 'no_forum' };
     const forumRef = db.collection('forum_posts').doc(forumPostId);
     const snap = await forumRef.get();
@@ -679,7 +666,7 @@ async function syncForumReplyEdit(opts) {
         }
     }
     const channelId = cleanToken(after.topicChannel || before.topicChannel, 80);
-    const topicPostId = cleanToken(after.topicPost || before.topicPost, 400);
+    const topicPostId = cleanToken(after.topicPost || before.topicPost, 256);
     if (!o.db || !channelId || !topicPostId) return { synced: false, reason: 'not_topic' };
     if (before.body === after.body && before.deleted === after.deleted && before.hidden === after.hidden) {
         return { synced: false, reason: 'unchanged' };
@@ -729,7 +716,7 @@ async function syncForumReplyDelete(opts) {
     const o = opts || {};
     const before = o.before || {};
     const channelId = cleanToken(before.topicChannel, 80);
-    const topicPostId = cleanToken(before.topicPost, 400);
+    const topicPostId = cleanToken(before.topicPost, 256);
     if (!o.db || !channelId || !topicPostId) return { synced: false, reason: 'not_topic' };
     const hash = mirrorSyncOf('', true, false);
     const topicRef = o.db.collection('topic_discussions').doc(channelId).collection('posts').doc(topicPostId);
@@ -755,7 +742,7 @@ async function syncForumPostDelete(opts) {
     const before = o.before || {};
     if (before.origin !== 'topic') return { synced: false, reason: 'not_topic' };
     const channelId = cleanToken(before.topicChannel, 80);
-    const topicPostId = cleanToken(before.topicPost, 128);
+    const topicPostId = cleanToken(before.topicPost, 256);
     if (!o.db || !channelId || !topicPostId) return { synced: false, reason: 'bad_id' };
     const hash = mirrorSyncOf('', true, false);
     const topicRef = o.db.collection('topic_discussions').doc(channelId).collection('posts').doc(topicPostId);
@@ -809,6 +796,7 @@ module.exports = {
     summarizeOpener: summarizeOpener,
     patchForumSummary: patchForumSummary,
     forumTitleFor: forumTitleFor,
+    escapeForumBody: escapeForumBody,
     forumBodyFor: forumBodyFor,
     reserveForumSlot: reserveForumSlot,
     announcementLinks: announcementLinks,

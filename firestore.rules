@@ -212,7 +212,8 @@ service cloud.firestore {
         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
         // First time each rank was crossed. onUserRankReached only.
         'rankReachedAt',
-        'unclaimableXp', 'chatXpStreak', 'chatXpDay',
+        // guestUnclaimableXp: guest-link split of unclaimableXp (#372). Server only.
+        'unclaimableXp', 'guestUnclaimableXp', 'chatXpStreak', 'chatXpDay',
         'visibleBadges', 'hiddenBadges', 'badges', 'payingBadgeCount', 'badgeCounters',
         'marketListings', 'marketMessages', 'marketSold',
         'dailyTripleCount', 'trifectaDays', 'dailyFiveDays', 'dailyFiveStreak',
@@ -324,7 +325,7 @@ service cloud.firestore {
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
                         // First time each rank was crossed. onUserRankReached only.
                         'rankReachedAt',
-                        'unclaimableXp', 'chatXpStreak', 'chatXpDay',
+                        'unclaimableXp', 'guestUnclaimableXp', 'chatXpStreak', 'chatXpDay',
                         'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled', 'cipherSatsBalance',
                         'orangeTickets', 'tickets',
                         // Timechain TV daily watch (tctvWatchHeartbeat only)
@@ -1413,11 +1414,15 @@ service cloud.firestore {
                  || url.matches('https://lh3\\.googleusercontent\\.com/.*'));
     }
 
+    function pvpLobbyNameAllowed(name) {
+      return !name.lower().matches('.*(needcreations|bitcoin ?quest|bitcoin ?education|rufus|nacho|admin|moderator|staff|official|support|603 ?btc).*')
+             && !name.lower().matches('(the |real |official )?(phil|mod|mods|bq)');
+    }
+
     match /pvp_lobby/{docId} {
       allow read: if request.auth != null;
-      // Signed-in, non-anonymous, own uid, strict field list. No extra payload.
+      // Signed-in (including anonymous), own uid, strict field list. No extra payload.
       allow create: if clientWritesOk() && (request.auth != null
-                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && docId == request.auth.uid
                     && request.resource.data.keys().hasOnly(['uid', 'name', 'profilePic', 'status', 'createdAt', 'lastSeen'])
                     && request.resource.data.uid == request.auth.uid
@@ -1425,7 +1430,14 @@ service cloud.firestore {
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
                     && request.resource.data.name.size() <= 30
-                    && request.resource.data.name.matches('[^\\[\\]()@#*`_]+')
+                    // Same characters safeDisplayName strips on the server
+                    // (pvpFlow.js), so the lobby shows what the match will show.
+                    && request.resource.data.name.matches("[^\\r\\n<>\\[\\]()@#*`_~|\\\\\"']+")
+                    // Plain staff and brand names, for every lobby name. The
+                    // server also folds look-alike letters and replaces any it
+                    // catches. A player with a server username plays under that
+                    // username, so the lobby name is never shown for them.
+                    && pvpLobbyNameAllowed(request.resource.data.name)
                     && pvpPicOk(request.resource.data.profilePic)
                     && request.resource.data.createdAt == request.time
                     && request.resource.data.lastSeen is number
@@ -1442,6 +1454,12 @@ service cloud.firestore {
                     && docId == request.auth.uid);
     }
 
+    // One lock per player pair, pointing at the pair's latest match
+    // (pvpCreateMatch, M5). Server-only.
+    match /pvp_pair_locks/{docId} {
+      allow read, write: if false;
+    }
+
     // One summary of who is waiting. Clients listen to this doc only.
     // onPvpLobbyLive maintains it. Clients cannot write it.
     match /pvp_lobby_live/{docId} {
@@ -1450,6 +1468,10 @@ service cloud.firestore {
     }
 
     match /pvp_rewards/{matchId} {
+      allow read, write: if false;
+    }
+
+    match /pvp_played/{matchId} {
       allow read, write: if false;
     }
 
@@ -1494,7 +1516,7 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(['status', 'currentQ', 'questionWinner', 'questionStartedAt',
                                  'player1LastSeen', 'player2LastSeen',
-                                 'forfeitedBy', 'forfeitReason', 'lastTaunt'])
+                                 'forfeitedBy', 'forfeitReason', 'lastTaunt', 'roundExplain'])
                     && (request.resource.data.status == resource.data.status
                         || (request.resource.data.status == 'active'
                             && resource.data.status in ['countdown', 'question_result'])
@@ -1503,8 +1525,11 @@ service cloud.firestore {
                             && request.resource.data.forfeitReason == 'manual_leave'))
                     && (request.resource.data.currentQ == resource.data.currentQ
                         || (resource.data.status == 'question_result'
+                            && resource.data.questionWinner != 'reroll'
                             && request.resource.data.status == 'active'
                             && request.resource.data.currentQ == resource.data.currentQ + 1))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['roundExplain'])
+                        || request.resource.data.roundExplain == '')
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionWinner'])
                         || request.resource.data.questionWinner == null)
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionStartedAt'])
@@ -1521,6 +1546,34 @@ service cloud.firestore {
                             && request.resource.data.lastTaunt.emoji.size() > 0
                             && request.resource.data.lastTaunt.emoji.size() <= 8
                             && request.resource.data.lastTaunt.ts is number)));
+    }
+
+    // V4V splits (tips follow-up N2, Red Team FINAL GO 83/83). Optional list of
+    // at most 10 maps; each split is 0 or a whole number >= 1 and < 1000000000.
+    function v4vSplitEntryOk(entry) {
+      return entry is map
+        && 'split' in entry
+        && (((entry.split is int || (entry.split is float && entry.split == math.floor(entry.split))) && entry.split >= 1 && entry.split < 1000000000) || entry.split == 0);
+    }
+
+    function v4vSplitsListOk(list) {
+      return list is list
+        && list.size() <= 10
+        && (list.size() < 1 || v4vSplitEntryOk(list[0]))
+        && (list.size() < 2 || v4vSplitEntryOk(list[1]))
+        && (list.size() < 3 || v4vSplitEntryOk(list[2]))
+        && (list.size() < 4 || v4vSplitEntryOk(list[3]))
+        && (list.size() < 5 || v4vSplitEntryOk(list[4]))
+        && (list.size() < 6 || v4vSplitEntryOk(list[5]))
+        && (list.size() < 7 || v4vSplitEntryOk(list[6]))
+        && (list.size() < 8 || v4vSplitEntryOk(list[7]))
+        && (list.size() < 9 || v4vSplitEntryOk(list[8]))
+        && (list.size() < 10 || v4vSplitEntryOk(list[9]));
+    }
+
+    function v4vSplitsFieldOk(data) {
+      return !('v4vSplits' in data)
+        || v4vSplitsListOk(data.v4vSplits);
     }
 
     // =============================================
@@ -1555,13 +1608,15 @@ service cloud.firestore {
                         || (request.resource.data.releaseDate is string
                             && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
                     && (!('plays' in request.resource.data) || request.resource.data.plays == 0)
-                    && (!('likes' in request.resource.data) || request.resource.data.likes == 0));
+                    && (!('likes' in request.resource.data) || request.resource.data.likes == 0)
+                    && v4vSplitsFieldOk(request.resource.data));
       allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
                     && (
                       // Author can update their own track (with coverUrl + XSS validation)
                       (resource.data.authorId == request.auth.uid
                         && serverCountersUnchanged()
+                        && v4vSplitsFieldOk(request.resource.data)
                         && (!('coverUrl' in request.resource.data)
                             || request.resource.data.coverUrl == ''
                             || request.resource.data.coverUrl == null
@@ -1648,6 +1703,78 @@ service cloud.firestore {
     // =============================================
     // ARTICLES
     // =============================================
+    // Counters (upvotes, voters, tipTotal, saves, savedBy) and pinned are not
+    // author-editable. Votes have their own branch; pinned is admin only.
+    function articleCreateKeysOk(d) {
+      return d.keys().hasOnly([
+        'title', 'subtitle', 'body', 'tags', 'wordCount', 'readTime',
+        'authorId', 'authorName', 'authorPoints', 'authorPic',
+        'upvotes', 'voters', 'replyCount', 'tipTotal', 'status', 'pinned',
+        'agreedToTerms', 'createdAt', 'updatedAt', 'coverUrl'
+      ]);
+    }
+    // Shape checks shared by create and author edit. Optional fields are
+    // checked only when present. Title and body size checks stay inline in
+    // the match block so test-article-publish-xp still sees the literals.
+    function articleTagsOk(tags) {
+      return tags is list
+        && tags.size() <= 3
+        && (tags.size() < 1 || (tags[0] is string && tags[0].size() <= 30))
+        && (tags.size() < 2 || (tags[1] is string && tags[1].size() <= 30))
+        && (tags.size() < 3 || (tags[2] is string && tags[2].size() <= 30));
+    }
+    // Empty, an https URL, or a png/jpeg/webp data URL. Firestore matches()
+    // is a full-string match, so the regex covers the rest of the value.
+    // R4: payload is one or more base64 chars, with optional padding only at the end.
+    function articlePicOk(u) {
+      return u is string
+        && (u.size() == 0
+            || (u.size() <= 2048 && u.matches('^https://.*'))
+            || (u.size() <= 20000
+                && u.matches('^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$')));
+    }
+    function articleCoverOk(u) {
+      return u is string
+        && u.size() <= 2048
+        && (u == '' || u.matches('^https://.*'));
+    }
+    function articleAuthorShapeOk(d) {
+      return d.get('authorName', '') is string
+        && d.get('authorName', '').size() <= 40
+        && d.get('authorPoints', 0) is int
+        && d.get('authorPoints', 0) >= 0
+        && articlePicOk(d.get('authorPic', ''));
+    }
+    // Content fields checked on create and on every author update after-image
+    // (including an unchanged leftover coverUrl).
+    function articleContentShapeOk(d) {
+      return d.get('wordCount', 0) is int
+        && d.get('wordCount', 0) >= 0
+        && d.get('wordCount', 0) <= 100000
+        && d.get('readTime', 0) is int
+        && d.get('readTime', 0) >= 0
+        && d.get('subtitle', '') is string
+        && d.get('subtitle', '').size() <= 200
+        && articleTagsOk(d.get('tags', []))
+        && articleCoverOk(d.get('coverUrl', ''));
+    }
+    function articleShapeOk(d) {
+      return articleContentShapeOk(d)
+        && articleAuthorShapeOk(d);
+    }
+    // R1: on author update, check authorPic/authorPoints/authorName only
+    // when those keys are in the changed set. Create still uses articleShapeOk.
+    function articleAuthorChangedOk(d, changed) {
+      return (!changed.hasAny(['authorName'])
+              || (d.get('authorName', '') is string && d.get('authorName', '').size() <= 40))
+        && (!changed.hasAny(['authorPoints'])
+            || (d.get('authorPoints', 0) is int && d.get('authorPoints', 0) >= 0))
+        && (!changed.hasAny(['authorPic'])
+            || articlePicOk(d.get('authorPic', '')));
+    }
+    function articleLockedKeys() {
+      return ['upvotes', 'voters', 'tipTotal', 'saves', 'savedBy', 'pinned'];
+    }
     match /articles/{articleId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
@@ -1659,46 +1786,59 @@ service cloud.firestore {
                     && request.resource.data.body is string
                     && request.resource.data.body.size() <= 50000
                     && request.resource.data.agreedToTerms == true
-                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0));
+                    && request.resource.data.status == 'published'
+                    && articleCreateKeysOk(request.resource.data)
+                    && articleShapeOk(request.resource.data)
+                    && request.resource.data.get('upvotes', 0) == 0
+                    && request.resource.data.get('tipTotal', 0) == 0
+                    && request.resource.data.get('replyCount', 0) == 0
+                    && request.resource.data.get('voters', []) is list
+                    && request.resource.data.get('voters', []).size() == 0
+                    && request.resource.data.get('pinned', false) == false);
       allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
                     && (
-                      // Author can edit their own article. replyCount stays server-owned.
+                      // Author edit. Counters, voters and pinned are locked;
+                      // replyCount/plays stay server-owned.
+                      // Title/body size lines stay inline for test-article-publish-xp.
                       (resource.data.authorId == request.auth.uid
                         && request.resource.data.authorId == resource.data.authorId
-                        && request.resource.data.body is string
-                        && request.resource.data.body.size() <= 50000
                         && request.resource.data.title is string
                         && request.resource.data.title.size() >= 10
                         && request.resource.data.title.size() <= 120
-                        && serverCountersUnchanged())
-                      // Upvotes/tips/saves: anyone authenticated
-                      // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
-                      // Previously the OR logic let any branch pass while the caller freely
-                      // wrote the other fields: e.g. tip branch only checked tipTotal > current,
-                      // so an attacker could include tipTotal+1 AND zero out upvotes/voters/saves.
+                        && request.resource.data.body is string
+                        && request.resource.data.body.size() <= 50000
+                        && articleContentShapeOk(request.resource.data)
+                        && articleAuthorChangedOk(request.resource.data, request.resource.data.diff(resource.data).affectedKeys())
+                        && serverCountersUnchanged()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasAny(articleLockedKeys()) == false
+                        // OPTIONAL (recommended): only what articleUpdate writes.
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['title', 'subtitle', 'body', 'tags', 'wordCount', 'readTime', 'updatedAt', 'coverUrl']))
+                      // Vote on: +1 and the caller's uid appended.
                       || (
-                          // Upvote: only upvotes + voters change
-                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                          request.auth.token.firebase.sign_in_provider != 'anonymous'
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                          && resource.data.get('upvotes', 0) is int
                           && !(request.auth.uid in resource.data.get('voters', []))
                           && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
-                          && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
-                          && request.auth.uid in request.resource.data.voters
+                          && request.resource.data.voters == resource.data.get('voters', []).concat([request.auth.uid])
                       )
+                      // Vote off: -1 and only the caller's uid removed.
+                      // upvotes > 0 is required on the current doc so the
+                      // result cannot go negative.
                       || (
-                          // Save: only saves + savedBy change
-                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['saves', 'savedBy'])
-                          && !(request.auth.uid in resource.data.get('savedBy', []))
-                          && request.resource.data.saves == resource.data.get('saves', 0) + 1
-                          && request.resource.data.savedBy.size() == resource.data.get('savedBy', []).size() + 1
-                          && request.auth.uid in request.resource.data.savedBy
+                          request.auth.token.firebase.sign_in_provider != 'anonymous'
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                          && resource.data.get('upvotes', 0) is int
+                          && resource.data.get('upvotes', 0) > 0
+                          && request.auth.uid in resource.data.get('voters', [])
+                          && request.resource.data.upvotes == resource.data.get('upvotes', 0) - 1
+                          && request.resource.data.voters == resource.data.get('voters', []).removeAll([request.auth.uid])
                       )
-                      || (
-                          // Tip: only tipTotal changes, must strictly increase
-                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tipTotal'])
-                          && request.resource.data.tipTotal > resource.data.get('tipTotal', 0)
-                      )
-                      // Admin
+                      // Save and tip branches removed: no client writes them
+                      // (section 1). tipTotal/saves/savedBy become admin/server only.
+                      // Admin (pin/unpin, moderation edits).
                       || isAdmin()
                     ));
       allow delete: if clientWritesOk() && (request.auth != null

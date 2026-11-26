@@ -51,6 +51,7 @@ if (!_preferRestGlobal.__btcFirestorePreferRest) {
     _preferRestGlobal.__btcFirestorePreferRest = true;
 }
 const { beatsCensor } = require('./src/beats-censor.js');
+const v4vAlloc = require('./src/v4vAlloc');
 const { sendUserPush, broadcastCategory, cleanStaleTokens, releaseTokenFromOthers, capUserDevices } = require('./src/push');
 const { testPushTargetAllowed } = require('./src/pushPrefs');
 const { createPredictionJobs } = require('./src/predictionJobs');
@@ -186,6 +187,7 @@ async function verifyTurnstile(token, remoteip) {
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
+const payFailGuard = require('./src/payFailGuard');
 const rewardNotify = require('./src/rewardNotify');
 const rankReached = require('./src/rankReached');
 const awardActions = require('./src/awardActions');
@@ -202,6 +204,8 @@ const tipService = require('./src/tipService');
 const { assertPublicHost } = require('./src/publicHost');
 const { resolveLnurlInvoice, normalizeLnAddress, RESOLVE_ERROR } = require('./src/lnurlResolve');
 const pvpFlow = require('./src/pvpFlow');
+const pvpPairLock = require('./src/pvpPairLock');
+const guestPolicy = require('./src/guestPolicy');
 const badgeRules = require('./src/badgeRules');
 const { grantFamily, familyFor } = require('./src/grantBadge');
 const { awardBadge } = require('./src/awardBadge');
@@ -1759,6 +1763,10 @@ exports.claimSats = functionsV1.runWith({
         return { success: false, error: 'Sats claims are paused. Try again later.' };
     }
 
+    // Early exit for the post-failure wait. The claim transaction checks it again.
+    const preWait = payFailGuard.assessRetryWait(ledgerPreSnap.exists ? ledgerPreSnap.data().faucetFailGuard : null, null, Date.now());
+    if (!preWait.ok) return { success: false, error: preWait.error };
+
     const holdUntil = userPreSnap.exists ? (Number(userPreSnap.data().satsHold) || 0) : 0;
     if (holdUntil > Date.now()) {
         return { success: false, error: 'Sats withdrawals are paused on this account. Try again later.' };
@@ -1840,7 +1848,14 @@ exports.claimSats = functionsV1.runWith({
     }
 
     let invoice = '';
+    // STAGING ONLY: null unless the project is bitcoin-quest-staging AND
+    // config/satoshiFavorPayouts.mockWallet is true (src/stagingMockWallet.js).
+    const stagingMock = await require('./src/stagingMockWallet').load(db);
     try {
+        if (stagingMock) {
+            // Staging mock: a signed mainnet-format invoice for the exact amount, no LNURL call.
+            invoice = require('./src/favorBlockClaimsFns').mockInvoice(netSendAmount, 'none');
+        } else {
         await assertPublicHost(_lnDomain);
         const resolved = await resolveLnurlInvoice({
             address: lnNorm,
@@ -1848,13 +1863,15 @@ exports.claimSats = functionsV1.runWith({
         });
         invoice = resolved.pr;
         console.log('[FAUCET] Resolved Lightning Address for ' + netSendAmount + ' net sats domain=' + resolved.domain);
+        }
     } catch (e) {
         console.error('[FAUCET] Lightning Address resolution failed domain=' + (_lnDomain || ''));
         const clear = e && (e.code === 'lnurl_error' || e.code === 'below_min' || e.code === 'above_max' || e.code === 'amount_mismatch' || e.code === 'wrong_network');
         return {
             success: false,
             code: 'address_unresolved',
-            error: clear && e.message ? e.message : RESOLVE_ERROR,
+            // The receiver's address server failed before any send. Nothing was reserved.
+            error: clear && e.message ? e.message : payFailGuard.RECEIVER_UNRESPONSIVE_MESSAGE,
         };
     }
 
@@ -1968,12 +1985,21 @@ exports.claimSats = functionsV1.runWith({
                 const pendingAt = user._pendingClaimAt
                     ? (user._pendingClaimAt.toDate ? user._pendingClaimAt.toDate() : new Date(user._pendingClaimAt))
                     : null;
-                const PENDING_TTL_MS = 5 * 60 * 1000;
+                // Longer than the 300s function timeout, so a live pay is never treated as stale.
+                const PENDING_TTL_MS = 10 * 60 * 1000;
                 if (pendingAt && (Date.now() - pendingAt.getTime() <= PENDING_TTL_MS)) {
                     deny('A previous claim is still processing. Try again in a minute.');
                 }
                 console.log('[FAUCET] Auto-clearing stale _pendingClaim for uid=' + uid);
             }
+
+            // A released failure makes this account and this address wait before the next try.
+            const failWait = payFailGuard.assessRetryWait(
+                ledger.faucetFailGuard,
+                lnRateDoc.exists ? lnRateDoc.data().faucetFailGuard : null,
+                Date.now()
+            );
+            if (!failWait.ok) deny(failWait.error);
 
             let visitedList = Array.isArray(user.visitedChannelsList) ? user.visitedChannelsList : [];
             let visitedUpdate = null;
@@ -2162,6 +2188,11 @@ exports.claimSats = functionsV1.runWith({
                 status: 'pending',
                 paymentHash: paymentHash,
                 ts: admin.firestore.Timestamp.now(),
+                // Server-only. Lets a definite failure put the cooldown back exactly as it was.
+                address: lnNorm,
+                rateEntryTs: nowMs,
+                priorUserLastMs: userLastClaim,
+                priorLedgerLastMs: ledgerLastClaim,
             });
             t.set(fpRef, {
                 lastClaim: admin.firestore.FieldValue.serverTimestamp(),
@@ -2239,7 +2270,9 @@ exports.claimSats = functionsV1.runWith({
     let payResult = null;
     let payError = null;
     try {
-        nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
+        nwc = stagingMock
+            ? require('./src/stagingMockWallet').createMockWallet(stagingMock)
+            : new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
         const balanceResult = await _withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor(balanceResult.balance / 1000);
         if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) throw new Error('WALLET_LOW');
@@ -2269,18 +2302,13 @@ exports.claimSats = functionsV1.runWith({
         return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: decision.preimage, message: '⚡ ' + netSendAmount + ' sats sent to your wallet!' };
     }
     if (decision.action === 'refund') {
-        await _rollbackClaim(uid, amount, today, invoiceRef);
-        if (payError && payError.message === 'WALLET_LOW') {
-            return { success: false, error: 'Faucet is being refilled. Try again later.' };
-        }
+        // Nothing was sent: the send never started (our node, before the pay call).
+        const failKind = faucetGuard.definiteFailureKind({ phase: phase, error: payError });
+        const released = await _releaseFailedClaim(payInfo, today, lnRateRef, failKind);
         if (payError && payError.message === 'HARD_CAP') {
-            return { success: false, error: 'Claim exceeds maximum. Contact support.' };
+            return { success: false, code: 'payment_failed', error: 'Claim exceeds maximum. Contact support.' };
         }
-        const isTimeout = payError && payError.message && payError.message.indexOf('[TIMEOUT]') === 0;
-        if (phase !== 'pay') {
-            return { success: false, error: isTimeout ? 'Payment wallet is not responding. Try again in a moment.' : 'Could not connect to payment wallet. Try again later.' };
-        }
-        return { success: false, error: 'Payment failed. Check your Lightning Address and try again.' };
+        return { success: false, code: 'payment_failed', released: released.released, error: released.message };
     }
 
     const lookupReq = faucetGuard.lookupRequestFromDecoded(decoded);
@@ -2300,7 +2328,7 @@ exports.claimSats = functionsV1.runWith({
             return new Promise(function(resolve) { setTimeout(resolve, ms); });
         },
     });
-    const afterLookup = faucetGuard.decideFaucetLookupResult(settlement);
+    const afterLookup = faucetGuard.decideFaucetLookupResult(settlement, { refused: decision.refused === true });
     if (afterLookup.action === 'record') {
         try {
             await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: afterLookup.preimage, paymentHash: lookupReq.payment_hash }));
@@ -2318,10 +2346,15 @@ exports.claimSats = functionsV1.runWith({
         return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: afterLookup.preimage, message: '⚡ ' + netSendAmount + ' sats sent to your wallet!' };
     }
     if (afterLookup.action === 'refund') {
-        await _rollbackClaim(uid, amount, today, invoiceRef);
-        return { success: false, error: 'Payment failed. Your sats were not sent. Please try again.' };
+        // The wallet lookup reported the payment as failed, so no HTLC can still settle.
+        // Our side only when the pay call itself returned one of our wallet's exact codes.
+        const failKind = decision.refused === true ? faucetGuard.definiteFailureKind({ phase: phase, error: payError }) : 'theirs';
+        const released = await _releaseFailedClaim(payInfo, today, lnRateRef, failKind);
+        return { success: false, code: 'payment_failed', released: released.released, error: released.message };
     }
-
+    // Anything else (pending, empty, error, unclassified), including an explicit
+    // refusal the lookup could not confirm, is held: no refund, no slot release.
+    // An HTLC can still settle, so refunding here could pay twice.
     try { await _holdFaucetUnknown(Object.assign({}, payInfo, { paymentHash: lookupReq.payment_hash })); }
     catch (e) { console.error('[FAUCET] could not hold unknown payment:', e.message); }
     return { success: false, error: _unknownPayError() };
@@ -2359,33 +2392,13 @@ async function _notifyClaimedSats(uid, amount) {
     }));
 }
 
-async function _rollbackClaim(uid, amount, today, invoiceRef) {
-    try {
-        const pointsToRefund = amount * FAUCET.POINTS_PER_SAT;
-        const batch = db.batch();
-        batch.update(db.collection('users').doc(uid), {
-            pointsClaimed: admin.firestore.FieldValue.increment(-pointsToRefund),
-            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            _pendingClaim: admin.firestore.FieldValue.delete(),
-            _pendingClaimAt: admin.firestore.FieldValue.delete()
-        });
-        batch.set(db.collection('faucet_ledger').doc(uid), {
-            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            claimCount: admin.firestore.FieldValue.increment(-1)
-        }, { merge: true });
-        batch.set(db.collection('users').doc(uid).collection('sats_daily').doc(today), {
-            amount: admin.firestore.FieldValue.increment(-amount)
-        }, { merge: true });
-        batch.set(db.collection('faucet_stats').doc(today), {
-            totalPaid: admin.firestore.FieldValue.increment(-amount),
-            claimCount: admin.firestore.FieldValue.increment(-1)
-        }, { merge: true });
-        if (invoiceRef) batch.delete(invoiceRef);
-        await batch.commit();
-        console.log('[FAUCET] Rolled back ' + amount + ' sats for ' + uid);
-    } catch (e) {
-        console.error('[FAUCET] CRITICAL: Rollback failed for ' + uid + ', amount=' + amount + ':', e.message);
-    }
+async function _releaseFailedClaim(info, today, lnRateRef, kind) {
+    return require('./src/faucetRelease').releaseFailedClaim({
+        db: db,
+        admin: admin,
+        pointsPerSat: FAUCET.POINTS_PER_SAT,
+        supportError: faucetGuard.supportError,
+    }, info, today, lnRateRef, kind);
 }
 
 async function _flagFaucetAdmin(flag) {
@@ -3047,11 +3060,15 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
 // All point awards go through this Cloud Function instead of direct Firestore writes
 // Enforces daily cap server-side, eliminates localStorage bypass and console inflation
 const beatsPlays = require('./src/beatsPlays');
+const guestGate = require('./src/guestGate');
 
 exports.recordBeatsPlay = functionsV1.https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    if (await guestGate.isGuestCaller(admin, context)) {
+        return { counted: false, reason: 'guest' };
     }
     const result = await beatsPlays.recordPlay(db, admin, context.auth.uid, data && data.trackId, Date.now());
     if (result && result.counted && result.plays) {
@@ -3076,6 +3093,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    // Guests earn nothing here. Points earned on an anonymous session could
+    // later move to a signed-in account and be claimed.
+    if (await guestGate.isGuestCaller(admin, context)) {
+        return { success: false, guest: true, error: guestGate.GUEST_EARN_ERROR, awarded: 0, tickets: 0 };
     }
     const uid = context.auth.uid;
     const actionKey = (data.actionKey || '').substring(0, 50);
@@ -3416,6 +3438,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     // client that still calls this phrase does not throw.
     if (resolved.id === 'daily_spin') {
         return { success: true, awarded: 0, tickets: 0 };
+    }
+    // Guest progress moves only through linkGuestAccount, which marks it
+    // unclaimable. This legacy action grants nothing and writes nothing.
+    if (resolved.id === 'anon_merge') {
+        return { success: true, awarded: 0, tickets: 0, merged: false };
     }
 
 
@@ -4377,32 +4404,64 @@ exports.pollVote = functionsV1.https.onCall(createSvbVote({
 }));
 
 // ---- PVP Answer Submission (server records the choice; pvpResolveRound grades it) ----
+// Guest = no session, or an anonymous session with no real sign-in method
+// linked (guestPolicy). Username-only accounts are guests. Nostr and
+// Lightning (custom token) sign-ins are logged in.
+function isAnonymousAuth(context) {
+    return guestPolicy.isGuestContext(context);
+}
+
+// Charge one rate window inside a transaction. All reads must come first, so
+// the caller passes the snapshot it already read.
+function pvpTxCharge(tx, ref, snap, maxCount, windowMs, nowMs, message) {
+    const planned = pvpFlow.planRateWindow(snap && snap.exists ? snap.data() : null, nowMs, maxCount, windowMs);
+    if (!planned.ok) {
+        throw new functionsV1.https.HttpsError('resource-exhausted', message || 'Too many PvP matches right now. Try again later.');
+    }
+    tx.set(ref, { windowStartMs: planned.windowStartMs, count: planned.count });
+}
+
 async function pvpRateLimit(uid, bucket, maxCount, windowMs) {
+    if (!uid || typeof uid !== 'string') {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid player');
+    }
     const ref = db.collection('rate_limits').doc('pvp_' + bucket + '_' + uid);
     await db.runTransaction(async (tx) => {
         const doc = await tx.get(ref);
-        const now = Date.now();
-        if (doc.exists) {
-            const d = doc.data() || {};
-            const start = d.windowStartMs || 0;
-            if (now - start < windowMs) {
-                if ((d.count || 0) >= maxCount) {
-                    throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many PvP requests');
-                }
-                tx.update(ref, { count: (d.count || 0) + 1 });
-            } else {
-                tx.set(ref, { windowStartMs: now, count: 1 });
-            }
-        } else {
-            tx.set(ref, { windowStartMs: now, count: 1 });
+        const planned = pvpFlow.planRateWindow(doc.exists ? doc.data() : null, Date.now(), maxCount, windowMs);
+        if (!planned.ok) {
+            throw new functionsV1.https.HttpsError('resource-exhausted', 'Too many PvP requests');
         }
+        tx.set(ref, { windowStartMs: planned.windowStartMs, count: planned.count });
     });
 }
 
 exports.pvpSubmitAnswer = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const uid = context.auth.uid;
-    await pvpRateLimit(uid, 'answer', 30, 60000);
+    const answerNow = Date.now();
+    await pvpRateLimit(uid, 'answer', pvpFlow.PVP_ANSWER_PER_MIN, 60000);
+    // Guests also have a per-network cap (hashed IP when the request has one).
+    if (isAnonymousAuth(context)) {
+        const answerIp = faucetGuard.clientIpFromRequest(context && context.rawRequest);
+        if (answerIp) {
+            try {
+                const { networkRateDocId } = require('./src/rateLimitSalt');
+                const minRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'pvp_anon_ans_min_', answerIp, answerNow));
+                const hourRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'pvp_anon_ans_hour_', answerIp, answerNow));
+                await db.runTransaction(async (tx) => {
+                    const minSnap = await tx.get(minRef);
+                    const hourSnap = await tx.get(hourRef);
+                    pvpTxCharge(tx, minRef, minSnap, pvpFlow.PVP_ANON_ANSWER_NETWORK_PER_MIN, 60000, answerNow, 'Too many PvP requests');
+                    pvpTxCharge(tx, hourRef, hourSnap, pvpFlow.PVP_ANON_ANSWER_NETWORK_PER_HOUR, pvpFlow.PVP_MATCH_HOUR_MS, answerNow, 'Too many PvP requests');
+                });
+            } catch (e) {
+                if (e && e.code === 'resource-exhausted') throw e;
+                // No salt or no IP hash: the per-uid cap still applies. Never log the IP.
+                console.warn('[pvp] answer network bucket skipped: ' + String((e && e.code) || 'error'));
+            }
+        }
+    }
 
     const { matchId, questionIndex, answerIndex } = data || {};
     if (!matchId || typeof questionIndex !== 'number' || typeof answerIndex !== 'number') {
@@ -4489,7 +4548,7 @@ exports.pvpTimeoutOpponent = functionsV1.runWith({ enforceAppCheck: true }).http
 exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    if (await guestGate.isGuestCaller(admin, context)) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot spin');
     }
 
@@ -4781,7 +4840,10 @@ function pvpSafePic(url) {
 // ── PVP Match Creation (server-side, hides answer keys) ──
 exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    await pvpRateLimit(context.auth.uid, 'create', 10, 60000);
+    await pvpRateLimit(context.auth.uid, 'create', pvpFlow.PVP_CREATE_BURST, pvpFlow.PVP_CREATE_BURST_MS);
+    // Guest status is decided here, once, and stamped on the match. Settle
+    // never re-reads it from Auth.
+    const callerGuest = isAnonymousAuth(context);
 
     // [SECURITY FIX] Caller is always player2 (the matchmaker who found an opponent).
     // Pin player2.uid to context.auth.uid — never trust client-supplied uid.
@@ -4804,16 +4866,55 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
     if (!shuffled.length) {
         throw new functionsV1.https.HttpsError('unavailable', 'No PvP questions available');
     }
-    const answerKeys = shuffled.map((q, i) => ({ questionIndex: i, correct: q.correct }));
+    const answerKeys = shuffled.map((q, i) => {
+        const row = { questionIndex: i, correct: q.correct };
+        if (q.explain) row.explain = q.explain;
+        return row;
+    });
     const clientQuestions = shuffled.map(q => ({ q: q.q, options: q.options }));
 
     // Use a transaction to atomically claim the lobby doc and create the match.
     // This prevents the race condition where both players try to create a match
     // against each other simultaneously.
     const lobbyRef = db.collection('pvp_lobby').doc(lobbyDocId);
+    const lobbyPreview = await lobbyRef.get();
+    if (!lobbyPreview.exists) {
+        throw new functionsV1.https.HttpsError('not-found', 'Lobby entry not found');
+    }
+    const previewUid = (lobbyPreview.data() && lobbyPreview.data().uid) || '';
+    if (!previewUid || typeof previewUid !== 'string') {
+        throw new functionsV1.https.HttpsError('internal', 'Lobby doc missing uid');
+    }
+    // Auth lookups cannot run inside a transaction, so player1's guest bit is
+    // read here and the transaction checks the lobby still belongs to them.
+    const p1Guest = previewUid === callerUid ? true : (await pvpAccountFlags(previewUid)).anonymous;
+    const guestStamp = pvpFlow.planGuestStamp(p1Guest, callerGuest);
+    const createNow = Date.now();
+    let networkRef = null;
+    const createIp = faucetGuard.clientIpFromRequest(context && context.rawRequest);
+    // Any guest match (either side) charges the caller's network bucket.
+    if (guestStamp.guestMatch && createIp) {
+        try {
+            const { networkRateDocId } = require('./src/rateLimitSalt');
+            networkRef = db.collection('rate_limits').doc(await networkRateDocId(db, 'pvp_anon_net_', createIp, createNow));
+        } catch (e) {
+            networkRef = null;
+            // Never log the IP. Only the error code, so a missing salt is visible.
+            console.warn('[pvp] create network bucket skipped: ' + String((e && e.code) || 'error'));
+        }
+    }
+    const charges = pvpFlow.planMatchCharges({ p1Guest: p1Guest, p2Guest: callerGuest, hasNetwork: !!networkRef });
+    const hourBucket = Math.floor(createNow / pvpFlow.PVP_MATCH_HOUR_MS);
+    function chargeRef(c) {
+        if (c.who === 'player1') return db.collection('rate_limits').doc('pvp_match_hour_' + previewUid);
+        if (c.who === 'player2') return db.collection('rate_limits').doc('pvp_match_hour_' + callerUid);
+        if (c.who === 'global') return db.collection('rate_limits').doc('pvp_anon_global_' + hourBucket);
+        return networkRef;
+    }
     const matchRef = db.collection('pvp_matches').doc(); // pre-generate ID
     let challengedUid = '';
     let challengerName = 'A Bitcoiner';
+    let opponentName = 'Opponent';
 
     await db.runTransaction(async (tx) => {
         const lobbySnap = await tx.get(lobbyRef);
@@ -4821,6 +4922,9 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
             throw new functionsV1.https.HttpsError('not-found', 'Lobby entry not found');
         }
         const lobbyData = lobbySnap.data();
+        if (lobbyData.uid !== previewUid) {
+            throw new functionsV1.https.HttpsError('aborted', 'Lobby changed. Try again.');
+        }
         if (lobbyData.status !== 'waiting') {
             throw new functionsV1.https.HttpsError('already-exists', 'Opponent already matched');
         }
@@ -4836,13 +4940,37 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
         if (p1Uid === callerUid) {
             throw new functionsV1.https.HttpsError('permission-denied', 'Cannot match against yourself');
         }
+        // M5: one live match per pair. player1 can re-create a waiting lobby
+        // while their match is still running, so the lobby status alone is not
+        // enough. Refuse (never open a second match) while the pair's latest
+        // match is still live.
+        const pairLock = await pvpPairLock.readPairLock(tx, db, p1Uid, callerUid, createNow);
+        if (pairLock.liveMatchId) {
+            throw new functionsV1.https.HttpsError('already-exists', 'Already in a match with this player');
+        }
         const p1User = await tx.get(db.collection('users').doc(p1Uid));
         const p2User = await tx.get(db.collection('users').doc(callerUid));
-        const p1Name = pvpFlow.safeDisplayName(p1User.exists ? p1User.data().username : lobbyData.name);
-        const p2Name = pvpFlow.safeDisplayName(p2User.exists ? p2User.data().username : (player2 && player2.name));
+        const chargeRefs = charges.map(chargeRef);
+        const chargeSnaps = [];
+        for (let ci = 0; ci < chargeRefs.length; ci++) chargeSnaps.push(await tx.get(chargeRefs[ci]));
+        // All reads are done. Charge the hourly caps inside the claim, so a
+        // refused match charges nobody. A guest match never spends a waiting
+        // signed-in player1's cap; the caller is always charged.
+        for (let ci = 0; ci < chargeRefs.length; ci++) {
+            pvpTxCharge(tx, chargeRefs[ci], chargeSnaps[ci], charges[ci].max, pvpFlow.PVP_MATCH_HOUR_MS, createNow);
+        }
+        // A name from the lobby or the client (guests with no username) goes
+        // through the reserved / staff-name check.
+        const p1Username = p1User.exists ? p1User.data().username : '';
+        const p2Username = p2User.exists ? p2User.data().username : '';
+        // users.username is server-set (setUsername checks reserved names), so
+        // it is used as is, even for a username-only guest.
+        const p1Name = p1Username ? pvpFlow.safeDisplayName(p1Username) : pvpFlow.guestBattleName(lobbyData.name);
+        const p2Name = p2Username ? pvpFlow.safeDisplayName(p2Username) : pvpFlow.guestBattleName(player2 && player2.name);
         const p2Pic = pvpSafePic(player2 && player2.profilePic);
         challengedUid = p1Uid;
         challengerName = p2Name;
+        opponentName = p1Name;
 
         // Create the match document
         tx.set(matchRef, {
@@ -4850,6 +4978,7 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
                 uid: p1Uid,
                 name: p1Name,
                 profilePic: pvpSafePic(lobbyData.profilePic),
+                guest: guestStamp.player1,
                 score: 0, correct: 0, answers: []
             },
             player2: {
@@ -4857,8 +4986,10 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
                 uid: callerUid,
                 name: p2Name,
                 profilePic: p2Pic,
+                guest: guestStamp.player2,
                 score: 0, correct: 0, answers: []
             },
+            guestMatch: guestStamp.guestMatch,
             questions: clientQuestions,
             currentQ: 0,
             status: 'countdown',
@@ -4873,8 +5004,11 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
             playerUids: { player1: p1Uid, player2: callerUid },
             player1Name: p1Name,
             player2Name: p2Name,
+            guestStamp: guestStamp,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
+
+        pvpPairLock.writePairLock(tx, pairLock.ref, matchRef.id, createNow);
 
         // Atomically mark lobby as matched
         tx.update(lobbyRef, {
@@ -4896,7 +5030,9 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
         } catch (e) { console.warn('[pvpCreateMatch] push failed', e.message); }
     }
 
-    return { matchId: matchRef.id };
+    // opponentName is the server-checked player1 name, so the countdown
+    // screen never shows the raw lobby name.
+    return { matchId: matchRef.id, guestMatch: guestStamp.guestMatch, opponentName: opponentName };
 });
 
 // ── Scholar Exam: Server-Side Grading ──
@@ -5590,16 +5726,25 @@ exports.onPvpMatchFinished = onDocumentUpdated({
     try {
         await settlePvpMatch(matchId, after);
     } catch (e) { console.error('[onPvpMatchFinished] settle failed:', e.message); }
-    if (becameFinished) {
-        try {
-            await activityCounters.recordPvpPlayed(db, admin, after);
-            const sides = [after.player1, after.player2];
-            for (let si = 0; si < sides.length; si++) {
-                const sideUid = sides[si] && sides[si].uid;
-                if (sideUid) await grantFamily(db, admin, sideUid, familyFor('pvpWins'));
-            }
-        } catch (badgeErr) { console.warn('[onPvpMatchFinished] badges', badgeErr && badgeErr.message); }
-    }
+    try {
+        const sides = [after.player1, after.player2];
+        const sideUids = sides.map(function (side) { return side && side.uid; }).filter(Boolean);
+        // Only the create-time stamp decides a guest match (never live Auth).
+        const stampSnap = await db.collection('pvp_answer_keys').doc(matchId).get();
+        const stamp = pvpFlow.readGuestStamp(stampSnap.exists ? stampSnap.data() : null);
+        // A guest match grants no badge family to either side.
+        const badgePlan = pvpFlow.planPvpBadgeGrants(sideUids, stamp);
+        const skipUids = badgePlan.skipUids;
+        const rewardUids = badgePlan.rewardUids;
+        await activityCounters.recordPvpPlayed(db, admin, after, matchId, { skipUids: skipUids, guestMatch: stamp.guestMatch });
+        // pvpWins, pvpPlayed and pvpBestStreak (Hot Streak, Unstoppable).
+        // awardBadge re-checks each counter on the fresh user doc.
+        for (let ri = 0; ri < rewardUids.length; ri++) {
+            await grantFamily(db, admin, rewardUids[ri], familyFor('pvpWins'));
+            await grantFamily(db, admin, rewardUids[ri], familyFor('pvpPlayed'));
+            await grantFamily(db, admin, rewardUids[ri], familyFor('pvpBestStreak'));
+        }
+    } catch (badgeErr) { console.warn('[onPvpMatchFinished] badges', badgeErr && badgeErr.message); }
     return null;
 });
 
@@ -5690,6 +5835,7 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
         const data = change.after.data() || {};
         const pub = {};
         PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in data) pub[f] = data[f]; });
+        if ('points' in data || 'guestUnclaimableXp' in data) pub.points = boardSnapshots.allTimeXp(data);
         try {
             await pubRef.set(pub, { merge: false });
             const beforeData = change.before && change.before.exists ? (change.before.data() || {}) : null;
@@ -5705,26 +5851,15 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
 
 // Admin-only backfill: copies all existing user docs → public_profiles.
 // Call once after deploy: firebase functions:call backfillPublicProfiles (with admin auth)
-exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) => {
+// It reads every user doc in one call, so it gets the gen1 maximum timeout
+// and 1GB instead of the 60s / 256MB defaults. Auth gate and logic unchanged.
+exports.backfillPublicProfiles = functionsV1.runWith({ timeoutSeconds: 540, memory: '1GB' }).https.onCall(async (data, context) => {
         if (!context.auth || !context.auth.token || context.auth.token.admin !== true) {
             throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
         }
         const snap = await db.collection('users').get();
-        const batch_size = 400;
-        let count = 0;
-        let batch = db.batch();
-        snap.forEach(doc => {
-            const d = doc.data();
-            const pub = {};
-            PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in d) pub[f] = d[f]; });
-            batch.set(db.collection('public_profiles').doc(doc.id), pub, { merge: false });
-            count++;
-            if (count % batch_size === 0) {
-                batch.commit().catch(e => console.error('[backfill] batch commit failed:', e));
-                batch = db.batch();
-            }
-        });
-        if (count % batch_size !== 0) await batch.commit();
+        // Awaits every batch commit, so a failed write fails the call.
+        const count = await boardSnapshots.backfillPublicProfiles(db, snap.docs, PUBLIC_PROFILE_FIELDS, 400);
         console.log('[backfillPublicProfiles] done:', count, 'docs');
         return { success: true, count };
     });
@@ -6395,9 +6530,14 @@ exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret], se
         // 2. Query recent withdrawals from faucet_invoices (global log)
         const daysBack = parseInt(req.query.days || '7');
         const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
-        const invoiceSnap = await db.collection('faucet_invoices').where('ts', '>=', since).orderBy('ts', 'desc').limit(200).get();
-        invoiceSnap.forEach(inv => {
-            const id = inv.data();
+        // Failed (refunded) claims keep their record, so they are filtered page by
+        // page and can't push real payouts out of the 200-row window.
+        const auditWindow = await require('./src/faucetRelease').collectWithdrawalWindow(async (after) => {
+            let q = db.collection('faucet_invoices').where('ts', '>=', since).orderBy('ts', 'desc');
+            if (after) q = q.startAfter(after);
+            return (await q.limit(200).get()).docs;
+        }, { want: 200, maxPages: 10 });
+        auditWindow.withdrawals.forEach(id => {
             out.recentWithdrawals.push({
                 uid: id.uid ? id.uid.substring(0, 8) : 'unknown',
                 uidFull: id.uid || 'unknown',
@@ -6405,6 +6545,15 @@ exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret], se
                 timestamp: id.ts && id.ts.toDate ? id.ts.toDate().toISOString() : null
             });
         });
+        out.failedClaims = auditWindow.failed.slice(0, 200).map(id => ({
+            uid: id.uid ? id.uid.substring(0, 8) : 'unknown',
+            amount: id.amount || 0,
+            failKind: id.failKind || '',
+            released: id.released === true,
+            timestamp: id.ts && id.ts.toDate ? id.ts.toDate().toISOString() : null
+        }));
+        out.failedClaimCount = auditWindow.failed.length;
+        out.withdrawalWindowTruncated = auditWindow.truncated;
 
         // 3. Check faucet_ip_log for multi-account IPs
         const ipSnap = await db.collection('faucet_ip_log').where('claimCount', '>=', 3).limit(50).get();
@@ -6436,6 +6585,7 @@ exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret], se
         out.summary = {
             totalBlockedAccounts: blockedSnap.size,
             totalWithdrawalsInPeriod: out.recentWithdrawals.length,
+            failedClaimsInPeriod: out.failedClaimCount || 0,
             blockedAccountsWithWithdrawals: out.blockedAccounts.filter(a => a.withdrawals.length > 0).length,
             multiAccountIPs: out.ipClusters.length,
             multiAccountFingerprints: out.fingerprintClusters.length,
@@ -7019,6 +7169,14 @@ exports.adminSetFavorClaims = favorBlockClaimFns.adminSetFavorClaims;
 exports.adminFreezeFavorEpoch = favorBlockClaimFns.adminFreezeFavorEpoch;
 exports.adminResolveFavorReview = favorBlockClaimFns.adminResolveFavorReview;
 
+// Payout reconciliation (live since #365 shipped Nov 18, 2026): ledger match, stuck-paying
+// flags, optional wallet listing behind config/payoutReconcile.listWallet.
+// Binds no wallet secret.
+const payoutReconcileFns = require('./src/payoutReconcile').factory(functionsV1, {
+    db: db, admin: admin, onSchedule: onSchedule,
+});
+exports.reconcilePayouts = payoutReconcileFns.reconcilePayouts;
+
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
 // The same private minute job posts the one ending heads-up. No public invoker.
 const { announceFavorEnding } = require('./src/favorEndingAnnounce');
@@ -7232,78 +7390,47 @@ exports.searchUsers = functionsV1.https.onCall(async (data, context) => {
     const afterRank = parseInt(data.afterRank) || 0;
 
     // ── Run both queries in parallel for speed ──────────────────────────────
-    // Path 1: fast prefix search on username_lower index
-    // Path 2: top-500 ranked scan for substring / missing-index fallback
+    // Both read public_profiles, whose points field is the all-time board
+    // score (users.points minus guestUnclaimableXp, floored at 0). Order and
+    // rank match the board. Single-field queries only, no composite index.
+    // Path 1: fast prefix search on username_lower
+    // Path 2: top-500 by board score for substring matches and rank
     const PREFIX_LIMIT = 200;
     const SCAN_LIMIT = 500;
     const [prefixSnap, scanSnap] = await Promise.all([
-        db.collection('users')
+        db.collection('public_profiles')
             .where('username_lower', '>=', query)
             .where('username_lower', '<=', query + '\uf8ff')
             .limit(PREFIX_LIMIT)
             .get(),
-        db.collection('users')
+        db.collection('public_profiles')
             .where('points', '>', 0)
             .orderBy('points', 'desc')
             .limit(SCAN_LIMIT)
             .get()
     ]);
+    const rowsOfSnap = (snap) => { const out = []; snap.forEach(doc => out.push({ id: doc.id, data: doc.data() || {} })); return out; };
+    const prefixRows = rowsOfSnap(prefixSnap);
+    const scanRows = rowsOfSnap(scanSnap);
 
-    const seenUids = new Set();
-    const prefixDocs = [];
-    prefixSnap.forEach(doc => {
-        const d = doc.data();
-        if (d.ghostMode) return;
-        seenUids.add(doc.id);
-        prefixDocs.push({ id: doc.id, data: d });
-    });
-
-    const scanDocs = [];
-    scanSnap.forEach(doc => {
-        if (seenUids.has(doc.id)) return; // already have from prefix path
-        const d = doc.data();
-        if (d.ghostMode) return;
-        const name = (d.username || '').toLowerCase();
-        if (!name.includes(query)) return;
-        scanDocs.push({ id: doc.id, data: d });
-    });
-
-    // ── Merge, assign global rank from scan order, sort by points ───────────
-    // Build a points-desc index from the scan for rank assignment.
-    // Prefix-only docs get rank = 9999 (not in top-500, but still valid results).
-    const rankMap = new Map();
-    let ri = 0;
-    scanSnap.forEach(doc => { rankMap.set(doc.id, ++ri); });
-
-    // For users not in the top-500 scan, fetch their real rank by counting
-    // how many users have more points. Batch these lookups in parallel.
-    const needRankDocs = prefixDocs.filter(({ id }) => !rankMap.has(id) && (prefixDocs.find(p => p.id === id)?.data?.points || 0) > 0);
+    // Prefix matches outside the top 500 get a rank from a count of higher
+    // board scores. Same field as the board, so no new index.
+    const scanIds = new Set(scanRows.map(r => r.id));
+    const needRank = prefixRows.filter(r => !scanIds.has(r.id) && !(r.data && r.data.ghostMode === true) && boardSnapshots.allTimeXp(r.data) > 0);
     const rankFetches = await Promise.all(
-        needRankDocs.map(({ id, data: d }) =>
-            db.collection('users')
-                .where('points', '>', d.points || 0)
+        needRank.map(r =>
+            db.collection('public_profiles')
+                .where('points', '>', boardSnapshots.allTimeXp(r.data))
                 .count()
                 .get()
-                .then(snap => ({ id, rank: snap.data().count + 1 }))
-                .catch(() => ({ id, rank: null }))
+                .then(snap => ({ id: r.id, rank: snap.data().count + 1 }))
+                .catch(() => ({ id: r.id, rank: null }))
         )
     );
-    rankFetches.forEach(({ id, rank }) => { if (rank !== null) rankMap.set(id, rank); });
+    const extraRanks = new Map();
+    rankFetches.forEach(({ id, rank }) => { if (rank !== null) extraRanks.set(id, rank); });
 
-    const toEntry = ({ id, data: d }) => ({
-        uid: id,
-        username: d.username || 'Anon',
-        points: d.points || 0,
-        rank: rankMap.get(id) || null,
-        faction: d.faction || null,
-        country: d.country || null,
-        lightningAddress: d.lightningAddress || d.lightning || null,
-    });
-
-    const merged = [
-        ...prefixDocs.map(toEntry),
-        ...scanDocs.map(toEntry),
-    ].sort((a, b) => b.points - a.points);
+    const merged = boardSnapshots.userSearchEntries(prefixRows, scanRows, query, extraRanks);
 
     // Pagination by rank cursor
     const page = afterRank > 0 ? merged.filter(u => u.rank > afterRank) : merged;
@@ -7349,25 +7476,29 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
 
     const { trackId, amountSats } = data || {};
     if (!trackId) throw new functionsV1.https.HttpsError('invalid-argument', 'trackId required');
-    if (!amountSats || amountSats < 10) throw new functionsV1.https.HttpsError('invalid-argument', 'amountSats must be >= 10');
-    if (amountSats > 10000000) throw new functionsV1.https.HttpsError('invalid-argument', 'amountSats too large');
+    const amt = Number(amountSats);
+    if (!Number.isSafeInteger(amt) || amt < 10 || amt > 1e7) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'amountSats must be a whole number from 10 to 10000000');
+    }
 
     const trackDoc = await admin.firestore().collection('beats_tracks').doc(trackId).get();
     if (!trackDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
     const track    = trackDoc.data();
     if (track.hidden === true) throw new functionsV1.https.HttpsError('not-found', 'Track not found');
-    const splits   = (track.v4vSplits || []).filter(s => s.split > 0);
-
-    if (splits.length === 0) throw new functionsV1.https.HttpsError('failed-precondition', 'No V4V splits defined for this track');
-
-    // Normalise splits to sum=100
+    const splits = v4vAlloc.v4vPayableSplits(track.v4vSplits || []);
+    if (!splits) {
+        throw new functionsV1.https.HttpsError('failed-precondition', 'This track has invalid or no payable V4V splits.');
+    }
+    const amounts = v4vAlloc.allocateV4vSats(amt, splits);
+    if (!amounts) throw new functionsV1.https.HttpsError('failed-precondition', 'Could not allocate this tip across the track\'s V4V splits.');
     const totalSplit = splits.reduce((s, r) => s + r.split, 0);
 
     // Build invoice requests
     const invoices = [];
-    for (const recipient of splits) {
+    for (let i = 0; i < splits.length; i++) {
+        const recipient = splits[i];
         const fraction    = recipient.split / totalSplit;
-        const recipSats   = Math.max(1, Math.round(amountSats * fraction));
+        const recipSats   = amounts[i];
         const recipMsats  = recipSats * 1000;
         const payType     = recipient.paymentType || 'keysend';
         const ln          = (recipient.lightningAddress || '').trim();
@@ -7379,6 +7510,7 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
         let keysendData    = null;
         let displayAddress = '';
 
+        if (recipSats >= 1) {
         try {
             if (payType === 'lnaddress' && ln.includes('@')) {
                 // Standard LNURL-pay Lightning address — fetch invoice server-side
@@ -7397,6 +7529,7 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
         } catch(e) {
             const domainOnly = String(ln || '').split('@')[1] || '';
             console.error('[v4vSplitRelay] Error for ' + payType + ' domain=' + domainOnly);
+        }
         }
 
         invoices.push({
@@ -7427,13 +7560,13 @@ exports.v4vSplitRelay = functionsV1.https.onCall(async (data, context) => {
         await admin.firestore().collection('beats_v4v_events').add({
             trackId,
             trackTitle:  track.title || '',
-            amountSats,
+            amountSats:  amt,
             splits:      invoices.map(i => ({ name: i.name, sats: i.amountSats, splitPct: i.splitPct })),
             createdAt:   admin.firestore.FieldValue.serverTimestamp()
         });
     } catch(e) { /* non-blocking */ }
 
-    return { invoices, totalSats: amountSats, trackTitle: track.title };
+    return { invoices, totalSats: amt, trackTitle: track.title };
 });
 
 // Helper: fetch LNURL-pay invoice for a Lightning address.
@@ -7902,10 +8035,9 @@ exports.seedWeeklyChallenge = functionsV1.https.onCall(async (data, context) => 
 // Increment community challenge progress (called from client - quiz completion, trivia correct)
 exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    // [SECURITY FIX] Block anonymous users — previously only checked context.auth exists.
-    // Anonymous accounts are free to create; an attacker could spam N anonymous UIDs
-    // and solo-complete the community challenge, triggering the SF boost and badge awards.
-    if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    // Block guests. isGuestCaller also checks Auth, so a stale anonymous token
+    // after an in-place link is treated as signed in, same as awardPoints.
+    if (await guestGate.isGuestCaller(admin, context)) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot contribute to weekly challenges');
     }
     const uid = context.auth.uid;
@@ -8834,11 +8966,13 @@ async function pvpAccountFlags(uid) {
         userSnap.exists ? userSnap.data() : {},
         ledgerSnap.exists ? ledgerSnap.data() : {}
     );
+    // Same guest rule as everywhere else (guestPolicy): no real provider and
+    // no Nostr / Lightning sign-in. An email alone does not count. Used for
+    // the create-time stamp and the lobby summary only, never at settle.
     let anonymous = true;
     try {
         const authUser = await admin.auth().getUser(uid);
-        const providers = authUser.providerData || [];
-        anonymous = !authUser.email && providers.length === 0;
+        anonymous = guestPolicy.isGuestRecord(authUser, userSnap.exists ? userSnap.data() : null);
     } catch (e) { anonymous = true; }
     return {
         banned: ban.ok !== true,
@@ -8860,30 +8994,14 @@ async function settlePvpMatch(matchId, after) {
     if (!ids || !ids.player1 || !ids.player2) return;
     const p1 = after.player1 || {};
     const p2 = after.player2 || {};
+    // Ban state is read live. Guest status comes only from the create-time
+    // stamp; a missing stamp is treated as a guest match.
     const [f1, f2] = await Promise.all([pvpAccountFlags(ids.player1), pvpAccountFlags(ids.player2)]);
-    const plan = pvpFlow.planPvpReward({
-        matchId: matchId,
-        status: after.status,
-        alreadyGranted: false,
-        forfeitedBy: after.forfeitedBy || '',
-        forfeitReason: after.forfeitReason || '',
-        player1: {
-            uid: ids.player1,
-            name: keyData.player1Name || '',
-            score: p1.score || 0,
-            roundWins: pvpFlow.countWins(p1.answers),
-            banned: f1.banned, anonymous: f1.anonymous,
-        },
-        player2: {
-            uid: ids.player2,
-            name: keyData.player2Name || '',
-            score: p2.score || 0,
-            roundWins: pvpFlow.countWins(p2.answers),
-            banned: f2.banned, anonymous: f2.anonymous,
-        },
-    });
+    const settled = pvpFlow.settleRewardPlan({ matchId: matchId, after: after, keyData: keyData, flags1: f1, flags2: f2 });
+    const stamp = settled.stamp;
+    const plan = settled.plan;
     if (!plan.grant) {
-        if (plan.reason === 'disconnect') {
+        if (plan.reason === 'disconnect' || plan.reason === 'guest_match' || plan.guestMatch === true) {
             await db.collection('pvp_matches').doc(matchId).set({ rewardsGranted: true, rewards: {} }, { merge: true });
         }
         return;
@@ -8942,8 +9060,15 @@ async function settlePvpMatch(matchId, after) {
                 upd.weeklyXP = admin.firestore.FieldValue.increment(write.weeklyXP);
                 upd.monthlyXP = admin.firestore.FieldValue.increment(write.monthlyXP);
             }
-            if (p.pvpWins) upd.pvpWins = admin.firestore.FieldValue.increment(p.pvpWins);
-            if (p.pvpLosses) upd.pvpLosses = admin.firestore.FieldValue.increment(p.pvpLosses);
+            const skipAnonStats = plan.guestMatch === true || stamp.guestMatch === true
+                || (p.uid === ids.player1 ? stamp.player1 : stamp.player2) === true;
+            if (!skipAnonStats) {
+                if (p.pvpWins) upd.pvpWins = admin.firestore.FieldValue.increment(p.pvpWins);
+                if (p.pvpLosses) upd.pvpLosses = admin.firestore.FieldValue.increment(p.pvpLosses);
+                const streak = pvpFlow.planStreakUpdate(pvpUser.pvpWinStreak, pvpUser.pvpBestStreak, p.outcome, p.leaver === true);
+                upd.pvpWinStreak = streak.pvpWinStreak;
+                upd.pvpBestStreak = streak.pvpBestStreak;
+            }
             if (ticket.tickets > 0) upd.orangeTickets = admin.firestore.FieldValue.increment(ticket.tickets);
             if (Object.keys(upd).length) tx.update(userRefs[i], upd);
             if (write.write) {
@@ -8998,13 +9123,41 @@ async function pushPvpLobby(joinerUid, name) {
     return lobbyPush.pushPvpLobby(joinerUid, name);
 }
 
+// Charges the per-uid lobby event window. Returns false past the cap.
+async function pvpLobbyEventAllowed(docId, nowMs) {
+    const rateRef = db.collection('pvp_rate').doc(docId);
+    return db.runTransaction(async (tx) => {
+        const snap = await tx.get(rateRef);
+        const planned = pvpFlow.planLobbyEventWindow(snap.exists ? snap.data() : null, nowMs);
+        if (!planned.ok) return false;
+        tx.set(rateRef, planned.write, { merge: true });
+        return true;
+    });
+}
+
 async function syncPvpLobbyLive(docId, before, after) {
     const now = Date.now();
     const liveRef = db.collection('pvp_lobby_live').doc('current');
+    let peekRow;
+    async function summaryRow() {
+        if (peekRow === undefined) {
+            const peek = await liveRef.get();
+            peekRow = (peek.exists && peek.data().entries && peek.data().entries[docId]) || null;
+        }
+        return peekRow;
+    }
     if (before && after) {
-        const peek = await liveRef.get();
-        const row = peek.exists && peek.data().entries ? peek.data().entries[docId] : null;
-        if (pvpFlow.shouldSkipLobbySummary(before, after, row, now)) return;
+        if (pvpFlow.shouldSkipLobbySummary(before, after, await summaryRow(), now)) return;
+    }
+    // Create, delete and status changes are capped per uid (heartbeats are
+    // not counted). Past the cap the work is skipped, except that a row
+    // already in the summary is still removed when the lobby doc goes away.
+    if (pvpFlow.isLobbyStructuralEvent(before, after)) {
+        const allowed = await pvpLobbyEventAllowed(docId, now);
+        if (!allowed) {
+            const leaving = !after || after.status !== 'waiting';
+            if (!leaving || !(await summaryRow())) return;
+        }
     }
     const becameWaiting = !!(after && after.status === 'waiting' && (!before || before.status !== 'waiting'));
     let trustedName = '';
@@ -9014,7 +9167,12 @@ async function syncPvpLobbyLive(docId, before, after) {
         const username = String(flags.username || '').trim();
         trustedName = username ? pvpFlow.safeDisplayName(username) : '';
         blocked = flags.banned || flags.anonymous || !username || trustedName === 'a Bitcoiner';
+        // A blocked player (guest, banned, or no username) is never listed.
+        // With no row to remove, skip the summary transaction entirely.
+        if (blocked && !(await summaryRow())) return;
     }
+    // A lobby doc leaving with no row in the summary has nothing to remove.
+    if ((!after || after.status !== 'waiting') && !(await summaryRow())) return;
     await db.runTransaction(async (tx) => {
         const snap = await tx.get(liveRef);
         const entries = (snap.exists && snap.data().entries) || {};
@@ -9149,15 +9307,18 @@ async function pvpHousekeepMatches(now) {
                 status: 'active',
                 questionWinner: null,
                 questionStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+                roundExplain: '',
             });
         } else if ((d.currentQ || 0) + 1 >= 5 || pvpFlow.matchShouldFinish(p1w, p2w)) {
             await doc.ref.update({ status: 'finished' });
         } else {
+            // C8: the round explanation belongs to the result screen only.
             await doc.ref.update({
                 status: 'active',
                 currentQ: (d.currentQ || 0) + 1,
                 questionWinner: null,
                 questionStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+                roundExplain: '',
             });
         }
     }
@@ -9675,10 +9836,10 @@ const topicDiscussion = createTopicDiscussion({
     admin: admin,
     HttpsError: functionsV1.https.HttpsError,
 });
-exports.postTopicComment = functionsV1.runWith({ timeoutSeconds: 30, memory: '256MB' }).https.onCall(topicDiscussion.postTopicComment);
-exports.reportTopicComment = functionsV1.https.onCall(topicDiscussion.reportTopicComment);
-exports.moderateTopicPost = functionsV1.https.onCall(topicDiscussion.moderateTopicPost);
-exports.deleteTopicComment = functionsV1.https.onCall(topicDiscussion.deleteTopicComment);
+exports.postTopicComment = functionsV1.runWith({ enforceAppCheck: true, timeoutSeconds: 30, memory: '256MB' }).https.onCall(topicDiscussion.postTopicComment);
+exports.reportTopicComment = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(topicDiscussion.reportTopicComment);
+exports.moderateTopicPost = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(topicDiscussion.moderateTopicPost);
+exports.deleteTopicComment = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(topicDiscussion.deleteTopicComment);
 
 // Topic ↔ Pleb Talk mirror. Deploy these with the callables above:
 // postTopicComment, deleteTopicComment, moderateTopicPost,

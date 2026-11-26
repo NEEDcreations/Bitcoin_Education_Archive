@@ -15,9 +15,11 @@ const badgeTiers = require('./badgeTiers');
 const badgeRules = require('./badgeRules');
 const badgeXp = require('./badgeXpTable');
 const { rewardBlocked } = require('./cipherClaim');
+const { isGuestUid } = require('./guestGate');
 const { planFavorPoint } = require('./favorPool');
 const { offsetDateKey } = require('./offsetDay');
 const { serverHoldsBadge, hiddenOnlyBadge, progressAwardIds } = require('./badgeProfile');
+const awardActions = require('./awardActions');
 
 const ALIASES = { country_set: 'global_citizen' };
 
@@ -134,6 +136,13 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         if (rewardBlocked(user, ledger)) {
             return { granted: false, success: true, reason: 'banned', awarded: 0, xp: 0, badgeId: badgeId };
         }
+        // Guests (anonymous Auth, no real sign-in) earn no badge, XP or Favor
+        // from any path, including triggers on documents a guest created.
+        // A failed lookup counts as a guest. Nothing is stamped, so the badge
+        // can still be earned after a real sign-in.
+        if (await isGuestUid(adminSdk, uid)) {
+            return { granted: false, success: true, reason: 'guest', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
+        }
         if (awardSnap.exists) {
             return { granted: false, success: false, reason: 'already', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
         }
@@ -156,6 +165,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         // are the merged collection bonus, which pays the remainder itself.
         if (require('./collectionBonus').isRetiredSetBonus(badgeId)) {
             return { granted: false, success: false, reason: 'retired', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
+        }
+        if (!awardActions.pvpBadgeAllowed(badgeId, user)) {
+            return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
         }
 
         // flexClaims is the server tally of daily_action_counts, computed
@@ -265,7 +277,8 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
 
         let favor = false;
         let favorPoint = false;
-        const grantFavor = hiddenPlan ? HIDDEN_ONLY_GRANT_FAVOR === true : true;
+        // A cosmetic badge carries no Favor, even when the caller marks it verified.
+        const grantFavor = rule.cosmetic ? false : (hiddenPlan ? HIDDEN_ONLY_GRANT_FAVOR === true : true);
         if (grantFavor && !contributorSnap.exists && !grandfatheredOnly) {
             const stateData = stateSnap.exists ? (stateSnap.data() || {}) : {
                 points: 0, favorActive: false, bonusMinutes: 0, eraHashes: 0,

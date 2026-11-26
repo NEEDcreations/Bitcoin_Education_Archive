@@ -469,7 +469,6 @@ function createTopicDiscussion(deps) {
         const question = isTop && looksLikeQuestion(prepared.text);
         const title = displayTitle(meta, channelId);
         const forumPostId = isTop ? forumMirror.forumPostIdFor(channelId, postRef.id) : '';
-        const placeholder = isTop ? forumMirror.placeholderSummary(title, prepared.text) : '';
 
         const planned = await db.runTransaction(async function(tx) {
             const userSnap = await tx.get(userRef);
@@ -609,7 +608,6 @@ function createTopicDiscussion(deps) {
                     postId: postRef.id,
                     forumPostId: forumPostId,
                     title: title,
-                    summary: placeholder,
                     text: prepared.text,
                     uid: who.uid,
                     name: name,
@@ -621,7 +619,7 @@ function createTopicDiscussion(deps) {
                 });
                 if (!forumDoc) fail('internal', 'Could not open the forum thread.');
                 tx.set(db.collection('forum_posts').doc(forumDoc.id), forumDoc.data);
-                post.summary = placeholder;
+                post.summary = forumDoc.data.summary;
             }
             tx.set(postRef, post);
             // Badge progress counts this original only. A forum copy, or a
@@ -657,23 +655,6 @@ function createTopicDiscussion(deps) {
                 toast: xp.toast,
             };
         });
-
-        if (planned.openedForum) {
-            try {
-                await forumMirror.patchForumSummary({
-                    db: db,
-                    askNacho: askNacho,
-                    timeoutMs: summaryTimeoutMs,
-                    forumPostId: planned.forumPostId,
-                    channelId: channelId,
-                    postId: planned.postId,
-                    title: title,
-                    text: planned.text,
-                });
-            } catch (err) {
-                console.warn('[topicDiscussion] summary patch failed');
-            }
-        }
 
         if (planned.announce) {
             const chatId = ('td_' + channelId + '_' + planned.postId).slice(0, 700);
