@@ -571,7 +571,9 @@
             setTimeout(wait, 500);
         })();
     }
-    window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS, holdText: holdText, holdMinutesLeft: holdMinutesLeft, isCardSubscriber: isCardSubscriber, mountSettingsBilling: mountSettingsBilling, render: render, watchReturn: watchReturn, boot: boot, allowlistedPlan: allowlistedPlan, isLightTheme: isLightTheme, showPaymentReceived: showPaymentReceived, handleSuccessReturn: handleSuccessReturn, PLAN_NAMES: PLAN_NAMES, close: close };
+    // Test hooks only on staging and local hosts, never on the live site (Red Team P10).
+    var TEST_HOST_RE = /^(localhost|127\.0\.0\.1|dev\.bitcoineducation\.quest|[a-z0-9-]+\.bq-staging\.pages\.dev|bitcoin-quest-staging\.(web\.app|firebaseapp\.com))$/;
+    if (TEST_HOST_RE.test(String((location && location.hostname) || ''))) window._bqPremiumBuyTest = { safeCheckoutUrl: safeCheckoutUrl, safePortalUrl: safePortalUrl, usd: usd, REASONS: REASONS, holdText: holdText, holdMinutesLeft: holdMinutesLeft, isCardSubscriber: isCardSubscriber, mountSettingsBilling: mountSettingsBilling, render: render, watchReturn: watchReturn, boot: boot, allowlistedPlan: allowlistedPlan, isLightTheme: isLightTheme, showPaymentReceived: showPaymentReceived, handleSuccessReturn: handleSuccessReturn, PLAN_NAMES: PLAN_NAMES, close: close };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
 })();

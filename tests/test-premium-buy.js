@@ -57,6 +57,23 @@ const ctx = {
 ctx.window = ctx;
 vm.runInNewContext(js, ctx);
 const T = ctx._bqPremiumBuyTest;
+test('P10: test hooks exist only on staging and local hosts, never on the live site', function () {
+    ['bitcoineducation.quest', 'www.bitcoineducation.quest', 'evil.example', 'dev.bitcoineducation.quest.evil.example'].forEach(function (h) {
+        const c2 = Object.assign({}, ctx, { location: Object.assign({}, ctx.location, { hostname: h, href: 'https://' + h + '/' }) });
+        delete c2._bqPremiumBuyTest; delete c2.bqOpenPremium; delete c2._bqPremiumBuy;
+        c2.window = c2;
+        vm.runInNewContext(js, c2);
+        assert.strictEqual(c2._bqPremiumBuyTest, undefined, h);
+        assert.strictEqual(typeof c2.bqOpenPremium, 'function', 'the real API still loads on ' + h);
+    });
+    ['localhost', '127.0.0.1', 'dev.bitcoineducation.quest', 'citadel-spark-1128.bq-staging.pages.dev', 'bitcoin-quest-staging.web.app'].forEach(function (h) {
+        const c3 = Object.assign({}, ctx, { location: Object.assign({}, ctx.location, { hostname: h, href: 'https://' + h + '/' }) });
+        delete c3._bqPremiumBuyTest; delete c3._bqPremiumBuy;
+        c3.window = c3;
+        vm.runInNewContext(js, c3);
+        assert.ok(c3._bqPremiumBuyTest, h);
+    });
+});
 test('window.bqOpenPremium is exposed', function () {
     assert.strictEqual(typeof ctx.bqOpenPremium, 'function');
 });

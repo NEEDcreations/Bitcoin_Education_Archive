@@ -194,7 +194,7 @@ function run(hostname, search, reply, plan, opts) {
         assert.strictEqual(plan.hidden, false);
         assert.strictEqual(plan.textContent, 'yearly');
         assert.strictEqual(r.nodes.pmReceivedTitle ? r.nodes.pmReceivedTitle.textContent : 'Payment received', 'Payment received');
-        assert.ok(html.indexOf('Sign in with the email you paid with to claim your Premium') !== -1);
+        assert.ok(html.indexOf('If you just paid, sign in with the email you paid with to claim your Premium') !== -1);
         assert.strictEqual(r.nodes.pmCheckout.hidden, true);
         assert.strictEqual(r.nodes.premiumForm.hidden, true);
         const dumped = JSON.stringify(r.nodes);

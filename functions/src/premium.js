@@ -438,6 +438,8 @@ function btcpayLinkOk(url, cfg) {
 const FOUNDERS_EXPIRE_DOC = 'founders_expire';
 const EXPIRE_BATCH = 10;
 const EXPIRE_QUEUE_MAX = 300;
+const EXPIRE_INLINE_MAX_CALLS = 2; // checkout path: at most 2 Stripe expire calls inline (Red Team P5)
+const EXPIRE_INLINE_BUDGET_MS = 5000; // and stop starting new calls after 5 s; the hourly sweep does the rest
 const EXPIRE_DRAIN_EVERY_MS = 15000; // at most one drain per 15 s, all callers (N3)
 // New queue entries for holds that just lapsed (merged into the queue doc).
 function lapsedEntries(lapsedHolds, nowMs) {
@@ -505,6 +507,7 @@ function createPremiumHandlers(deps) {
     const db = deps.db;
     const HttpsError = deps.HttpsError;
     const now = deps.now || Date.now;
+    const elapsedNow = deps.elapsedNow || Date.now; // real time for inline drain budgets
     const env = deps.env || process.env;
     const fetchImpl = deps.fetch || (typeof fetch === 'function' ? fetch : null);
     const projectId = deps.projectId || env.GCLOUD_PROJECT || env.GCP_PROJECT || '';
@@ -820,11 +823,11 @@ function createPremiumHandlers(deps) {
             if (foundersStage) await countRefusedAttempt(rateRef, nowMs, limit);
             // Nothing was pruned: those lapsed holds stay on the counter and are
             // queued by the next successful hold; expire what we can now.
-            if (q.lifetime) await drainExpireQueue(nowMs, lapsedIds);
+            if (q.lifetime) await drainExpireQueue(nowMs, lapsedIds, INLINE_DRAIN);
             throw e;
         }
         // Lapsed Founders' card holds can no longer be paid (Red Team F2-R, N1).
-        if (q.lifetime) await drainExpireQueue(nowMs, []);
+        if (q.lifetime) await drainExpireQueue(nowMs, [], INLINE_DRAIN);
 
         let url = null;
         try {
@@ -1144,7 +1147,14 @@ function createPremiumHandlers(deps) {
     // (soonest deadline first). Then removes only the entries that are done;
     // failed ones stay for a later drain until their Stripe session would have
     // expired on its own anyway. Never writes the seat counter. Never throws.
-    async function drainExpireQueue(nowMs, extraIds) {
+    // opts.maxCalls / opts.budgetMs cap an inline (checkout) drain so a paying
+    // user never waits on a long run of Stripe calls (Red Team P5); whatever is
+    // left stays queued for the next drain or the hourly sweep.
+    const INLINE_DRAIN = { maxCalls: EXPIRE_INLINE_MAX_CALLS, budgetMs: EXPIRE_INLINE_BUDGET_MS };
+    async function drainExpireQueue(nowMs, extraIds, opts) {
+        const maxCalls = Math.min(EXPIRE_BATCH, Number(opts && opts.maxCalls) || EXPIRE_BATCH);
+        const budgetMs = Number(opts && opts.budgetMs) || 0;
+        const startedAt = elapsedNow();
         try {
             const queueRef = ref(COL.counters, FOUNDERS_EXPIRE_DOC);
             let queue = null;
@@ -1164,9 +1174,10 @@ function createPremiumHandlers(deps) {
             const done = [];
             let n = 0;
             let calls = 0;
-            // At most EXPIRE_BATCH Stripe calls and 3x that many order reads.
-            for (const id of ids.slice(0, EXPIRE_BATCH * 3)) {
-                if (calls >= EXPIRE_BATCH) break;
+            // At most maxCalls Stripe calls (EXPIRE_BATCH by default) and 3x that many order reads.
+            for (const id of ids.slice(0, maxCalls * 3)) {
+                if (calls >= maxCalls) break;
+                if (budgetMs && elapsedNow() - startedAt >= budgetMs) break;
                 const r = await expireOne(id, nowMs);
                 if (r !== 'skip') calls++;
                 if (r === 'expired') n++;
@@ -1561,7 +1572,7 @@ function createPremiumHandlers(deps) {
         const o = r.order;
         const orderId = g.orderId;
         setStart(r, o);
-        markRenewingOnGrant(r, g.subId || r.ent.stripeSubscriptionId || null, !!o.trialEndMs && r.nowMs < Number(o.trialEndMs));
+        markRenewingOnGrant(r, g.subId || null, !!o.trialEndMs && r.nowMs < Number(o.trialEndMs));
         if (g.customerId) r.ent.stripeCustomerId = g.customerId;
         if (g.subId) r.ent.stripeSubscriptionId = g.subId;
         else r.ent.stripeSubscriptionId = r.ent.stripeSubscriptionId || null;
