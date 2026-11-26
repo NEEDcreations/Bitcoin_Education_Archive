@@ -187,12 +187,20 @@ test('TWA: ?client=android-twa alone does not turn it on', function () {
     assert.strictEqual(env.document.documentElement.classList.size(), 0);
 });
 
-test('TWA: ?client=android-twa plus standalone display mode turns it on', function () {
+test('TWA: standalone plus a crafted ?client=android-twa link does not turn it on', function () {
     const env = makeEnv({ url: 'https://bitcoineducation.quest/?client=android-twa', standalone: true }).run();
+    assert.strictEqual(env.window.bqIsTwa(), false);
+    assert.deepStrictEqual(env.storage, {});
+    assert.strictEqual(env.document.documentElement.classList.size(), 0);
+});
+
+test('TWA: ?client=android-twa plus the app referrer turns it on', function () {
+    const env = makeEnv({
+        url: 'https://bitcoineducation.quest/?client=android-twa',
+        referrer: 'android-app://quest.bitcoineducation.app',
+    }).run();
     assert.strictEqual(env.window.bqIsTwa(), true);
     assert.strictEqual(env.storage.bq_twa, '1');
-    assert.strictEqual(env.url.search, '?client=android-twa');
-    assert.strictEqual(env.log.replaceState.length, 0);
 });
 
 test('TWA: standalone display mode alone does not turn it on', function () {
@@ -208,7 +216,11 @@ test('TWA: sessionStorage alone does not turn it on', function () {
 });
 
 test('TWA: the sessionStorage flag survives navigation in a standalone shell', function () {
-    const first = makeEnv({ url: 'https://bitcoineducation.quest/?client=android-twa', standalone: true }).run();
+    const first = makeEnv({
+        url: 'https://bitcoineducation.quest/?client=android-twa',
+        referrer: 'android-app://quest.bitcoineducation.app',
+        standalone: true,
+    }).run();
     assert.strictEqual(first.storage.bq_twa, '1');
     const next = makeEnv({ url: 'https://bitcoineducation.quest/forum', session: first.storage, standalone: true }).run();
     assert.strictEqual(next.window.bqIsTwa(), true);
@@ -310,7 +322,11 @@ test('TWA: deep links to Premium or Kids pages go home with a notice', function 
 });
 
 test('TWA: Premium query links and hash routes are stripped before the app routes', function () {
-    const env = makeEnv({ url: 'https://bitcoineducation.quest/?client=android-twa&premium=buy&plan=yearly#premium', session: { bq_premium_pending: 'buy' }, standalone: true }).run();
+    const env = makeEnv({
+        url: 'https://bitcoineducation.quest/?client=android-twa&premium=buy&plan=yearly#premium',
+        referrer: 'android-app://quest.bitcoineducation.app',
+        session: { bq_premium_pending: 'buy' },
+    }).run();
     assert.strictEqual(env.url.search, '?client=android-twa');
     assert.strictEqual(env.url.hash, '');
     assert.strictEqual(env.storage.bq_premium_pending, undefined);

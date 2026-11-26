@@ -36,16 +36,15 @@
     function isStandalone() {
         try { return !!(w.matchMedia && w.matchMedia('(display-mode: standalone)').matches); } catch (e) { return false; }
     }
-    // A web tab must not enter app mode from a crafted ?client= flag or a
-    // leftover session flag. Those are honored only inside a trusted Android
-    // app shell (android-app referrer or standalone display mode).
-    function trustedShell() { return isAppReferrer() || isStandalone(); }
+    // ?client=android-twa is honored only with the Android app referrer.
+    // Standalone display mode is used only to keep a session already started
+    // that way, so an installed web app does not enter app mode from a link.
     function detect() {
-        if (!trustedShell()) return false;
-        var s = store();
-        try { if (s && s.getItem(KEY) === '1') return true; } catch (e) {}
         if (isAppReferrer()) return true;
-        try { if (new URLSearchParams(w.location.search || '').get('client') === 'android-twa') return true; } catch (e) {}
+        try {
+            var s = store();
+            if (isStandalone() && s && s.getItem(KEY) === '1') return true;
+        } catch (e) {}
         return false;
     }
 
