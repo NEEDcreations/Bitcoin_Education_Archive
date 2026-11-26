@@ -80,6 +80,14 @@ function createWorld(seed, extra) {
             const tx = {
                 get: async function (r) { return snap(r.path); },
                 set: function (r, data, opts) { writes.push({ path: r.path, data: data, merge: !!(opts && opts.merge) }); },
+                create: function (r, data) {
+                    if (docs[r.path] != null) {
+                        const err = new Error('ALREADY_EXISTS: ' + r.path);
+                        err.code = 'already-exists';
+                        throw err;
+                    }
+                    writes.push({ path: r.path, data: data, merge: false });
+                },
                 update: function (r, data) { writes.push({ path: r.path, data: data, merge: true }); },
             };
             const result = await fn(tx);
@@ -441,6 +449,15 @@ test('a missing user doc skips the prompt after failed loads', async function ()
         assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
         assert.strictEqual(env._bqAgeConfirmed18, false);
     });
+});
+
+test('audit rows are created, not overwritten', function () {
+    const src = fs.readFileSync(path.join(root, 'functions/src/confirmAge18.js'), 'utf8');
+    const confirm = src.match(/t\.create\(auditRef\('confirm'/);
+    const unconfirm = src.match(/t\.create\(auditRef\('unconfirm'/);
+    assert.ok(confirm, 'confirm audit uses t.create');
+    assert.ok(unconfirm, 'unconfirm audit uses t.create');
+    assert.strictEqual((src.match(/t\.set\(auditRef/g) || []).length, 0);
 });
 
 test('adminUnconfirmAge18 is on the real FRESH_ACTIONS list', async function () {

@@ -138,7 +138,7 @@ function createConfirmAge18Handlers(deps) {
             if (!user.over18ConfirmedAt) patch.over18ConfirmedAt = now;
             if (!user.ageConfirmed18At) patch.ageConfirmed18At = now;
             t.set(userRef, patch, { merge: true });
-            t.set(auditRef('confirm', uid, atMs), {
+            t.create(auditRef('confirm', uid, atMs), {
                 action: 'age_confirm',
                 uid: uid,
                 at: now,
@@ -196,7 +196,7 @@ function createConfirmAge18Handlers(deps) {
                 ageConfirmed18At: del,
                 ageConfirmBlocked: true
             }, { merge: true });
-            t.set(auditRef('unconfirm', targetUid, atMs), {
+            t.create(auditRef('unconfirm', targetUid, atMs), {
                 action: 'age_unconfirm',
                 uid: targetUid,
                 adminUid: context.auth.uid,

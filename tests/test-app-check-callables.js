@@ -91,7 +91,10 @@ async function main() {
     ['reportTopicComment', 'moderateTopicPost', 'deleteTopicComment'].forEach(function (name) {
         assert.ok(scanned.indexOf(name) !== -1, name + ' enforces App Check');
     });
-    assert.strictEqual(scanned.length, 54, 'protected callable count');
+    assert.strictEqual(scanned.length, 56, 'protected callable count');
+    ['confirmAge18', 'adminUnconfirmAge18'].forEach(function (name) {
+        assert.ok(scanned.indexOf(name) !== -1, name + ' enforces App Check');
+    });
     ['setUsername', 'nostrAuth', 'lnAuthChallenge', 'lnAuthVerify', 'totpCheck', 'totpStatus', 'totpSetup', 'totpVerify', 'issueRecoveryCodes', 'recordDailyVisit', 'dailySpin', 'contributeRaid', 'contributeFavor', 'hashForFavor', 'searchUsers', 'pollVote'].forEach(function (name) {
         assert.strictEqual(scanned.indexOf(name), -1, name + ' is not an App Check callable');
     });
