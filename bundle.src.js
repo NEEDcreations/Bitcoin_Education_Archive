@@ -5330,8 +5330,10 @@ function createNacho() {
             border: 2px solid var(--accent, #f7931a);
             border-radius: 16px;
             padding: 16px 20px 16px 18px;
+            box-sizing: border-box;
             max-width: 300px;
             min-width: 160px;
+            min-height: 132px;
             max-height: 45vh;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
@@ -5708,6 +5710,7 @@ function createNacho() {
                 max-width: none !important;
                 width: auto !important;
                 min-width: 0 !important;
+                min-height: 120px;
                 max-height: 35vh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;

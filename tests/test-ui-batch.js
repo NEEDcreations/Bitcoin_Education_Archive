@@ -130,6 +130,19 @@ test('Nacho mascot menu is capped at 35vh with a 44px high-contrast close', func
     assert.ok(!src.includes('<button type="button" id="nachoSheetClose">Close</button>'));
 });
 
+test('Nacho bubble reserves min-height so Home does not shift when it appears', function () {
+    const src = read('nacho.js');
+    const i = src.indexOf('/* Nacho speech bubble');
+    const mobile = src.indexOf('@media (max-width: 900px)', i);
+    assert.ok(i !== -1 && mobile !== -1);
+    const desk = src.slice(i, mobile);
+    assert.ok(desk.includes('box-sizing: border-box;'));
+    assert.ok(desk.includes('min-height: 132px;'));
+    const mq = src.slice(mobile, src.indexOf('@media (max-width: 480px)', mobile));
+    assert.ok(mq.includes('#nacho-bubble {') && mq.includes('min-height: 120px;'));
+    assert.ok(read('bundle.src.js').includes('min-height: 132px;') && read('bundle.src.js').includes('min-height: 120px;'));
+});
+
 if (failed) {
     console.log(failed + ' failed, ' + passed + ' passed');
     process.exit(1);
