@@ -182,11 +182,66 @@ test('catalog names, descriptions, and grant mapping', () => {
 });
 
 
-test('the served bundle includes all five Spark Citizen tiers', () => {
-    const bundle = read('bundle.min.js');
-    ['spark_citizen_t1', 'spark_citizen_t2', 'spark_citizen_t3', 'spark_citizen_t4', 'spark_citizen_t5'].forEach((id) => {
-        assert.ok(bundle.includes(id), id);
+test('the served bundle catalog differs from live only by the five Spark Citizen badges', () => {
+    const crypto = require('crypto');
+    const vm = require('vm');
+    const SPARK_IDS = ['spark_citizen_t1', 'spark_citizen_t2', 'spark_citizen_t3', 'spark_citizen_t4', 'spark_citizen_t5'];
+    const SPARK = {
+        spark_citizen_t1: { name: 'Spark Citizen · Bronze', emoji: '🟫', desc: 'Watched the Citadel Spark teaser on 1 day (server-verified, once a day)', xp: 10, category: 'Citadel Spark', hidden: false, serverAward: true },
+        spark_citizen_t2: { name: 'Spark Citizen · Silver', emoji: '⬜', desc: 'Watched the Citadel Spark teaser on 3 days (server-verified, once a day)', xp: 30, category: 'Citadel Spark', hidden: false, serverAward: true },
+        spark_citizen_t3: { name: 'Spark Citizen · Gold', emoji: '🟨', desc: 'Watched the Citadel Spark teaser on 7 days (server-verified, once a day)', xp: 100, category: 'Citadel Spark', hidden: false, serverAward: true },
+        spark_citizen_t4: { name: 'Spark Citizen · Platinum', emoji: '🟪', desc: 'Watched the Citadel Spark teaser on 14 days (server-verified, once a day) (+5 orange tickets)', xp: 250, category: 'Citadel Spark', hidden: false, serverAward: true },
+        spark_citizen_t5: { name: 'Spark Citizen · Diamond', emoji: '💎', desc: 'Watched the Citadel Spark teaser on 28 days (server-verified, once a day) (+21 orange tickets)', xp: 500, category: 'Citadel Spark', hidden: false, serverAward: true },
+    };
+    // SHA-256 of JSON.stringify(BADGE_CATALOG) from the live gh-pages bundle
+    // (pin 20261119_v2682b), which matches origin/gh-pages badges.catalog.js.
+    const LIVE_CATALOG_SHA256 = '1667ee602658fc29fd308e9b998c22a01746c0465efebed8fe119644c176f3c0';
+
+    function catalogFrom(js) {
+        const token = 'window.BADGE_CATALOG=';
+        const start = js.indexOf(token);
+        assert.ok(start !== -1, 'BADGE_CATALOG missing');
+        let i = start + token.length;
+        assert.strictEqual(js[i], '{');
+        let depth = 0, inStr = false, esc = false, quote = '';
+        for (; i < js.length; i++) {
+            const c = js[i];
+            if (inStr) {
+                if (esc) { esc = false; continue; }
+                if (c === '\\') { esc = true; continue; }
+                if (c === quote) inStr = false;
+                continue;
+            }
+            if (c === '"' || c === "'") { inStr = true; quote = c; continue; }
+            if (c === '{') depth++;
+            else if (c === '}') {
+                depth--;
+                if (depth === 0) { i++; break; }
+            }
+        }
+        const ctx = { window: {} };
+        vm.runInNewContext('window.BADGE_CATALOG=' + js.slice(start + token.length, i), ctx);
+        return ctx.window.BADGE_CATALOG;
+    }
+
+    const bundle = catalogFrom(read('bundle.min.js'));
+    const source = catalogFrom(read('badges.catalog.js'));
+    // Compare as JSON so vm-realm objects don't fail deepStrictEqual.
+    assert.strictEqual(JSON.stringify(bundle), JSON.stringify(source));
+
+    const added = Object.keys(bundle).filter((id) => SPARK_IDS.indexOf(id) !== -1);
+    assert.deepStrictEqual(added, SPARK_IDS);
+    SPARK_IDS.forEach((id) => {
+        assert.strictEqual(JSON.stringify(bundle[id]), JSON.stringify(SPARK[id]), id);
     });
+
+    const remainder = {};
+    Object.keys(bundle).forEach((id) => {
+        if (SPARK_IDS.indexOf(id) === -1) remainder[id] = bundle[id];
+    });
+    assert.strictEqual(Object.keys(remainder).length, 984);
+    const sha = crypto.createHash('sha256').update(JSON.stringify(remainder)).digest('hex');
+    assert.strictEqual(sha, LIVE_CATALOG_SHA256, 'catalog besides Spark Citizen must match the live served catalog');
 });
 
 console.log(`\nspark citizen: ${passed} passed, ${failed} failed`);
