@@ -69,7 +69,9 @@ var POP_EMBED_ALLOW = 'fullscreen';
 var POP_EXTERNAL_HOSTS = {
     'timechainarcade.com': true,
     'galaxymind.space': true,
-    'ryracer.com': true
+    'ryracer.com': true,
+    'mempooldotspaceinvaders.space': true,
+    'www.mempooldotspaceinvaders.space': true
 };
 
 var _popLiveIframe = null;
@@ -442,92 +444,6 @@ var POP_GAMES = [
         isNew: true
     },
     {
-        slug: 'lightningpinball',
-        title: 'Lightning Pinball',
-        emoji: '⚡',
-        genre: 'Action',
-        players: '1P',
-        desc: 'Open channels. Route payments. Light up the network.',
-        thumb: 'https://timechainarcade.com/images/poster-lightning-pinball.jpg',
-        thumbFallback: '⚡',
-        url: 'https://timechainarcade.com/games/lightningpinball',
-        hot: false,
-        isNew: true
-    },
-    {
-        slug: 'robobtc2140',
-        title: 'RoboBTC 2140',
-        emoji: '🤖',
-        genre: 'Action',
-        players: '1P',
-        desc: 'Save the plebs. Smash the surveillance swarm.',
-        thumb: 'https://timechainarcade.com/images/poster-robobtc-2140.jpg',
-        thumbFallback: '🤖',
-        url: 'https://timechainarcade.com/games/robobtc2140',
-        hot: false,
-        isNew: true
-    },
-    {
-        slug: 'fiatfighters',
-        title: 'Fiat Fighters',
-        emoji: '🥊',
-        genre: 'Action',
-        players: '1P',
-        desc: 'Read the tells. Counter the FUD. Win the belt.',
-        thumb: 'https://timechainarcade.com/images/poster-fiat-fighters.jpg',
-        thumbFallback: '🥊',
-        url: 'https://timechainarcade.com/games/fiatfighters',
-        hot: false
-    },
-    {
-        slug: 'nodedefense',
-        title: 'Node Defense',
-        emoji: '🛡️',
-        genre: 'Strategy',
-        players: '1P',
-        desc: 'Hold the network. Nodes keep the rules.',
-        thumb: 'https://timechainarcade.com/images/poster-node-defense.jpg',
-        thumbFallback: '🛡️',
-        url: 'https://timechainarcade.com/games/nodedefense',
-        hot: false
-    },
-    {
-        slug: 'honeybadger',
-        title: 'Honey Badger',
-        emoji: '🦡',
-        genre: 'Action',
-        players: '1P',
-        desc: 'Honey Badger don\'t care.',
-        thumb: 'https://timechainarcade.com/images/poster-honey-badger.jpg',
-        thumbFallback: '🦡',
-        url: 'https://timechainarcade.com/games/honeybadger',
-        hot: false
-    },
-    {
-        slug: 'spamdefense',
-        title: 'Spam Defense',
-        emoji: '🚫',
-        genre: 'Action',
-        players: '1P',
-        desc: 'Hold the mempool. Shoot the spam.',
-        thumb: 'https://timechainarcade.com/images/poster-spam-defense.jpg',
-        thumbFallback: '🚫',
-        url: 'https://timechainarcade.com/games/spamdefense',
-        hot: false
-    },
-    {
-        slug: 'coincontrol',
-        title: 'Coin Control',
-        emoji: '🪙',
-        genre: 'Puzzle',
-        players: '1P',
-        desc: 'Match the coins. Mind your UTXOs.',
-        thumb: 'https://timechainarcade.com/images/poster-coin-control.jpg',
-        thumbFallback: '🪙',
-        url: 'https://timechainarcade.com/games/coincontrol',
-        hot: false
-    },
-    {
         slug: 'hashcorpminers',
         title: 'HashCorp Miners',
         emoji: '⛏️',
@@ -537,7 +453,8 @@ var POP_GAMES = [
         thumb: 'https://timechainarcade.com/images/poster-hashcorp-miners.jpg',
         thumbFallback: '⛏️',
         url: 'https://timechainarcade.com/games/hashcorpminers',
-        hot: false
+        hot: false,
+        isNew: true
     },
     {
         slug: 'consensusclash',
@@ -550,6 +467,23 @@ var POP_GAMES = [
         thumbFallback: '🥋',
         url: 'https://timechainarcade.com/games/consensusclash',
         hot: false
+    }
+];
+
+// Independent link-outs shown below the Timechain Arcade grid.
+var POP_INDEPENDENT_GAMES = [
+    {
+        slug: 'mempool-space-invaders',
+        title: 'Mempool Space Invaders',
+        emoji: '👾',
+        genre: 'Shooter',
+        players: '1P',
+        desc: 'Arcade shooter set in the Bitcoin mempool.',
+        thumb: 'https://mempooldotspaceinvaders.space/og-image.png',
+        thumbFallback: '👾',
+        url: 'https://www.mempooldotspaceinvaders.space/',
+        hot: false,
+        isNew: true
     }
 ];
 
@@ -882,7 +816,10 @@ function _renderGalaxyMindTab(wrap) {
         { slug: 'wen', path: 'wen', emoji: '📅', label: 'DAILY · 30 SECONDS', name: 'WEN', desc: 'A real 90-day slice of the tape with dates redacted. Five guesses — closeness is the score.' },
         { slug: 'gauntlet', path: 'gauntlet', emoji: '⚔️', label: 'DAILY · BLIND HISTORY', name: 'THE BITCOIN GAUNTLET', desc: 'Trade a hidden bitcoin history window blind against a DCA bot. Beat the bot that never thinks.' },
         { slug: 'runner', path: 'runner', emoji: '⚡', label: 'ONE TAP · REAL CANDLES', name: 'NODE RUNNER', desc: 'One-tap arcade run over the real price tape. Bear markets run downhill — reach the present and go to the moon.' },
-        { slug: 'horizon', path: 'horizon', emoji: '⛓️', label: 'ONE TAP · BUILD THE CHAIN', name: 'TIMECHAIN', desc: 'One-tap block stacker on the halving clock. Blocks start at 50, then 25, then 12.5 — stack a clean chain.' }
+        { slug: 'horizon', path: 'horizon', emoji: '⛓️', label: 'ONE TAP · BUILD THE CHAIN', name: 'TIMECHAIN', desc: 'One-tap block stacker on the halving clock. Blocks start at 50, then 25, then 12.5 — stack a clean chain.' },
+        { slug: 'bitcoin-kart', path: 'bitcoin-kart', emoji: '🏎️', label: 'KART RACER', name: 'BITCOIN KART', desc: 'Kart racer through bitcoin culture.' },
+        { slug: 'chop', path: 'chop', emoji: '🔪', label: 'RHYTHM', name: 'CHOP', desc: "Slice the latest real block's transactions." },
+        { slug: 'trail', path: 'trail', emoji: '🥾', label: 'DAILY STORY', name: 'THE HODL TRAIL', desc: 'A daily expedition on the bitcoin trail.' }
     ];
 
     var root = document.createElement('div');
@@ -901,7 +838,7 @@ function _renderGalaxyMindTab(wrap) {
     hTitle.textContent = 'GALAXY MIND ARCADE';
     var hSub = document.createElement('div');
     hSub.style.cssText = 'font-size:0.65rem;color:#f7931a;letter-spacing:0.15em;text-transform:uppercase;';
-    hSub.textContent = '5 games · real bitcoin data';
+    hSub.textContent = '8 games · real bitcoin data';
     hText.appendChild(hTitle);
     hText.appendChild(hSub);
     hLeft.appendChild(hEmoji);
@@ -1010,6 +947,18 @@ function _renderArcadeTab(wrap) {
     footer.appendChild(document.createTextNode(' · Powered by ⚡ Lightning Network · '));
     footer.appendChild(_popExternalAnchor('https://twitter.com/TimechainArcade', '@TimechainArcade'));
     wrap.appendChild(footer);
+
+    var indieSection = document.createElement('div');
+    indieSection.className = 'pop-section-title';
+    indieSection.textContent = 'Independent';
+    wrap.appendChild(indieSection);
+
+    var indieGrid = document.createElement('div');
+    indieGrid.className = 'pop-games-grid';
+    POP_INDEPENDENT_GAMES.forEach(function(game) {
+        indieGrid.appendChild(_popBuildArcadeCard(game));
+    });
+    wrap.appendChild(indieGrid);
 }
 
 // ---- Render PVP tab ----

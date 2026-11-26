@@ -324,13 +324,18 @@ function openHubOnSatArcade(ctx) {
     return playSatArcade(ctx);
 }
 
-test('SW is v2682 and proof-of-play.js is pinned at 20261119_v2682', () => {
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2682'"));
-    assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2630'"));
-    assert.ok(read('app.js').includes('proof-of-play.js?v=20261119_v2682'));
+test('SW is v2722 and proof-of-play.js is pinned at 20261126_v2722', () => {
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2722'"));
+    assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2721'"));
+    assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2720'"));
+    assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2682'"));
+    assert.ok(read('app.js').includes('proof-of-play.js?v=20261126_v2722'));
+    assert.ok(read('mobile-ux.js').includes('proof-of-play.js?v=20261126_v2722'));
+    assert.ok(!read('mobile-ux.js').includes('proof-of-play.js?v=20261031_v2447'));
     const html = read('index.html');
-    assert.ok(html.includes('proof-of-play.js?v=20261119_v2682'));
-    assert.strictEqual((html.match(/proof-of-play\.js\?v=20261119_v2682/g) || []).length, 2);
+    assert.ok(html.includes('proof-of-play.js?v=20261126_v2722'));
+    assert.strictEqual((html.match(/proof-of-play\.js\?v=20261126_v2722/g) || []).length, 2);
+    assert.ok(!html.includes('proof-of-play.js?v=20261119_v2682'));
     assert.ok(!html.includes('proof-of-play.js?v=20261119_v2624"') && !html.includes("proof-of-play.js?v=20261119_v2624'"));
     assert.strictEqual(read('404.html'), html);
 });
@@ -536,6 +541,8 @@ test('embed and outside-link allowlists reject anything else', () => {
     assert.strictEqual(window._popAllowedExternalUrl('https://timechainarcade.com/games/stackmachine'), 'https://timechainarcade.com/games/stackmachine');
     assert.strictEqual(window._popAllowedExternalUrl('https://galaxymind.space/arcade'), 'https://galaxymind.space/arcade');
     assert.strictEqual(window._popAllowedExternalUrl('https://ryracer.com/'), 'https://ryracer.com/');
+    assert.strictEqual(window._popAllowedExternalUrl('https://www.mempooldotspaceinvaders.space/'), 'https://www.mempooldotspaceinvaders.space/');
+    assert.strictEqual(window._popAllowedExternalUrl('https://mempooldotspaceinvaders.space/og-image.png'), 'https://mempooldotspaceinvaders.space/og-image.png');
     assert.strictEqual(window._popAllowedExternalUrl(prefix), prefix, 'Full Tab may open the embed origin');
 
     const rejectExt = [
@@ -546,6 +553,8 @@ test('embed and outside-link allowlists reject anything else', () => {
         'https://evil.com/',
         'https://galaxymind.space.evil.com/',
         'https://ryracer.com.evil.com/',
+        'https://evil.mempooldotspaceinvaders.space/',
+        'http://www.mempooldotspaceinvaders.space/',
         'javascript:alert(1)'
     ];
     const before = ctx.opened.length;

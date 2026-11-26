@@ -452,7 +452,7 @@ test('cache name is current (v2692 or later) and the TV script cache-buster move
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2251'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2251'));
-    assert.ok(html.includes('bundle.min.js?v=20261126_v2716'));
+    assert.ok(html.includes('bundle.min.js?v=20261126_v2722'));
     assert.ok(!html.includes('bundle.min.js?v=20261101_v2455'));
     assert.ok(!html.includes('bundle.min.js?v=20261029_v2429'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2391'));

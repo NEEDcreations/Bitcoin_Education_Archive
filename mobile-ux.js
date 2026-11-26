@@ -1190,7 +1190,7 @@ function openProofOfPlay() {
         window.enterProofOfPlay();
         return;
     }
-    loadScriptOnce('proof-of-play.js?v=20261031_v2447');
+    loadScriptOnce('proof-of-play.js?v=20261126_v2722');
     pollUntil(function() {
         if (typeof window.enterProofOfPlay !== 'function') return false;
         window.enterProofOfPlay();

@@ -17503,7 +17503,7 @@ function openProofOfPlay() {
         window.enterProofOfPlay();
         return;
     }
-    loadScriptOnce('proof-of-play.js?v=20261031_v2447');
+    loadScriptOnce('proof-of-play.js?v=20261126_v2722');
     pollUntil(function() {
         if (typeof window.enterProofOfPlay !== 'function') return false;
         window.enterProofOfPlay();
@@ -26420,7 +26420,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                     if (!window._popScriptLoading) {
                         window._popScriptLoading = true;
                         var _popS = document.createElement('script');
-                        _popS.src = 'proof-of-play.js?v=20261119_v2682';
+                        _popS.src = 'proof-of-play.js?v=20261126_v2722';
                         _popS.onload = function() { window._popScriptLoading = false; };
                         document.head.appendChild(_popS);
                     }
