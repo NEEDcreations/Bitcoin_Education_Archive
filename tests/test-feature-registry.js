@@ -491,6 +491,7 @@ test('show/open/enter navigation openers are in the registry', function () {
         'openNow',
         'openWithdrawalAddress', 'showWithdrawalAddressReadonly',
         'showUsernameRepickPrompt',
+        'showNewAccountNamePrompt',
         'openHomeSats', 'openHomeInvites', 'openHomeWithdraw', 'openHomeLearn', 'openTopicsBrowser',
         'openMobileExploreApps',
         'openSettingsAdminSection', 'openHomeAdminTools'
