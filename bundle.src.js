@@ -5240,6 +5240,13 @@ function createNacho() {
             gap: 0;
             pointer-events: none;
             transition: opacity 0.3s;
+            /* Reserve the deer box so the welcome card cannot shift the container's top edge (CLS). */
+            min-width: 110px;
+            min-height: 280px;
+        }
+        @media (max-width: 900px) {
+            /* On phones the bubble is position:fixed and out of this box. */
+            #nacho-container { min-width: 48px; min-height: 48px; }
         }
         #nacho-container.hidden { opacity: 0; pointer-events: none; }
         /* A minimized deer must not catch taps. Children set pointer-events:auto,
@@ -5725,11 +5732,12 @@ function createNacho() {
                 max-width: none !important;
                 width: auto !important;
                 min-width: 0 !important;
-                max-height: 45vh;
+                /* Sit below the reserved hero + Sign up / Start Here stack so the card cannot cover the CTA. */
+                max-height: calc(100dvh - var(--above-fab, calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + var(--fab-gap, 12px))) - var(--bq-mobile-bar-h, calc(110px + env(safe-area-inset-top, 0px))) - 30px - var(--home-hero-min, 220px) - var(--home-guest-actions-min, 108px) - 16px);
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
-                font-size: 0.85rem;
-                padding: 12px 14px;
+                font-size: 0.8rem;
+                padding: 10px 12px;
                 border-radius: 14px;
                 z-index: 200050;
             }
@@ -5741,9 +5749,8 @@ function createNacho() {
             #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 18px; }
             #nacho-avatar { width: 48px; height: 48px; min-width: 48px; min-height: 48px; }
             #nacho-bubble {
-                max-height: 45vh;
-                font-size: 0.82rem;
-                padding: 12px 14px;
+                font-size: 0.78rem;
+                padding: 10px 12px;
             }
             #nacho-avatar .nacho-name { font-size: 0.65rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(220px, 74vw); white-space: normal; padding: 5px 8px; }
         }
@@ -6013,8 +6020,30 @@ function createNacho() {
         });
     })();
 
-    // Welcome after delay — use time-of-day greeting or regular welcome
-    setTimeout(function() {
+    // Welcome after delay — after first paint / idle so the home hero can be LCP, not this card.
+    function nachoDeferWelcome(fn) {
+        var ran = false;
+        function run() {
+            if (ran) return;
+            ran = true;
+            fn();
+        }
+        function afterPaint() {
+            if (typeof requestIdleCallback === 'function') {
+                requestIdleCallback(function() { run(); }, { timeout: 2000 });
+            } else {
+                setTimeout(run, 200);
+            }
+        }
+        function afterFirstPaint() {
+            requestAnimationFrame(function() {
+                requestAnimationFrame(afterPaint);
+            });
+        }
+        if (document.readyState === 'complete') afterFirstPaint();
+        else window.addEventListener('load', afterFirstPaint, { once: true });
+    }
+    nachoDeferWelcome(function() {
         if (!nachoVisible || nachoHoldFirstVisit()) return;
         
         // PROGRESSIVE ONBOARDING FOR NEW USERS
@@ -6094,7 +6123,7 @@ function createNacho() {
                 if (streak) showBubble(streak.text, streak.pose);
             }
         }, 12000);
-    }, 2000);
+    });
 
     // Start idle animation cycling
     startIdleCycle();

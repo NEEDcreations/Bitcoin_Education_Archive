@@ -97,7 +97,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
 
-    <link rel="preload" href="/bundle.min.js?v=20261126_v2700" as="script">
+    <link rel="preload" href="/bundle.min.js?v=20261126_v2715" as="script">
 
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image" referrerpolicy="no-referrer">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
@@ -162,6 +162,12 @@
             --card-bg: rgba(255,255,255,0.03); --overlay: rgba(0,0,0,0.92);
             --secondary: #1e293b; --text-secondary: #94a3b8;
             --display-font: 'Outfit', 'Segoe UI', system-ui, sans-serif;
+            --home-hero-min: 220px;
+            --home-guest-actions-min: 108px;
+            --today-card-min: 360px;
+        }
+        @media (min-width: 901px) {
+            :root { --today-card-min: 280px; }
         }
         [data-theme="light"] {
             --bg: #f8fafc; --bg-side: #ffffff; --border: #e2e8f0;
@@ -929,7 +935,7 @@
         }
 
         /* Today card: six daily tiles in one row, two rows of three on a phone. */
-        #todayCard { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; margin: 0 0 16px; color: #e2e8f0; }
+        #todayCard { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; margin: 0 0 16px; color: #e2e8f0; min-height: var(--today-card-min, 360px); }
         #dailyXpMeter { margin: 0 16px 12px; container-type: inline-size; }
         #dailyXpMeterText { font-size: 0.82rem; font-weight: 800; color: #e2e8f0; margin: 0 0 4px; }
         .daily-xp-scale { position: relative; height: 22px; margin: 0 0 2px; font-size: 0.62rem; font-weight: 800; color: #94a3b8; line-height: 1.05; }
@@ -1281,7 +1287,7 @@
     .home-tile-claim { background:#f7931a; border-color:#f7931a; color:#1a1208; }
     .home-tile-claim .home-tile-kicker, .home-tile-claim .home-tile-note { color:rgba(26,18,8,0.78); }
     .home-tile-claim .home-tile-value { color:#fff; font-size:1.15rem; }
-    #homeGuestActions { margin:0 0 12px; }
+    #homeGuestActions { margin:0 0 12px; min-height: var(--home-guest-actions-min, 108px); }
     html.home-signed-in #homeGuestActions, body.home-signed-in #homeGuestActions,
     html.home-signed-in #homeHero, body.home-signed-in #homeHero,
     html.btc-signing-in #homeGuestActions, html.btc-signing-in #homeHero { display:none !important; }
@@ -1292,6 +1298,7 @@
     .home-guest-cta, .home-watch-intro { width:100%; border-radius:14px; font-family:inherit; cursor:pointer; touch-action:manipulation; }
     .home-guest-cta { background:#f7931a; color:#fff; border:none; padding:14px 16px; font-weight:800; font-size:1rem; }
     .home-watch-intro { margin-top:8px; background:transparent; border:1px solid #334155; color:#e2e8f0; padding:12px 16px; font-weight:700; }
+    #homeHero { min-height: var(--home-hero-min, 220px); }
     #homeHero .donate-circle { display:none; }
     #homeHero .home-logos { margin-bottom:12px; }
     #homeHero .home-logos img { width:72px !important; height:72px !important; }
@@ -1299,6 +1306,7 @@
     .home-kicker { font-size:0.72rem; font-weight:800; letter-spacing:0.16em; color:var(--accent); margin:-6px 0 14px; }
     #homeHero .home-kicker { margin-top:0; margin-bottom:8px; }
     #homeHero .home-subtitle { font-size:1rem; margin-bottom:12px; }
+    #hotTopicsSectionWrapper { min-height: 104px; }
     #patchNotesHome { width:100%; max-width:100%; box-sizing:border-box; text-align:center; }
     #patchNotesHome p { max-width:100%; overflow-wrap:anywhere; }
     #patchNotesHome a { display:inline-block; max-width:100%; }
@@ -1550,6 +1558,7 @@
         </div>
         <div id="sidebarSearchResults" class="search-results" style="overflow-y:auto;background:none;padding:0;max-height:60vh;"></div>
         <div class="channels" id="channelList">
+            <div id="hotTopicsSectionWrapper"></div>
 
             <div id="favsSection" style="display:none;">
                 <div class="cat-label">⭐ Your Saved Topics</div>
@@ -1822,7 +1831,7 @@
                 <div id="btcSigningShell" role="status" aria-live="polite">Signing you in…</div>
                 <div id="homeHero">
                 <div class="home-logos">
-                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Quest" referrerpolicy="no-referrer" fetchpriority="high" decoding="async" width="130" height="130" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
+                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Quest" referrerpolicy="no-referrer" fetchpriority="high" decoding="async" width="72" height="72" style="width:72px;height:72px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
                     <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
                 </div>
                 <h1 class="home-title">BITCOIN QUEST<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
@@ -2519,7 +2528,7 @@
     <script src="/kill-switch.js?v=20261126_v2696" defer></script>
     <script src="/survey.js?v=20261126_v2696" defer></script>
     <script src="/ranking.js?v=20261126_v2714" defer></script>    <!-- Critical: needed for initial page render -->
-    <script src="/bundle.min.js?v=20261126_v2700" defer fetchpriority="high"></script>
+    <script src="/bundle.min.js?v=20261126_v2715" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="/features.registry.js?v=20261119_v2681" defer></script>
@@ -2557,7 +2566,7 @@
         ];
         var _lazyScripts = [
             'quests.js?v=20261126_v2696',
-            'hot-topics.js?v=20261114_citadelwire3',
+            'hot-topics.js?v=20261126_v2715',
             'pvp.js?v=20261118_v2605','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261105_v2506',
             'scholar.js?v=20261105_v2490','beats.js?v=20261119_v2666',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261119_v2666',
