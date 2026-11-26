@@ -2435,6 +2435,16 @@ async function finishEmailSignIn(email, _signInUrl) {
         // Clean URL
         window.history.replaceState(null, '', window.location.pathname + window.location.hash);
 
+        if (typeof window.bqAgeConfirmApplySignup === 'function') {
+            try {
+                await window.bqAgeConfirmApplySignup({
+                    force: true,
+                    name: String(existingName || pendingUsername || '').trim(),
+                    email: (typeof email !== 'undefined' && email) ? String(email).trim() : ''
+                });
+            } catch (eAge) {}
+        }
+
         // Clean up pending data
         localStorage.removeItem('btc_pending_username');
         localStorage.removeItem('btc_pending_email');
@@ -5496,6 +5506,9 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();
     hideUsernamePrompt();
+    if (typeof window.bqAgeConfirmApplySignup === 'function') {
+        try { await window.bqAgeConfirmApplySignup({ force: true, name: username, email: email || '' }); } catch (eAge) {}
+    }
     if (window.btcOnboardingQueue) {
         try {
             if (typeof window.btcOnboardingQueue.skip === 'function') {
@@ -8596,6 +8609,10 @@ window._captureSignupFormState = function() {
     if (em) localStorage.setItem('btc_pending_email', em);
     if (ct) localStorage.setItem('btc_pending_country', ct);
     if (window._signupFaction) localStorage.setItem('btc_pending_faction', window._signupFaction);
+    var ageCap = signupAgeState();
+    if (ageCap.ready && typeof window.bqAgeConfirmRememberSignup === 'function') {
+        window.bqAgeConfirmRememberSignup(ageCap.choice, { name: un || '', email: em || '', guardian: ageCap.guardian });
+    }
 };
 
 // Username prompt
@@ -8760,6 +8777,10 @@ window.showSignInOnly = function() {
         if (usernameInput) usernameInput.style.display = 'none';
         if (emailInput) emailInput.style.display = 'none';
         if (submitBtn) submitBtn.style.display = 'none';
+        var ageRow = document.getElementById('signupAgeRow');
+        if (ageRow) ageRow.style.display = 'none';
+        var ageHint = document.getElementById('signupNeedAge');
+        if (ageHint) ageHint.style.display = 'none';
 
         // Add a sign-in header
         var signInHeader = document.getElementById('signInOnlyHeader');
@@ -8829,6 +8850,10 @@ window._restoreSignUpForm = function() {
     if (usernameInput) usernameInput.style.display = '';
     if (emailInput) emailInput.style.display = '';
     if (submitBtn) submitBtn.style.display = '';
+    var ageRow = document.getElementById('signupAgeRow');
+    if (ageRow) ageRow.style.display = '';
+    var ageHint = document.getElementById('signupNeedAge');
+    if (ageHint) ageHint.style.display = '';
 
     // Restore email sign in label
     var emailSignIn = document.getElementById('emailSignInSection');
@@ -12082,7 +12107,7 @@ window.publishAuthDisplay = publishAuthDisplay;
 window.clearAuthDisplay = clearAuthDisplay;
 
 function clearUserLocalStorage(opts) {
-    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_skip_email_link', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country', 'btc_mode_card_dismissed',
+    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_skip_email_link', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country', 'btc_pending_age', 'btc_mode_card_dismissed',
         // Badge cache — preserve on sign-out so the next sign-in doesn't trigger
         // a cold-start race where checkBadges() fires before Firestore restores
         // visibleBadges, causing duplicate toast/celebration modals.
@@ -12559,22 +12584,78 @@ async function isUsernameTaken(username, excludeUid) {
     }
 }
 
+function signupAgeState() {
+    var over = document.getElementById('signupAgeOver18');
+    var under = document.getElementById('signupAgeUnder18');
+    var choice = '';
+    if (over && over.getAttribute('aria-pressed') === 'true') choice = 'over18';
+    else if (under && under.getAttribute('aria-pressed') === 'true') choice = 'under18';
+    var box = document.getElementById('signupGuardianOk');
+    var guardian = !!(box && box.checked);
+    return { choice: choice, guardian: guardian, ready: choice === 'over18' || (choice === 'under18' && guardian) };
+}
+
+function shakeSignupRow(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('shake');
+    void el.offsetWidth;
+    el.classList.add('shake');
+}
+
+function warnSignupAge() {
+    var age = signupAgeState();
+    var hint = document.getElementById('signupNeedAge');
+    if (!age.choice) {
+        shakeSignupRow('signupAgeRow');
+        if (hint) { hint.textContent = 'Tell us your age group first.'; hint.hidden = false; }
+        return;
+    }
+    shakeSignupRow('signupGuardianRow');
+    if (hint) { hint.textContent = 'Tick the box to confirm a parent or guardian says it is OK.'; hint.hidden = false; }
+}
+
+window._signupPickAge = function (choice) {
+    if (choice !== 'over18' && choice !== 'under18') return;
+    var over = document.getElementById('signupAgeOver18');
+    var under = document.getElementById('signupAgeUnder18');
+    var guardRow = document.getElementById('signupGuardianRow');
+    var guard = document.getElementById('signupGuardianOk');
+    if (over) over.setAttribute('aria-pressed', choice === 'over18' ? 'true' : 'false');
+    if (under) under.setAttribute('aria-pressed', choice === 'under18' ? 'true' : 'false');
+    if (guardRow) {
+        if (choice === 'under18') guardRow.hidden = false;
+        else {
+            guardRow.hidden = true;
+            if (guard) guard.checked = false;
+        }
+    }
+    var hint = document.getElementById('signupNeedAge');
+    if (hint) hint.hidden = true;
+    if (typeof window.bqAgeConfirmRememberSignup === 'function') {
+        window.bqAgeConfirmRememberSignup(choice, { guardian: false });
+    }
+};
+
 document.addEventListener('click', function(ev) {
     var t = ev.target;
     if (!t || !t.closest) return;
     if (!t.closest('#signupStartBtn')) return;
+    if (!document.getElementById('usernameInput')) return;
     var check = document.getElementById('signupTosCheck');
-    if (!document.getElementById('usernameInput') || !check || check.checked) return;
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
-    var row = document.getElementById('signupConsentRow');
-    if (row) {
-        row.classList.remove('shake');
-        void row.offsetWidth;
-        row.classList.add('shake');
+    if (check && !check.checked) {
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        shakeSignupRow('signupConsentRow');
+        var hint = document.getElementById('signupNeedTick');
+        if (hint) hint.hidden = false;
+        return;
     }
-    var hint = document.getElementById('signupNeedTick');
-    if (hint) hint.hidden = false;
+    if (!signupAgeState().ready) {
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        warnSignupAge();
+    }
 }, true);
 
 window.submitUsername = async function() {
@@ -12590,6 +12671,20 @@ window.submitUsername = async function() {
         var signupHint = document.getElementById('signupNeedTick');
         if (signupHint) signupHint.hidden = false;
         return;
+    }
+    if (document.getElementById('usernameInput') && !signupAgeState().ready) {
+        warnSignupAge();
+        return;
+    }
+    if (document.getElementById('usernameInput') && typeof window.bqAgeConfirmRememberSignup === 'function') {
+        var agePick = signupAgeState();
+        var emEl = document.getElementById('emailInput');
+        var unEl = document.getElementById('usernameInput');
+        window.bqAgeConfirmRememberSignup(agePick.choice, {
+            name: unEl ? unEl.value.trim() : '',
+            email: emEl ? emEl.value.trim() : '',
+            guardian: agePick.guardian
+        });
     }
     // Check if this is the INITIAL SIGNUP modal or the settings username change
     var input = document.getElementById('usernameInput') || document.getElementById('newUsername');

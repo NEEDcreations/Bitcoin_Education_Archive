@@ -92,6 +92,156 @@
         try { if (root.sessionStorage) root.sessionStorage.removeItem(SESSION_DISMISS); } catch (e) {}
     }
 
+    var SIGNUP_PENDING_KEY = 'btc_pending_age';
+    var appliedThisSession = false;
+
+    function parsePendingSignupAge(raw) {
+        if (!raw) return null;
+        if (raw === 'over18' || raw === 'under18') {
+            return { choice: raw, name: '', email: '', guardian: raw === 'over18', at: 0 };
+        }
+        try {
+            var rec = JSON.parse(raw);
+            if (!rec || (rec.choice !== 'over18' && rec.choice !== 'under18')) return null;
+            return {
+                choice: rec.choice,
+                name: String(rec.name || '').trim(),
+                email: String(rec.email || '').trim().toLowerCase(),
+                guardian: rec.guardian === true || rec.choice === 'over18',
+                at: rec.at || 0
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function readPendingSignupAge() {
+        var raw = '';
+        try { if (root._bqSignupAgeRaw) raw = root._bqSignupAgeRaw; } catch (e0) {}
+        if (!raw) {
+            try { if (root.sessionStorage) raw = root.sessionStorage.getItem(SIGNUP_PENDING_KEY) || ''; } catch (e1) {}
+        }
+        if (!raw) {
+            try { if (root.localStorage) raw = root.localStorage.getItem(SIGNUP_PENDING_KEY) || ''; } catch (e2) {}
+        }
+        return parsePendingSignupAge(raw);
+    }
+
+    function writePendingSignupAge(rec) {
+        var raw = JSON.stringify(rec);
+        root._bqSignupAgeRaw = raw;
+        try { if (root.sessionStorage) root.sessionStorage.setItem(SIGNUP_PENDING_KEY, raw); } catch (e1) {}
+        try { if (root.localStorage) root.localStorage.setItem(SIGNUP_PENDING_KEY, raw); } catch (e2) {}
+    }
+
+    function clearPendingSignupAge() {
+        root._bqSignupAgeRaw = '';
+        try { if (root.sessionStorage) root.sessionStorage.removeItem(SIGNUP_PENDING_KEY); } catch (e1) {}
+        try { if (root.localStorage) root.localStorage.removeItem(SIGNUP_PENDING_KEY); } catch (e2) {}
+    }
+
+    function rememberSignupAge(choice, meta) {
+        if (choice !== 'over18' && choice !== 'under18') return;
+        var rec = {
+            choice: choice,
+            name: String((meta && meta.name) || '').trim(),
+            email: String((meta && meta.email) || '').trim().toLowerCase(),
+            guardian: choice === 'over18' ? true : !!(meta && meta.guardian === true),
+            at: Date.now()
+        };
+        if (choice === 'under18' && !rec.guardian) {
+            var box = root.document && root.document.getElementById('signupGuardianOk');
+            rec.guardian = !!(box && box.checked);
+        }
+        writePendingSignupAge(rec);
+    }
+
+    function pendingIsFresh(rec) {
+        if (!rec) return false;
+        if (!rec.at) return true;
+        return (Date.now() - rec.at) < 48 * 60 * 60 * 1000;
+    }
+
+    function pendingMatches(rec, user, opts) {
+        if (!rec) return false;
+        if (opts && opts.force) return true;
+        var un = String((user && user.username) || (opts && opts.name) || '').trim().toLowerCase();
+        var pendingName = String(rec.name || '').trim().toLowerCase();
+        if (pendingName && un && pendingName === un) return true;
+        var em = String((opts && opts.email) || '').trim().toLowerCase();
+        var pendingEmail = String(rec.email || '').trim().toLowerCase();
+        if (!em) {
+            try {
+                var authUser = root.firebase && typeof root.firebase.auth === 'function' && root.firebase.auth().currentUser;
+                if (authUser && authUser.email) em = String(authUser.email).trim().toLowerCase();
+            } catch (eEm) {}
+        }
+        if (pendingEmail && em && pendingEmail === em) return true;
+        try {
+            if (root.sessionStorage && root.sessionStorage.getItem(SIGNUP_PENDING_KEY) && un) return true;
+        } catch (e) {}
+        return false;
+    }
+
+    function markSignupAgeSaved(choice) {
+        appliedThisSession = true;
+        if (choice === 'over18') {
+            setHelper(true);
+            patchProfileCache({ over18: true, ageConfirmed18: true });
+            fireAgeEvent('bq-age-confirmed', { over18: true });
+        } else {
+            setHelper(false);
+            patchProfileCache({ ageUnder18: true, guardianOk: true });
+            fireAgeEvent('bq-age-under18', { ageUnder18: true, guardianOk: true });
+        }
+        clearPendingSignupAge();
+        closeOverlay();
+        finishQueue('done');
+    }
+
+    // Same write path as the post-sign-in buttons: confirmAge18 or
+    // confirmAgeUnder18({ guardianOk: true }). Under-18 cannot be saved
+    // without the guardian tick; the callable rejects that write.
+    function applySignupAge(opts) {
+        opts = opts || {};
+        var rec = readPendingSignupAge();
+        if (!rec || !pendingIsFresh(rec)) return Promise.resolve({ ok: false, skipped: true });
+        if (rec.choice === 'under18' && !rec.guardian) return Promise.resolve({ ok: false, skipped: true, needGuardian: true });
+        if (appliedThisSession) return Promise.resolve({ ok: true, already: true });
+        var name = rec.choice === 'under18' ? 'confirmAgeUnder18' : 'confirmAge18';
+        var payload = rec.choice === 'under18' ? { guardianOk: true } : {};
+        return callAge(name, payload).then(function (result) {
+            if (result.ok) {
+                markSignupAgeSaved(rec.choice);
+                return { ok: true };
+            }
+            return result;
+        });
+    }
+
+    function pickSignupAge(choice) {
+        if (choice !== 'over18' && choice !== 'under18') return;
+        var document = root.document;
+        if (!document) return;
+        var over = document.getElementById('signupAgeOver18');
+        var under = document.getElementById('signupAgeUnder18');
+        var guardRow = document.getElementById('signupGuardianRow');
+        var guard = document.getElementById('signupGuardianOk');
+        if (over) over.setAttribute('aria-pressed', choice === 'over18' ? 'true' : 'false');
+        if (under) under.setAttribute('aria-pressed', choice === 'under18' ? 'true' : 'false');
+        if (guardRow) {
+            if (choice === 'under18') {
+                guardRow.hidden = false;
+            } else {
+                guardRow.hidden = true;
+                if (guard) guard.checked = false;
+            }
+        }
+        var hint = document.getElementById('signupNeedAge');
+        if (hint) hint.hidden = true;
+        rememberSignupAge(choice, { guardian: false });
+    }
+
     function otherModalOpen() {
         var document = root.document;
         if (!document || !document.getElementById) return false;
@@ -507,6 +657,10 @@
             skipPrompt();
             return;
         }
+        if (appliedThisSession) {
+            finishQueue('skip');
+            return;
+        }
         // Kids / Classroom (including under 13) stay on that path and
         // never see this prompt. Do not change their age fields.
         if (isKidsAccount(user) || isBlocked(user)) {
@@ -516,11 +670,13 @@
         }
         if (isConfirmed(user)) {
             setHelper(true);
+            clearPendingSignupAge();
             finishQueue('skip');
             return;
         }
         if (isUnder18(user) && hasGuardianOk(user)) {
             setHelper(false);
+            clearPendingSignupAge();
             finishQueue('skip');
             return;
         }
@@ -539,6 +695,24 @@
             var qg = queue();
             if (qg && typeof qg.ready === 'function') qg.ready('age', showGuardian);
             else showGuardian();
+            return;
+        }
+        if (appliedThisSession) {
+            finishQueue('skip');
+            return;
+        }
+        var pending = readPendingSignupAge();
+        if (pending && pendingIsFresh(pending) && pendingMatches(pending, user, null) && (pending.choice === 'over18' || pending.guardian)) {
+            applySignupAge({ force: false }).then(function (result) {
+                if (result && result.ok) return;
+                if (sessionDismissed()) {
+                    finishQueue('skip');
+                    return;
+                }
+                var qPending = queue();
+                if (qPending && typeof qPending.ready === 'function') qPending.ready('age', showModal);
+                else showModal();
+            });
             return;
         }
         if (sessionDismissed()) {
@@ -658,6 +832,9 @@
     root.showAgeConfirmPrompt = showModal;
     root.bqAgeConfirmRecheck = recheck;
     root._bqDismissAgeConfirm = dismiss;
+    root._signupPickAge = pickSignupAge;
+    root.bqAgeConfirmRememberSignup = rememberSignupAge;
+    root.bqAgeConfirmApplySignup = applySignupAge;
 
     if (root.document && (root.document.readyState === 'complete' || root.document.readyState === 'interactive')) {
         boot();

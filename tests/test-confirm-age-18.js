@@ -1275,6 +1275,142 @@ test('popup-stack onSignedIn asks age-confirm to recheck and holds the age step'
     assert.ok(/bqAgeConfirmRecheck\(\) === true && state\.age !== 'done' && state\.age !== 'showing'\) state\.age = 'pending'/.test(src));
 });
 
+
+function signupEnv(opts) {
+    opts = opts || {};
+    const ls = {};
+    const calls = [];
+    let doc = Object.assign({ points: 1, username: 'sat_fan' }, opts.doc || {});
+    const env = bootClient({
+        showToast: function () {},
+        localStorage: {
+            getItem: function (k) { return Object.prototype.hasOwnProperty.call(ls, k) ? ls[k] : null; },
+            setItem: function (k, v) { ls[k] = String(v); },
+            removeItem: function (k) { delete ls[k]; }
+        },
+        firebase: {
+            auth: function () {
+                return {
+                    currentUser: { uid: 'a1', isAnonymous: true },
+                    onAuthStateChanged: function (cb) {
+                        if (opts.autoAuth) cb({ uid: 'a1', isAnonymous: true });
+                    }
+                };
+            },
+            firestore: function () {
+                return {
+                    collection: function () {
+                        return {
+                            doc: function () {
+                                return { get: function () { return Promise.resolve({ exists: true, data: function () { return doc; } }); } };
+                            }
+                        };
+                    }
+                };
+            },
+            functions: function () {
+                return {
+                    httpsCallable: function (name) {
+                        return function (payload) {
+                            calls.push({ name: name, payload: payload || {} });
+                            if (opts.failApply) {
+                                const err = new Error('down');
+                                err.code = 'unavailable';
+                                return Promise.reject(err);
+                            }
+                            if (name === 'confirmAge18') {
+                                doc = Object.assign({}, doc, { over18: true, ageConfirmed18: true });
+                                return Promise.resolve({ data: { success: true, over18: true, ageConfirmed18: true } });
+                            }
+                            doc = Object.assign({}, doc, { ageUnder18: true, guardianOk: true });
+                            return Promise.resolve({ data: { success: true, ageUnder18: true, guardianOk: true } });
+                        };
+                    }
+                };
+            }
+        }
+    });
+    env._ls = ls;
+    env._ageCalls = calls;
+    env._getDoc = function () { return doc; };
+    return env;
+}
+
+test('sign-up form has Legal age wording and a hidden guardian row', function () {
+    const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
+    assert.ok(html.includes('id="signupAgeOver18"'));
+    assert.ok(html.includes('id="signupAgeUnder18"'));
+    assert.ok(html.includes("I'm 18 or older"));
+    assert.ok(html.includes("I'm under 18"));
+    assert.ok(html.includes("My parent or guardian says it's OK for me to play Bitcoin Quest."));
+    assert.ok(html.includes('id="signupGuardianRow" hidden'));
+    const startAt = html.indexOf('id="signupStartBtn"');
+    const ageAt = html.indexOf('id="signupAgeRow"');
+    assert.ok(ageAt > 0 && ageAt < startAt);
+});
+
+test('sign-up 18+ answer is saved on the same confirmAge18 path and skips the fallback prompt', async function () {
+    const env = signupEnv();
+    env.bqAgeConfirmRememberSignup('over18', { name: 'sat_fan', email: '', guardian: true });
+    const out = await env.bqAgeConfirmApplySignup({ force: true, name: 'sat_fan' });
+    assert.strictEqual(out.ok, true);
+    assert.strictEqual(env._ageCalls.length, 1);
+    assert.strictEqual(env._ageCalls[0].name, 'confirmAge18');
+    assert.strictEqual(env._bqAgeConfirmed18, true);
+    assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+    env.bqAgeConfirmRecheck();
+    await new Promise(function (r) { setTimeout(r, 20); });
+    assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+});
+
+test('sign-up under-18 answer is saved with guardianOk and skips the fallback prompt', async function () {
+    const env = signupEnv();
+    env.bqAgeConfirmRememberSignup('under18', { name: 'sat_fan', email: '', guardian: true });
+    const out = await env.bqAgeConfirmApplySignup({ force: true, name: 'sat_fan' });
+    assert.strictEqual(out.ok, true);
+    assert.strictEqual(env._ageCalls.length, 1);
+    assert.strictEqual(env._ageCalls[0].name, 'confirmAgeUnder18');
+    assert.strictEqual(env._ageCalls[0].payload.guardianOk, true);
+    assert.strictEqual(env._bqAgeConfirmed18, false);
+    assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+    env.bqAgeConfirmRecheck();
+    await new Promise(function (r) { setTimeout(r, 20); });
+    assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+    assert.strictEqual(env._getDoc().ageUnder18, true);
+    assert.strictEqual(env._getDoc().guardianOk, true);
+});
+
+test('an under-18 sign-up pick is not saved without the guardian tick', async function () {
+    const env = signupEnv();
+    env.bqAgeConfirmRememberSignup('under18', { name: 'sat_fan', email: '', guardian: false });
+    const out = await env.bqAgeConfirmApplySignup({ force: true, name: 'sat_fan' });
+    assert.strictEqual(out.ok, false);
+    assert.strictEqual(out.needGuardian, true);
+    assert.strictEqual(env._ageCalls.length, 0);
+    assert.strictEqual(env._getDoc().ageUnder18, undefined);
+});
+
+test('fallback age prompt still shows for an account that skipped the sign-up answer', async function () {
+    const env = signupEnv({ autoAuth: true });
+    await new Promise(function (r) { setTimeout(r, 20); });
+    assert.ok(env.document.getElementById('ageConfirmOverlay'));
+    assert.ok(env.document.getElementById('ageConfirmBtn'));
+    assert.ok(env.document.getElementById('ageUnder18Btn'));
+    assert.strictEqual(env._ageCalls.length, 0);
+});
+
+test('createUser and the email-link path apply the sign-up age answer', function () {
+    const src = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    assert.ok(src.includes('bqAgeConfirmApplySignup'));
+    assert.ok(src.indexOf('hideUsernamePrompt()') < src.indexOf('bqAgeConfirmApplySignup'));
+    assert.ok(src.includes("bqAgeConfirmRememberSignup(agePick.choice"));
+    assert.ok(src.includes('function signupAgeState()'));
+    const fn = fs.readFileSync(path.join(root, 'functions/src/confirmAge18.js'), 'utf8');
+    assert.ok(fn.includes('async function confirmAgeUnder18'));
+});
+
+
 Promise.all(queue).then(function () {
     console.log(passed + ' passed' + (failed ? ', ' + failed + ' failed' : ''));
     process.exit(failed ? 1 : 0);
