@@ -13,7 +13,10 @@
     var KIDS_HASH_RE = /^#\/?(kids|classroom)(\/|\?|$)/i;
     var PAID_QUERY = ['premium', 'plan', 'session_id', 'checkout'];
     var PAID_CALLABLE_RE = /premium\w*checkout|checkout\w*premium|^createPremiumPortal$/i;
-    var PAID_URL_RE = /premium\w*checkout|(checkout|billing)\.stripe\.com|btcpay/i;
+    // Checkout hosts only. The app's BTCPay host is not hardcoded (it comes
+    // from premium config), so do not match the 'btcpay' substring in a path
+    // or on some other host.
+    var PAID_URL_RE = /premium\w*checkout|(checkout|billing)\.stripe\.com/i;
     var HIDE_CSS = [
         '[data-twa-hide]', '[data-premium-entry]', '[data-kids-entry]', '[data-classroom-entry]',
         '#settingsPremiumBilling', '.premium-cta', '.kids-entry', '.classroom-entry',
@@ -27,10 +30,21 @@
     };
 
     function store() { try { return w.sessionStorage; } catch (e) { return null; } }
+    function isAppReferrer() {
+        try { return REFERRER_RE.test(String(d.referrer || '')); } catch (e) { return false; }
+    }
+    function isStandalone() {
+        try { return !!(w.matchMedia && w.matchMedia('(display-mode: standalone)').matches); } catch (e) { return false; }
+    }
+    // A web tab must not enter app mode from a crafted ?client= flag or a
+    // leftover session flag. Those are honored only inside a trusted Android
+    // app shell (android-app referrer or standalone display mode).
+    function trustedShell() { return isAppReferrer() || isStandalone(); }
     function detect() {
+        if (!trustedShell()) return false;
         var s = store();
         try { if (s && s.getItem(KEY) === '1') return true; } catch (e) {}
-        try { if (REFERRER_RE.test(String(d.referrer || ''))) return true; } catch (e) {}
+        if (isAppReferrer()) return true;
         try { if (new URLSearchParams(w.location.search || '').get('client') === 'android-twa') return true; } catch (e) {}
         return false;
     }
@@ -129,7 +143,7 @@
     ['bqOpenPremium', 'bqPremiumBilling'].forEach(function (name) {
         try {
             Object.defineProperty(w, name, {
-                configurable: false,
+                configurable: true,
                 get: function () { return blockedOpener; },
                 set: function () {}
             });

@@ -84,6 +84,9 @@ function makeEnv(opts) {
         setTimeout: setTimeout,
         URL: URL,
         URLSearchParams: URLSearchParams,
+        matchMedia: function (q) {
+            return { matches: o.standalone === true && String(q) === '(display-mode: standalone)', media: q };
+        },
     };
     window.window = window;
     const ctx = vm.createContext({
@@ -177,19 +180,41 @@ test('TWA: the app referrer turns it on, persists the flag and marks the page', 
     });
 });
 
-test('TWA: ?client=android-twa turns it on', function () {
+test('TWA: ?client=android-twa alone does not turn it on', function () {
     const env = makeEnv({ url: 'https://bitcoineducation.quest/?client=android-twa' }).run();
+    assert.strictEqual(env.window.bqIsTwa(), false);
+    assert.deepStrictEqual(env.storage, {});
+    assert.strictEqual(env.document.documentElement.classList.size(), 0);
+});
+
+test('TWA: ?client=android-twa plus standalone display mode turns it on', function () {
+    const env = makeEnv({ url: 'https://bitcoineducation.quest/?client=android-twa', standalone: true }).run();
     assert.strictEqual(env.window.bqIsTwa(), true);
     assert.strictEqual(env.storage.bq_twa, '1');
     assert.strictEqual(env.url.search, '?client=android-twa');
     assert.strictEqual(env.log.replaceState.length, 0);
 });
 
-test('TWA: the sessionStorage flag survives navigation with no referrer or param', function () {
-    const first = makeEnv({ url: 'https://bitcoineducation.quest/?client=android-twa' }).run();
-    const next = makeEnv({ url: 'https://bitcoineducation.quest/forum', session: first.storage }).run();
+test('TWA: standalone display mode alone does not turn it on', function () {
+    const env = makeEnv({ url: 'https://bitcoineducation.quest/', standalone: true }).run();
+    assert.strictEqual(env.window.bqIsTwa(), false);
+    assert.deepStrictEqual(env.storage, {});
+});
+
+test('TWA: sessionStorage alone does not turn it on', function () {
+    const env = makeEnv({ session: { bq_twa: '1' } }).run();
+    assert.strictEqual(env.window.bqIsTwa(), false);
+    assert.strictEqual(env.document.documentElement.classList.size(), 0);
+});
+
+test('TWA: the sessionStorage flag survives navigation in a standalone shell', function () {
+    const first = makeEnv({ url: 'https://bitcoineducation.quest/?client=android-twa', standalone: true }).run();
+    assert.strictEqual(first.storage.bq_twa, '1');
+    const next = makeEnv({ url: 'https://bitcoineducation.quest/forum', session: first.storage, standalone: true }).run();
     assert.strictEqual(next.window.bqIsTwa(), true);
     assert.ok(next.document.documentElement.classList.contains('bq-twa'));
+    const web = makeEnv({ url: 'https://bitcoineducation.quest/forum', session: first.storage }).run();
+    assert.strictEqual(web.window.bqIsTwa(), false);
 });
 
 test('TWA: the body class lands once the body exists', function () {
@@ -217,10 +242,17 @@ test('TWA: CSS hides every Premium, checkout, Kids and Classroom entry point', f
 
 test('TWA: Premium openers are replaced and cannot be reassigned', function () {
     const env = makeEnv({ referrer: 'android-app://quest.bitcoineducation.app' }).run();
+    const openDesc = Object.getOwnPropertyDescriptor(env.window, 'bqOpenPremium');
+    const billDesc = Object.getOwnPropertyDescriptor(env.window, 'bqPremiumBilling');
+    assert.strictEqual(openDesc.configurable, true);
+    assert.strictEqual(billDesc.configurable, true);
     env.window.bqOpenPremium = function () { return 'opened'; };
     env.window.bqPremiumBilling = function () { return 'opened'; };
     assert.strictEqual(env.window.bqOpenPremium('buy'), false);
     assert.strictEqual(env.window.bqPremiumBilling({}), false);
+    assert.doesNotThrow(function () {
+        Object.defineProperty(env.window, 'bqOpenPremium', { configurable: true, value: function () { return 'x'; } });
+    });
     env.fire('DOMContentLoaded');
     assert.ok(env.log.toasts.indexOf('Premium is not available in the Android app.') !== -1);
 });
@@ -239,12 +271,18 @@ test('TWA: checkout callables and fetches reject before any request', async func
         'https://us-central1-bitcoin-education-archive.cloudfunctions.net/premiumPublicCheckout',
         'https://checkout.stripe.com/c/pay/cs_test',
         'https://billing.stripe.com/p/session/x',
-        'https://pay.example.com/btcpay/invoice',
     ]) {
         await assert.rejects(env.window.fetch(u), function (e) { return e.code === 'twa-blocked'; }, u);
     }
+    // 'btcpay' in a path or on an unknown host is not a checkout URL.
+    await env.window.fetch('https://pay.example.com/btcpay/invoice');
+    await env.window.fetch('https://bitcoineducation.quest/learn?q=btcpay');
     await env.window.fetch('https://mempool.space/api/blocks');
-    assert.deepStrictEqual(env.log.fetches, ['https://mempool.space/api/blocks']);
+    assert.deepStrictEqual(env.log.fetches, [
+        'https://pay.example.com/btcpay/invoice',
+        'https://bitcoineducation.quest/learn?q=btcpay',
+        'https://mempool.space/api/blocks',
+    ]);
 });
 
 test('TWA: the callable guard waits for Firebase and keeps the MFA patch marker', async function () {
@@ -262,29 +300,29 @@ test('TWA: the callable guard waits for Firebase and keeps the MFA patch marker'
 
 test('TWA: deep links to Premium or Kids pages go home with a notice', function () {
     ['/premium', '/premium.html', '/premium/', '/checkout', '/kids', '/classroom', '/Kids.html'].forEach(function (p) {
-        const env = makeEnv({ url: 'https://bitcoineducation.quest' + p, session: { bq_twa: '1' } }).run();
+        const env = makeEnv({ url: 'https://bitcoineducation.quest' + p, session: { bq_twa: '1' }, standalone: true }).run();
         assert.deepStrictEqual(env.log.replace, ['/'], p);
         env.fire('DOMContentLoaded');
         assert.ok(env.log.toasts.length === 1, p);
     });
-    const fine = makeEnv({ url: 'https://bitcoineducation.quest/premiums-explained', session: { bq_twa: '1' } }).run();
+    const fine = makeEnv({ url: 'https://bitcoineducation.quest/premiums-explained', session: { bq_twa: '1' }, standalone: true }).run();
     assert.deepStrictEqual(fine.log.replace, []);
 });
 
 test('TWA: Premium query links and hash routes are stripped before the app routes', function () {
-    const env = makeEnv({ url: 'https://bitcoineducation.quest/?client=android-twa&premium=buy&plan=yearly#premium', session: { bq_premium_pending: 'buy' } }).run();
+    const env = makeEnv({ url: 'https://bitcoineducation.quest/?client=android-twa&premium=buy&plan=yearly#premium', session: { bq_premium_pending: 'buy' }, standalone: true }).run();
     assert.strictEqual(env.url.search, '?client=android-twa');
     assert.strictEqual(env.url.hash, '');
     assert.strictEqual(env.storage.bq_premium_pending, undefined);
     env.fire('DOMContentLoaded');
     assert.ok(env.log.toasts.indexOf('Premium is not available in the Android app.') !== -1);
 
-    const kids = makeEnv({ url: 'https://bitcoineducation.quest/#classroom', session: { bq_twa: '1' } }).run();
+    const kids = makeEnv({ url: 'https://bitcoineducation.quest/#classroom', session: { bq_twa: '1' }, standalone: true }).run();
     assert.strictEqual(kids.url.hash, '');
     kids.fire('DOMContentLoaded');
     assert.ok(kids.log.toasts.indexOf('Kids and Classroom are not available in the Android app.') !== -1);
 
-    const later = makeEnv({ url: 'https://bitcoineducation.quest/#forum', session: { bq_twa: '1' } }).run();
+    const later = makeEnv({ url: 'https://bitcoineducation.quest/#forum', session: { bq_twa: '1' }, standalone: true }).run();
     assert.strictEqual(later.url.hash, '#forum');
     later.url.hash = '#kids';
     later.fire('hashchange');
@@ -301,7 +339,7 @@ test('TWA: Premium query links and hash routes are stripped before the app route
 });
 
 test('TWA: clicks on hidden Premium or Kids links are cancelled', function () {
-    const env = makeEnv({ session: { bq_twa: '1' } }).run();
+    const env = makeEnv({ session: { bq_twa: '1' }, standalone: true }).run();
     [
         '/premium', 'https://bitcoineducation.quest/premium?plan=yearly', '/?premium=founders',
         'https://checkout.stripe.com/c/pay/x', '#premium', '/kids', '#classroom',
