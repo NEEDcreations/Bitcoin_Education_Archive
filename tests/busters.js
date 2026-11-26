@@ -8,7 +8,7 @@
 // scholar.js matches window.SCHOLAR_SCRIPT.
 // global-chat.js is 20261031_v2448. gifting.js is 20261030_v2439. quests.js is 20261030_v2443.
 // satoshi-favor.js stays 20261026_v2368.
-// onboarding.js is 20261109_v2542. today-card.js is 20261031_v2448.
+// onboarding.js is 20261109_v2542. today-card.js is 20261126_v2696.
 // features.registry.js stays 20261024_v2368. achievement-share.js is 20261109_v2536. miniapp-share.js is 20261107_v2526.
 // patches.js stays 20261026_v2385. nacho-qa.js stays 20261024_v2350.
 // gifting.js is 20261030_v2439.
@@ -651,7 +651,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('tctv-watch.js?v=20261028_v2414'));
     assert.ok(!html.includes('tctv-watch.js?v=20261023_v2338'));
     assert.ok(!html.includes('tctv-watch.js?v=20261022_v2301'));
-    assert.ok(html.includes('today-card.js?v=20261109_v2538'));
+    assert.ok(html.includes('today-card.js?v=20261126_v2696'));
+    assert.ok(!html.includes('today-card.js?v=20261109_v2538'));
     assert.ok(!html.includes('today-card.js?v=20261030_v2433'));
     assert.ok(!html.includes('today-card.js?v=20261030_v2432'));
     assert.ok(!html.includes('today-card.js?v=20261026_v2371'));
