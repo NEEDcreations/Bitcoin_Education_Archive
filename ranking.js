@@ -461,6 +461,7 @@ var APP_CHECK_CALLABLES = {
     resetLightningAddressOnce: 1,
     startQuest: 1,
     startScholarExam: 1,
+    submitSurvey: 1,
     syncEmailChange: 1,
     syncUserFactionPoints: 1,
     tctvDripCheckin: 1,

@@ -12,6 +12,7 @@
     var SUB = 'We\u2019ll be back shortly. Your sats and progress are safe.';
     var unsub = null;
     var lastOn = false;
+    var lastData = null;
 
     function nowMs() { return Date.now(); }
 
@@ -45,6 +46,9 @@
             '#' + OVERLAY_ID + ' .ks-mark{font-size:2rem;margin-bottom:12px;}' +
             '#' + OVERLAY_ID + ' .ks-title{font-size:1.35rem;font-weight:800;color:#fff;margin:0 0 10px;}' +
             '#' + OVERLAY_ID + ' .ks-sub{font-size:1rem;line-height:1.5;color:#94a3b8;margin:0;}' +
+            '#' + OVERLAY_ID + ' .ks-body{font-size:1.08rem;line-height:1.55;color:#e2e8f0;margin:0 0 18px;}' +
+            '#' + OVERLAY_ID + ' .ks-cta{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 22px;border-radius:12px;background:#f7931a;color:#111;font-weight:800;text-decoration:none;font-size:1rem;}' +
+            '#' + OVERLAY_ID + ' .ks-under{font-size:0.85rem;color:#94a3b8;margin:10px 0 0;}' +
             '#' + BANNER_ID + '{position:sticky;top:0;z-index:469000;display:flex;align-items:center;gap:12px;padding:10px 14px;background:#1a1408;color:#fde68a;border-bottom:1px solid #f7931a;font-family:inherit;}' +
             '#' + BANNER_ID + ' .ks-b-txt{flex:1;font-size:0.92rem;line-height:1.35;}' +
             '#' + BANNER_ID + ' .ks-b-btn{border:1px solid #f7931a;background:transparent;color:#fde68a;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer;font-family:inherit;}';
@@ -54,10 +58,13 @@
     function showOverlay() {
         ensureStyle();
         removeEl(BANNER_ID);
-        if (document.getElementById(OVERLAY_ID)) return;
+        var existing = document.getElementById(OVERLAY_ID);
+        if (existing && existing.getAttribute('data-kind') === 'maint') return;
+        if (existing) removeEl(OVERLAY_ID);
         var el = document.createElement('div');
         el.id = OVERLAY_ID;
         el.setAttribute('role', 'alert');
+        el.setAttribute('data-kind', 'maint');
         el.innerHTML = '<div class="ks-card"><div class="ks-mark">\u26A0\uFE0F</div><p class="ks-title"></p><p class="ks-sub"></p></div>';
         el.querySelector('.ks-title').textContent = MESSAGE;
         el.querySelector('.ks-sub').textContent = SUB;
@@ -91,6 +98,9 @@
     function apply(on) {
         lastOn = !!on;
         window._bqKillSwitchOn = lastOn;
+        if (typeof window.bqRefreshHomeNotices === 'function') {
+            try { window.bqRefreshHomeNotices(); } catch (e) { /* notices are optional */ }
+        }
         if (!lastOn) { hideAll(); return; }
         if (isAdmin()) showBanner();
         else showOverlay();
@@ -102,9 +112,11 @@
         try {
             var db = firebase.firestore();
             unsub = db.doc(DOC_PATH).onSnapshot(function (snap) {
-                apply(effectiveOn(snap && snap.exists ? snap.data() : null));
+                lastData = snap && snap.exists ? snap.data() : null;
+                apply(effectiveOn(lastData));
             }, function () {
                 // Fail open.
+                lastData = null;
                 apply(false);
             });
         } catch (e) {

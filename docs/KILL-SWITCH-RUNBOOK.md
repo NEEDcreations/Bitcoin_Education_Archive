@@ -155,6 +155,11 @@ If the 8/20-per-hour write budget is exhausted, or a compromised admin is flippi
   - `satoshiFavorAutoReset`: expires an already-running boost and posts a heads-up; it does not grant favor or XP.
   - `syncPublicProfile`: public mirror, not a grant.
 
+## Offline page and the in-app survey
+
+- **The app never goes offline for the Citadel Spark launch.** The planned home-screen pause notice and the January 3 Citadels offline page were removed. If an admin flips the emergency kill switch, players see only the short maintenance page: "Bitcoin Quest is temporarily offline for maintenance." / "We'll be back shortly. Your sats and progress are safe."
+- **Survey closes with the switch.** `submitSurvey` is in the gated rewards list, and it also refuses for good once `config/killSwitch.since` is later than the survey's `openedAt` (default 2026-11-14 18:00 UTC; `config/survey.openedAt` overrides it, `config/survey.closed: true` closes it by hand). Every grant is paid on submit, so nothing is owed if the switch is ever flipped. Answers are in `survey_responses/{uid}` (admin-only reads) and each grant has a `survey_audit` row.
+
 ## Bringing the app back (checklist)
 
 Do this in order. Typical time: 1–2 seconds for the flip, 5–15 minutes for the checks around it.
