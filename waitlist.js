@@ -2,6 +2,25 @@
 // Modes: data-mode="preview" disables the form; data-mode="live" posts to /api/waitlist.
 // After the Worker saves the address, this page reveals Substack's official embed
 // so the visitor can subscribe with one more tap. The Worker does not forward to Substack.
+// Teaser player: no autoplay. The large centered button starts it with sound on.
+(function () {
+  var v = document.getElementById('wlTeaser');
+  var play = document.getElementById('wlPlay');
+  var box = document.getElementById('wlPlayer');
+  if (!v || !play) return;
+  function on(x) { if (box) box.classList[x ? 'add' : 'remove']('on'); }
+  play.addEventListener('click', function () {
+    v.muted = false;
+    try { v.volume = 1; } catch (_) {}
+    v.controls = true;
+    play.hidden = true;
+    on(true);
+    var p = v.play();
+    if (p && typeof p.catch === 'function') p.catch(function () { play.hidden = false; on(false); });
+  });
+  v.addEventListener('ended', function () { play.hidden = false; on(false); });
+})();
+
 (function () {
   var form = document.getElementById('waitlistForm');
   var card = document.getElementById('card');

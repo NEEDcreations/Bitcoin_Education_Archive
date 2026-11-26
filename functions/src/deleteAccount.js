@@ -1265,6 +1265,8 @@ async function wipeCapsAndUserLimits(db, batcher, uid, documentIdField, opts) {
     await deleteReplyBonus(db, batcher, uid, documentIdField);
     await stripPollVoters(db, batcher, uid, documentIdField);
     await deleteExactIfPresent(db, batcher, 'tctv_watch', uid);
+    await deleteExactIfPresent(db, batcher, 'spark_citizen', uid);
+    await deleteExactIfPresent(db, batcher, 'rate_limits', 'sparkcitizen_' + uid);
     if (!options.light) await deleteWeeklyContribs(db, batcher, uid, documentIdField, options.weeks);
 }
 

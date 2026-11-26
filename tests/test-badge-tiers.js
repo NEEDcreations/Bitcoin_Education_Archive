@@ -38,8 +38,9 @@ test('checklist families are exempt and never active', () => {
 test('tier badges are paying server counter rules on a server-only field', () => {
     tiers.allIds().forEach((id) => {
         const r = rules.ruleFor(id);
+        const info = tiers.tierInfo(id);
         assert.ok(r && !r.cosmetic, id + ' pays');
-        assert.deepStrictEqual(r.source, { type: 'counter', field: 'tctvLifetimeSeconds', gte: tiers.tierInfo(id).gte });
+        assert.deepStrictEqual(r.source, { type: 'counter', field: info.field, gte: info.gte });
         assert.ok(r.xp > 0 && r.xp <= rules.XP_CAP, id + ' xp within cap');
     });
     assert.strictEqual(rules.ruleFor('tctv_watch_t4').tickets, tiers.TIER_TICKETS[4]);
@@ -56,17 +57,26 @@ test('criteria come only from the user doc counter', () => {
     assert.ok(!rules.meets(r, { tctvWatchSeconds: 1e9, tctvWatchDays: 9999 }, {}), 'legacy fields ignored');
 });
 test('grantFamily maps the counter to the five ids, then the tier collections', () => {
-    assert.deepStrictEqual(grant.familyFor('tctvLifetimeSeconds'), tiers.allIds().concat(Object.keys(tiers.COLLECTIONS)));
+    assert.deepStrictEqual(grant.familyFor('tctvLifetimeSeconds'), tiers.familyIds('tctv_watch').concat(Object.keys(tiers.COLLECTIONS)));
+    assert.deepStrictEqual(grant.familyFor('sparkCitizenCount'), tiers.familyIds('spark_citizen').concat(Object.keys(tiers.COLLECTIONS)));
 });
 test('rules: client cannot write tctvLifetimeSeconds; tctv_watch is server-only', () => {
     const r = read('firestore.rules');
     assert.ok(/userProfileServerOnlyKeys\(\) \{[\s\S]*'tctvLifetimeSeconds'/.test(r));
     assert.ok(/match \/tctv_watch\/\{uid\} \{[\s\S]*?allow create, update, delete: if false;/.test(r));
+    assert.ok(/userProfileServerOnlyKeys\(\) \{[\s\S]*'sparkCitizenCount'/.test(r));
+    assert.ok(/match \/spark_citizen\/\{uid\} \{[\s\S]*?allow create, update, delete: if false;/.test(r));
 });
 test('catalog lists the five tiers with capped display XP', () => {
     const c = require('../functions/src/badges.catalog.json').badges;
-    tiers.allIds().forEach((id) => { assert.ok(c[id] && c[id].xp <= 5000 && c[id].category === 'Prime Time', id); });
+    Object.keys(tiers.ACTIVE).forEach((f) => {
+        const fam = tiers.ACTIVE[f];
+        tiers.familyIds(f).forEach((id) => {
+            assert.ok(c[id] && c[id].xp <= 5000 && c[id].category === fam.category, id);
+        });
+    });
     assert.ok(read('badges.catalog.js').includes('"tctv_watch_t5"'));
+    assert.ok(read('badges.catalog.js').includes('"spark_citizen_t5"'));
 });
 
 // Lifetime clock
@@ -123,7 +133,9 @@ test('client keeps heartbeating after the daily goal until the server caps', () 
 });
 test('tier XP rises by tier and tier V <= 5,000 in every family (Phil, Nov 2)', () => {
     assert.deepStrictEqual(tiers.ACTIVE.tctv_watch.tiers.map((r) => r[1]), [10, 150, 1000, 2500, 5000]);
-    const fams = Object.assign({ tctv_watch: tiers.ACTIVE.tctv_watch.tiers.map((r) => r[1]) }, tiers.PLANNED_XP);
+    assert.deepStrictEqual(tiers.ACTIVE.spark_citizen.tiers.map((r) => r[1]), [10, 30, 100, 250, 500]);
+    const fams = Object.assign({}, tiers.PLANNED_XP);
+    Object.keys(tiers.ACTIVE).forEach((f) => { fams[f] = tiers.ACTIVE[f].tiers.map((r) => r[1]); });
     Object.keys(tiers.PLANNED).forEach((f) => assert.ok(tiers.PLANNED_XP[f], f + ' has XP'));
     Object.keys(fams).forEach((f) => {
         const x = fams[f];
@@ -186,6 +198,7 @@ test('tier collections cover every ACTIVE family at Platinum / Diamond', () => {
         assert.ok(!tiers.isTierId(id));
     });
     assert.ok(grant.familyFor('tctvLifetimeSeconds').indexOf('tier_all_diamond') > grant.familyFor('tctvLifetimeSeconds').indexOf('tctv_watch_t5'));
+    assert.ok(grant.familyFor('sparkCitizenCount').indexOf('tier_all_diamond') > grant.familyFor('sparkCitizenCount').indexOf('spark_citizen_t5'));
 });
 
 test('tier collection rewards locked (Phil, Nov 2 8:42 AM): Platinum 2,500 XP + 21 OT, Diamond 5,000 XP + 46 OT', () => {
