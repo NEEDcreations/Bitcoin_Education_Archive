@@ -222,7 +222,7 @@ service cloud.firestore {
         'purpleTickets', 'blueTickets', 'pollDays',
         'chatCount', 'dmCount', 'beatsUploads', 'articlesPublished',
         'pvpPlayed', 'ciphersSolved', 'sfHashes', 'sfBlockSolver', 'sfContributions',
-        'questDays', 'plebTalkSessions', 'tctvWatchDays', 'tctvLifetimeSeconds', 'giftsSent', 'onboardingComplete',
+        'questDays', 'plebTalkSessions', 'tctvWatchDays', 'tctvLifetimeSeconds', 'sparkCitizenCount', 'giftsSent', 'onboardingComplete',
         'lastShoutoutAt', 'predCorrect', 'predTotal', 'predLastResult',
         'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay',
         'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare',
@@ -3009,6 +3009,12 @@ service cloud.firestore {
     // home button. Watch time, the daily claim, XP, and orange tickets are
     // written only by tctvWatchHeartbeat (Admin SDK). Clients cannot write.
     match /tctv_watch/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    match /spark_citizen/{uid} {
       allow get: if request.auth != null && request.auth.uid == uid;
       allow list: if false;
       allow create, update, delete: if false;

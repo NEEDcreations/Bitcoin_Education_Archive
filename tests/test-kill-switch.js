@@ -377,7 +377,7 @@ async function run() {
         const names = ks.gatedNames();
         ['claimSats', 'tctvDripTick', 'payWeeklyQuestLB', 'monthlyRaffleDraw', 'payQualifiedReferrals', 'adminApproveFactionPayout',
          'resetWeeklyXP', 'resetMonthlyXP', 'verifyReferral', 'registerReferral', 'pvpSubmitAnswer', 'pvpTimeoutOpponent',
-         'tctvWatchHeartbeat', 'syncStravaWalks', 'creditMatureTopicComments', 'spendTickets', 'spendTicketsForFreeze', 'activateDoubleXP',
+         'tctvWatchHeartbeat', 'sparkCitizenTeaser', 'syncStravaWalks', 'creditMatureTopicComments', 'spendTickets', 'spendTicketsForFreeze', 'activateDoubleXP',
          'activateHashBooster', 'useHintToken', 'resetLightningAddressOnce', 'flushBadgeGgBursts', 'mergeAnonBadges', 'incrementWeeklyChallenge',
          'dailyPollVote', 'pollVote', 'chooseFaction', 'reconcileDailyProofs', 'scheduleRaidForumCredit',
          'managePeer', 'decryptCipher'].forEach(function (n) {

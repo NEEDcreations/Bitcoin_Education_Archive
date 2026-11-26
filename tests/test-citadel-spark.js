@@ -215,6 +215,33 @@ test('QA mobile: play buttons sit above the video and the idle video never takes
     assert.ok(!/button:active\s*\{\s*transform\s*:/.test(h), 'waitlist has no global button:active transform');
 });
 
+test('signed-in play starts Spark Citizen credit; ended completes; guests do not call', () => {
+    const calls = [];
+    const { cs, sandbox } = load({ now: AT });
+    sandbox.firebase = {
+        auth() { return { currentUser: { uid: 'u1', isAnonymous: false } }; },
+        functions() { return { httpsCallable(name) { return (body) => { calls.push([name, body]); return Promise.resolve({ data: { ok: true } }); }; } }; }
+    };
+    const body = makeEl('div');
+    cs.renderTab(body, AT);
+    const nodes = all(body);
+    const btn = nodes.find((n) => n.className === 'cs-play');
+    const video = nodes.find((n) => n.tagName === 'VIDEO');
+    video.play = () => Promise.resolve();
+    btn.dispatch('click');
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0][0], 'sparkCitizenTeaser');
+    assert.strictEqual(calls[0][1].phase, 'start');
+    video.dispatch('ended');
+    assert.strictEqual(calls.length, 2);
+    assert.strictEqual(calls[1][0], 'sparkCitizenTeaser');
+    assert.strictEqual(calls[1][1].phase, 'complete');
+    calls.length = 0;
+    sandbox.firebase.auth = () => ({ currentUser: { uid: 'g', isAnonymous: true } });
+    cs.creditTeaser('start');
+    assert.strictEqual(calls.length, 0);
+});
+
 (async () => {
     // Good email + Turnstile token posts to the same Worker as /waitlist, tagged src=app-citadels.
     try {

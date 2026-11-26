@@ -109,6 +109,18 @@
         return n;
     }
 
+    // Spark Citizen credit: the callable reads only the phase. Elapsed time
+    // and the daily count come from the server clock. Guests and signed-out
+    // visitors get nothing. Failures are silent so playback never breaks.
+    function creditTeaser(phase) {
+        try {
+            if (typeof firebase === 'undefined' || !firebase.auth || !firebase.functions) return;
+            var user = firebase.auth().currentUser;
+            if (!user || user.isAnonymous) return;
+            firebase.functions().httpsCallable('sparkCitizenTeaser')({ phase: phase }).catch(function () {});
+        } catch (_) {}
+    }
+
     // ── Teaser player: no autoplay, big centered play, sound on when played ──
     function buildPlayer() {
         var wrap = el('div', 'cs-player');
@@ -131,10 +143,11 @@
             v.controls = true;
             btn.hidden = true;
             wrap.classList.add('cs-on');
+            creditTeaser('start');
             var p = v.play();
             if (p && typeof p.catch === 'function') p.catch(function () { btn.hidden = false; wrap.classList.remove('cs-on'); });
         });
-        v.addEventListener('ended', function () { btn.hidden = false; wrap.classList.remove('cs-on'); });
+        v.addEventListener('ended', function () { btn.hidden = false; wrap.classList.remove('cs-on'); creditTeaser('complete'); });
         wrap.appendChild(v);
         wrap.appendChild(btn);
         return wrap;
@@ -300,7 +313,8 @@
         isLive: isLive,
         previewAllowed: previewAllowed,
         renderTab: renderTab,
-        applyGlow: applyGlow
+        applyGlow: applyGlow,
+        creditTeaser: creditTeaser
     };
 
     if (typeof document !== 'undefined') {

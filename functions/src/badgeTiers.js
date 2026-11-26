@@ -39,6 +39,21 @@ const ACTIVE = {
         // threshold (minutes) / XP. Phil (Nov 2): XP rises by tier, max 5,000.
         tiers: [[10, 10], [300, 150], [6000, 1000], [30000, 2500], [126000, 5000]],
     },
+    spark_citizen: {
+        label: 'Spark Citizen',
+        emoji: '🏰',
+        category: 'Citadel Spark',
+        field: 'sparkCitizenCount',
+        unit: 1,
+        unitLabel: 'days',
+        // Completions of the in-app Citadel Spark teaser, 1 per offset day.
+        // Minor XP curve (plan: 10/30/100/250/500). Thresholds are days.
+        tiers: [[1, 10], [3, 30], [7, 100], [14, 250], [28, 500]],
+        describe: function (info) {
+            const n = info.threshold;
+            return 'Watched the Citadel Spark teaser on ' + n + ' day' + (n === 1 ? '' : 's') + ' (server-verified, once a day)';
+        },
+    },
 };
 
 // Remaining plan families (thresholds I..V). Not active: their counters are
@@ -229,13 +244,16 @@ function catalogExtras(xpCap) {
             const info = tierInfo(id);
             const hours = fam.unit === 60 && info.threshold >= 60
                 ? fmt(Math.round(info.threshold / 60)) + ' hours'
-                : fmt(info.threshold) + ' minutes';
+                : fmt(info.threshold) + (fam.unit === 60 ? ' minutes' : (' ' + (fam.unitLabel || '')).replace(/ $/, ''));
             const xp = xpCap ? Math.min(info.xp, xpCap) : info.xp;
             const otBit = info.tickets ? ' (+' + info.tickets + ' orange tickets)' : '';
+            const base = typeof fam.describe === 'function'
+                ? fam.describe(info)
+                : ('Watched ' + hours + ' of Timechain TV (server-verified, up to 3 hours a day)');
             out[id] = {
                 name: fam.label + ' · ' + info.tierName,
                 emoji: TIERS[info.n - 1].emoji,
-                desc: 'Watched ' + hours + ' of Timechain TV (server-verified, up to 3 hours a day)' + otBit,
+                desc: base + otBit,
                 xp: xp,
                 category: fam.category,
             };

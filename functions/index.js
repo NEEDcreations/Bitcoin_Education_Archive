@@ -9785,6 +9785,10 @@ exports.confirmAccountLink = emailChangeFns.confirmAccountLink;
 const { tctvWatchHeartbeat } = require('./tctv-watch-callable');
 exports.tctvWatchHeartbeat = tctvWatchHeartbeat;
 
+// Spark Citizen teaser credit (1 completion per offset day, server clock).
+const { sparkCitizenTeaser } = require('./spark-citizen-callable');
+exports.sparkCitizenTeaser = sparkCitizenTeaser;
+
 // Clears the one-time backfill badge toast. The script writes the flag.
 const { ackBadgeBackfillToast } = require('./ack-badge-backfill');
 exports.ackBadgeBackfillToast = ackBadgeBackfillToast;

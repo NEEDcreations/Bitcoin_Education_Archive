@@ -113,6 +113,7 @@ const GATED = Object.freeze({
         'pvpTimeoutOpponent',
         'resetLightningAddressOnce',
         'tctvWatchHeartbeat',
+        'sparkCitizenTeaser',
         'syncStravaWalks',
         'activateHashBooster',
         'useHintToken',
