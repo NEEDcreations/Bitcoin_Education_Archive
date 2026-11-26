@@ -1,8 +1,6 @@
-// Home-screen notices: the pause heads-up (everyone) and the Citadel Spark
-// survey banner + form (signed-in players who haven't taken it).
-//
-// Pause notice copy is Phil-approved (FINAL_COPY.md, Nov 14 2026). The
-// return date is one config value below (RETURN_DATE).
+// Home-screen Citadel Spark survey banner + form (signed-in players who
+// haven't taken it). The planned pause/offline notice was removed: the app
+// never goes offline for this launch.
 //
 // The survey grants nothing on the client. submitSurvey (server) checks App
 // Check, rate limit, the kill switch, and grants 25 OrangeTix once per uid.
@@ -11,10 +9,6 @@
     'use strict';
 
     // ---- Config -----------------------------------------------------------
-    // Return date shown in the pause notice and the offline page. Change it
-    // here and in kill-switch.js (OFFLINE_RETURN_DATE) together.
-    var RETURN_DATE = 'January 3, 2027';
-    var SUBSTACK_SUBSCRIBE = 'https://603btc.substack.com/subscribe';
     var SURVEY_ID = 'citadel_spark_2026';
     var REWARD_TICKETS = 25;
     var OPENED_AT_DEFAULT_MS = Date.parse('2026-11-14T18:00:00Z');
@@ -22,14 +16,8 @@
     var MAX_TEXT = 1000;
     var SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
     var USER_DONE_FIELD = 'surveyDone_' + SURVEY_ID;
-    var PAUSE_SNOOZE_KEY = 'bq_pause_notice_snooze_v1';
     var SURVEY_SNOOZE_KEY = 'bq_survey_snooze_' + SURVEY_ID;
     var SURVEY_DONE_KEY = 'bq_survey_done_' + SURVEY_ID;
-
-    var PAUSE_TEXT = 'Bitcoin Quest is taking a short break and returns ' + RETURN_DATE +
-        ' with Citadels, our biggest update yet, plus Premium. Your XP, badges and progress are saved exactly as they are. ' +
-        'Unclaimed Satoshi\'s Favor rewards stay on your account until we\'re back. Get an email the moment we\'re back.';
-    var PAUSE_BUTTON = 'Get email updates';
 
     var SURVEY_TITLE = 'Citadel Spark survey';
     var SURVEY_BANNER = 'Help shape Citadel Spark. Take a 3-minute survey and get ' + REWARD_TICKETS + ' OrangeTix.';
@@ -98,19 +86,6 @@
         if (text != null) e.textContent = text;
         return e;
     }
-    function cleanRef(v) {
-        var s = String(v || '').trim();
-        return /^[A-Za-z0-9_-]{1,40}$/.test(s) ? s : '';
-    }
-    function currentRef() {
-        var r = '';
-        try { r = new URLSearchParams(location.search).get('ref') || ''; } catch (e) { r = ''; }
-        return cleanRef(r) || cleanRef(lsGet('btc_referral_code'));
-    }
-    function pauseLink() {
-        var ref = currentRef();
-        return SUBSTACK_SUBSCRIBE + '?utm_source=app&utm_medium=pause_notice&utm_campaign=' + encodeURIComponent(ref || 'pause_notice');
-    }
     function offline() { return window._bqKillSwitchOn === true; }
 
     // Same rule as the server (functions/src/survey.js closedReason).
@@ -133,12 +108,10 @@
         s.textContent =
             '.bq-notice{position:relative;display:flex;flex-direction:column;gap:10px;text-align:left;margin:0 auto 14px;max-width:640px;padding:14px 44px 14px 16px;border-radius:14px;font-family:inherit;line-height:1.45;box-sizing:border-box;}' +
             '.bq-notice p{margin:0;font-size:0.95rem;}' +
-            '.bq-notice-pause{background:#1a1408;color:#fde68a;border:1px solid #f7931a;}' +
             '.bq-notice-survey{background:#0f1b33;color:#dbeafe;border:1px solid #3b82f6;}' +
             '.bq-notice-kicker{font-size:0.72rem !important;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;opacity:0.85;}' +
             '.bq-notice-actions{display:flex;flex-wrap:wrap;gap:8px;}' +
             '.bq-notice-btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;border-radius:10px;font-weight:700;font-size:0.92rem;text-decoration:none;cursor:pointer;font-family:inherit;border:0;}' +
-            '.bq-notice-pause .bq-notice-btn{background:#f7931a;color:#111;}' +
             '.bq-notice-survey .bq-notice-btn{background:#3b82f6;color:#fff;}' +
             '.bq-notice-x{position:absolute;top:6px;right:6px;width:36px;height:36px;border:0;background:transparent;color:inherit;font-size:1.3rem;line-height:1;cursor:pointer;border-radius:8px;opacity:0.75;}' +
             '.bq-notice-x:hover,.bq-notice-x:focus-visible{opacity:1;background:rgba(255,255,255,0.08);}' +
@@ -188,36 +161,6 @@
         if (e && e.parentNode) e.parentNode.removeChild(e);
     }
 
-    // ---- Pause notice (everyone) ------------------------------------------
-    function renderPause() {
-        if (offline() || snoozed(PAUSE_SNOOZE_KEY)) { removeById('bqPauseNotice'); return; }
-        if (document.getElementById('bqPauseNotice')) return;
-        var slot = homeSlot();
-        if (!slot) return;
-        ensureStyle();
-        var box = el('section', 'bq-notice bq-notice-pause');
-        box.id = 'bqPauseNotice';
-        box.setAttribute('role', 'region');
-        box.setAttribute('aria-label', 'App update');
-        box.appendChild(el('p', 'bq-notice-text', PAUSE_TEXT));
-        var actions = el('div', 'bq-notice-actions');
-        var a = el('a', 'bq-notice-btn', PAUSE_BUTTON);
-        a.href = pauseLink();
-        a.target = '_blank';
-        a.rel = 'noopener';
-        actions.appendChild(a);
-        box.appendChild(actions);
-        var x = el('button', 'bq-notice-x', '\u00D7');
-        x.type = 'button';
-        x.setAttribute('aria-label', 'Dismiss');
-        x.addEventListener('click', function () {
-            lsSet(PAUSE_SNOOZE_KEY, String(now()));
-            removeById('bqPauseNotice');
-        });
-        box.appendChild(x);
-        slot.insertBefore(box, slot.firstChild);
-    }
-
     // ---- Survey banner ------------------------------------------------------
     // Display hint only; the server decides the grant.
     function rewardShown() {
@@ -256,9 +199,7 @@
             removeById('bqSurveyBanner');
         });
         box.appendChild(x);
-        var pause = document.getElementById('bqPauseNotice');
-        if (pause && pause.parentNode === slot) slot.insertBefore(box, pause.nextSibling);
-        else slot.appendChild(box);
+        slot.appendChild(box);
     }
 
     // ---- Survey form --------------------------------------------------------
@@ -500,7 +441,6 @@
     }
 
     function renderAll() {
-        renderPause();
         renderSurveyBanner();
     }
 
@@ -515,7 +455,6 @@
     }
 
     function start() {
-        renderPause();
         boot();
         var tries = 0;
         var t = setInterval(function () {
@@ -531,5 +470,5 @@
 
     window.bqOpenSurvey = openSurvey;
     window.bqRefreshHomeNotices = renderAll;
-    window.bqSurveySpec = { id: SURVEY_ID, questions: QUESTIONS, variants: VARIANTS, lapsedOrder: LAPSED_ORDER, returnDate: RETURN_DATE, pauseText: PAUSE_TEXT };
+    window.bqSurveySpec = { id: SURVEY_ID, questions: QUESTIONS, variants: VARIANTS, lapsedOrder: LAPSED_ORDER };
 })();

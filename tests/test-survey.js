@@ -449,35 +449,20 @@ async function rejects(p, code) {
         assert.ok(!/renam/i.test(clientSrc), 'no rename question');
     });
 
-    // Phil-approved copy, FINAL_COPY.md (Nov 14 2026, 11:52 AM ET).
-    const PAUSE = 'Bitcoin Quest is taking a short break and returns January 3, 2027 with Citadels, our biggest update yet, plus Premium. Your XP, badges and progress are saved exactly as they are. Unclaimed Satoshi\'s Favor rewards stay on your account until we\'re back. Get an email the moment we\'re back.';
-    const OFFLINE = 'We\'re building Citadels. Bitcoin Quest is back January 3, 2027. Everything you\'ve earned is saved, including unclaimed Satoshi\'s Favor rewards. Want a heads-up when the gates open?';
-    const REF_H = 'A friend invited you to Bitcoin Quest';
-    const REF_B = 'We\'re back January 3, 2027 with our biggest update yet: Citadels. Sign up and we\'ll let you know the moment the game reopens.';
-
-    await test('pause notice copy is exactly the approved text, with the Satoshi\'s Favor line and no streak or referral lines', function () {
+    await test('the planned pause notice and Citadels offline page copy are gone', function () {
         const spec = loadClient();
-        assert.strictEqual(spec.pauseText, PAUSE);
-        assert.strictEqual(spec.returnDate, 'January 3, 2027');
-        assert.ok(clientSrc.indexOf("var PAUSE_BUTTON = 'Get email updates';") !== -1);
-        assert.ok(!/streak/i.test(spec.pauseText) && !/referr/i.test(spec.pauseText));
-    });
-
-    await test('offline page copy is exactly the approved text (plain and friend-link versions)', function () {
-        const src = fs.readFileSync(path.join(root, 'kill-switch.js'), 'utf8');
-        const sandbox = { window: {}, document: { readyState: 'complete', getElementById: function () { return null; }, addEventListener: function () {} }, setTimeout: function () {}, setInterval: function () { return 0; }, clearInterval: function () {}, console: console };
-        sandbox.window = sandbox;
-        vm.createContext(sandbox);
-        vm.runInContext(src.replace('window.bqKillSwitchApply = apply;', 'window.bqKillSwitchApply = apply; window.__copy = { OFFLINE_BODY: OFFLINE_BODY, OFFLINE_BUTTON: OFFLINE_BUTTON, OFFLINE_UNDER: OFFLINE_UNDER, REF_HEADLINE: REF_HEADLINE, REF_BODY: REF_BODY, REF_BUTTON: REF_BUTTON, OFFLINE_RETURN_DATE: OFFLINE_RETURN_DATE, MESSAGE: MESSAGE };'), sandbox);
-        const c = sandbox.__copy;
-        assert.strictEqual(c.OFFLINE_BODY, OFFLINE);
-        assert.strictEqual(c.OFFLINE_BUTTON, 'Get email updates');
-        assert.strictEqual(c.OFFLINE_UNDER, 'Free. Unsubscribe anytime.');
-        assert.strictEqual(c.REF_HEADLINE, REF_H);
-        assert.strictEqual(c.REF_BODY, REF_B);
-        assert.strictEqual(c.REF_BUTTON, 'Save my spot');
-        assert.strictEqual(c.OFFLINE_RETURN_DATE, loadClient().returnDate, 'return date must match in both files');
-        assert.strictEqual(c.MESSAGE, 'Bitcoin Quest is temporarily offline for maintenance.', 'short maintenance copy unchanged');
+        assert.strictEqual(spec.pauseText, undefined);
+        assert.strictEqual(spec.returnDate, undefined);
+        assert.ok(clientSrc.indexOf('bqPauseNotice') === -1);
+        assert.ok(clientSrc.indexOf('PAUSE_TEXT') === -1);
+        assert.ok(clientSrc.indexOf('taking a short break') === -1);
+        const killSrc = fs.readFileSync(path.join(root, 'kill-switch.js'), 'utf8');
+        assert.ok(killSrc.indexOf('OFFLINE_BODY') === -1);
+        assert.ok(killSrc.indexOf('OFFLINE_RETURN_DATE') === -1);
+        assert.ok(killSrc.indexOf('longPause') === -1);
+        assert.ok(!/Bitcoin Quest is back January 3/i.test(killSrc));
+        assert.ok(!/taking a short break/i.test(killSrc));
+        assert.ok(killSrc.indexOf("var MESSAGE = 'Bitcoin Quest is temporarily offline for maintenance.';") !== -1);
     });
 
     await test('no em-dashes in new user-facing copy; survey copy does not lead with Bitcoin', function () {

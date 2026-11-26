@@ -10,20 +10,6 @@
     var BANNER_ID = 'bqKillSwitchBanner';
     var MESSAGE = 'Bitcoin Quest is temporarily offline for maintenance.';
     var SUB = 'We\u2019ll be back shortly. Your sats and progress are safe.';
-    // Long pause (Citadels build). Phil-approved copy, FINAL_COPY.md (Nov 14
-    // 2026). Shown when the switch is on with no auto-return (the server caps
-    // auto-return at 7 days, so the long pause never sets one). A short
-    // maintenance flip with an auto-return keeps MESSAGE/SUB above.
-    // Return date is one config value; survey.js RETURN_DATE must match.
-    var OFFLINE_RETURN_DATE = 'January 3, 2027';
-    var OFFLINE_BODY = 'We\'re building Citadels. Bitcoin Quest is back ' + OFFLINE_RETURN_DATE +
-        '. Everything you\'ve earned is saved, including unclaimed Satoshi\'s Favor rewards. Want a heads-up when the gates open?';
-    var OFFLINE_BUTTON = 'Get email updates';
-    var OFFLINE_UNDER = 'Free. Unsubscribe anytime.';
-    var REF_HEADLINE = 'A friend invited you to Bitcoin Quest';
-    var REF_BODY = 'We\'re back ' + OFFLINE_RETURN_DATE + ' with our biggest update yet: Citadels. Sign up and we\'ll let you know the moment the game reopens.';
-    var REF_BUTTON = 'Save my spot';
-    var WAITLIST_PATH = '/waitlist';
     var unsub = null;
     var lastOn = false;
     var lastData = null;
@@ -44,34 +30,6 @@
     }
 
     function isAdmin() { return window._isAdminClaim === true; }
-
-    function longPause(data) {
-        return !!(data && data.enabled === true && !data.autoReenableAt);
-    }
-
-    function cleanRef(r) {
-        r = String(r || '').trim();
-        return /^[A-Za-z0-9_-]{1,40}$/.test(r) ? r : '';
-    }
-
-    // The referral handler strips ?ref= from the URL early, so read it once at
-    // load and fall back to the stored referral code.
-    var LOAD_REF = '';
-    try { LOAD_REF = cleanRef(new URLSearchParams(window.location.search).get('ref')); } catch (e) { LOAD_REF = ''; }
-
-    function visitorRef() {
-        var r = '';
-        try { r = cleanRef(new URLSearchParams(window.location.search).get('ref')); } catch (e) { r = ''; }
-        if (r) return r;
-        if (LOAD_REF) return LOAD_REF;
-        try { return cleanRef(localStorage.getItem('btc_referral_code')); } catch (e2) { return ''; }
-    }
-
-    function waitlistHref(ref, medium) {
-        var q = 'utm_source=app&utm_medium=' + medium + '&utm_campaign=' + encodeURIComponent(ref || medium);
-        if (ref) q = 'ref=' + encodeURIComponent(ref) + '&' + q;
-        return WAITLIST_PATH + '?' + q;
-    }
 
     function removeEl(id) {
         var el = document.getElementById(id);
@@ -100,30 +58,16 @@
     function showOverlay() {
         ensureStyle();
         removeEl(BANNER_ID);
-        var kind = longPause(lastData) ? (visitorRef() ? 'ref' : 'pause') : 'maint';
         var existing = document.getElementById(OVERLAY_ID);
-        if (existing && existing.getAttribute('data-kind') === kind) return;
+        if (existing && existing.getAttribute('data-kind') === 'maint') return;
         if (existing) removeEl(OVERLAY_ID);
         var el = document.createElement('div');
         el.id = OVERLAY_ID;
         el.setAttribute('role', 'alert');
-        el.setAttribute('data-kind', kind);
-        if (kind === 'maint') {
-            el.innerHTML = '<div class="ks-card"><div class="ks-mark">\u26A0\uFE0F</div><p class="ks-title"></p><p class="ks-sub"></p></div>';
-            el.querySelector('.ks-title').textContent = MESSAGE;
-            el.querySelector('.ks-sub').textContent = SUB;
-        } else {
-            var ref = visitorRef();
-            el.innerHTML = '<div class="ks-card"><p class="ks-title"></p><p class="ks-body"></p><a class="ks-cta"></a><p class="ks-under"></p></div>';
-            var title = el.querySelector('.ks-title');
-            if (kind === 'ref') title.textContent = REF_HEADLINE;
-            else title.parentNode.removeChild(title);
-            el.querySelector('.ks-body').textContent = kind === 'ref' ? REF_BODY : OFFLINE_BODY;
-            var a = el.querySelector('.ks-cta');
-            a.textContent = kind === 'ref' ? REF_BUTTON : OFFLINE_BUTTON;
-            a.href = waitlistHref(ref, kind === 'ref' ? 'offline_ref' : 'offline_page');
-            el.querySelector('.ks-under').textContent = OFFLINE_UNDER;
-        }
+        el.setAttribute('data-kind', 'maint');
+        el.innerHTML = '<div class="ks-card"><div class="ks-mark">\u26A0\uFE0F</div><p class="ks-title"></p><p class="ks-sub"></p></div>';
+        el.querySelector('.ks-title').textContent = MESSAGE;
+        el.querySelector('.ks-sub').textContent = SUB;
         (document.body || document.documentElement).appendChild(el);
     }
 
