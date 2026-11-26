@@ -627,7 +627,7 @@ test('a blocked account cannot set under 18', async function () {
 test('kids accounts cannot save an under-18 answer', async function () {
     const world = createWorld({ 'users/kid_isMinor': { points: 3, isMinor: true } });
     await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('kid_isMinor')); }, function (err) {
-        return err.code === 'permission-denied';
+        return err.code === 'permission-denied' && err.message === "This account's age is already set.";
     });
     assert.strictEqual(world.docs['users/kid_isMinor'].ageUnder18, undefined);
 });

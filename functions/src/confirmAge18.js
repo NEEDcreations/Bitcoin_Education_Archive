@@ -270,7 +270,7 @@ function createConfirmAge18Handlers(deps) {
             throw new HttpsError('failed-precondition', 'Account not found.');
         }
         if (outcome.kids) {
-            throw new HttpsError('permission-denied', 'This account cannot confirm adult age.');
+            throw new HttpsError('permission-denied', "This account's age is already set.");
         }
         if (outcome.already) {
             return { success: true, ageUnder18: true, already: true };
