@@ -202,6 +202,7 @@ test('Waitlist page teaser: no autoplay, not muted, big play button, social link
 test('QA mobile: play buttons sit above the video and the idle video never takes the tap', () => {
     const js = read('citadel-spark.js');
     assert.ok(/\.cs-play\{position:absolute;z-index:2;/.test(js), 'cs-play z-index');
+    assert.ok(js.includes('.cs-play:active{transform:translate(-50%,-50%) scale(.96)!important}'), 'cs-play keeps translate on :active');
     assert.ok(/\.cs-player video\{position:relative;z-index:0;/.test(js));
     assert.ok(js.includes('.cs-player:not(.cs-on) video{pointer-events:none}'));
     const h = read('waitlist.html');
@@ -210,6 +211,8 @@ test('QA mobile: play buttons sit above the video and the idle video never takes
     assert.ok(h.includes('.player:not(.on) video.teaser{pointer-events:none}'));
     const w = read('waitlist.js');
     assert.ok(/play\.hidden = true;\s*on\(true\);/.test(w) && /'ended', function \(\) \{ play\.hidden = false; on\(false\); \}/.test(w));
+    // /waitlist is a standalone page; it must not inherit index.html's button:active scale that drops translate.
+    assert.ok(!/button:active\s*\{\s*transform\s*:/.test(h), 'waitlist has no global button:active transform');
 });
 
 (async () => {

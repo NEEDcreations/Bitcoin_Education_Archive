@@ -76,6 +76,8 @@
             // Until it plays, the video never takes the tap, so the button always gets it (QA mobile 390px).
             '.cs-player:not(.cs-on) video{pointer-events:none}' +
             '.cs-play{position:absolute;z-index:2;top:50%;left:50%;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:50%;border:2px solid #fff;background:rgba(124,58,237,.78);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 0 24px rgba(59,130,246,.6)}' +
+            // Keep the centering translate under the global mobile button:active scale(0.96) !important (index.html ~1130).
+            '.cs-play:active{transform:translate(-50%,-50%) scale(.96)!important}' +
             '.cs-play:focus-visible{outline:3px solid #f7931a;outline-offset:3px}' +
             '.cs-play svg{width:38px;height:38px;margin-left:6px;fill:currentColor}' +
             '.cs-play[hidden]{display:none}' +
