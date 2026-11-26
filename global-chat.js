@@ -394,6 +394,9 @@ window.renderChatHub = function(initialTab) {
 
     if (_chatTab === 'global') {
         renderGlobalChat();
+    } else if (_chatTab === 'announcements') {
+        // GGs opened directly used to fall through to the DMs tab.
+        renderAnnouncementsTab();
     } else {
         renderDMsTab();
     }

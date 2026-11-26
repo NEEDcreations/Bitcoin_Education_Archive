@@ -1095,6 +1095,11 @@ window.closeDM = function() {
     if (w) w.remove();
 };
 
+// DM photos and GIFs get a fixed box before they load. Without it each image
+// grew from 0 to its full height and pushed the thread down (layout shift).
+// object-fit:contain keeps the whole image visible inside the box.
+var DM_IMG_BOX = 'display:block;width:240px;max-width:100%;aspect-ratio:6/5;height:auto;object-fit:contain;background:rgba(0,0,0,0.18);border-radius:8px;';
+
 function loadDMMessages(convoId, myUid, otherUid, otherName) {
     var container = document.getElementById('dmMessages');
     if (!container) return;
@@ -1149,7 +1154,8 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 // Image support
                 var imgHtml = '';
                 if (m.imageUrl) {
-                    imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+                    // Fixed 240x200 box so the thread does not jump when the image arrives (CLS).
+                    imgHtml = '<img data-dm-img="1" src="' + sanitizeUrl(m.imageUrl) + '" style="' + DM_IMG_BOX + 'margin:' + (m.text ? '6px 0 0' : '0') + ';cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
                 }
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
@@ -1426,7 +1432,7 @@ window.sendDMGif = function(gifUrl) {
         var nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         container.innerHTML += '<div data-optimistic style="display:flex;justify-content:flex-end;margin-bottom:6px;">' +
             '<div style="max-width:85%;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--accent);color:#fff;">' +
-                '<img src="' + escapeHtml(sanitizeUrl(gifUrl)) + '" style="max-width:100%;max-height:200px;border-radius:8px;display:block;" loading="lazy">' +
+                '<img data-dm-img="1" src="' + escapeHtml(sanitizeUrl(gifUrl)) + '" style="' + DM_IMG_BOX + '" loading="lazy">' +
                 '<div style="font-size:0.6rem;color:rgba(255,255,255,0.6);margin-top:4px;text-align:right;">' + nowStr + '</div>' +
             '</div></div>';
         container.scrollTop = container.scrollHeight;
@@ -1665,6 +1671,12 @@ window.showInbox = function() {
     div.innerHTML = html;
     document.body.appendChild(div.firstChild);
 
+    _loadInboxList('dmInboxList', myUid);
+};
+
+// Fills the list element with the user's conversations. Shared by the inbox
+// popup and the DMs tab in the chat hub.
+function _loadInboxList(listId, myUid) {
     // Load conversations
     db.collection('dm_conversations')
         .where('participants', 'array-contains', myUid)
@@ -1672,7 +1684,7 @@ window.showInbox = function() {
         .limit(30)
         .get()
         .then(function(snap) {
-            var list = document.getElementById('dmInboxList');
+            var list = document.getElementById(listId);
             if (!list) return;
             console.log('Inbox snap size:', snap.size);
 
@@ -1697,7 +1709,7 @@ window.showInbox = function() {
                 var isBuddy = c.isBuddyMatch === true;
                 var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
 
-                _rows.push('<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + '\'">' +
+                _rows.push('<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;var _ib=document.getElementById(\'dmInbox\');if(_ib)_ib.remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + '\'">' +
                     '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
                     '<div style="flex:1;min-width:0;">' +
                         '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -1712,7 +1724,7 @@ window.showInbox = function() {
             list.innerHTML = _rows.join('');
         }).catch(function(err) {
             console.error('Inbox load error:', err);
-            var list = document.getElementById('dmInboxList');
+            var list = document.getElementById(listId);
             if (!list) return;
             
             if (err.code === 'failed-precondition') {
@@ -1722,7 +1734,7 @@ window.showInbox = function() {
                     .limit(30)
                     .get()
                     .then(function(snap2) {
-                        var list2 = document.getElementById('dmInboxList');
+                        var list2 = document.getElementById(listId);
                         if (!list2) return;
                         if (snap2.empty) {
                             list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">📬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
@@ -1741,7 +1753,7 @@ window.showInbox = function() {
                             var isFromMe = c.lastSenderUid === myUid;
                             var isBuddy = c.isBuddyMatch === true;
                             var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
-                            list2.innerHTML += '<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';">' +
+                            list2.innerHTML += '<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;var _ib=document.getElementById(\'dmInbox\');if(_ib)_ib.remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';">' +
                                 '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
                                 '<div style="flex:1;min-width:0;"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + escapeHtml(otherName) + buddyStar + '</div></div>' +
                                 '<div style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + escapeHtml(lastMsg) + '</div></div>' +
@@ -1749,7 +1761,7 @@ window.showInbox = function() {
                             '</div>';
                         });
                     }).catch(function(e2) {
-                        var list2 = document.getElementById('dmInboxList');
+                        var list2 = document.getElementById(listId);
                         if (list2) list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">💬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
                     });
                 return;
@@ -1761,6 +1773,33 @@ window.showInbox = function() {
                 '<div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div>' +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Tap a user on the leaderboard or in PlebTalk to start chatting!</div></div>';
         });
+}
+
+// DMs tab in the chat hub renders the inbox inside the tab. It used to open the
+// popup and leave the tab empty. On a fresh /#dms load the route can run before
+// auth restores the session, so wait for the first signed-in auth state.
+window._renderInboxInto = function(container) {
+    if (!container) return;
+    function signedIn() { return !!(auth && auth.currentUser && !auth.currentUser.isAnonymous); }
+    function paint() {
+        if (!container.isConnected) return;
+        container.innerHTML = '<div id="dmTabInboxList" style="padding:8px;"><div style="text-align:center;color:var(--text-faint);padding:20px;">Loading...</div></div>';
+        _loadInboxList('dmTabInboxList', auth.currentUser.uid);
+    }
+    function signInPrompt() {
+        if (!container.isConnected) return;
+        container.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">📬</div>' +
+            '<div onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="color:var(--accent);font-size:0.85rem;font-weight:700;cursor:pointer;">🔐 Sign in to see messages</div></div>';
+    }
+    if (signedIn()) { paint(); return; }
+    container.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:20px;">Loading...</div>';
+    if (!auth || typeof auth.onAuthStateChanged !== 'function') { signInPrompt(); return; }
+    var unsub = null;
+    unsub = auth.onAuthStateChanged(function(user) {
+        if (!container.isConnected) { if (unsub) unsub(); return; }
+        if (user && !user.isAnonymous) { if (unsub) unsub(); paint(); return; }
+        signInPrompt();
+    });
 };
 
 // ---- UNREAD COUNT BADGE ----
