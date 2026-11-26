@@ -241,7 +241,7 @@ test('service worker cache is v2695', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261126_v2682e/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261126_v2682f/g) || []).length, 2);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2656/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2666/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2657/g) || []).length, 0);
@@ -263,7 +263,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2418'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2415'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2411'));
-    assert.ok(html.includes('bundle.min.js?v=20261126_v2682e'));
+    assert.ok(html.includes('bundle.min.js?v=20261126_v2682f'));
+    assert.ok(!html.includes('bundle.min.js?v=20261126_v2682e'));
     assert.ok(!html.includes('bundle.min.js?v=20261126_v2682d'));
     assert.ok(!html.includes('bundle.min.js?v=20261126_v2682c'));
     assert.ok(!html.includes('bundle.min.js?v=20261119_v2682b'));
@@ -388,7 +389,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('auth-boot.js?v=20261027_v2394'));
     assert.ok(html.includes('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('auth-boot.js?v=20261027_v2394'));
-    assert.ok(html.indexOf('bundle.min.js?v=20261126_v2682e') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
+    assert.ok(html.indexOf('bundle.min.js?v=20261126_v2682f') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.includes('fetchpriority="high"'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2382'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -901,7 +902,7 @@ test('PR #252 asset busters are v2512 (popup-stack bumped to v2519)', () => {
     assert.ok(html.includes('ranking.js?v=20261119_v2683'));
     assert.ok(!html.includes('ranking.js?v=20261119_v2635'));
     assert.ok(!html.includes('ranking.js?v=20261116_v2581'));
-    assert.ok(html.includes('bundle.min.js?v=20261126_v2682e'));
+    assert.ok(html.includes('bundle.min.js?v=20261126_v2682f'));
     assert.ok(!html.includes('bundle.min.js?v=20261119_v2635'));
     assert.ok(!html.includes('bundle.min.js?v=20261118_v2602'));
     assert.ok(!html.includes('bundle.min.js?v=20261106_v2512'));

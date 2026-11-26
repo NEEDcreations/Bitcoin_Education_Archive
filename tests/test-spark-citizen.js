@@ -257,10 +257,17 @@ test('badge screen lists Spark Citizen under Citadel Spark like Watcher, and the
         BADGE_DEFS: [],
         earnedBadges: new Set(),
         HIDDEN_BADGES: [],
-        escapeHtml: function (s) { return String(s); },
+        escapeHtml: function (s) {
+            if (!s) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        },
         badgeShownXp: function (b) { return b && b.pts || 0; },
         _renderBadgeSets: function () { return ''; },
     };
+    // Prove the family section escapes catalog text (Red Team L1).
+    catCtx.window.BADGE_CATALOG.spark_citizen_t1.name = 'Bronze <img src=x onerror=alert(1)>';
+    catCtx.window.BADGE_CATALOG.spark_citizen_t1.desc = 'Watched "1" day';
+
     vm.runInNewContext(badges.slice(famStart, famEnd) + '\n' + badges.slice(htmlStart, htmlEnd), ctx);
     assert.ok(ctx.BADGE_TIER_FAMILIES.spark_citizen, 'spark_citizen family missing');
     assert.strictEqual(ctx.window._badgeTierFamilyOf('spark_citizen_t3'), 'spark_citizen');
@@ -268,12 +275,35 @@ test('badge screen lists Spark Citizen under Citadel Spark like Watcher, and the
     const html = ctx.getBadgeHTML();
     assert.ok(html.indexOf('Citadel Spark') !== -1, 'no Citadel Spark section');
     assert.ok(html.indexOf('Prime Time') !== -1, 'no Prime Time / Watcher section');
+    assert.ok(html.indexOf('Bronze &lt;img src=x onerror=alert(1)&gt;') !== -1, 'badge.name was not escaped');
+    assert.ok(html.indexOf('Bronze <img') === -1, 'raw badge.name leaked into HTML');
+    assert.ok(html.indexOf('Watched &quot;1&quot; day') !== -1, 'badge.desc was not escaped');
     ['spark_citizen_t1', 'spark_citizen_t2', 'spark_citizen_t3', 'spark_citizen_t4', 'spark_citizen_t5'].forEach((id) => {
         assert.ok(html.indexOf('data-badge-id="' + id + '"') !== -1, id + ' missing from badge screen');
     });
     ['tctv_watch_t1', 'tctv_watch_t2', 'tctv_watch_t3', 'tctv_watch_t4', 'tctv_watch_t5'].forEach((id) => {
         assert.ok(html.indexOf('data-badge-id="' + id + '"') !== -1, id + ' missing from badge screen');
     });
+});
+
+test('tier unit labels are singular when the count is 1', () => {
+    const vm = require('vm');
+    const badges = read('badges.js');
+    const start = badges.indexOf('function _tierFmt');
+    const end = badges.indexOf('window.showBadgeTiers = function');
+    assert.ok(start !== -1 && end !== -1 && end > start, '_tierFmt bounds');
+    const ctx = {
+        escapeHtml: function (s) { return String(s || ''); },
+    };
+    vm.runInNewContext(badges.slice(start, end), ctx);
+    assert.strictEqual(ctx._tierFmt(1) + ' ' + ctx._tierUnitLabel(1, 'days'), '1 day');
+    assert.strictEqual(ctx._tierFmt(3) + ' ' + ctx._tierUnitLabel(3, 'days'), '3 days');
+    assert.strictEqual(ctx._tierUnitLabel(28, 'days'), 'days');
+    assert.strictEqual(ctx._tierUnitLabel(1, 'min watched'), 'min watched');
+    assert.strictEqual(ctx._tierUnitLabel(10, 'min watched'), 'min watched');
+    assert.strictEqual(ctx._tierUnitLabel(1, 'min watched'.replace(/ watched$/, '')), 'min');
+    const modal = badges.slice(badges.indexOf('window.showBadgeTiers'), badges.indexOf('ov.id = \'badgeTierModal\''));
+    assert.ok(modal.indexOf('_tierUnitLabel(need, fam.unitLabel)') !== -1, 'modal thresholds should share the unit helper');
 });
 
 console.log(`\nspark citizen: ${passed} passed, ${failed} failed`);

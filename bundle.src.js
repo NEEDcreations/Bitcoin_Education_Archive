@@ -2004,18 +2004,21 @@ function getBadgeHTML() {
         _sec += '<div style="margin-bottom:6px;border:1px solid ' + (allEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
         _sec += '<button onclick="var c=document.getElementById(\'' + _bcId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
         _sec += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
-        _sec += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + catName + '</span>';
+        _sec += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + escapeHtml(catName) + '</span>';
         _sec += '<span style="margin-left:auto;font-size:0.7rem;color:' + (allEarned ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' + catEarned + '/' + badgeList.length + (allEarned ? ' ✅' : '') + '</span>';
         _sec += '</button>';
         _sec += '<div id="' + _bcId + '" class="badges-grid" style="display:none;">';
         for (const badge of badgeList) {
             const earned = earnedBadges.has(badge.id);
             const shownPts = badgeShownXp(badge);
-            const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + badge.desc + '</div>' : '';
-            const tip = earned ? '✅ ' + badge.desc + ' (+' + shownPts + ' XP)' : '🔒 Locked — ' + badge.desc + ' <span style="color:var(--accent);font-weight:700;">(+' + shownPts + ' XP)</span>';
-            _sec += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="' + escapeHtml(catName) + '" title="' + escapeHtml(badge.desc) + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
-                '<div class="badge-emoji" style="font-size:1.8rem; margin-bottom:4px;">' + (earned ? badge.emoji : (badge.lockedEmoji || '🔘')) + '</div>' +
-                '<div class="badge-name" style="font-size:0.6rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + badge.name + '</div>' +
+            const safeName = escapeHtml(badge.name);
+            const safeDesc = escapeHtml(badge.desc);
+            const safeEmoji = escapeHtml(earned ? badge.emoji : (badge.lockedEmoji || '🔘'));
+            const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + safeDesc + '</div>' : '';
+            const tip = earned ? '✅ ' + safeDesc + ' (+' + shownPts + ' XP)' : '🔒 Locked — ' + safeDesc + ' <span style="color:var(--accent);font-weight:700;">(+' + shownPts + ' XP)</span>';
+            _sec += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" data-badge-id="' + escapeHtml(badge.id) + '" data-badge-cat="' + escapeHtml(catName) + '" title="' + safeDesc + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
+                '<div class="badge-emoji" style="font-size:1.8rem; margin-bottom:4px;">' + safeEmoji + '</div>' +
+                '<div class="badge-name" style="font-size:0.6rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + safeName + '</div>' +
                 '<div class="badge-xp" style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">+' + shownPts + ' XP</div>' +
                 '<div class="badge-tooltip" style="white-space:normal; min-width:150px; line-height:1.4; z-index:200;">' + tip + requirementsText + '</div>' +
             '</div>';
@@ -3149,6 +3152,14 @@ function _tierFmt(n) {
     return String(n);
 }
 
+function _tierUnitLabel(n, label) {
+    label = String(label || '');
+    if (Number(n) === 1) {
+        label = label.replace(/\bdays\b/g, 'day').replace(/\bminutes\b/g, 'minute').replace(/\bmins\b/g, 'min');
+    }
+    return typeof escapeHtml === 'function' ? escapeHtml(label) : label;
+}
+
 window.showBadgeTiers = function(family) {
     var fam = BADGE_TIER_FAMILIES[family];
     if (!fam) return;
@@ -3179,13 +3190,13 @@ window.showBadgeTiers = function(family) {
             '<div class="btm-main">' +
                 '<div class="btm-head"><span class="btm-name">' + t.name + '</span>' +
                 '<span class="btm-state">' + (done ? '✅ Earned' : isNext ? 'Next up' : '🔒 Locked') + '</span></div>' +
-                '<div class="btm-need">' + _tierFmt(need) + ' ' + escapeHtml(fam.unitLabel) + '</div>' +
+                '<div class="btm-need">' + _tierFmt(need) + ' ' + _tierUnitLabel(need, fam.unitLabel) + '</div>' +
                 ((isNext && have !== null) ? '<div class="btm-bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + need + '" aria-valuenow="' + Math.min(have, need) + '"><span style="width:' + pct + '%"></span></div><div class="btm-prog">' + _tierFmt(Math.min(have, need)) + ' / ' + _tierFmt(need) + '</div>' : '') +
                 '<div class="btm-rewards"><span class="btm-chip">+' + _tierFmt(xp) + ' XP</span>' + (ot ? '<span class="btm-chip btm-ot">🎟️ ' + ot + ' Orange Tickets</span>' : '') + '</div>' +
             '</div></li>';
     }
     var summary = highest === 5 ? '💎 Maxed out. You hold every tier.'
-        : (have !== null && next) ? (_tierFmt(Math.max(0, next[0] - have)) + ' more ' + escapeHtml(fam.unitLabel.replace(/ watched$/, '')) + ' to ' + BADGE_TIER_NAMES[highest].name)
+        : (have !== null && next) ? (_tierFmt(Math.max(0, next[0] - have)) + ' more ' + _tierUnitLabel(Math.max(0, next[0] - have), fam.unitLabel.replace(/ watched$/, '')) + ' to ' + BADGE_TIER_NAMES[highest].name)
         : (highest ? 'You hold ' + BADGE_TIER_NAMES[highest - 1].name + '.' : 'Start earning to unlock Bronze.');
 
     var ov = document.createElement('div');
