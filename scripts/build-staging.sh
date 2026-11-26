@@ -28,12 +28,41 @@ if CWD_TOP=$(git rev-parse --show-toplevel 2>/dev/null); then
     exit 1 ;;
   esac
 fi
+# OUT is rm -rf'd below (Red Team R1). Only accept a dedicated build dir:
+# /tmp/bq-staging-out.* (the mktemp default) or a subdir of $RUNNER_TEMP in CI.
+# Anything else (/home/box, $HOME, /tmp, /workspace, ...) is refused.
+OUT_OK=0
+case "$OUT_ABS" in /tmp/bq-staging-out.?*) OUT_OK=1 ;; esac
+if [ -n "${RUNNER_TEMP:-}" ]; then
+  RT_ABS=$(realpath -m "$RUNNER_TEMP")
+  if [ "$RT_ABS" != "/" ]; then
+    case "$OUT_ABS" in "$RT_ABS"/?*) OUT_OK=1 ;; esac
+  fi
+fi
+if [ "$OUT_OK" != 1 ]; then
+  echo "REFUSING: OUT '$OUT_ABS' is not a dedicated build dir. Use /tmp/bq-staging-out.<name> (or leave OUT unset), or a subdir of \$RUNNER_TEMP in CI." >&2
+  exit 1
+fi
+# Only delete a dir this script built before: an existing non-empty OUT must
+# carry the marker that this script writes at the end of every build
+# (staging-build.txt, "built <sha>"). A dotfile marker would be uploaded and
+# served by the Pages deploy, so the existing build stamp is the marker.
+if [ -e "$OUT_ABS" ] && { [ ! -d "$OUT_ABS" ] || [ -L "$OUT_ABS" ]; }; then
+  echo "REFUSING: OUT '$OUT_ABS' exists and is not a plain directory." >&2
+  exit 1
+fi
+if [ -d "$OUT_ABS" ] && [ -n "$(ls -A "$OUT_ABS")" ]; then
+  if ! grep -qxE 'built [0-9a-f]{7,40}' "$OUT_ABS/staging-build.txt" 2>/dev/null; then
+    echo "REFUSING: OUT '$OUT_ABS' is not empty and has no staging-build.txt marker from an earlier build; not deleting it." >&2
+    exit 1
+  fi
+fi
 OUT=$OUT_ABS
 cat > "$CFG" <<'JSON'
 {"projectId": "bitcoin-quest-staging", "appId": "1:689995930118:web:915f62b60c33cac100c187", "storageBucket": "bitcoin-quest-staging.firebasestorage.app", "apiKey": "AIzaSyB1gWK65s8MPFsKSK2-Qdp3eSXOjF7lnng", "authDomain": "bitcoin-quest-staging.firebaseapp.com", "messagingSenderId": "689995930118", "projectNumber": "689995930118", "version": "2"}
 JSON
-rm -rf "$OUT"; mkdir -p $OUT
-tar -C "$SRC" --exclude=./out --exclude=./_site --exclude='./.?*' --exclude='*/.?*' --exclude=functions --exclude=workers --exclude=scripts --exclude=tests --exclude=docs --exclude=node_modules --exclude='*.sh' --exclude='*.md' --exclude='*.py' --exclude='*.rules' --exclude='*.bak*' --exclude=firebase.json --exclude='firebase.*.json' --exclude=firestore.indexes.json --exclude=CNAME -cf - . | tar -C $OUT -xf -
+rm -rf "$OUT"; mkdir -p "$OUT"
+tar -C "$SRC" --exclude=./out --exclude=./_site --exclude='./.?*' --exclude='*/.?*' --exclude=functions --exclude=workers --exclude=scripts --exclude=tests --exclude=docs --exclude=node_modules --exclude='*.sh' --exclude='*.md' --exclude='*.py' --exclude='*.rules' --exclude='*.bak*' --exclude=firebase.json --exclude='firebase.*.json' --exclude=firestore.indexes.json --exclude=CNAME -cf - . | tar -C "$OUT" -xf -
 
 # Hidden-file excludes drop dot-directories. Re-copy Digital Asset Links so a
 # staging TWA origin can serve /.well-known/assetlinks.json.

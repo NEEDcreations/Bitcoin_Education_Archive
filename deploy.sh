@@ -133,7 +133,9 @@ if git diff --cached --name-only | grep -qE '^(out|_site)/'; then
     git diff --cached --name-only | grep -E '^(out|_site)/' | head -5
     exit 1
 fi
-if git diff --cached -U0 | grep -E '^\+' | grep -v '^+++' | grep -qE '1x0000000000|FIREBASE_APPCHECK_DEBUG_TOKEN='; then
+# scripts/build-staging.sh (which holds the guarded staging swap) and this file
+# (which holds the patterns) are excluded from the string check (Red Team R4).
+if git diff --cached -U0 -- . ':!scripts/build-staging.sh' ':!deploy.sh' | grep -E '^\+' | grep -v '^+++' | grep -qE '1x0000000000|FIREBASE_APPCHECK_DEBUG_TOKEN[]"'"'"' ]*[=:]'; then
     echo "REFUSING: staged changes add a Turnstile test sitekey (1x0000...) or an App Check debug token. Those are staging-only."
     exit 1
 fi
