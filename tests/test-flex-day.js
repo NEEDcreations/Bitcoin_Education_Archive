@@ -102,7 +102,9 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(html.indexOf('>Flex</span>') > 0);
     assert.ok(html.indexOf('id="todayFlexSub"') > 0);
     assert.ok(html.indexOf('>0/5</span>') > 0);
-    assert.ok(html.indexOf('today-card.js?v=20261031_v2448') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261126_v2696') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261109_v2538') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261031_v2448') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261030_v2432') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261026_v2371') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261026_v2375') === -1);
