@@ -310,7 +310,7 @@ async function main() {
         const merged = [];
         const local = new Set();
         function addAlt(phrase) {
-            if (merged.length >= 6) return;
+            if (merged.length >= (entry.maxAlts || 6)) return;
             const fitted = fitQuestion(phrase);
             if (!fitted) return;
             const key = foldKey(fitted);
