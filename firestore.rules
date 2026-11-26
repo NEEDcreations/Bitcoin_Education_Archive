@@ -252,7 +252,7 @@ service cloud.firestore {
         'factionRaceBadges', 'factionChampionUntil', 'factionChampionFlair',
         // Age confirmation. confirmAge18 / confirmAgeUnder18 callables only.
         'over18', 'over18ConfirmedAt', 'ageConfirmed18', 'ageConfirmed18At',
-        'ageConfirmBlocked', 'ageUnder18', 'ageUnder18At'
+        'ageConfirmBlocked', 'ageUnder18', 'ageUnder18At', 'guardianOk', 'guardianOkAt'
       ];
     }
 
@@ -391,7 +391,7 @@ service cloud.firestore {
                         'premium',
                         // Age confirmation. confirmAge18 / confirmAgeUnder18 callables only.
                         'over18', 'over18ConfirmedAt', 'ageConfirmed18', 'ageConfirmed18At',
-                        'ageConfirmBlocked', 'ageUnder18', 'ageUnder18At',
+                        'ageConfirmBlocked', 'ageUnder18', 'ageUnder18At', 'guardianOk', 'guardianOkAt',
                         // Daily quest gating (CF)
                         'dailyAllThreeDate', 'dailyQuizDone', 'dailyTriviaDone', 'dailyPollDone',
                         // Admin / anti-fraud fields — NEVER writable by clients

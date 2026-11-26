@@ -26,6 +26,8 @@ const FIELDS = [
     'ageConfirmBlocked',
     'ageUnder18',
     'ageUnder18At',
+    'guardianOk',
+    'guardianOkAt',
 ];
 
 (async function main() {
