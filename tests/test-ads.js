@@ -530,6 +530,7 @@ function loadBrowserAds(opts) {
         console, Date, Math, Intl, Uint8Array, Number, String, Boolean, Array, Object, JSON, Promise, isFinite,
         module: { exports: {} }, exports: {},
         BQ_ADS_NO_BOOT: true,
+        BQ_ADS_TEST_EXPORTS: true,
         localStorage: {
             getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
             setItem: function (k, v) { store[k] = String(v); },

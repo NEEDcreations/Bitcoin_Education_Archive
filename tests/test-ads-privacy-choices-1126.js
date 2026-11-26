@@ -32,6 +32,7 @@ function loadAds(opts) {
         module: { exports: {} },
         exports: {},
         BQ_ADS_NO_BOOT: true,
+        BQ_ADS_TEST_EXPORTS: true,
         BQ_ADS_HOLDOUT_PCT: opts.holdoutPct,
         ADS_EEA_ENABLED: opts.eeaEnabled,
         BQ_ADS_EEA_ENABLED: opts.bqEeaEnabled,
@@ -824,6 +825,134 @@ pending.push(test('a GPC reload waits until the claim modal closes', async funct
     claim.hidden = true;
     ads.watchPrivacySignals();
     assert.strictEqual(reloads.length, 1);
+}));
+
+pending.push(test('getFreshUserDoc returns a frozen copy, so mutating it cannot enable ads', async function () {
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    const ads = env.api;
+    const pub = env.bqAdsPublic;
+    ads.rememberCountry('US');
+    const adult = await withEligibleDoc(env, 'n4age');
+    env.docs['users/' + adult.uid] = { username: 'x', over18: false, ageUnder18: true };
+    await ads.fetchFreshUserDoc(adult.uid);
+    const copy = pub.getFreshUserDoc();
+    assert.ok(copy);
+    assert.strictEqual(copy.uid, adult.uid);
+    assert.strictEqual(copy.over18, false);
+    assert.strictEqual(copy.ageUnder18, true);
+    assert.ok(Object.isFrozen(copy));
+    try {
+        copy.over18 = true;
+        copy.ageUnder18 = false;
+    } catch (e) {}
+    assert.strictEqual(copy.over18, false);
+    assert.strictEqual(pub.getFreshUserDoc().over18, false);
+    const d = pub.sync({ surface: 'home' });
+    assert.strictEqual(d.show, false);
+    assert.strictEqual(d.reason, 'age');
+}));
+
+pending.push(test('fetchFreshUserDoc ignores a caller-supplied db in the browser', async function () {
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    const ads = env.api;
+    const pub = env.bqAdsPublic;
+    ads.rememberCountry('US');
+    const adult = await withEligibleDoc(env, 'n5db');
+    env.docs['users/' + adult.uid] = { username: 'x', over18: false, ageUnder18: true };
+    await ads.fetchFreshUserDoc(adult.uid);
+    assert.strictEqual(pub.getFreshUserDoc().over18, false);
+
+    let fakeReads = 0;
+    const fakeDb = {
+        collection: function () {
+            return {
+                doc: function () {
+                    return {
+                        get: function () {
+                            fakeReads++;
+                            return Promise.resolve({
+                                exists: true,
+                                metadata: { fromCache: false },
+                                data: function () { return { username: 'x', over18: true, ageUnder18: false }; }
+                            });
+                        }
+                    };
+                }
+            };
+        }
+    };
+    const out = await pub.fetchFreshUserDoc(adult.uid, fakeDb);
+    assert.strictEqual(fakeReads, 0);
+    assert.strictEqual(out.over18, false);
+    assert.strictEqual(pub.getFreshUserDoc().over18, false);
+    const d = pub.sync({ surface: 'home' });
+    assert.strictEqual(d.show, false);
+    assert.strictEqual(d.reason, 'age');
+}));
+
+pending.push(test('sync does not refill while a privacy reload is deferred', async function () {
+    const reloads = [];
+    const nav = { globalPrivacyControl: false };
+    const env = loadAdsDom({ navigator: nav });
+    env.BQ_ADS_RELOAD = function () { reloads.push(1); };
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const user = await withEligibleDoc(env, 'n7sync');
+    const slot = document.createElement('div');
+    slot.className = 'bq-ad-slot';
+    document.body.appendChild(slot);
+    const d = ads.decide({ user: user, surface: 'learning-quests', country: 'US' });
+    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests', country: 'US' }, true);
+    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+
+    const claim = document.createElement('div');
+    claim.id = 'claimModal';
+    claim.hidden = false;
+    document.body.appendChild(claim);
+    nav.globalPrivacyControl = true;
+    const result = ads.applyPrivacyChoiceNow();
+    assert.strictEqual(result.deferredReload, true);
+    assert.strictEqual(reloads.length, 0);
+
+    const blocked = ads.sync({ surface: 'learning-quests' });
+    assert.strictEqual(blocked.show, false);
+    assert.strictEqual(blocked.reason, 'privacy-reload');
+    assert.ok(slot.hidden || !slot.innerHTML || slot.innerHTML.indexOf('adsbygoogle') === -1);
+    assert.strictEqual(reloads.length, 0);
+}));
+
+pending.push(test('opting back in while the claim modal is open clears the deferred reload', async function () {
+    const reloads = [];
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    env.BQ_ADS_RELOAD = function () { reloads.push(1); };
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const user = await withEligibleDoc(env, 'n8opt');
+    const slot = document.createElement('div');
+    slot.className = 'bq-ad-slot';
+    document.body.appendChild(slot);
+    const d = ads.decide({ user: user, surface: 'learning-quests', country: 'US' });
+    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests', country: 'US' }, true);
+    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+
+    const claim = document.createElement('div');
+    claim.id = 'claimModal';
+    claim.hidden = false;
+    document.body.appendChild(claim);
+    ads.setShareOptOut(true);
+    assert.strictEqual(reloads.length, 0);
+
+    ads.setShareOptOut(false);
+    const after = ads.sync({ surface: 'learning-quests' });
+    assert.notStrictEqual(after.reason, 'privacy-reload');
+    assert.strictEqual(reloads.length, 0);
+
+    claim.hidden = true;
+    ads.watchPrivacySignals();
+    ads.sync({ surface: 'learning-quests' });
+    assert.strictEqual(reloads.length, 0);
 }));
 
 pending.reduce(function (chain, run) {

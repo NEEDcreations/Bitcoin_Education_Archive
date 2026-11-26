@@ -207,6 +207,7 @@
     function applyPrivacyChoiceNow(input) {
         var opted = isPrivacyShareOptedOut(input);
         applyNonPersonalizedAds(opted);
+        if (!opted) pendingPrivacyReload = false;
         if (opted) {
             // Inspect the page before hideAllSlots() strips the tags.
             var mustReload = personalizedAdsLive || pendingPrivacyReload || personalizedArtifactsLive();
@@ -632,6 +633,8 @@
     }
 
     function fetchFreshUserDoc(uid, firestore) {
+        // Browser callers cannot inject a fake db. Node tests may still pass one.
+        if (!allowExplicitUser({})) firestore = null;
         var id = String(uid || signedInUid() || '');
         if (!id) {
             freshUserDoc = null;
@@ -649,15 +652,20 @@
         try { req = ref.get({ source: 'server' }); } catch (e) { req = ref.get(); }
         return Promise.resolve(req).then(function (snap) {
             if (signedInUid() !== id) return null;
-            return applyFreshUserSnap(id, snap);
+            applyFreshUserSnap(id, snap);
+            return copyFreshUserDoc();
         }).catch(function () {
             if (signedInUid() === id) freshUserDoc = null;
             return null;
         });
     }
 
+    function copyFreshUserDoc() {
+        return freshUserDoc ? Object.freeze(Object.assign({}, freshUserDoc)) : null;
+    }
+
     function getFreshUserDoc() {
-        return freshUserDoc;
+        return copyFreshUserDoc();
     }
 
     // The 18+ gate uses only an explicit test/doc user (non-DOM) or the
@@ -1142,6 +1150,11 @@
     }
 
     function sync(input) {
+        if (pendingPrivacyReload) {
+            hideAllSlots();
+            if (flushDeferredPrivacyReload()) return { show: false, reason: 'privacy-reload' };
+            return { show: false, reason: 'privacy-reload' };
+        }
         if (fillsBlocked(input)) {
             hideAllSlots();
             var blocked = decide(input);
@@ -1421,8 +1434,9 @@
     };
 
     // Console must not get fill/rememberCountry hooks (same class as
-    // allowExplicitUser). Node tests, including those that mock document,
-    // still receive them on module.exports.
+    // allowExplicitUser). Node tests with no document get them on the
+    // public api. Browser-like tests opt in with BQ_ADS_TEST_EXPORTS,
+    // which adds the hooks to module.exports only, never window.bqAds.
     if (typeof document === 'undefined') {
         api.rememberCountry = rememberCountry;
         api.fillAads = fillAads;
@@ -1432,15 +1446,15 @@
 
     root.bqAds = api;
     if (typeof module !== 'undefined' && module.exports) {
-        if (typeof document === 'undefined') {
-            module.exports = api;
-        } else {
+        if (root && root.BQ_ADS_TEST_EXPORTS && typeof document !== 'undefined') {
             module.exports = Object.assign({}, api, {
                 rememberCountry: rememberCountry,
                 fillAads: fillAads,
                 fillAdsense: fillAdsense,
                 fillSlot: fillSlot
             });
+        } else {
+            module.exports = api;
         }
     }
     if (!root.BQ_ADS_NO_BOOT) {
