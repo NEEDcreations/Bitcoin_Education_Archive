@@ -33,6 +33,7 @@ function loadAds(opts) {
         exports: {},
         BQ_ADS_NO_BOOT: true,
         BQ_ADS_TEST_EXPORTS: true,
+        process: { versions: { node: process.versions.node } },
         BQ_ADS_HOLDOUT_PCT: opts.holdoutPct,
         ADS_EEA_ENABLED: opts.eeaEnabled,
         BQ_ADS_EEA_ENABLED: opts.bqEeaEnabled,

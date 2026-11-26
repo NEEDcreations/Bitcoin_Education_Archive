@@ -1002,7 +1002,7 @@ test('patch notes page has a sticky Back to app button', () => {
     assert.ok(notes.includes('Faster Loads + Timelines'));
     assert.ok(notes.includes('id="week-2026-11-20"'));
 });
-test('RLDA-40 ads.js is pinned at 20261126_v2706 and not protocol-relative', () => {
+test('RLDA-40 ads.js is pinned at 20261126_v2713 and not protocol-relative', () => {
     const html = read('index.html');
     const html404 = read('404.html');
     assert.strictEqual(html, html404);

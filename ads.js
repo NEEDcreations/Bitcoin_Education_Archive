@@ -79,6 +79,30 @@
     // filled from localStorage btc_profile_cache or window flags.
     var freshUserDoc = null;
 
+    // Hold one firebase object for the life of this file. index.html and
+    // 404.html load firebase-*-compat.js and firebase-config.js (all defer)
+    // before ads.js, so the object is already on the page when this runs.
+    // If it is missing at load (tests or an unexpected order), take it on
+    // first use and then keep that same object.
+    var firebaseRef = null;
+    function adsFirebase() {
+        if (firebaseRef) return firebaseRef;
+        try {
+            if (typeof firebase !== 'undefined' && firebase) firebaseRef = firebase;
+            else if (root && root.firebase) firebaseRef = root.firebase;
+        } catch (e) {}
+        return firebaseRef;
+    }
+    adsFirebase();
+
+    function isNodeProcess() {
+        try {
+            return typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
+        } catch (e) {
+            return false;
+        }
+    }
+
     var OPT_OUT_KEY = 'bq_privacy_share_opt_out';
     var OPT_OUT_AT_KEY = 'bq_privacy_share_opt_out_at';
     var COUNTRY_SESSION_KEY = 'bq_ads_country';
@@ -144,8 +168,9 @@
     function persistAccountOptOut(optedOut) {
         try {
             if (!signedInUid()) return Promise.resolve(false);
-            if (typeof firebase === 'undefined' || !firebase.functions) return Promise.resolve(false);
-            var fn = firebase.functions().httpsCallable(CALLABLE_NAME);
+            var fb = adsFirebase();
+            if (!fb || !fb.functions) return Promise.resolve(false);
+            var fn = fb.functions().httpsCallable(CALLABLE_NAME);
             return Promise.resolve(fn({ optedOut: !!optedOut })).then(function () {
                 return true;
             }).catch(function () {
@@ -597,7 +622,8 @@
     function signedInUid() {
         try {
             var u = null;
-            if (typeof firebase !== 'undefined' && firebase.auth) u = firebase.auth().currentUser;
+            var fb = adsFirebase();
+            if (fb && fb.auth) u = fb.auth().currentUser;
             else if (typeof auth !== 'undefined' && auth) u = auth.currentUser;
             if (u && u.uid && u.isAnonymous !== true) return String(u.uid);
         } catch (e) {}
@@ -606,8 +632,9 @@
 
     function adsFirestore(db) {
         if (db) return db;
-        if (typeof firebase !== 'undefined' && firebase.firestore) {
-            try { return firebase.firestore(); } catch (e) { return null; }
+        var fb = adsFirebase();
+        if (fb && fb.firestore) {
+            try { return fb.firestore(); } catch (e) { return null; }
         }
         return null;
     }
@@ -1093,12 +1120,13 @@
             return Promise.resolve(false);
         }
         var db = firestore;
-        if (!db && typeof firebase !== 'undefined' && firebase.firestore) {
-            try { db = firebase.firestore(); } catch (e) { db = null; }
+        var fb = adsFirebase();
+        if (!db && fb && fb.firestore) {
+            try { db = fb.firestore(); } catch (e) { db = null; }
         }
-        if (!db) return Promise.resolve(false);
+        if (!db || !fb || !fb.firestore || !fb.firestore.FieldValue) return Promise.resolve(false);
         var ref = db.collection('ads_holdout_stats').doc(day);
-        var inc = firebase.firestore.FieldValue.increment(1);
+        var inc = fb.firestore.FieldValue.increment(1);
         var patch = {};
         patch[field] = inc;
         return ref.set(patch, { merge: true }).then(function () { return true; }).catch(function () {
@@ -1254,7 +1282,8 @@
         if (typeof window === 'undefined' || window._bqAdsAuthHooked) return;
         var authObj = null;
         try {
-            if (typeof firebase !== 'undefined' && firebase.auth) authObj = firebase.auth();
+            var fb = adsFirebase();
+            if (fb && fb.auth) authObj = fb.auth();
         } catch (e) { authObj = null; }
         if (!authObj && typeof auth !== 'undefined') authObj = auth;
         if (!authObj || typeof authObj.onAuthStateChanged !== 'function') return;
@@ -1446,7 +1475,7 @@
 
     root.bqAds = api;
     if (typeof module !== 'undefined' && module.exports) {
-        if (root && root.BQ_ADS_TEST_EXPORTS && typeof document !== 'undefined') {
+        if (isNodeProcess() && root && root.BQ_ADS_TEST_EXPORTS && typeof document !== 'undefined') {
             module.exports = Object.assign({}, api, {
                 rememberCountry: rememberCountry,
                 fillAads: fillAads,
