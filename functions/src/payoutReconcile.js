@@ -10,6 +10,7 @@
 // read-only list after a dedicated connection is created.
 
 const alerts = require('./payoutAlerts');
+const sitewideCaps = require('./sitewideCaps');
 const { classifyLookup } = require('./cipherClaim');
 
 // Refunded failures (#376): faucet invoices marked failed and cipher payouts
@@ -493,7 +494,7 @@ async function reconcile(deps, opts) {
 function factory(functionsV1, deps) {
     const onSchedule = deps.onSchedule;
     const handler = async function () {
-        return reconcile({
+        const result = await reconcile({
             db: deps.db,
             admin: deps.admin,
             nowMs: Date.now,
@@ -506,6 +507,13 @@ function factory(functionsV1, deps) {
                 } catch (e) { return {}; }
             },
         });
+        try {
+            result.staleReserves = await sitewideCaps.sweepStaleFaucetReserves(deps.db, Date.now());
+        } catch (e) {
+            console.warn('[payoutReconcile] stale reserve sweep', e && e.message);
+            result.staleReserveError = (e && e.message) || 'sweep_failed';
+        }
+        return result;
     };
     const scheduled = onSchedule ? onSchedule({
         schedule: DEFAULT_SCHEDULE,

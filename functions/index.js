@@ -1947,6 +1947,8 @@ exports.claimSats = functionsV1.runWith({
             const globalDoc = await t.get(globalRef);
             const capsEtDay = sitewideCaps.etDayKey(Date.now());
             faucetEtDay = capsEtDay;
+            // Missing cap config -> 30/10 defaults. A get() error aborts
+            // the transaction, so the reserve fails closed.
             const capsSettingsDoc = await t.get(sitewideCaps.settingsRef(db));
             const capsDailyDoc = await t.get(sitewideCaps.dailyRef(db, capsEtDay));
             const lockDoc = await t.get(lockRef);
@@ -2061,7 +2063,7 @@ exports.claimSats = functionsV1.runWith({
             }
             const capSettings = sitewideCaps.settingsFromDoc(capsSettingsDoc.exists ? capsSettingsDoc.data() : null);
             const capDay = sitewideCaps.dayFromSnap(capsDailyDoc);
-            const reservePlan = sitewideCaps.planFaucetReserve(capDay.paid, capDay.reserved, capSettings.faucetCap);
+            const reservePlan = sitewideCaps.planFaucetReserve(capDay.paid, capDay.reserved, capDay.held, capSettings.faucetCap);
             if (!reservePlan.ok) {
                 deny(sitewideCaps.CAP_HIT_MESSAGE);
             }
@@ -2457,18 +2459,16 @@ async function _recordFaucetPaid(info) {
         let reserved = capDay.reserved;
         let held = capDay.held;
         let paidPlan = null;
-        if (status === 'unknown') {
-            const adminPay = sitewideCaps.planAdminPayHeld(etDay, sitewideCaps.etDayKey(Date.now()), paid, held, capSettings.faucetCap);
-            if (adminPay.ok) {
-                paid = adminPay.paidAfter;
-                held = adminPay.heldAfter;
-                paidPlan = adminPay;
-            }
-        } else if (status !== 'used') {
-            paidPlan = sitewideCaps.planFaucetPaid(paid, reserved, capSettings.faucetCap);
-            paid = paidPlan.paidAfter;
-            reserved = paidPlan.reservedAfter;
+        // Held (unknown) invoices are not auto-paid here. A later admin
+        // release can settle them. Leave counters and the invoice alone.
+        if (status === 'unknown' || status === 'used') {
+            return;
         }
+        paidPlan = sitewideCaps.planFaucetPaid(paid, reserved, capSettings.faucetCap, {
+            reservedAlreadyReleased: !!inv.reservedReleased,
+        });
+        paid = paidPlan.paidAfter;
+        reserved = paidPlan.reservedAfter;
         t.update(info.userRef, {
             _pendingClaim: admin.firestore.FieldValue.delete(),
             _pendingClaimAt: admin.firestore.FieldValue.delete(),
@@ -2522,7 +2522,9 @@ async function _holdFaucetUnknown(info) {
         const etDay = String(inv.etDay || info.etDay || sitewideCaps.etDayKey(Date.now()));
         const daySnap = await t.get(sitewideCaps.dailyRef(db, etDay));
         const capDay = sitewideCaps.dayFromSnap(daySnap);
-        const heldPlan = sitewideCaps.planFaucetHold(capDay.paid, capDay.reserved, capDay.held);
+        const heldPlan = sitewideCaps.planFaucetHold(capDay.paid, capDay.reserved, capDay.held, {
+            reservedAlreadyReleased: !!inv.reservedReleased,
+        });
         t.update(info.userRef, {
             _pendingClaim: admin.firestore.FieldValue.delete(),
             _pendingClaimAt: admin.firestore.FieldValue.delete(),

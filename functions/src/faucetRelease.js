@@ -85,7 +85,9 @@ async function releaseFailedClaim(deps, info, today, lnRateRef, kind) {
             // on the original ET day. Held claims never come through this path.
             if (capsDailyRef) {
                 const capDay = sitewideCaps.dayFromSnap(capsDailySnap);
-                const released = sitewideCaps.planFaucetRelease(capDay.paid, capDay.reserved);
+                const released = sitewideCaps.planFaucetRelease(capDay.paid, capDay.reserved, {
+                    reservedAlreadyReleased: !!(inv && inv.reservedReleased),
+                });
                 t.set(capsDailyRef, {
                     paid: released.paid,
                     reserved: released.reserved,

@@ -771,6 +771,8 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         const dailyRef = userRef.collection('daily_points').doc(cipherDay);
         const capsSettingsRef = sitewideCaps.settingsRef(db);
         const capsDailyRef = sitewideCaps.dailyRef(db, etDay);
+        // Missing cap config -> 30/10 defaults. A get() error aborts
+        // the transaction, so the unlock fails closed.
         const cipherDoc = await t.get(cipherRef);
         const keyDoc = await t.get(keyRef);
         const userDoc = await t.get(userRef);
