@@ -13,6 +13,8 @@ const callableCalls = [];
 function loadAds(opts) {
     opts = opts || {};
     increments.length = 0;
+    const docs = opts.docs || {};
+    const authState = { currentUser: opts.authUser || null };
     const sandbox = {
         console,
         Date,
@@ -52,6 +54,14 @@ function loadAds(opts) {
                         return {
                             doc: function (id) {
                                 return {
+                                    get: function () {
+                                        const data = docs[name + '/' + id];
+                                        return Promise.resolve({
+                                            exists: !!data,
+                                            metadata: { fromCache: false },
+                                            data: function () { return data ? Object.assign({}, data) : undefined; }
+                                        });
+                                    },
                                     set: function (data, maybe) {
                                         increments.push({ collection: name, id: id, data: data, merge: !!(maybe && maybe.merge) });
                                         return Promise.resolve();
@@ -78,23 +88,277 @@ function loadAds(opts) {
         currentPage: opts.page || 'home',
         location: { pathname: opts.path || '/', hash: opts.hash || '' },
         fetch: opts.fetch || undefined,
-        document: undefined,
+        document: opts.document || undefined,
         window: undefined
     };
     sandbox.firebase.firestore.FieldValue = {
         increment: function (n) { return { _inc: n }; }
     };
     sandbox.firebase.auth = function () {
-        return { currentUser: opts.authUser || null };
+        return authState;
     };
     sandbox.global = sandbox;
     sandbox.root = sandbox;
     sandbox.window = sandbox;
+    sandbox.authState = authState;
+    sandbox.docs = docs;
     if (opts.clearStore) Object.keys(store).forEach(function (k) { delete store[k]; });
     const code = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
     vm.runInNewContext(code, sandbox, { filename: 'ads.js' });
     sandbox.api = sandbox.bqAds || sandbox.module.exports;
     return sandbox;
+}
+
+function makeDocument() {
+    const byId = Object.create(null);
+    const all = [];
+
+    function walk(node, acc) {
+        acc.push(node);
+        const kids = node.childNodes || node.children || [];
+        for (let i = 0; i < kids.length; i++) walk(kids[i], acc);
+        return acc;
+    }
+
+    function attrVal(node, name) {
+        if (typeof node.getAttribute === 'function') return node.getAttribute(name);
+        return null;
+    }
+
+    function matchOne(node, sel) {
+        sel = String(sel).trim();
+        if (!sel) return false;
+        if (sel.charAt(0) === '#') return node.id === sel.slice(1);
+        let rest = sel;
+        let tag = null;
+        const tagM = rest.match(/^([a-zA-Z][\w-]*)/);
+        if (tagM) {
+            tag = tagM[1].toUpperCase();
+            rest = rest.slice(tagM[1].length);
+        }
+        if (tag && String(node.tagName || '').toUpperCase() !== tag) return false;
+        while (rest) {
+            if (rest.charAt(0) === '.') {
+                const m = rest.match(/^\.([\w-]+)/);
+                if (!m) return false;
+                const cls = (node.className || '') + '';
+                if ((' ' + cls + ' ').indexOf(' ' + m[1] + ' ') < 0) return false;
+                rest = rest.slice(m[0].length);
+                continue;
+            }
+            if (rest.charAt(0) === '[') {
+                const m = rest.match(/^\[([^\]]+)\]/);
+                if (!m) return false;
+                const body = m[1];
+                rest = rest.slice(m[0].length);
+                let neg = false;
+                let chk = body;
+                // :not(.hidden) is handled after the loop below isn't enough;
+                // we parse it as a trailing pseudo if present.
+                const contains = body.match(/^([^\*\~\|\$\^=]+)(\*=)="([^"]*)"$/) || body.match(/^([^\*\~\|\$\^=]+)(\*=)='([^']*)'$/);
+                const eq = !contains && (body.match(/^([^=]+)="([^"]*)"$/) || body.match(/^([^=]+)='([^']*)'$/));
+                const starts = body.match(/^([^\]]+)\^="([^"]*)"$/);
+                if (contains) {
+                    const val = attrVal(node, contains[1]) || (contains[1] === 'src' ? node.src : '') || '';
+                    if (String(val).indexOf(contains[3]) === -1) return false;
+                } else if (starts) {
+                    const val = attrVal(node, starts[1]) || (starts[1] === 'id' ? node.id : '') || '';
+                    if (String(val).indexOf(starts[2]) !== 0) return false;
+                } else if (eq) {
+                    const val = attrVal(node, eq[1]);
+                    if (String(val) !== eq[2]) return false;
+                } else if (body.indexOf('^="') !== -1) {
+                    const p = body.split('^="');
+                    const name = p[0];
+                    const prefix = p[1].replace(/"$/, '');
+                    const val = attrVal(node, name) || (name === 'id' ? node.id : '') || '';
+                    if (String(val).indexOf(prefix) !== 0) return false;
+                } else {
+                    if (attrVal(node, body) == null && !(body === 'id' && node.id)) return false;
+                }
+                continue;
+            }
+            if (rest.indexOf(':not(') === 0) {
+                const m = rest.match(/^:not\(([^)]+)\)/);
+                if (!m) return false;
+                if (matchOne(node, m[1])) return false;
+                rest = rest.slice(m[0].length);
+                continue;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    function qAll(root, sel) {
+        const parts = String(sel).split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+        const acc = [];
+        const nodes = walk(root, []);
+        for (let i = 0; i < nodes.length; i++) {
+            for (let p = 0; p < parts.length; p++) {
+                if (matchOne(nodes[i], parts[p])) {
+                    acc.push(nodes[i]);
+                    break;
+                }
+            }
+        }
+        return acc;
+    }
+
+    function parseAttrs(el, attrStr) {
+        const re = /([:\w-]+)(?:=(?:"([^"]*)"|'([^']*)'|(\S+)))?/g;
+        let m;
+        while ((m = re.exec(attrStr || ''))) {
+            const name = m[1];
+            const val = m[2] != null ? m[2] : (m[3] != null ? m[3] : (m[4] != null ? m[4] : ''));
+            el.setAttribute(name, val);
+        }
+    }
+
+    function createEl(tag) {
+        const attrs = Object.create(null);
+        const children = [];
+        const node = {
+            tagName: String(tag).toUpperCase(),
+            nodeType: 1,
+            id: '',
+            className: '',
+            hidden: false,
+            src: '',
+            href: '',
+            _html: '',
+            textContent: '',
+            parentNode: null,
+            children: children,
+            childNodes: children,
+            style: { cssText: '' },
+            tabIndex: 0,
+            classList: {
+                contains: function (c) {
+                    return (' ' + node.className + ' ').indexOf(' ' + c + ' ') >= 0;
+                },
+                add: function (c) {
+                    if (!this.contains(c)) node.className = (node.className + ' ' + c).trim();
+                },
+                remove: function (c) {
+                    node.className = node.className.split(/\s+/).filter(function (x) { return x && x !== c; }).join(' ');
+                }
+            },
+            setAttribute: function (k, v) {
+                const key = String(k);
+                attrs[key.toLowerCase()] = String(v);
+                if (key === 'id') {
+                    node.id = String(v);
+                    byId[node.id] = node;
+                }
+                if (key === 'src') node.src = String(v);
+                if (key === 'class' || key === 'className') node.className = String(v);
+                if (key === 'hidden') node.hidden = String(v) !== 'false';
+            },
+            getAttribute: function (k) {
+                const key = String(k).toLowerCase();
+                if (key === 'id') return node.id || null;
+                if (key === 'src') return node.src || (attrs.src != null ? attrs.src : null);
+                if (key === 'class') return node.className || null;
+                return attrs[key] != null ? attrs[key] : null;
+            },
+            appendChild: function (ch) {
+                ch.parentNode = node;
+                children.push(ch);
+                if (ch.id) byId[ch.id] = ch;
+                all.push(ch);
+                return ch;
+            },
+            removeChild: function (ch) {
+                const i = children.indexOf(ch);
+                if (i >= 0) children.splice(i, 1);
+                ch.parentNode = null;
+                if (ch.id && byId[ch.id] === ch) delete byId[ch.id];
+            },
+            addEventListener: function () {},
+            focus: function () {},
+            querySelector: function (sel) { return qAll(node, sel)[0] || null; },
+            querySelectorAll: function (sel) { return qAll(node, sel); }
+        };
+        Object.defineProperty(node, 'innerHTML', {
+            get: function () { return node._html; },
+            set: function (html) {
+                // Drop previously parsed children so a clear resets the tree.
+                for (let i = children.length - 1; i >= 0; i--) {
+                    const ch = children[i];
+                    if (ch.id && byId[ch.id] === ch) delete byId[ch.id];
+                }
+                children.length = 0;
+                node._html = html == null ? '' : String(html);
+                const tagRe = /<([a-zA-Z][\w-]*)([^>]*)>/g;
+                let m;
+                while ((m = tagRe.exec(node._html))) {
+                    const child = createEl(m[1]);
+                    parseAttrs(child, m[2]);
+                    child.parentNode = node;
+                    children.push(child);
+                    all.push(child);
+                    if (child.id) byId[child.id] = child;
+                }
+            }
+        });
+        return node;
+    }
+
+    const documentElement = createEl('html');
+    const head = createEl('head');
+    const body = createEl('body');
+    documentElement.appendChild(head);
+    documentElement.appendChild(body);
+
+    const document = {
+        readyState: 'complete',
+        documentElement: documentElement,
+        head: head,
+        body: body,
+        getElementById: function (id) { return byId[id] || null; },
+        getElementsByTagName: function (tag) {
+            tag = String(tag).toUpperCase();
+            return qAll(documentElement, tag);
+        },
+        querySelector: function (sel) { return qAll(documentElement, sel)[0] || null; },
+        querySelectorAll: function (sel) { return qAll(documentElement, sel); },
+        createElement: function (tag) { return createEl(tag); },
+        addEventListener: function () {}
+    };
+    return document;
+}
+
+function loadAdsDom(opts) {
+    opts = opts || {};
+    const document = opts.document || makeDocument();
+    const env = loadAds(Object.assign({}, opts, { document: document }));
+    env.document = document;
+    if (opts.authReady !== false) {
+        env._bqAdsAuthReady = true;
+        env._bqAdsUserUnknown = false;
+    }
+    return env;
+}
+
+async function withEligibleDoc(env, prefix) {
+    const ads = env.api;
+    const user = eligibleUser(ads, prefix);
+    env.authState.currentUser = { uid: user.uid, isAnonymous: false };
+    env.docs['users/' + user.uid] = { username: 'x', over18: true };
+    await ads.fetchFreshUserDoc(user.uid);
+    assert.ok(ads.getFreshUserDoc() && ads.getFreshUserDoc().uid === user.uid);
+    return user;
+}
+
+function adsenseScripts(document) {
+    const scripts = document.getElementsByTagName('script');
+    const out = [];
+    for (let i = 0; i < scripts.length; i++) {
+        const src = scripts[i].src || '';
+        if (src.indexOf('adsbygoogle.js') !== -1) out.push(scripts[i]);
+    }
+    return out;
 }
 
 function eligibleUid(ads, prefix) {
@@ -312,15 +576,16 @@ pending.push(test('index.html and 404.html have the footer link, the hash handof
     assert.ok(html.indexOf('Your Privacy Choices') !== -1);
     assert.ok(html.indexOf('href="#privacy-choices"') !== -1);
     assert.ok(html.indexOf("btc_open_privacy_choices") !== -1);
-    assert.ok(html.indexOf('src="/ads.js?v=20261126_v2705"') !== -1);
-    assert.ok(html.indexOf('src="/ranking.js?v=20261126_v2705"') !== -1);
+    assert.ok(html.indexOf('id="bqSitePrivacyFooter"') !== -1);
+    assert.ok(html.indexOf('src="/ads.js?v=20261126_v2706"') !== -1);
+    assert.ok(html.indexOf('src="/ranking.js?v=20261126_v2706"') !== -1);
     const settings = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
     assert.ok(settings.indexOf('id="bqPrivacyChoices"') !== -1);
     assert.ok(settings.indexOf('Do not sell or share my personal information') !== -1);
 }));
 
 pending.push(test('legal and support pages link to Your Privacy Choices', function () {
-    const files = ['privacy.html', 'terms.html', 'deletion.html', 'dmca.html', 'tctv-terms.html', 'raffle-rules.html', 'patch-notes.html', 'resets.html', 'waitlist.html'];
+    const files = ['privacy.html', 'terms.html', 'deletion.html', 'dmca.html', 'tctv-terms.html', 'raffle-rules.html', 'patch-notes.html', 'resets.html', 'waitlist.html', 'tv.html', 'bea-promo.html', 'needisbored.html', 'needisbored/index.html', 'weekly_signal_draft.html'];
     files.forEach(function (name) {
         const html = fs.readFileSync(path.join(root, name), 'utf8');
         assert.ok(html.indexOf('Your Privacy Choices') !== -1, name);
@@ -343,10 +608,160 @@ pending.push(test('the callable name is setPrivacyShareOptOut and the default EE
     const src = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     assert.ok(src.indexOf('exports.setPrivacyShareOptOut') !== -1);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.indexOf("const CACHE_NAME = 'btc-archive-v2705'") !== -1);
+    assert.ok(sw.indexOf("const CACHE_NAME = 'btc-archive-v2706'") !== -1);
+}));
+
+pending.push(test('opt-out does not put AdSense on home, including when the claim modal is open', async function () {
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const user = await withEligibleDoc(env, 'f1home');
+    ads.setShareOptOut(true);
+    const home = document.createElement('div');
+    home.className = 'bq-ad-slot';
+    document.body.appendChild(home);
+    const d = ads.decide({ user: user, surface: 'home', country: 'US', gpc: false });
+    assert.strictEqual(d.show, true);
+    assert.strictEqual(d.skipAads, true);
+    ads.fillSlot(home, d, { user: user, surface: 'home', country: 'US', gpc: false }, false);
+    assert.ok(home.hidden || !home.innerHTML || home.innerHTML.indexOf('adsbygoogle') === -1);
+    assert.strictEqual(adsenseScripts(document).length, 0);
+
+    ads.setShareOptOut(false);
+    const claim = document.createElement('div');
+    claim.id = 'claimModal';
+    claim.hidden = false;
+    document.body.appendChild(claim);
+    const learn = document.createElement('div');
+    learn.className = 'bq-ad-slot';
+    document.body.appendChild(learn);
+    const d2 = ads.decide({ user: user, surface: 'learning-quests', country: 'US', gpc: false });
+    assert.strictEqual(d2.show, true);
+    ads.fillSlot(learn, d2, { user: user, surface: 'learning-quests', country: 'US', gpc: false }, true);
+    assert.ok(learn.hidden || !learn.innerHTML || learn.innerHTML.indexOf('adsbygoogle') === -1);
+    assert.strictEqual(adsenseScripts(document).length, 0);
+    assert.strictEqual(ads.adsenseAllowed(d2, { user: user, surface: 'learning-quests', country: 'US' }), false);
+}));
+
+pending.push(test('a mid-session opt-out removes the personalized tag so the next fill loads npa=1', async function () {
+    const reloads = [];
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    env.BQ_ADS_RELOAD = function () { reloads.push(1); };
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const user = await withEligibleDoc(env, 'f2npa');
+    const slot = document.createElement('div');
+    slot.className = 'bq-ad-slot';
+    document.body.appendChild(slot);
+    const d = ads.decide({ user: user, surface: 'learning-quests', country: 'US', gpc: false });
+    assert.strictEqual(d.npa, false);
+    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests', country: 'US', gpc: false }, true);
+    const before = adsenseScripts(document);
+    assert.strictEqual(before.length, 1);
+    assert.ok(before[0].src.indexOf('npa=1') === -1);
+    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+
+    ads.setShareOptOut(true);
+    assert.ok(slot.hidden || !slot.innerHTML || slot.innerHTML.indexOf('adsbygoogle') === -1);
+    assert.strictEqual(document.querySelectorAll('ins.adsbygoogle').length, 0);
+    const mid = adsenseScripts(document);
+    mid.forEach(function (s) {
+        assert.ok(s.src.indexOf('npa=1') !== -1);
+    });
+
+    const d2 = ads.decide({ user: user, surface: 'learning-quests', country: 'US', gpc: false });
+    assert.strictEqual(d2.npa, true);
+    ads.fillSlot(slot, d2, { user: user, surface: 'learning-quests', country: 'US', gpc: false }, true);
+    const after = adsenseScripts(document);
+    assert.ok(after.length >= 1);
+    after.forEach(function (s) {
+        assert.ok(s.src.indexOf('npa=1') !== -1, s.src);
+    });
+    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+}));
+
+pending.push(test('a mid-page GPC signal clears personalized slots immediately', async function () {
+    const nav = { globalPrivacyControl: false };
+    const env = loadAdsDom({ navigator: nav });
+    env.BQ_ADS_RELOAD = function () {};
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const user = await withEligibleDoc(env, 'gpcnow');
+    const slot = document.createElement('div');
+    slot.className = 'bq-ad-slot';
+    document.body.appendChild(slot);
+    const d = ads.decide({ user: user, surface: 'learning-quests', country: 'US' });
+    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests', country: 'US' }, true);
+    assert.ok(slot.innerHTML.indexOf('adsbygoogle') !== -1);
+    nav.globalPrivacyControl = true;
+    ads.watchPrivacySignals();
+    assert.ok(slot.hidden || !slot.innerHTML || slot.innerHTML.indexOf('adsbygoogle') === -1);
+    assert.strictEqual(ads.isPrivacyShareOptedOut({ user: user }), true);
+}));
+
+pending.push(test('a fill before boot or geo starts is blocked when document is present', function () {
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    const ads = env.api;
+    const document = env.document;
+    const user = eligibleUser(ads, 'pregeo');
+    assert.strictEqual(ads.fillsBlocked({ user: user, surface: 'home' }), true);
+    assert.strictEqual(ads.isGeoBlocked({ user: user, surface: 'home' }), true);
+    const slot = document.createElement('div');
+    slot.className = 'bq-ad-slot';
+    slot.innerHTML = 'pending';
+    document.body.appendChild(slot);
+    const d = ads.decide({ user: user, surface: 'learning-quests' });
+    ads.fillSlot(slot, d, { user: user, surface: 'learning-quests' }, true);
+    assert.ok(slot.hidden || slot.innerHTML.indexOf('adsbygoogle') === -1);
+    assert.ok(slot.innerHTML.indexOf('acceptable.a-ads.com') === -1);
+    assert.strictEqual(adsenseScripts(document).length, 0);
+    ads.rememberCountry('US');
+    assert.strictEqual(ads.fillsBlocked({ user: user, surface: 'home', country: 'US' }), false);
+}));
+
+pending.push(test('ads.js peeks at btc_open_privacy_choices and does not consume it', function () {
+    const env = loadAdsDom();
+    const ads = env.api;
+    store['sess:btc_open_privacy_choices'] = '1';
+    assert.strictEqual(ads.privacyChoicesOpenRequested(), true);
+    assert.strictEqual(store['sess:btc_open_privacy_choices'], '1');
+    const src = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
+    assert.ok(src.indexOf("sessionStorage.removeItem('btc_open_privacy_choices')") === -1);
+    const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    assert.ok(ranking.indexOf("sessionStorage.removeItem('btc_open_privacy_choices')") !== -1);
+}));
+
+pending.push(test('the settings and modal GPC notes use different ids', function () {
+    const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    const src = fs.readFileSync(path.join(root, 'ads.js'), 'utf8');
+    assert.ok(ranking.indexOf('id="bqPrivacyChoicesGpcNote"') !== -1);
+    assert.ok(ranking.indexOf('bqPrivacyChoicesModalGpcNote') === -1);
+    assert.ok(src.indexOf('id="bqPrivacyChoicesModalGpcNote"') !== -1);
+    const modalIds = src.split('id="bqPrivacyChoicesGpcNote"').length - 1;
+    assert.strictEqual(modalIds, 0);
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: true } });
+    const ads = env.api;
+    ads.openPrivacyChoices();
+    const modalNote = env.document.getElementById('bqPrivacyChoicesModalGpcNote');
+    assert.ok(modalNote);
+    assert.strictEqual(modalNote.hidden, false);
+    assert.strictEqual(env.document.getElementById('bqPrivacyChoicesGpcNote'), null);
+}));
+
+pending.push(test('DEPLOY-LIST.md lists the callable and CSP publishes as needing Phil\'s OK', function () {
+    const list = fs.readFileSync(path.join(root, 'DEPLOY-LIST.md'), 'utf8');
+    assert.ok(list.indexOf('setPrivacyShareOptOut') !== -1);
+    assert.ok(list.indexOf('seo-router') !== -1);
+    assert.ok(list.indexOf('firebase.json') !== -1);
+    assert.ok(list.indexOf("Phil's OK") !== -1);
+    assert.ok(list.indexOf('fundingchoicesmessages.google.com') !== -1);
 }));
 
 Promise.all(pending).then(function () {
+
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);
 });

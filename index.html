@@ -818,6 +818,11 @@
         #suggestStatus { text-align: center; margin-top: 10px; font-size: 0.85rem; }
 
         .home-footer { margin-top: 30px; color: var(--text-muted); font-size: 0.85rem; text-align: center; }
+        .bq-site-privacy-footer { position: fixed; left: max(12px, env(safe-area-inset-left, 0px)); bottom: max(10px, env(safe-area-inset-bottom, 0px)); z-index: 120; margin: 0; font-size: 0.7rem; line-height: 1.3; color: var(--text-faint); pointer-events: none; }
+        .bq-site-privacy-footer a { pointer-events: auto; color: var(--text-faint); text-decoration: underline; }
+        @media (max-width: 900px) {
+            .bq-site-privacy-footer { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + 8px); left: max(10px, env(safe-area-inset-left, 0px)); }
+        }
 
         .skeleton { background: linear-gradient(90deg, var(--card-bg) 25%, var(--border) 50%, var(--card-bg) 75%); background-size: 200% 100%; animation: skeletonLoading 1.5s infinite; border-radius: 8px; }
         @keyframes skeletonLoading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -2228,6 +2233,7 @@
         <div class="messages" id="msgs"></div>
         <div id="forumContainer" style="display:none;"></div>
     </main>
+    <p id="bqSitePrivacyFooter" class="bq-site-privacy-footer"><a href="#privacy-choices">Your Privacy Choices</a></p>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
     <!-- TOS acceptance modal for existing users -->
     <div id="tosModal">
@@ -2446,7 +2452,7 @@
     <script src="/popup-stack.js?v=20261119_v2681" defer></script>
 
     <script src="/kill-switch.js?v=20261111_v2551" defer></script>
-    <script src="/ranking.js?v=20261126_v2705" defer></script>    <!-- Critical: needed for initial page render -->
+    <script src="/ranking.js?v=20261126_v2706" defer></script>    <!-- Critical: needed for initial page render -->
     <script src="/bundle.min.js?v=20261119_v2682b" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
@@ -2466,7 +2472,7 @@
     <script src="/patches.js?v=20261026_v2385" defer></script>
     <script src="/onboarding.js?v=20261119_v2683" defer></script>
     <script src="/learning-quests.js?v=20261026_v2377" defer></script>
-    <script src="/ads.js?v=20261126_v2705" defer></script>
+    <script src="/ads.js?v=20261126_v2706" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
     <script src="/beats-censor.js?v=20261022_v2322"></script>
