@@ -115,10 +115,23 @@ function assertAwardPaysNothing() {
 function unit() {
     const indexSrc = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     const award = sliceBetween(indexSrc, 'exports.awardPoints = functionsV1.https.onCall', 'exports.getFaucetStats = ');
-    const gate = award.indexOf("resolved.id === 'daily_spin'");
+    // The old 'Daily Spin' phrase stops at the resolver reject, before any
+    // write. The separate daily_spin gate was unreachable and is gone.
+    const reject = award.indexOf('if (!resolved.ok)');
     const transaction = award.indexOf('db.runTransaction');
-    assert.ok(gate > 0 && transaction > gate);
-    assert.ok(award.indexOf('return { success: true, awarded: 0, tickets: 0 };') > gate);
+    assert.ok(reject > 0 && transaction > reject);
+    assert.strictEqual(award.indexOf("resolved.id === 'daily_spin'"), -1);
+    const awardActions = require(path.join(root, 'functions/src/awardActions'));
+    ['Daily Spin', '🎫 Daily Spin'].forEach(function (action) {
+        [0, 25, 50, 100, 200].forEach(function (pts) {
+            const resolved = awardActions.resolveAction({ action: action, reason: action, pts: pts });
+            assert.strictEqual(resolved.ok, false, action + ' ' + pts);
+            assert.notStrictEqual(resolved.id, 'daily_spin');
+        });
+    });
+    // No resolver branch can hand back the daily_spin id.
+    const actionsSrc = fs.readFileSync(path.join(root, 'functions/src/awardActions.js'), 'utf8');
+    assert.strictEqual(actionsSrc.indexOf('daily_spin'), -1);
     assertAwardPaysNothing();
     assertSpinTablePays(indexSrc);
     console.log('daily spin unit ok');
@@ -217,7 +230,8 @@ async function main() {
         tickets: 50,
         streakFreezes: 9,
     }, ctx(uid));
-    assert.strictEqual(blocked.success, true);
+    assert.strictEqual(blocked.success, false);
+    assert.strictEqual(blocked.error, 'Unknown action');
     assert.strictEqual(blocked.awarded, 0);
     assert.strictEqual(blocked.tickets, 0);
     let user = (await userRef.get()).data();
