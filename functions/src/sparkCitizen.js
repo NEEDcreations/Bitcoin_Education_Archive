@@ -15,6 +15,10 @@ const TEASER_MIN_MS = 17000;
 const TEASER_MAX_MS = 2 * 60 * 1000;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_MAX = 8;
+const RATE_TTL_MS = 24 * 60 * 60 * 1000;
+// Sat Nov 28, 2026, 12:00 AM ET (05:00 UTC). Same instant as citadel-spark.js.
+const LAUNCH_AT = Date.UTC(2026, 10, 28, 5, 0, 0);
+const STAGING_PROJECT = 'bitcoin-quest-staging';
 
 function creditMillis(value) {
     if (value == null) return null;
@@ -28,6 +32,44 @@ function creditMillis(value) {
         return value._seconds * 1000 + Math.floor(nanos / 1e6);
     }
     return null;
+}
+
+
+function runtimeProjectId() {
+    if (process.env.GCLOUD_PROJECT) return process.env.GCLOUD_PROJECT;
+    if (process.env.GOOGLE_CLOUD_PROJECT) return process.env.GOOGLE_CLOUD_PROJECT;
+    try {
+        const cfg = JSON.parse(process.env.FIREBASE_CONFIG || '{}');
+        if (cfg && cfg.projectId) return cfg.projectId;
+    } catch (err) { /* fall through */ }
+    return '';
+}
+
+// Closed before launch on live (and on an unknown project). Staging can
+// award before LAUNCH_AT so QA can test the path.
+function launchOpen(nowMs, projectId) {
+    const t = typeof nowMs === 'number' && Number.isFinite(nowMs) ? nowMs : Date.now();
+    const pid = (projectId == null || projectId === '') ? runtimeProjectId() : String(projectId);
+    if (pid === STAGING_PROJECT) return true;
+    return t >= LAUNCH_AT;
+}
+
+function rateExpireAt(windowStartMs) {
+    const start = creditMillis(windowStartMs);
+    if (start == null) return null;
+    return start + RATE_TTL_MS;
+}
+
+// True when the day-count entitles a tier the user does not yet hold.
+function needsGrant(count, awardedIds) {
+    const tiers = require('./badgeTiers');
+    const earned = tiers.progress('spark_citizen', { sparkCitizenCount: count }).tier;
+    const held = new Set(awardedIds || []);
+    let awardedTier = 0;
+    tiers.familyIds('spark_citizen').forEach(function (id, i) {
+        if (held.has(id)) awardedTier = Math.max(awardedTier, i + 1);
+    });
+    return earned > awardedTier;
 }
 
 function nextRate(prev, nowMs) {
@@ -85,6 +127,13 @@ module.exports = {
     RATE_MAX: RATE_MAX,
     offsetDateKey: offsetDateKey,
     creditMillis: creditMillis,
+    RATE_TTL_MS: RATE_TTL_MS,
+    LAUNCH_AT: LAUNCH_AT,
+    STAGING_PROJECT: STAGING_PROJECT,
+    runtimeProjectId: runtimeProjectId,
+    launchOpen: launchOpen,
+    rateExpireAt: rateExpireAt,
+    needsGrant: needsGrant,
     nextRate: nextRate,
     applyStart: applyStart,
     applyComplete: applyComplete,

@@ -7,12 +7,14 @@ const functionsV1 = require('firebase-functions/v1');
 const admin = require('./src/firebaseAdmin.js');
 const spark = require('./src/sparkCitizen');
 const { rewardBlocked } = require('./src/cipherClaim');
+const { serverHoldsBadge } = require('./src/badgeProfile');
+const badgeTiers = require('./src/badgeTiers');
 
 const db = admin.firestore();
 
 function tierCrossed(before, after) {
-    const ids = require('./src/badgeTiers').familyForField('sparkCitizenCount');
-    const info = require('./src/badgeTiers').tierInfo;
+    const ids = badgeTiers.familyForField('sparkCitizenCount');
+    const info = badgeTiers.tierInfo;
     return ids.some(function (id) {
         const gte = info(id).gte;
         return before < gte && after >= gte;
@@ -37,8 +39,12 @@ const sparkCitizenTeaser = functionsV1.runWith({
         throw new functionsV1.https.HttpsError('invalid-argument', 'Unknown phase');
     }
 
-    const uid = context.auth.uid;
     const nowMs = Date.now();
+    if (!spark.launchOpen(nowMs)) {
+        throw new functionsV1.https.HttpsError('failed-precondition', 'Not available yet');
+    }
+
+    const uid = context.auth.uid;
     const stateRef = db.collection('spark_citizen').doc(uid);
     const userRef = db.collection('users').doc(uid);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
@@ -78,10 +84,12 @@ const sparkCitizenTeaser = functionsV1.runWith({
             ? spark.applyStart(input, nowMs)
             : spark.applyComplete(input, nowMs);
 
+        const expireAtMs = spark.rateExpireAt(rate.windowStartMs);
         tx.set(rateRef, {
             windowStartMs: rate.windowStartMs,
             windowStart: admin.firestore.Timestamp.fromMillis(rate.windowStartMs),
             count: rate.count,
+            expireAt: admin.firestore.Timestamp.fromMillis(expireAtMs),
         });
 
         if (decision.state) {
@@ -104,6 +112,9 @@ const sparkCitizenTeaser = functionsV1.runWith({
             }, { merge: true });
         }
 
+        const awardedIds = badgeTiers.familyIds('spark_citizen').filter(function (id) {
+            return serverHoldsBadge(user, id);
+        });
         return {
             ok: decision.ok !== false && decision.reason !== 'banned',
             reason: decision.reason,
@@ -111,7 +122,7 @@ const sparkCitizenTeaser = functionsV1.runWith({
             count: before + (decision.credit || 0),
             day: decision.day || spark.offsetDateKey(nowMs),
             tierCrossed: decision.credit > 0 && tierCrossed(before, before + decision.credit),
-            retryGrant: decision.reason === 'day-cap' && before >= 1,
+            retryGrant: decision.reason === 'day-cap' && spark.needsGrant(before, awardedIds),
         };
     });
 

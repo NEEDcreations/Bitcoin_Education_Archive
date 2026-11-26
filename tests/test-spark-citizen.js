@@ -118,6 +118,41 @@ test('callable ignores every client field except phase', () => {
     assert.ok(src.includes("grant.familyFor('sparkCitizenCount')"));
     assert.ok(!/data\.(seconds|minutes|credit|count|day)/.test(src), 'client body never read');
     assert.ok(src.includes("provider === 'anonymous'"));
+    assert.ok(src.includes('spark.launchOpen(nowMs)'));
+    assert.ok(src.includes("failed-precondition"));
+    assert.ok(src.includes('spark.needsGrant(before, awardedIds)'));
+    assert.ok(src.includes('spark.rateExpireAt(rate.windowStartMs)'));
+    assert.ok(src.includes('expireAt: admin.firestore.Timestamp.fromMillis(expireAtMs)'));
+});
+
+test('launch gate is closed before Sat Nov 28, 2026, 12:00 AM ET except on staging', () => {
+    const at = Date.UTC(2026, 10, 28, 5, 0, 0);
+    assert.strictEqual(spark.LAUNCH_AT, at);
+    assert.strictEqual(spark.STAGING_PROJECT, 'bitcoin-quest-staging');
+    assert.strictEqual(spark.launchOpen(at - 1, 'bitcoin-education-archive'), false);
+    assert.strictEqual(spark.launchOpen(at, 'bitcoin-education-archive'), true);
+    assert.strictEqual(spark.launchOpen(at + 1, 'bitcoin-education-archive'), true);
+    assert.strictEqual(spark.launchOpen(at - 1, 'bitcoin-quest-staging'), true);
+    assert.strictEqual(spark.launchOpen(at, 'bitcoin-quest-staging'), true);
+    assert.strictEqual(spark.launchOpen(at - 1, ''), false);
+});
+
+test('needsGrant is true only when the highest awarded tier is behind the count', () => {
+    assert.strictEqual(spark.needsGrant(0, []), false);
+    assert.strictEqual(spark.needsGrant(1, []), true);
+    assert.strictEqual(spark.needsGrant(1, ['spark_citizen_t1']), false);
+    assert.strictEqual(spark.needsGrant(3, ['spark_citizen_t1']), true);
+    assert.strictEqual(spark.needsGrant(7, ['spark_citizen_t1', 'spark_citizen_t2', 'spark_citizen_t3']), false);
+    assert.strictEqual(spark.needsGrant(14, ['spark_citizen_t1', 'spark_citizen_t2', 'spark_citizen_t3']), true);
+    assert.strictEqual(spark.needsGrant(28, [
+        'spark_citizen_t1', 'spark_citizen_t2', 'spark_citizen_t3', 'spark_citizen_t4', 'spark_citizen_t5',
+    ]), false);
+});
+
+test('rate-limit docs expire one day after the window start', () => {
+    assert.strictEqual(spark.RATE_TTL_MS, 24 * 60 * 60 * 1000);
+    assert.strictEqual(spark.rateExpireAt(T0), T0 + spark.RATE_TTL_MS);
+    assert.strictEqual(spark.rateExpireAt(null), null);
 });
 
 test('deleteAccount removes the spark ledger and rate-limit doc', () => {
