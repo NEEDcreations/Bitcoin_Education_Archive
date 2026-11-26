@@ -170,7 +170,7 @@ test('More quests Citadel row glows only after launch', () => {
 test('index.html and 404.html load citadel-spark.js and tag the Citadel row', () => {
     ['index.html', '404.html'].forEach((f) => {
         const h = read(f);
-        assert.ok(h.includes('<script src="/citadel-spark.js?v=20261125_v2695" defer></script>'), f);
+        assert.ok(h.includes('<script src="/citadel-spark.js?v=20261126_v2696" defer></script>'), f);
         assert.ok(h.includes('id="todayCitadelBtn" class="today-more-item"'), f);
     });
     const q = read('quests.js');
