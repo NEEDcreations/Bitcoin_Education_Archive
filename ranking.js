@@ -10159,6 +10159,17 @@ function accountDeleteRowHtml(user) {
             '<button type="button" onclick="if(window.showOnboardingIntro)window.showOnboardingIntro({force:true})" style="width:100%;margin-top:8px;padding:12px;min-height:44px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--heading);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;">Replay welcome tour</button>' +
             '</div>';
 
+        var _privOpted = (window.bqAds && typeof window.bqAds.isPrivacyShareOptedOut === 'function') ? window.bqAds.isPrivacyShareOptedOut() : false;
+        var _privGpc = (window.bqAds && typeof window.bqAds.hasGpc === 'function') ? window.bqAds.hasGpc() : false;
+        html += '<div id="bqPrivacyChoices" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Your Privacy Choices</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;line-height:1.5;">Opt out of sharing cookie and device identifiers for personalized ads. Eligible users still see non-personalized ads. We also honor Global Privacy Control (GPC) from your browser.</div>' +
+            '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:0.9rem;">' +
+            '<input type="checkbox" id="bqPrivacyShareOptOut"' + (_privOpted ? ' checked' : '') + ' onchange="if(window.bqAds)window.bqAds.setShareOptOut(this.checked)">' +
+            '<span>Do not sell or share my personal information</span></label>' +
+            '<div id="bqPrivacyChoicesGpcNote" style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);"' + (_privGpc ? '' : ' hidden') + '>Your browser sent a Global Privacy Control signal, so personalized ads are already off.</div>' +
+            '</div>';
+
         // Appearance (Theme + Font Size combined)
         const isDark = document.body.getAttribute('data-theme') !== 'light';
         const isOLED = localStorage.getItem('btc_theme_oled') === 'true';
@@ -10895,6 +10906,23 @@ function accountDeleteRowHtml(user) {
         }, 0);
     }
     if (fillSettingsPred) fillSettingsPred();
+
+    if (settingsTab === 'prefs') {
+        setTimeout(function () {
+            var open = false;
+            try {
+                if (sessionStorage.getItem('btc_open_privacy_choices') === '1') {
+                    sessionStorage.removeItem('btc_open_privacy_choices');
+                    open = true;
+                }
+            } catch (e) {}
+            var sec = document.getElementById('bqPrivacyChoices');
+            if (open && sec) {
+                try { sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e2) { try { sec.scrollIntoView(true); } catch (e3) {} }
+            }
+            if (window.bqAds && typeof window.bqAds.updatePrivacyChoicesUi === 'function') window.bqAds.updatePrivacyChoicesUi();
+        }, 0);
+    }
 
     // Auto-focus key inputs after render
     setTimeout(function() {

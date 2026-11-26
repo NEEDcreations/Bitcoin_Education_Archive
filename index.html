@@ -21,9 +21,14 @@
 // Consume the notifications deep link before the hash router treats it as a channel.
 (function(){
     var raw = (window.location.hash || '').replace('#', '');
-    if (raw.split('/')[0] === 'settings-notifications') {
+    var first = raw.split('/')[0];
+    if (first === 'settings-notifications') {
         try { sessionStorage.setItem('btc_open_notif_settings', '1'); } catch (e) {}
         try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e2) {}
+    }
+    if (first === 'privacy-choices' || first === 'settings-privacy-choices') {
+        try { sessionStorage.setItem('btc_open_privacy_choices', '1'); } catch (e3) {}
+        try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e4) {}
     }
 })();
 // Direct-link fast-path: hide home immediately if navigating to a hash
@@ -2184,7 +2189,7 @@
                             <div><div style="font-size:0.85rem;font-weight:700;">The Signal Newsletter</div><div style="font-size:0.75rem;color:var(--text-muted);">Weekly curated Bitcoin insights</div></div>
                         </a>
                     </div>
-                <p class="home-footer" style="order:9999;">Open source · Free forever · Built on GitHub Pages<br><a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Privacy Policy</a> · <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Terms of Service</a><br><span style="font-size:0.7rem;color:var(--text-faint);margin-top:6px;display:inline-block;">© 2026 603BTC LLC · Bitcoin Education Archive™</span><br><a href="https://603btc.com" target="_blank" rel="noopener noreferrer" style="font-size:0.75rem;color:var(--text-faint);text-decoration:none;margin-top:6px;display:inline-block;">⚡ Powered by 603BTC</a></p>
+                <p class="home-footer" style="order:9999;">Open source · Free forever · Built on GitHub Pages<br><a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Privacy Policy</a> · <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Terms of Service</a> · <a href="#privacy-choices" style="color:var(--text-faint);font-size:0.75rem;">Your Privacy Choices</a><br><span style="font-size:0.7rem;color:var(--text-faint);margin-top:6px;display:inline-block;">© 2026 603BTC LLC · Bitcoin Education Archive™</span><br><a href="https://603btc.com" target="_blank" rel="noopener noreferrer" style="font-size:0.75rem;color:var(--text-faint);text-decoration:none;margin-top:6px;display:inline-block;">⚡ Powered by 603BTC</a></p>
                 </div>
                 <script>
                 (function () {
@@ -2441,7 +2446,7 @@
     <script src="/popup-stack.js?v=20261119_v2681" defer></script>
 
     <script src="/kill-switch.js?v=20261111_v2551" defer></script>
-    <script src="/ranking.js?v=20261119_v2683" defer></script>    <!-- Critical: needed for initial page render -->
+    <script src="/ranking.js?v=20261126_v2705" defer></script>    <!-- Critical: needed for initial page render -->
     <script src="/bundle.min.js?v=20261119_v2682b" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
@@ -2461,7 +2466,7 @@
     <script src="/patches.js?v=20261026_v2385" defer></script>
     <script src="/onboarding.js?v=20261119_v2683" defer></script>
     <script src="/learning-quests.js?v=20261026_v2377" defer></script>
-    <script src="/ads.js?v=20261125_v2695" defer></script>
+    <script src="/ads.js?v=20261126_v2705" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
     <script src="/beats-censor.js?v=20261022_v2322"></script>

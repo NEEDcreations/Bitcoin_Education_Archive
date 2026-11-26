@@ -9760,6 +9760,12 @@ const sayHiFns = bindSayHi(functionsV1, admin, db);
 exports.armSayHi = sayHiFns.armSayHi;
 exports.claimSayHi = sayHiFns.claimSayHi;
 
+// Privacy choices opt-out. Admin SDK write so firestore.rules stay unchanged.
+// Deploy is separate; the client already stores the choice in localStorage.
+const { bindPrivacyShareOptOut } = require('./src/privacyShareOptOut');
+const privacyShareFns = bindPrivacyShareOptOut(functionsV1, { admin: admin, db: db, HttpsError: functionsV1.https.HttpsError });
+exports.setPrivacyShareOptOut = privacyShareFns.setPrivacyShareOptOut;
+
 // Hidden reply bonus. App Check is required, same as claimSats. The handler
 // grants XP only inside a transaction after it reads the chat message.
 const { bindReplyBonus } = require('./src/replyBonus');
