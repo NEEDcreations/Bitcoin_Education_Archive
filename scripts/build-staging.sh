@@ -7,6 +7,13 @@ cat > "$CFG" <<'JSON'
 JSON
 rm -rf "$OUT"; mkdir -p $OUT
 tar -C "$SRC" --exclude=./out --exclude='./.?*' --exclude='*/.?*' --exclude=functions --exclude=workers --exclude=scripts --exclude=tests --exclude=docs --exclude=node_modules --exclude='*.sh' --exclude='*.md' --exclude='*.py' --exclude='*.rules' --exclude='*.bak*' --exclude=firebase.json --exclude='firebase.*.json' --exclude=firestore.indexes.json --exclude=CNAME -cf - . | tar -C $OUT -xf -
+
+# Hidden-file excludes drop dot-directories. Re-copy Digital Asset Links so a
+# staging TWA origin can serve /.well-known/assetlinks.json.
+if [ -d "$SRC/.well-known" ]; then
+  rm -rf "$OUT/.well-known"
+  cp -a "$SRC/.well-known" "$OUT/.well-known"
+fi
 python3 - "$CFG" "$OUT" <<'PY'
 import json,sys,os,re
 c=json.load(open(sys.argv[1])); out=sys.argv[2]

@@ -47,7 +47,9 @@
         "timechain-tv-new.js",
         "dead_links_report.json",
         "dead_images_report.json",
-        "newsletter-data.json"
+        "newsletter-data.json",
+        "!.well-known",
+        "!.well-known/**"
       ],
       "headers": [
         {
@@ -162,6 +164,19 @@
             {
               "key": "Cache-Control",
               "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
+          "source": "/.well-known/assetlinks.json",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=300"
             }
           ]
         }
@@ -215,7 +230,9 @@
         "timechain-tv-new.js",
         "dead_links_report.json",
         "dead_images_report.json",
-        "newsletter-data.json"
+        "newsletter-data.json",
+        "!.well-known",
+        "!.well-known/**"
       ],
       "headers": [
         {
@@ -330,6 +347,19 @@
             {
               "key": "Cache-Control",
               "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
+          "source": "/.well-known/assetlinks.json",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=300"
             }
           ]
         }
