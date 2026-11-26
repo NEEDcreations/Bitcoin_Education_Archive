@@ -84,14 +84,23 @@ function httpsRedirectTarget(requestUrl) {
     return 'https://' + url.host + url.pathname + url.search;
 }
 
+function validatedClient(search) {
+    const raw = String(search || '');
+    const q = raw.startsWith('?') ? raw.slice(1) : raw;
+    const client = new URLSearchParams(q).get('client');
+    return client === 'android-twa' ? 'android-twa' : '';
+}
+
 function spaRedirectTarget(page, search) {
     const ref = validatedReferralRef(search);
     const src = validatedSrc(search);
     const card = validatedCardId(search);
+    const client = validatedClient(search);
     const parts = [];
     if (ref) parts.push('ref=' + ref);
     if (src) parts.push('src=' + encodeURIComponent(src));
     if (card) parts.push('card=' + card);
+    if (client) parts.push('client=' + encodeURIComponent(client));
     const query = parts.length ? ('?' + parts.join('&')) : '';
     return PRIMARY_ORIGIN + '/' + query + '#' + page;
 }
@@ -685,6 +694,32 @@ export default {
                     'CDN-Cache-Control': 'no-store',
                 });
             }
+        }
+
+        // Digital Asset Links for the Android TWA. Never wrap a miss in the HTML 404 shell,
+        // and never leave a trailing-slash redirect on the canonical path.
+        if (path === '/.well-known/assetlinks.json' || path === '/.well-known/assetlinks.json/') {
+            if (path.endsWith('/')) {
+                return Response.redirect(origin + '/.well-known/assetlinks.json', 301);
+            }
+            const resp = await fetchOrigin(request, url);
+            if (resp.status === 200) {
+                const body = await resp.text();
+                try { JSON.parse(body); } catch (e) {
+                    return new Response(JSON.stringify({ error: 'invalid assetlinks' }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+                    });
+                }
+                const headers = new Headers(resp.headers);
+                headers.set('Content-Type', 'application/json');
+                headers.set('Cache-Control', 'public, max-age=300');
+                return new Response(body, { status: 200, statusText: resp.statusText, headers });
+            }
+            return new Response(JSON.stringify({ error: 'not found' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+            });
         }
 
         // Pass-through: fetch from Cloudflare Pages, inject security headers + nonce into HTML

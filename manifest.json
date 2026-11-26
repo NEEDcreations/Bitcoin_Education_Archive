@@ -1,14 +1,17 @@
 {
-  "name": "Bitcoin Education Archive",
-  "short_name": "BTC Archive",
-  "description": "A curated library of 146 Bitcoin topics with quests and rewards.",
+  "name": "Bitcoin Quest",
+  "short_name": "Bitcoin Quest",
+  "description": "A free, gamified app for learning Bitcoin. Read topics, complete quests, and earn promotional sats as you go.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0f0f1c",
   "theme_color": "#f7931a",
   "orientation": "any",
-  "categories": ["education", "finance"],
+  "categories": [
+    "education",
+    "finance"
+  ],
   "icons": [
     {
       "src": "icons/icon-72x72.png",
