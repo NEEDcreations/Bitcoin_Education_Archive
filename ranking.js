@@ -416,11 +416,13 @@ var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
     adminFreezeFavorEpoch: 1,
+    adminGetSitewideCaps: 1,
     adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
     adminResolveFavorReview: 1,
     adminSetFavorClaims: 1,
     adminSetKillSwitch: 1,
+    adminSetSitewideCaps: 1,
     answerTrivia: 1,
     armSayHi: 1,
     chooseFaction: 1,
@@ -14110,6 +14112,9 @@ window.submitSatsClaim = async function() {
             setTimeout(function() { showSettingsPage('sats'); }, 500);
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
+            if (typeof isSitewideCapError === 'function' && isSitewideCapError(null, result.data)) {
+                if (typeof showSitewideCapCard === 'function') showSitewideCapCard();
+            }
             if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
             if (result.data && (result.data.code === 'address_unresolved' || String(errMsg).indexOf('Could not resolve Lightning Address') !== -1)) {
                 try { sessionStorage.setItem('btc_ln_needs_reset', '1'); } catch (flagErr) {}
@@ -14123,6 +14128,9 @@ window.submitSatsClaim = async function() {
     } catch(e) {
         console.error('Sats claim error:', e);
         var errMsg = e.message || 'Claim failed - try again';
+        if (typeof isSitewideCapError === 'function' && isSitewideCapError(e)) {
+            if (typeof showSitewideCapCard === 'function') showSitewideCapCard();
+        }
         if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
         window._satsClaimInProgress = false;
         btn.disabled = false;

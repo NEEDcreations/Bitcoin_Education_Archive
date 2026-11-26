@@ -372,8 +372,8 @@ test('old claims and signups outside 48h stay out of the report', function() {
 
 test('claimSats enforces App Check, drops invoices, and bans before network lookups', function() {
     const src = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
-    // claimSats, the four PvP callables, plus later App Check pins in index.js (now 13, including adminSetKillSwitch and the four topic discussion callables).
-    assert.strictEqual((src.match(/enforceAppCheck:\s*true/g) || []).length, 13);
+    // claimSats, the four PvP callables, plus later App Check pins in index.js (now 15, including adminSetKillSwitch, adminGetSitewideCaps, adminSetSitewideCaps, and the four topic discussion callables).
+    assert.strictEqual((src.match(/enforceAppCheck:\s*true/g) || []).length, 15);
     ['pvpSubmitAnswer', 'pvpTimeoutOpponent', 'pvpStoreAnswerKey', 'pvpCreateMatch'].forEach(function (name) {
         const at = src.indexOf('exports.' + name);
         assert.ok(at > 0, name);

@@ -88,6 +88,7 @@ const TESTS = [
     { name: 'Telegram Shoutout Mirror', file: 'test-telegram-bridge.js' },
     { name: 'Chat Telegram mirror', file: 'test-chat-telegram-mirror.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
+    { name: 'Sitewide daily caps', file: 'test-sitewide-caps.js' },
     { name: 'Failed claim cooldown', file: 'test-failed-claim-cooldown.js' },
     { name: 'Cipher sats failed claim', file: 'test-cipher-sats-failed-claim.js' },
     { name: 'New-account claim requirements', file: 'test-claim-reqs.js' },

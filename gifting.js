@@ -2013,8 +2013,9 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
     _playUnlockSound();
     var anim = _playHex(hexEl, 1200);
     var result, err;
+    var capErr = null;
     try { result = await _callCF('decryptCipher', { cipherId: cipherId, keyId: key.id }); }
-    catch (e) { err = e.message || 'Could not open the cipher'; }
+    catch (e) { capErr = e; err = e.message || 'Could not open the cipher'; }
     await anim;
 
     // Clean up local state first, so stale cards and Open buttons go away
@@ -2038,6 +2039,12 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
     if (statusEl) statusEl.textContent = '';
     if (hexEl) hexEl.style.display = 'none';
     if (err) {
+        if (typeof isSitewideCapError === 'function' && isSitewideCapError(capErr || { message: err })) {
+            _dismissGiftingChild(overlay);
+            if (typeof showSitewideCapCard === 'function') showSitewideCapCard();
+            if (refreshPromise) await refreshPromise;
+            return;
+        }
         if (resultDiv) {
             resultDiv.style.display = 'block';
             resultDiv.innerHTML = '<div style="color:#ef4444;font-weight:700;margin-bottom:12px;">❌ ' + _esc(err) + '</div>';

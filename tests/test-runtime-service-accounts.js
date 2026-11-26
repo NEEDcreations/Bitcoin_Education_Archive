@@ -24,10 +24,10 @@ const names = Object.keys(endpoints);
 const secretBound = names.filter(function (n) { return endpoints[n].secrets.length > 0; }).sort();
 const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
 
-test('manifest lists exactly the secret-bound exports (59)', function () {
+test('manifest lists exactly the secret-bound exports (61)', function () {
     assert.deepStrictEqual(manifest, secretBound);
-    assert.strictEqual(manifest.length, 59);
-    assert.strictEqual(secretBound.length, 59);
+    assert.strictEqual(manifest.length, 61);
+    assert.strictEqual(secretBound.length, 61);
 });
 
 const HOLDOVER = ['regenerateRecoveryCodes', 'totpCheck', 'totpSetup', 'totpStepUp'];
@@ -107,12 +107,16 @@ test('functions without secrets do not set a service account', function () {
 test('account ids are valid, unique, and fit the project quota', function () {
     const ids = manifest.map(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].id; });
     // adminSetKillSwitch and killSwitchAutoReturnTick intentionally share one account,
-    // and claimFavorBlock reuses claimCipherWin's (same NWC + HMAC grants, no new IAM).
+    // adminGetSitewideCaps and adminSetSitewideCaps reuse adminLookupUser's
+    // (fn-admin-lookup-user; no new IAM), and claimFavorBlock reuses
+    // claimCipherWin's (same NWC + HMAC grants, no new IAM).
     const unique = Array.from(new Set(ids));
     assert.strictEqual(ids.filter(function (id) { return id === 'fn-admin-kill-switch'; }).length, 2);
+    const shareLookup = manifest.filter(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].id === 'fn-admin-lookup-user'; }).sort();
+    assert.deepStrictEqual(shareLookup, ['adminGetSitewideCaps', 'adminLookupUser', 'adminSetSitewideCaps']);
     const shareCipher = manifest.filter(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].id === 'fn-claim-cipher-win'; }).sort();
     assert.ok(shareCipher.length === 1 || (shareCipher.length === 2 && shareCipher.join() === 'claimCipherWin,claimFavorBlock'), shareCipher.join());
-    assert.strictEqual(unique.length, ids.length - 1 - (shareCipher.length - 1));
+    assert.strictEqual(unique.length, ids.length - 1 - (shareLookup.length - 1) - (shareCipher.length - 1));
     unique.forEach(function (id) {
         assert.ok(/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(id), id);
         assert.ok(id.indexOf('fn-') === 0, id);

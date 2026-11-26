@@ -50,6 +50,7 @@ const {
     adminClaimFlag,
 } = require('./cipherClaim');
 const { planShoutout, applyShoutoutCap, shoutoutDocId } = require('./shoutout');
+const sitewideCaps = require('./sitewideCaps');
 const { publishShoutoutOnce } = require('./shoutoutPublish');
 const { mirrorShoutoutOnce } = require('./telegramBridge');
 
@@ -762,15 +763,21 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
 
     let applied = null;
     let cipherPointsBefore = 0;
+    let sitewideAlert = null;
 
     await db.runTransaction(async (t) => {
         const cipherDay = getOffsetDateKey();
+        const etDay = sitewideCaps.etDayKey(Date.now());
         const dailyRef = userRef.collection('daily_points').doc(cipherDay);
+        const capsSettingsRef = sitewideCaps.settingsRef(db);
+        const capsDailyRef = sitewideCaps.dailyRef(db, etDay);
         const cipherDoc = await t.get(cipherRef);
         const keyDoc = await t.get(keyRef);
         const userDoc = await t.get(userRef);
         const ledgerDoc = await t.get(ledgerRef);
         const dailyDoc = await t.get(dailyRef);
+        const capsSettingsDoc = await t.get(capsSettingsRef);
+        const capsDailyDoc = await t.get(capsDailyRef);
         let openerCreditRef = null;
         let openerCreditSnap = null;
         const openerCreditId = satsMode === 'balance' ? creditDocId(cipherId, 'opener') : '';
@@ -805,6 +812,19 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         const decToday = decDate === today ? (user.ciphersDecryptedToday || 0) : 0;
         if (decToday >= CIPHER_OPENS_PER_DAY) {
             throw httpsError('resource-exhausted', 'Daily cipher limit reached (21 per day). Come back tomorrow!');
+        }
+        const capSettings = sitewideCaps.settingsFromDoc(capsSettingsDoc.exists ? capsSettingsDoc.data() : null);
+        const capDay = sitewideCaps.dayFromSnap(capsDailyDoc);
+        const unlockPlan = sitewideCaps.planUnlock(capDay.unlocks, capSettings.unlockCap);
+        if (!unlockPlan.ok) {
+            throw new functionsV1.https.HttpsError('resource-exhausted', sitewideCaps.CAP_HIT_MESSAGE, {
+                code: sitewideCaps.CAP_CARD.code,
+                title: sitewideCaps.CAP_CARD.title,
+                body: sitewideCaps.CAP_CARD.body,
+                secondary: sitewideCaps.CAP_CARD.secondary,
+                button: sitewideCaps.CAP_CARD.button,
+                capCard: true,
+            });
         }
 
         const userUpdate = {
@@ -1022,6 +1042,8 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         t.update(cipherRef, { status: 'opened', openedAt: now, openedBy: uid });
         t.update(keyRef, { status: 'consumed', consumedAt: now });
         t.update(userRef, userUpdate);
+        t.set(capsDailyRef, { unlocks: unlockPlan.usedAfter, day: etDay }, { merge: true });
+        sitewideAlert = sitewideCaps.unlockAlert(unlockPlan, etDay);
 
         cipherPointsBefore = user.points || 0;
         applied = {
@@ -1041,6 +1063,13 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             } : null,
         };
     });
+
+    if (sitewideAlert) {
+        try {
+            const payoutAlerts = require('./payoutAlerts');
+            await payoutAlerts.emit({ db: db, admin: admin }, sitewideAlert);
+        } catch (e) { console.warn('[decryptCipher] sitewide cap alert', e.message); }
+    }
 
     if (applied && applied.keySentBy && applied.keySentBy !== uid) {
         try {
