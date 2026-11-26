@@ -51,28 +51,49 @@
         window._directLinkPreload = true;
     }
 })();
-// One-time cache nuke for the SW strategy change (April 2026)
+// One-time cache nuke for the SW strategy change (April 2026).
+// Only purges a client that really has stale caches or an old SW registration.
+// A brand-new profile just gets the flags set, with no reload, so an early
+// Sign up tap is never wiped. The purge reload waits while signup, Terms or
+// onboarding chrome is open.
 (function(){
     var _href = location.href;
-    if (!sessionStorage.getItem('_cnuke')) {
-        var v = localStorage.getItem('btc_build');
-        if (v !== '20260405e') {
-            sessionStorage.setItem('_cnuke', '1');
-            localStorage.setItem('btc_build', '20260405e');
-            if ('caches' in window) {
-                caches.keys().then(function(k) {
-                    return Promise.all(k.map(function(n){ return caches.delete(n); }));
-                });
+    var BUILD = '20260405e';
+    try {
+        if (sessionStorage.getItem('_cnuke')) return;
+        if (localStorage.getItem('btc_build') === BUILD) return;
+        sessionStorage.setItem('_cnuke', '1');
+        localStorage.setItem('btc_build', BUILD);
+    } catch (e) { return; }
+    var pKeys = ('caches' in window) ? caches.keys().catch(function(){ return []; }) : Promise.resolve([]);
+    var pRegs = (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) ? navigator.serviceWorker.getRegistrations().catch(function(){ return []; }) : Promise.resolve([]);
+    function chromeOpen() {
+        try {
+            var ids = ['usernameModal', 'tosModal', 'mfaSignInOverlay', 'totpSignInOverlay'];
+            for (var i = 0; i < ids.length; i++) {
+                var el = document.getElementById(ids[i]);
+                if (el && el.classList && el.classList.contains('open')) return true;
             }
-            if (navigator.serviceWorker) {
-                navigator.serviceWorker.getRegistrations().then(function(r) {
-                    r.forEach(function(reg){ reg.unregister(); });
-                });
-            }
-            setTimeout(function(){ if (location.href !== _href) history.replaceState(null, '', _href); location.reload(); }, 500);
-            return;
-        }
+            if (document.getElementById('btcIntroOverlay') || document.getElementById('ageConfirmOverlay') || document.getElementById('nachoQuestOverlay')) return true;
+        } catch (e) {}
+        return false;
     }
+    function reloadWhenIdle() {
+        if (!chromeOpen()) { if (location.href !== _href) history.replaceState(null, '', _href); location.reload(); return; }
+        var t = setInterval(function () {
+            if (chromeOpen()) return;
+            clearInterval(t);
+            if (location.href !== _href) history.replaceState(null, '', _href);
+            location.reload();
+        }, 500);
+    }
+    Promise.all([pKeys, pRegs]).then(function (res) {
+        var keys = res[0] || [], regs = res[1] || [];
+        if (!keys.length && !regs.length) return; // fresh profile: nothing stale, no reload
+        var jobs = keys.map(function (n) { return caches.delete(n).catch(function(){}); });
+        regs.forEach(function (reg) { jobs.push(reg.unregister().catch(function(){})); });
+        Promise.all(jobs).then(function () { setTimeout(reloadWhenIdle, 300); });
+    });
 })();
 </script>
     <script>
@@ -97,7 +118,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
 
-    <link rel="preload" href="/bundle.min.js?v=20261126_v2715" as="script">
+    <link rel="preload" href="/bundle.min.js?v=20261126_v2716" as="script">
 
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image" referrerpolicy="no-referrer">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
@@ -164,6 +185,7 @@
             --display-font: 'Outfit', 'Segoe UI', system-ui, sans-serif;
             --home-hero-min: 220px;
             --home-guest-actions-min: 108px;
+            --home-mode-bar-h: 56px; /* #bqHomeModeBar 44px + 12px gap; Nacho bubble clears Start Here */
             --today-card-min: 360px;
         }
         @media (min-width: 901px) {
@@ -2521,14 +2543,14 @@
     <script src="/username-repick.js?v=20261104_v2476" defer></script>
     <script src="/earn-xp-guide.js?v=20261026_v2382" defer></script>
     <script src="/referral-tiers.js?v=20261105_v2499" defer></script>
-    <script src="/popup-stack.js?v=20261125_v2691" defer></script>
+    <script src="/popup-stack.js?v=20261126_v2716" defer></script>
     <script src="/sitewide-cap-card.js?v=20261125_v2691" defer></script>
-    <script src="/age-confirm.js?v=20261126_v2714" defer></script>
+    <script src="/age-confirm.js?v=20261126_v2716" defer></script>
 
     <script src="/kill-switch.js?v=20261126_v2696" defer></script>
     <script src="/survey.js?v=20261126_v2696" defer></script>
     <script src="/ranking.js?v=20261126_v2714" defer></script>    <!-- Critical: needed for initial page render -->
-    <script src="/bundle.min.js?v=20261126_v2715" defer fetchpriority="high"></script>
+    <script src="/bundle.min.js?v=20261126_v2716" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="/features.registry.js?v=20261119_v2681" defer></script>
@@ -2549,7 +2571,7 @@
     <script src="/miniapp-share.js?v=20261107_v2526" defer></script>
     <script src="/pvp-lobby-alert.js?v=20261118_v2605" defer></script>
     <script src="/patches.js?v=20261126_v2714" defer></script>
-    <script src="/onboarding.js?v=20261119_v2683" defer></script>
+    <script src="/onboarding.js?v=20261126_v2716" defer></script>
     <script src="/learning-quests.js?v=20261026_v2377" defer></script>
     <script src="/ads.js?v=20261126_v2714" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->

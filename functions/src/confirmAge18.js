@@ -24,6 +24,14 @@ function isAnonymous(context) {
     return firebaseToken.sign_in_provider === 'anonymous';
 }
 
+// Username sign-ups are Firebase anonymous accounts (RLDA-57). They may answer
+// the age check once setUsername has reserved a username on the profile
+// (username is server-only in firestore.rules). A bare anonymous guest with no
+// username is still refused.
+function hasUsername(user) {
+    return !!(user && typeof user.username === 'string' && user.username.trim().length > 0);
+}
+
 function alreadyConfirmed(user) {
     const u = user || {};
     return u.over18 === true || u.ageConfirmed18 === true;
@@ -105,9 +113,6 @@ function createConfirmAge18Handlers(deps) {
         if (!context || !context.auth || !context.auth.uid) {
             throw new HttpsError('unauthenticated', 'Must be signed in.');
         }
-        if (isAnonymous(context)) {
-            throw new HttpsError('permission-denied', 'Account required.');
-        }
         return context.auth.uid;
     }
 
@@ -145,10 +150,11 @@ function createConfirmAge18Handlers(deps) {
 
     async function confirmAge18(data, context) {
         const uid = requireSignedIn(context);
+        const anon = isAnonymous(context);
         const userRef = db.collection('users').doc(uid);
         const atMs = nowFn();
         const now = stamp();
-        const outcome = { already: false, missing: false, kids: false, blocked: false, under18: false, throttled: false };
+        const outcome = { noAccount: false, already: false, missing: false, kids: false, blocked: false, under18: false, throttled: false };
 
         await db.runTransaction(async function (t) {
             const snap = await t.get(userRef);
@@ -166,6 +172,10 @@ function createConfirmAge18Handlers(deps) {
             }
 
             const user = snap.data() || {};
+            if (anon && !hasUsername(user)) {
+                outcome.noAccount = true;
+                return;
+            }
             if (isBlocked(user) || alreadyUnder18(user)) {
                 outcome.blocked = isBlocked(user);
                 outcome.under18 = alreadyUnder18(user);
@@ -203,6 +213,9 @@ function createConfirmAge18Handlers(deps) {
             t.set(throttleRef(uid), throttleFields(uid, atMs, now), { merge: true });
         });
 
+        if (outcome.noAccount) {
+            throw new HttpsError('permission-denied', 'Account required.');
+        }
         if (outcome.throttled) {
             throw new HttpsError('resource-exhausted', 'Please try again in a moment.');
         }
@@ -223,11 +236,12 @@ function createConfirmAge18Handlers(deps) {
 
     async function confirmAgeUnder18(data, context) {
         const uid = requireSignedIn(context);
+        const anon = isAnonymous(context);
         const userRef = db.collection('users').doc(uid);
         const atMs = nowFn();
         const now = stamp();
         const acknowledged = !!(data && data.guardianOk === true);
-        const outcome = { already: false, missing: false, kids: false, blocked: false, confirmed: false, throttled: false, needGuardian: false };
+        const outcome = { noAccount: false, already: false, missing: false, kids: false, blocked: false, confirmed: false, throttled: false, needGuardian: false };
 
         await db.runTransaction(async function (t) {
             const snap = await t.get(userRef);
@@ -245,6 +259,10 @@ function createConfirmAge18Handlers(deps) {
             }
 
             const user = snap.data() || {};
+            if (anon && !hasUsername(user)) {
+                outcome.noAccount = true;
+                return;
+            }
             if (isBlocked(user)) {
                 outcome.blocked = true;
                 return;
@@ -284,6 +302,9 @@ function createConfirmAge18Handlers(deps) {
             t.set(throttleRef(uid), throttleFields(uid, atMs, now), { merge: true });
         });
 
+        if (outcome.noAccount) {
+            throw new HttpsError('permission-denied', 'Account required.');
+        }
         if (outcome.throttled) {
             throw new HttpsError('resource-exhausted', 'Please try again in a moment.');
         }

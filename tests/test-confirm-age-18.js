@@ -1216,6 +1216,65 @@ test('every throttle write sets expireAt to lastAt plus one day', async function
     assert.strictEqual(kids.docs['age_confirm_throttle/kid1'], undefined);
 });
 
+// RLDA-57: username sign-ups are Firebase anonymous accounts.
+test('anonymous account with a username can confirm 18+', async function () {
+    const world = createWorld({ 'users/anon1': { points: 10, username: 'sat_fan' } });
+    const out = await world.handlers.confirmAge18({}, auth('anon1', 'anonymous'));
+    assert.strictEqual(out.success, true);
+    assert.strictEqual(world.docs['users/anon1'].over18, true);
+    assert.strictEqual(world.docs['users/anon1'].ageConfirmed18, true);
+});
+
+test('anonymous account with a username can save under 18 with guardian OK', async function () {
+    const world = createWorld({ 'users/anon2': { points: 10, username: 'young_one' } });
+    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('anon2', 'anonymous')); }, function (err) {
+        return err.code === 'failed-precondition';
+    });
+    const out = await world.handlers.confirmAgeUnder18({ guardianOk: true }, auth('anon2', 'anonymous'));
+    assert.strictEqual(out.success, true);
+    assert.strictEqual(world.docs['users/anon2'].ageUnder18, true);
+    assert.strictEqual(world.docs['users/anon2'].guardianOk, true);
+});
+
+test('anonymous account with a blank username is still refused', async function () {
+    const world = createWorld({ 'users/anon3': { points: 10, username: '   ' } });
+    await assert.rejects(function () { return world.handlers.confirmAge18({}, auth('anon3', 'anonymous')); }, function (err) {
+        return err.code === 'permission-denied';
+    });
+    assert.strictEqual(world.docs['users/anon3'].over18, undefined);
+});
+
+function anonClient(docData) {
+    return bootClient({
+        firebase: {
+            auth: function () { return { currentUser: { uid: 'a1', isAnonymous: true }, onAuthStateChanged: function (cb) { cb({ uid: 'a1', isAnonymous: true }); } }; },
+            firestore: function () {
+                return { collection: function () { return { doc: function () {
+                    return { get: function () { return Promise.resolve({ exists: !!docData, data: function () { return docData; } }); } };
+                } }; } };
+            }
+        }
+    });
+}
+
+test('client: anonymous username sign-up sees the age prompt', async function () {
+    const env = anonClient({ points: 1, username: 'sat_fan' });
+    await new Promise(function (r) { setTimeout(r, 20); });
+    assert.ok(env.document.getElementById('ageConfirmOverlay'), 'age prompt shown for an anonymous username account');
+    assert.strictEqual(typeof env.bqAgeConfirmRecheck, 'function');
+});
+
+test('client: bare anonymous guest (no username) does not see the age prompt', async function () {
+    const env = anonClient({ points: 1 });
+    await new Promise(function (r) { setTimeout(r, 20); });
+    assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+});
+
+test('popup-stack onSignedIn asks age-confirm to recheck and holds the age step', function () {
+    const src = fs.readFileSync(path.join(root, 'popup-stack.js'), 'utf8');
+    assert.ok(/bqAgeConfirmRecheck\(\) === true && state\.age !== 'done' && state\.age !== 'showing'\) state\.age = 'pending'/.test(src));
+});
+
 Promise.all(queue).then(function () {
     console.log(passed + ' passed' + (failed ? ', ' + failed + ' failed' : ''));
     process.exit(failed ? 1 : 0);

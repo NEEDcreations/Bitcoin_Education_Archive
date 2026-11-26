@@ -200,6 +200,7 @@ const TESTS = [
     { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },
     { name: 'Popup queue', file: 'test-popup-queue.js' },
     { name: '18+ age confirmation', file: 'test-confirm-age-18.js' },
+    { name: 'Cache nuke skips fresh profiles', file: 'test-cache-nuke-1126.js' },
     { name: 'Kids account flags', file: 'test-kids-account.js' },
     { name: 'Guest onboarding', file: 'test-onboarding-guest-1120.js' },
     { name: 'New-user fixes (Week 1)', file: 'test-onboarding-w1-1125.js' },

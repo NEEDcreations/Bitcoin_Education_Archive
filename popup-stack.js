@@ -324,6 +324,13 @@
         order: ORDER.slice(),
         onSignedIn: function () {
             signedIn = true;
+            // Username sign-ups are anonymous accounts: ask age-confirm to
+            // re-read the new profile and hold the age step until it decides.
+            if (typeof root.bqAgeConfirmRecheck === 'function') {
+                try {
+                    if (root.bqAgeConfirmRecheck() === true && state.age !== 'done' && state.age !== 'showing') state.age = 'pending';
+                } catch (eAge) {}
+            }
             armWait();
             if (typeof root.btcBeginSignedInOnboarding === 'function') {
                 try { root.btcBeginSignedInOnboarding(); } catch (e) {}

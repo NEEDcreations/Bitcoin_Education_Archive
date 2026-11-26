@@ -532,7 +532,15 @@
         else showModal();
     }
 
-    function loadUserDoc(uid, tries) {
+    // Username sign-ups are Firebase anonymous accounts with a server-set
+    // username (RLDA-57). They get the age check too. A bare anonymous
+    // guest (no username yet) is skipped until sign-up finishes; popup-stack
+    // calls bqAgeConfirmRecheck from onSignedIn at that point.
+    function hasUsername(user) {
+        return !!(user && typeof user.username === 'string' && user.username.trim().length > 0);
+    }
+
+    function loadUserDoc(uid, tries, anon) {
         tries = tries || 0;
         try {
             if (!root.firebase || !root.firebase.firestore) {
@@ -541,17 +549,22 @@
             }
             root.firebase.firestore().collection('users').doc(uid).get().then(function (snap) {
                 if (snap && snap.exists) {
-                    consider(snap.data() || {}, true);
+                    var data = snap.data() || {};
+                    if (anon && !hasUsername(data)) {
+                        consider(null, false);
+                        return;
+                    }
+                    consider(data, true);
                     return;
                 }
                 if (tries < 8) {
-                    root.setTimeout(function () { loadUserDoc(uid, tries + 1); }, 400);
+                    root.setTimeout(function () { loadUserDoc(uid, tries + 1, anon); }, 400);
                     return;
                 }
                 consider(null, false);
             }).catch(function () {
                 if (tries < 8) {
-                    root.setTimeout(function () { loadUserDoc(uid, tries + 1); }, 400);
+                    root.setTimeout(function () { loadUserDoc(uid, tries + 1, anon); }, 400);
                     return;
                 }
                 consider(null, false);
@@ -562,14 +575,34 @@
     }
 
     function onAuthUser(user) {
-        if (!user || user.isAnonymous) {
+        if (!user) {
             setHelper(false);
             clearDismissed();
             closeOverlay();
             finishQueue('skip');
             return;
         }
-        loadUserDoc(user.uid, 0);
+        loadUserDoc(user.uid, 0, !!user.isAnonymous);
+    }
+
+    // Called by popup-stack's onSignedIn (username sign-up just finished).
+    // Returns true when it will decide the age step asynchronously, so the
+    // queue can hold the step as pending instead of running past it.
+    function recheck() {
+        try {
+            if (!root.firebase || typeof root.firebase.auth !== 'function') return false;
+            var u = root.firebase.auth().currentUser;
+            if (!u || !u.isAnonymous) return false;
+            var q = queue();
+            if (q && typeof q.stateOf === 'function') {
+                var st = q.stateOf('age');
+                if (st === 'done' || st === 'showing') return false;
+            }
+            loadUserDoc(u.uid, 0, true);
+            return true;
+        } catch (e) {
+            return false;
+        }
     }
 
     function bindAuth() {
@@ -600,6 +633,7 @@
     root.bqAgeConfirmed18FromUser = isConfirmed;
     root.bqAgeUnder18FromUser = isUnder18;
     root.showAgeConfirmPrompt = showModal;
+    root.bqAgeConfirmRecheck = recheck;
     root._bqDismissAgeConfirm = dismiss;
 
     if (root.document && (root.document.readyState === 'complete' || root.document.readyState === 'interactive')) {

@@ -5732,8 +5732,8 @@ function createNacho() {
                 max-width: none !important;
                 width: auto !important;
                 min-width: 0 !important;
-                /* Sit below the reserved hero + Sign up / Start Here stack so the card cannot cover the CTA. */
-                max-height: calc(100dvh - var(--above-fab, calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + var(--fab-gap, 12px))) - var(--bq-mobile-bar-h, calc(110px + env(safe-area-inset-top, 0px))) - 30px - var(--home-hero-min, 220px) - var(--home-guest-actions-min, 108px) - 16px);
+                /* Sit below the reserved hero + Experience bar + Sign up / Start Here stack so the card cannot cover either CTA. */
+                max-height: calc(100dvh - var(--above-fab, calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + var(--fab-gap, 12px))) - var(--bq-mobile-bar-h, calc(110px + env(safe-area-inset-top, 0px))) - 30px - var(--home-hero-min, 220px) - var(--home-guest-actions-min, 108px) - var(--home-mode-bar-h, 0px) - 16px);
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 font-size: 0.8rem;

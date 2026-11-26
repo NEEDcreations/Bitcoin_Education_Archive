@@ -183,7 +183,7 @@ test('service worker updates wait if signup or onboarding is open', function () 
     assert.ok(html.includes("getElementById('btcIntroOverlay')"));
     assert.ok(html404.includes('_reloadWhenIdle'));
     assert.ok(/const CACHE_NAME = 'btc-archive-v\d+'/.test(read('sw.js')));
-    assert.ok(html.includes('onboarding.js?v=20261119_v2683'));
+    assert.ok(html.includes('onboarding.js?v=20261126_v2716'));
     assert.ok(html.includes('ranking.js?v=20261126_v2714'));
 });
 
