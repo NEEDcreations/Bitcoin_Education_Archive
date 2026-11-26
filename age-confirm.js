@@ -135,6 +135,8 @@
         appCheck: 'Security check is still loading. Wait a moment and tap again.',
         appCheckFailed: 'Security check did not load. Refresh the page and try again.',
         offline: "Can't reach the server. Check your connection and try again.",
+        throttled: 'Too many tries. Wait a minute and try again.',
+        denied: "You don't have permission to do that. Refresh and sign in again.",
         generic: 'Could not save your answer. Please try again.'
     };
 
@@ -156,11 +158,11 @@
 
     function errorMessage(e) {
         if (root._btcRecaptchaFailed) return MSG.appCheckFailed;
-        if (isAppCheckError(e)) return MSG.appCheck;
         var code = codeOf(e);
+        if (code === 'resource-exhausted') return MSG.throttled;
+        if (code === 'permission-denied') return MSG.denied;
+        if (isAppCheckError(e)) return MSG.appCheck;
         if (code === 'unavailable' || code === 'deadline-exceeded') return MSG.offline;
-        // The server's own messages for these codes are written for people.
-        if ((code === 'resource-exhausted' || code === 'permission-denied') && e.message) return e.message;
         return MSG.generic;
     }
 

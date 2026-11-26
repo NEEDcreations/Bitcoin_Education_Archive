@@ -964,17 +964,23 @@ test('network, throttle, and unknown failures show specific messages, never Erro
     }
     const offline = fails('functions/unavailable', 'unavailable');
     const throttled = fails('functions/resource-exhausted', 'Please try again in a moment.');
+    const denied = fails('functions/permission-denied', 'This account cannot confirm adult age.');
     const unknown = fails('functions/internal', 'internal');
     const refused = ageClient({ invoke: function () { return Promise.resolve({ data: { success: false } }); } });
-    [offline, throttled, unknown, refused].forEach(function (c) { c.btn.click(); });
+    [offline, throttled, denied, unknown, refused].forEach(function (c) { c.btn.click(); });
     return settle().then(function () {
         assert.deepStrictEqual(offline.toasts, ["Can't reach the server. Check your connection and try again."]);
-        assert.deepStrictEqual(throttled.toasts, ['Please try again in a moment.']);
+        assert.deepStrictEqual(throttled.toasts, ['Too many tries. Wait a minute and try again.']);
+        assert.deepStrictEqual(denied.toasts, ["You don't have permission to do that. Refresh and sign in again."]);
         assert.deepStrictEqual(unknown.toasts, ['Could not save your answer. Please try again.']);
         assert.deepStrictEqual(refused.toasts, ['Could not save your answer. Please try again.']);
+        assert.ok(throttled.toasts.indexOf('Please try again in a moment.') === -1);
+        assert.ok(denied.toasts.indexOf('This account cannot confirm adult age.') === -1);
         assert.strictEqual(offline.invokes, 1, 'non App Check errors do not retry');
         const src = fs.readFileSync(path.join(root, 'age-confirm.js'), 'utf8');
         assert.strictEqual(src.indexOf('Error saving'), -1);
+        assert.strictEqual(src.indexOf('return e.message'), -1);
+        assert.ok(!/showToast\([^)]*\.message/.test(src));
     });
 });
 
