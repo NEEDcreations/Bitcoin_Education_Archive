@@ -45,8 +45,21 @@ PY
 grep -q 'projectId: "bitcoin-quest-staging"' $OUT/firebase-config.js
 ! grep -rlI 'AIzaSyDLwucmRxjoJp2KMBTi2ujf0mlVkgLHyKk\|1055248200518' $OUT
 # Staging-only App Check debug token. Read from the build env, never committed.
+# Hard guard: refuse to inject unless the built projectId is bitcoin-quest-staging
+# AND the Cloudflare Pages project is bq-staging. Fail loudly otherwise.
+# Baking into HTML is kept because these Pages deploys are static; a runtime
+# Pages Function would be a larger change. The token must still reach the
+# browser for App Check debug, so the guard is the safety rail.
 if [ -n "${STAGING_APPCHECK_DEBUG_TOKEN:-}" ]; then
-  grep -q 'projectId: "bitcoin-quest-staging"' $OUT/firebase-config.js
+  PAGES_PROJECT_NAME="${CLOUDFLARE_PAGES_PROJECT:-${PAGES_PROJECT:-}}"
+  if ! grep -q 'projectId: "bitcoin-quest-staging"' "$OUT/firebase-config.js"; then
+    echo 'REFUSING: STAGING_APPCHECK_DEBUG_TOKEN is set, but firebase-config projectId is not bitcoin-quest-staging' >&2
+    exit 1
+  fi
+  if [ "$PAGES_PROJECT_NAME" != "bq-staging" ]; then
+    echo "REFUSING: STAGING_APPCHECK_DEBUG_TOKEN is set, but CLOUDFLARE_PAGES_PROJECT/PAGES_PROJECT is '${PAGES_PROJECT_NAME:-unset}', not bq-staging" >&2
+    exit 1
+  fi
   python3 - "$OUT" <<'PY'
 import os,sys,json
 tok=os.environ['STAGING_APPCHECK_DEBUG_TOKEN']; tag='<script>self.FIREBASE_APPCHECK_DEBUG_TOKEN=%s;</script>'%json.dumps(tok)
