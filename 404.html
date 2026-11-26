@@ -226,6 +226,42 @@
         }
 
 
+        .tctv-chrome {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px 16px;
+            margin: 8px auto 0;
+            max-width: 1100px;
+            padding: 0 8px;
+            position: static;
+        }
+        .tctv-share-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border, rgba(247,147,26,.45));
+            background: var(--card-bg, rgba(17,12,4,.92));
+            color: var(--text, #ffcf6b);
+            font: 700 0.8rem/1 inherit;
+            cursor: pointer;
+        }
+        .tctv-share-btn .lucide-share-2 {
+            display: block;
+            flex: 0 0 auto;
+        }
+        .tctv-signup-line {
+            margin: 0;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-faint, #c9b896);
+            cursor: pointer;
+        }
+
+
+
         /* TCTV fixed UI elements high z-index Fix */
         #tctvNoise, #tctvOverlay { z-index: 100000 !important; }
         /* Fix guest sign-up banner visibility globally across all apps */
@@ -2016,7 +2052,7 @@
                         <div id="em-quick-actions" role="group" aria-label="Daily checklist">
                             <button type="button" id="todayTrifectaBtn" class="today-tile" aria-expanded="false" aria-controls="todayTrifectaChooser" aria-label="Daily Trifecta, 0 of 3 done. Opens Quiz, Trivia, and Poll." onclick="if(window.toggleTodayTrifecta)window.toggleTodayTrifecta()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span class="today-ring" aria-hidden="true"><svg viewBox="0 0 36 36"><circle class="today-ring-track" cx="18" cy="18" r="15"></circle><circle class="today-ring-val" cx="18" cy="18" r="15" stroke-dasharray="0 94.248"></circle></svg><span class="today-ring-icon">🎯</span></span><span>Daily Trifecta</span><span id="todayTrifectaCount">0/3</span></button>
                             <button id="nqSpinBtn" class="today-tile" type="button" onclick="if(typeof showSpinWheel==='function')showSpinWheel()" aria-label="Daily Spin" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin<span id="nqSpinSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
-                            <button id="tctvWatchBtn" class="today-tile" type="button" onclick="if(typeof startTctvDailyWatch==='function')startTctvDailyWatch()" aria-label="Watch 10 minutes of Timechain TV" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="tctvWatchEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">📺</span><span id="tctvWatchLabel">Watch TV</span><span id="tctvWatchSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">0/10 min</span></button>
+                            <button id="tctvWatchBtn" class="today-tile" type="button" hidden onclick="if(typeof startTctvDailyWatch==='function')startTctvDailyWatch()" aria-label="Watch 10 minutes of Bitcoin Quest Originals today to earn 100 XP and 1 OrangeTix. Only Bitcoin Quest Original videos count; other videos on Timechain TV are just for watching." style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="tctvWatchEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">📺</span><span id="tctvWatchLabel">Watch TV</span><span id="tctvWatchSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">0/10 min</span></button>
                             <button id="todayPredictBtn" class="today-tile" type="button" onclick="if(typeof showPricePrediction==='function')showPricePrediction()" aria-label="Predict Price" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
                             <button id="sayHiBtn" class="today-tile" type="button" onclick="if(typeof openSayHi==='function')openSayHi();else{window._pendingSayHi=true;if(window._loadDeferred)window._loadDeferred();}" aria-label="Say hi!" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="sayHiBtnEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">👋</span><span id="sayHiBtnLabel">Say hi!</span><span id="sayHiBtnSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">to the community</span></button>
                             <button id="todayFlexBtn" class="today-tile" type="button" onclick="if(window.openTodayQuest)window.openTodayQuest('flex')" aria-label="Flex, 0 of 5" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🏆</span><span id="todayFlexLabel">Flex</span><span id="todayFlexSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">0/5</span></button>
@@ -2459,8 +2495,11 @@
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="/features.registry.js?v=20261119_v2681" defer></script>
     <script src="/favorites.js?v=20261105_v2501" defer></script>
-    <script src="/tctv-watch.js?v=20261125_v2691" defer></script>
-    <script src="/tctv-drip.js?v=20261125_v2691" defer></script>
+    <script src="/tctv-originals.js?v=20261125_v2692" defer></script>
+    <script src="/tctv-originals-player.js?v=20261125_v2692" defer></script>
+    <script src="/tctv-chrome.js?v=20261125_v2692" defer></script>
+    <script src="/tctv-watch.js?v=20261125_v2692" defer></script>
+    <script src="/tctv-drip.js?v=20261125_v2692" defer></script>
 
     <script src="/today-card.js?v=20261109_v2538" defer></script>
     <script src="/achievement-share.js?v=20261109_v2536" defer></script>

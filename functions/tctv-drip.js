@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const logic = require('./src/tctvDripLogic');
 const tctvPresence = require('./tctv-presence-lib');
 const { offsetDateKey } = require('./src/offsetDay');
+const originals = require('./src/tctvOriginals');
 
 const db = admin.firestore();
 const POT_REF = () => db.collection('tctv_drip_pot').doc('current');
@@ -36,6 +37,11 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
     const body = data || {};
     if (!logic.validDeviceId(body.deviceId)) throw HttpsError('invalid-argument', 'Bad request');
     const deviceKey = crypto.createHash('sha256').update(String(body.deviceId)).digest('hex').slice(0, 32);
+    const videoId = typeof body.videoId === 'string' ? body.videoId.slice(0, 80) : '';
+    const rate = Number(body.playbackRate);
+    const originalOk = originals.taskEnabled() && originals.isOriginal(videoId)
+        && body.muted !== true && body.paused !== true
+        && Number.isFinite(rate) && rate > 0 && rate <= 1;
     const playing = body.playing === true && body.visible === true;
     const promptAnswer = typeof body.promptToken === 'string' ? body.promptToken.slice(0, 64) : '';
 
@@ -75,7 +81,7 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
         const pres = prSnap.exists ? prSnap.data() : null;
         const dev = dSnap.exists ? (dSnap.data() || {}) : {};
         const plan = logic.planCheckin(prev, {
-            uid, nowMs, cfg, playing, promptAnswer,
+            uid, nowMs, cfg, playing, promptAnswer, originalOk,
             presenceFresh: !!pres && tctvPresence.isFreshPresence(pres, nowMs) && tctvPresence.isTctvStation(pres.station),
             deviceOwner: dev.uid || '', deviceLastMs: dev.lastMs || 0,
             newToken: crypto.randomBytes(12).toString('hex'),

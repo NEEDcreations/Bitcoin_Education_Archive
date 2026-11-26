@@ -3,8 +3,11 @@
 // Heartbeat for the daily Timechain TV watch reward.
 // This is not a second viewer-count heartbeat. Live presence stays on
 // tctv_presence, folded by tctvAggregatePresence. This callable only
-// runs while the page says the YouTube player is PLAYING, and it credits
-// time only when that uid's presence doc is still fresh on a real station.
+// runs while the page reports eligible Bitcoin Quest Originals playback
+// (Cloudflare Stream, foreground, unmuted, 1x), and it credits time only
+// when that uid's presence doc is still fresh on a real station.
+// YouTube watch time is ignored. Elapsed time, day, and prize amounts
+// from the client are never read.
 
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('./src/firebaseAdmin.js');
@@ -14,6 +17,8 @@ const rewardNotify = require('./src/rewardNotify');
 const ticketGrants = require('./src/ticketGrants');
 const { rewardBlocked } = require('./src/cipherClaim');
 const claimReqs = require('./src/claimReqs');
+const originals = require('./src/tctvOriginals');
+const { nyDateKey } = require('./src/offsetDay');
 
 const db = admin.firestore();
 
@@ -40,17 +45,26 @@ const tctvWatchHeartbeat = functionsV1.runWith({
         throw new functionsV1.https.HttpsError('permission-denied', 'Sign in required');
     }
 
-    // The body is ignored. Elapsed time, day, and prize amounts from the
-    // client are never read.
+    // Playback flags are read and validated. Elapsed time, day, and prize
+    // amounts from the client are never read.
     const uid = context.auth.uid;
     const nowMs = Date.now();
-    const today = watch.offsetDateKey(nowMs);
+    const body = data && typeof data === 'object' ? data : {};
+    const videoId = typeof body.videoId === 'string' ? body.videoId.slice(0, 80) : '';
+    const taskOn = originals.taskEnabled();
+    const originalOk = taskOn && originals.isOriginal(videoId);
+    const visible = body.visible === true;
+    const muted = body.muted === true;
+    const paused = body.paused === true;
+    const playbackRate = Number(body.playbackRate);
+    const today = nyDateKey(nowMs);
+    const xpDay = watch.offsetDateKey(nowMs);
     const watchRef = db.collection('tctv_watch').doc(uid);
     const userRef = db.collection('users').doc(uid);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const presenceRef = db.collection('tctv_presence').doc(uid);
     const rateRef = db.collection('rate_limits').doc('tctvwatch_' + uid);
-    const dailyRef = userRef.collection('daily_points').doc(today);
+    const dailyRef = userRef.collection('daily_points').doc(xpDay);
     const claimRef = userRef.collection('award_claims').doc(ticketGrants.claimId('tctv_watch_ticket', today));
 
     const watchResult = await db.runTransaction(async (tx) => {
@@ -94,6 +108,12 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             toastSeen: stored.toastSeen === true,
             banned: banned,
             presenceFresh: freshOk && stationOk,
+            taskEnabled: taskOn,
+            originalOk: originalOk,
+            visible: visible,
+            muted: muted,
+            paused: paused,
+            playbackRate: playbackRate,
         }, nowMs);
 
         // Lifetime watch seconds for the 5-tier badges. Server clock only;
@@ -104,6 +124,12 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             lifeLastMs: watch.creditMillis(stored.lifeLastMs),
             banned: banned,
             presenceFresh: freshOk && stationOk,
+            taskEnabled: taskOn,
+            originalOk: originalOk,
+            visible: visible,
+            muted: muted,
+            paused: paused,
+            playbackRate: playbackRate,
         }, nowMs);
         const lifeBefore = Math.max(0, Math.floor(Number(user.tctvLifetimeSeconds) || 0));
         if (life.write && life.state) {

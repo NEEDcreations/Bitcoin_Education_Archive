@@ -11,10 +11,34 @@
         try { var u = firebase.auth().currentUser; return u && !u.isAnonymous ? u : null; } catch (e) { return null; }
     }
     function onTv() { return window._tctvActive === true && !!document.querySelector('.tctv-video-wrap'); }
-    function playing() {
-        var p = window._tctvYtPlayer;
-        if (!p || typeof p.getPlayerState !== 'function') return false;
-        try { return p.getPlayerState() === ((window.YT && window.YT.PlayerState) ? window.YT.PlayerState.PLAYING : 1); } catch (e) { return false; }
+    function originalsPlaying() {
+        var api = window._tctvOriginals;
+        if (!api || typeof api.taskEnabled !== 'function' || !api.taskEnabled()) return false;
+        if (document.visibilityState !== 'visible') return false;
+        var source = window._tctvCurrentSource || (window._tctvStreamPlayer ? 'stream' : '');
+        if (source !== 'stream') return false;
+        var videoId = typeof window._tctvCurrentVideoId === 'string' ? window._tctvCurrentVideoId : '';
+        if (!api.isOriginal(videoId)) return false;
+        var player = window._tctvStreamPlayer;
+        if (!player) return false;
+        try {
+            if (player.paused === true) return false;
+            if (player.muted === true || player.volume === 0) return false;
+            var rate = Number(player.playbackRate);
+            if (!isFinite(rate) || rate <= 0 || rate > 1) return false;
+        } catch (e) { return false; }
+        return true;
+    }
+    function playing() { return originalsPlaying(); }
+    function dripFlags() {
+        var player = window._tctvStreamPlayer || {};
+        var rate = Number(player.playbackRate);
+        return {
+            videoId: typeof window._tctvCurrentVideoId === 'string' ? window._tctvCurrentVideoId : '',
+            muted: player.muted === true || player.volume === 0,
+            paused: player.paused === true,
+            playbackRate: isFinite(rate) ? rate : 0
+        };
     }
     function deviceId() {
         var k = 'tctvDripDevice', id = '';
@@ -542,8 +566,11 @@
                     missing.code = 'app-check';
                     throw missing;
                 }
+                var flags = dripFlags();
                 return firebase.functions().httpsCallable('tctvDripCheckin')({
                     deviceId: deviceId(), visible: vis, playing: play,
+                    videoId: flags.videoId, muted: flags.muted, paused: flags.paused,
+                    playbackRate: flags.playbackRate,
                     promptToken: answer ? promptToken : ''
                 });
             }).then(function (res) {

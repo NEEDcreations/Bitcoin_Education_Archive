@@ -51,15 +51,29 @@ test('exempt only when Auth creation is strictly before the start', () => {
 });
 
 test('a new account is missing each stamp until the server writes it', () => {
-    assert.deepStrictEqual(claimReqs.missingItems({}, START), ['chat', 'tctv']);
-    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START } }, START), ['tctv']);
+    const originals = require('../functions/src/tctvOriginals');
+    // The Originals library is thin today, so the TCTV step is not required.
+    assert.strictEqual(originals.taskEnabled(), false);
+    assert.deepStrictEqual(claimReqs.missingItems({}, START), ['chat']);
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START } }, START), []);
     assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { tctvAt: { seconds: 10 } } }, START), ['chat']);
     const done = { claimReq: { chatAt: 1, tctvAt: 1 } };
     assert.deepStrictEqual(claimReqs.missingItems(done, START), []);
-    assert.deepStrictEqual(claimReqs.missingItems({ created: START - 1 }, START), ['chat', 'tctv']);
+    assert.deepStrictEqual(claimReqs.missingItems({ created: START - 1 }, START), ['chat']);
     // No referral step: a stale referralAt stamp is irrelevant.
-    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { referralAt: 1 } }, START), ['chat', 'tctv']);
+    assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { referralAt: 1 } }, START), ['chat']);
     assert.ok(!('referral' in claimReqs.ITEM_LABEL));
+    originals.ORIGINALS.push({ id: 'tmp-test', title: 'tmp', durationSeconds: 600, rights: 'BQ' });
+    try {
+        assert.strictEqual(originals.taskEnabled(), true);
+        assert.deepStrictEqual(claimReqs.missingItems({}, START), ['chat', 'tctv']);
+        assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { chatAt: START } }, START), ['tctv']);
+        assert.deepStrictEqual(claimReqs.missingItems({ created: START - 1 }, START), ['chat', 'tctv']);
+        assert.deepStrictEqual(claimReqs.missingItems({ claimReq: { referralAt: 1 } }, START), ['chat', 'tctv']);
+    } finally {
+        originals.ORIGINALS.pop();
+        assert.strictEqual(originals.taskEnabled(), false);
+    }
 });
 
 test('the claim error names only the missing items', () => {
@@ -68,10 +82,10 @@ test('the claim error names only the missing items', () => {
     assert.ok(!chatOnly.includes('Timechain'));
     assert.ok(!chatOnly.includes('referral'));
     const tvOnly = claimReqs.missingError(['tctv']);
-    assert.ok(tvOnly.includes('watch Timechain TV for 60 seconds'));
+    assert.ok(tvOnly.includes('watch Bitcoin Quest Originals for 60 seconds'));
     assert.ok(!tvOnly.includes('chat message'));
     const all = claimReqs.missingError(['chat', 'tctv']);
-    assert.ok(all.indexOf('send 1 chat message') < all.indexOf('watch Timechain'));
+    assert.ok(all.indexOf('send 1 chat message') < all.indexOf('watch Bitcoin Quest Originals'));
     assert.ok(!all.includes('referral'));
     assert.ok(all.indexOf('Finish these before claiming:') === 0);
 });

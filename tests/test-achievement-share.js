@@ -400,7 +400,7 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(!notes.includes('Latest: ' + SHARE_NOTE));
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2691'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2692'"));
     assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2455'"));
     assert.ok(!read('sw.js').includes('btc-archive-v2438'));
     assert.ok(!read('sw.js').includes('btc-archive-v2437'));

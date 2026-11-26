@@ -31,10 +31,11 @@ assert.strictEqual(Math.ceil(5000 / Math.min(1000, 1 * 1440)), 5);
 let d = { sats: 0 }; for (let i = 0; i < 1440; i++) d = Object.assign({}, d, L.planAccrual(d, 50, L.readConfig({}), 'd1'));
 assert.strictEqual(d.dayAccrued, 1000); assert.strictEqual(d.sats, 1000);
 // check-ins
-const ctx = (o) => Object.assign({ uid: 'u', nowMs: 1e9, cfg, playing: true, presenceFresh: true, newToken: 't', rand: 0.5 }, o);
+const ctx = (o) => Object.assign({ uid: 'u', nowMs: 1e9, cfg, playing: true, originalOk: true, presenceFresh: true, newToken: 't', rand: 0.5 }, o);
 let c = L.planCheckin({}, ctx()); assert.strictEqual(c.credit, 60);
 c = L.planCheckin({ lastCheckMs: 1e9 - 10000 }, ctx()); assert.ok(c.reject);
 c = L.planCheckin({}, ctx({ playing: false })); assert.strictEqual(c.credit, 0);
+c = L.planCheckin({}, ctx({ originalOk: false })); assert.strictEqual(c.credit, 0); assert.strictEqual(c.reason, 'not-original');
 c = L.planCheckin({}, ctx({ deviceOwner: 'x', deviceLastMs: 1e9 - 1000 })); assert.ok(c.reject);
 c = L.planCheckin({ seconds: cfg.perAccountLimitSeconds, promptDueMs: 2e9 }, ctx()); assert.strictEqual(c.reason, 'limit');
 c = L.planCheckin({ promptDueMs: 1 }, ctx()); assert.ok(c.prompt); assert.strictEqual(c.credit, 0);

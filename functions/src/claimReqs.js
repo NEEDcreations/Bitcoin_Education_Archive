@@ -15,6 +15,7 @@
 
 const { classifyChatText } = require('./chatProfanity');
 const tctvWatch = require('./tctvWatch');
+const originals = require('./tctvOriginals');
 const {
     meaningfulLength,
     extractSayHiText,
@@ -37,7 +38,7 @@ const CHAT_MSG_CAP = 5;
 
 const ITEM_LABEL = {
     chat: 'send 1 chat message',
-    tctv: 'watch Timechain TV for ' + MIN_TCTV_SECONDS + ' seconds',
+    tctv: 'watch Bitcoin Quest Originals for ' + MIN_TCTV_SECONDS + ' seconds',
 };
 
 const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/;
@@ -80,7 +81,8 @@ function missingItems(user, createdMs) {
     const req = claimReqOf(user);
     const missing = [];
     if (!stampMillis(req.chatAt)) missing.push('chat');
-    if (!stampMillis(req.tctvAt)) missing.push('tctv');
+    // Hidden while the Originals library is too thin; do not block claims.
+    if (originals.taskEnabled() && !stampMillis(req.tctvAt)) missing.push('tctv');
     return missing;
 }
 

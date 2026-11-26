@@ -1,6 +1,8 @@
-// Daily challenge: watch 10 minutes of Timechain TV.
-// The button opens Timechain TV. While the YouTube player reports PLAYING,
-// the tab is visible, and a signed-in user is on TV, this sends
+// Daily challenge: watch 10 minutes of Bitcoin Quest Originals.
+// The button opens Timechain TV. Only Cloudflare Stream Originals count.
+// YouTube embeds stay playable and never credit the timer, bar, streak,
+// badge, or pot. While eligible Originals playback is in the foreground,
+// unmuted, at 1x, and a signed-in user is on TV, this sends
 // tctvWatchHeartbeat about every 60 seconds. The first heartbeat while the
 // server clock is not running is sent immediately so the clock can start.
 // Viewer counts stay on the existing tctv_presence heartbeat inside
@@ -19,7 +21,8 @@
     var PENDING_CAP_SECONDS = 60;
     var GOAL_SECONDS = 600;
     var KICK_GAP_MS = 20000;
-    var TOAST_TEXT = '📺 +100 XP and +1 🎟️ orange ticket for watching Timechain TV!';
+    var TOAST_TEXT = '📺 +100 XP and +1 🎟️ orange ticket for watching Bitcoin Quest Originals!';
+    var TASK_CARD = 'Watch 10 minutes of Bitcoin Quest Originals today to earn 100 XP and 1 OrangeTix. Only Bitcoin Quest Original videos count; other videos on Timechain TV are just for watching.';
     var timer = null;
     var inflight = false;
     var lifeCapped = false;
@@ -62,30 +65,97 @@
         }
     }
 
-    function todayKey() {
+    function etDayKey(ms) {
         try {
-            if (typeof window.getDailyKey === 'function') return window.getDailyKey();
+            var when = new Date(typeof ms === 'number' ? ms : Date.now());
+            var parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).formatToParts(when);
+            var get = function (type) {
+                for (var i = 0; i < parts.length; i++) {
+                    if (parts[i].type === type) return parts[i].value;
+                }
+                return '';
+            };
+            var y = get('year');
+            var m = get('month');
+            var d = get('day');
+            if (y && m && d) return y + '-' + m + '-' + d;
         } catch (e) {}
-        return new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        return '';
     }
 
-    function playerState() {
-        var player = window._tctvYtPlayer;
-        if (!player || typeof player.getPlayerState !== 'function') return null;
-        try { return player.getPlayerState(); } catch (e) { return null; }
+    function todayKey() {
+        return etDayKey(Date.now());
+    }
+
+    function taskEnabled() {
+        var api = window._tctvOriginals;
+        return !!(api && typeof api.taskEnabled === 'function' && api.taskEnabled());
+    }
+
+    function playbackFlags() {
+        var visible = typeof document !== 'undefined' && document.visibilityState === 'visible';
+        var source = window._tctvCurrentSource || '';
+        if (!source) {
+            if (window._tctvStreamPlayer) source = 'stream';
+            else if (window._tctvYtPlayer) source = 'youtube';
+        }
+        var videoId = typeof window._tctvCurrentVideoId === 'string' ? window._tctvCurrentVideoId : '';
+        var api = window._tctvOriginals;
+        var originalOk = !!(api && typeof api.isOriginal === 'function' && source === 'stream' && api.isOriginal(videoId));
+        var paused = true;
+        var muted = true;
+        var rate = 0;
+        var playing = false;
+        var player = window._tctvStreamPlayer;
+        if (player && source === 'stream') {
+            try {
+                if (typeof player.paused === 'boolean') paused = player.paused;
+                else if (typeof player.isPaused === 'function') paused = !!player.isPaused();
+                else paused = window._tctvStreamPaused === true;
+            } catch (e) { paused = true; }
+            try {
+                if (typeof player.muted === 'boolean') muted = player.muted;
+                else if (typeof player.volume === 'number') muted = player.volume === 0;
+                else muted = window._tctvStreamMuted === true;
+            } catch (e) { muted = true; }
+            try {
+                rate = Number(player.playbackRate != null ? player.playbackRate : window._tctvStreamRate);
+            } catch (e) { rate = 0; }
+            if (!isFinite(rate) || rate <= 0) rate = 0;
+            playing = !paused;
+        }
+        return {
+            source: source,
+            videoId: videoId,
+            originalOk: originalOk,
+            visible: visible,
+            muted: muted,
+            paused: paused,
+            playbackRate: rate,
+            playing: playing
+        };
+    }
+
+    function isEligiblePlayback() {
+        if (!taskEnabled()) return false;
+        if (!onTv() || !watchUser()) return false;
+        var f = playbackFlags();
+        if (!f.originalOk || !f.visible || f.muted || f.paused || !f.playing) return false;
+        if (!(f.playbackRate > 0) || f.playbackRate > 1) return false;
+        return true;
     }
 
     function isPlaying() {
-        var state = playerState();
-        if (state == null) return false;
-        var playing = (window.YT && window.YT.PlayerState) ? window.YT.PlayerState.PLAYING : 1;
-        return state === playing;
+        return isEligiblePlayback();
     }
 
     function isBuffering() {
-        var state = playerState();
-        var buffering = (window.YT && window.YT.PlayerState) ? window.YT.PlayerState.BUFFERING : 3;
-        return state === buffering;
+        return false;
     }
 
     function onTv() {
@@ -100,8 +170,7 @@
 
     function canCount() {
         if (window._tctvWatchDoneToday) return false;
-        if (document.visibilityState !== 'visible') return false;
-        if (!onTv() || !isPlaying() || !watchUser()) return false;
+        if (!isEligiblePlayback()) return false;
         return clockFresh(Date.now());
     }
 
@@ -170,14 +239,26 @@
         if (emoji) emoji.textContent = '📺';
         if (label) label.textContent = 'Watch TV';
         if (sub) sub.textContent = subText;
-        if (btn) btn.setAttribute('aria-label', done ? 'Watch Timechain TV, completed' : ('Watch TV, ' + subText));
+        if (btn) {
+            if (!taskEnabled()) {
+                btn.hidden = true;
+                btn.setAttribute('hidden', '');
+                btn.setAttribute('data-em-hidden', 'tctv-originals');
+            } else {
+                btn.hidden = false;
+                btn.removeAttribute('hidden');
+                btn.removeAttribute('data-em-hidden');
+                btn.setAttribute('aria-label', done ? 'Watch Bitcoin Quest Originals, completed' : TASK_CARD);
+                btn.setAttribute('title', TASK_CARD);
+            }
+        }
         placeChip(seconds, done, subText);
     }
 
     function placeChip(seconds, done, subText) {
         var host = document.getElementById('tctv-video-container');
         var existing = document.getElementById('tctvWatchChip');
-        if (!host || !onTv() || !watchUser()) {
+        if (!host || !onTv() || !watchUser() || !taskEnabled()) {
             if (existing) existing.remove();
             return;
         }
@@ -301,8 +382,7 @@
 
     function sendHeartbeat() {
         if (inflight || heartbeatsDone()) return;
-        if (document.visibilityState !== 'visible') return;
-        if (!onTv() || !isPlaying() || !watchUser()) return;
+        if (!isEligiblePlayback()) return;
         if (typeof firebase === 'undefined' || !firebase.functions) return;
         inflight = true;
         try {
@@ -319,7 +399,14 @@
                     fail(missing);
                     return;
                 }
-                return firebase.functions().httpsCallable('tctvWatchHeartbeat')({}).then(function (res) {
+                var flags = playbackFlags();
+                return firebase.functions().httpsCallable('tctvWatchHeartbeat')({
+                    videoId: flags.videoId,
+                    visible: flags.visible,
+                    muted: flags.muted,
+                    paused: flags.paused,
+                    playbackRate: flags.playbackRate
+                }).then(function (res) {
                     clearAppCheckNote();
                     applyResult(res);
                 }, fail);
@@ -362,10 +449,10 @@
             render();
             return;
         }
-        if (isPlaying()) {
+        if (isEligiblePlayback()) {
             arm();
             maybeKick();
-        } else if (!isBuffering()) {
+        } else {
             disarm();
         }
         render();
@@ -406,12 +493,13 @@
     }
 
     function nudgePlay() {
+        if (!taskEnabled()) return;
         var tries = 0;
         var nudge = setInterval(function () {
             tries += 1;
-            var player = window._tctvYtPlayer;
-            if (player && typeof player.playVideo === 'function') {
-                try { player.playVideo(); } catch (e) {}
+            var player = window._tctvStreamPlayer;
+            if (player && typeof player.play === 'function') {
+                try { player.play(); } catch (e) {}
                 clearInterval(nudge);
                 return;
             }
@@ -421,8 +509,8 @@
 
     function startTctvDailyWatch() {
         window._tctvWatchAutostart = true;
-        if (!watchUser() && typeof window.showToast === 'function') {
-            window.showToast('Sign in to earn XP and orange tickets for watching.');
+        if (taskEnabled() && !watchUser() && typeof window.showToast === 'function') {
+            window.showToast('Sign in to earn XP and orange tickets for watching Bitcoin Quest Originals.');
         }
         if (typeof window.go === 'function') window.go('timechain-tv');
         else if (typeof location !== 'undefined') location.hash = '#timechain-tv';

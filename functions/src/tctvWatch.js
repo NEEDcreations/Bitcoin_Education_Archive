@@ -13,7 +13,7 @@
 
 const rewardNotify = require('./rewardNotify');
 const { planXpGrant } = require('./grantXp');
-const { offsetDateKey } = require('./offsetDay');
+const { offsetDateKey, nyDateKey } = require('./offsetDay');
 const ticketGrants = require('./ticketGrants');
 const tctvPresence = require('../tctv-presence-lib');
 
@@ -27,7 +27,7 @@ const REWARD_XP = 100;
 const REWARD_TICKETS = ticketGrants.get('tctv_watch_ticket').tickets;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_MAX = 4;
-const TOAST_TEXT = '📺 +100 XP and +1 🎟️ orange ticket for watching Timechain TV!';
+const TOAST_TEXT = '📺 +100 XP and +1 🎟️ orange ticket for watching Bitcoin Quest Originals!';
 
 function creditMillis(value) {
     if (value == null) return null;
@@ -58,7 +58,7 @@ function noticeMessage(xp, tickets) {
     const t = tickets == null ? REWARD_TICKETS : tickets;
     if (xp === REWARD_XP && t === REWARD_TICKETS) return TOAST_TEXT;
     const ticketBit = t === 1 ? '+1 🎟️ orange ticket' : ('+' + t + ' 🎟️ orange tickets');
-    return '📺 +' + xp + ' XP and ' + ticketBit + ' for watching Timechain TV!';
+    return '📺 +' + xp + ' XP and ' + ticketBit + ' for watching Bitcoin Quest Originals!';
 }
 
 // Same id the reward-notice writer uses: one doc per uid per offset day.
@@ -122,6 +122,22 @@ function planWatchXp(dailyUsed, pendingOverflow, lastOverflowDate, today, ctx) {
     };
 }
 
+
+// Client flags are untrusted. The callable must set these from a server
+// allowlist (originalOk / taskEnabled) plus the request body. Missing or
+// YouTube playback never starts the clock and never credits.
+function playbackReject(src) {
+    const row = src || {};
+    if (row.taskEnabled !== true) return 'disabled';
+    if (row.originalOk !== true) return 'not-original';
+    if (row.visible !== true) return 'hidden';
+    if (row.paused === true) return 'paused';
+    if (row.muted === true) return 'muted';
+    const rate = Number(row.playbackRate);
+    if (!Number.isFinite(rate) || rate <= 0 || rate > 1) return 'too-fast-rate';
+    return '';
+}
+
 // A presence doc counts only when its server timestamp is fresh and the
 // station is one Timechain TV actually airs.
 function presenceIsWatching(presence, nowMs) {
@@ -154,7 +170,7 @@ function applyWatchHeartbeat(prev, nowMs) {
         return { ok: false, reason: 'bad-clock', write: false, notice: null, creditSeconds: 0, view: emptyView('') };
     }
     const src = prev || {};
-    const day = offsetDateKey(now);
+    const day = nyDateKey(now);
     const toastSeen = src.toastSeen === true;
     const storedDay = typeof src.day === 'string' ? src.day : '';
     let seconds = storedDay === day ? clampSeconds(src.seconds) : 0;
@@ -186,6 +202,18 @@ function applyWatchHeartbeat(prev, nowMs) {
             notice: null,
             creditSeconds: 0,
             view: emptyView(day),
+        };
+    }
+
+    const rejected = playbackReject(src);
+    if (rejected) {
+        return {
+            ok: true,
+            reason: rejected,
+            write: false,
+            notice: null,
+            creditSeconds: 0,
+            view: viewAt(seconds),
         };
     }
 
@@ -303,6 +331,8 @@ function applyLifetimeCredit(prev, nowMs) {
     const src = prev || {};
     if (!Number.isFinite(now)) return { write: false, credit: 0, capped: false, reason: 'bad-clock' };
     if (src.banned === true) return { write: false, credit: 0, capped: true, reason: 'banned' };
+    const rejected = playbackReject(src);
+    if (rejected) return { write: false, credit: 0, capped: false, reason: rejected };
     const day = offsetDateKey(now);
     let daySeconds = src.lifeDay === day ? Math.max(0, Math.floor(Number(src.lifeDaySeconds) || 0)) : 0;
     if (daySeconds > LIFE_DAY_CAP_SECONDS) daySeconds = LIFE_DAY_CAP_SECONDS;
@@ -360,6 +390,8 @@ module.exports = {
     RATE_MAX: RATE_MAX,
     TOAST_TEXT: TOAST_TEXT,
     offsetDateKey: offsetDateKey,
+    nyDateKey: nyDateKey,
+    playbackReject: playbackReject,
     creditMillis: creditMillis,
     watchNoticeId: watchNoticeId,
     buildWatchNotice: buildWatchNotice,
