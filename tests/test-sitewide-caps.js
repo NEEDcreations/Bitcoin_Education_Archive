@@ -167,40 +167,232 @@ function tenUnknownClaimsBlockTheEleventh() {
     assert.strictEqual(blocked.error, caps.CAP_CARD.body);
 }
 
-function stalePendingReservesReleaseTheSlotOnly() {
+function sweptPendingThenSettledKeepsOccupancyAndOtherReservations() {
     const staleMs = caps.RESERVE_STALE_MS;
     const now = Date.parse('2026-11-25T18:00:00.000Z');
+    const sixteenAgo = now - (16 * 60 * 1000);
     assert.strictEqual(staleMs, 15 * 60 * 1000);
     assert.strictEqual(caps.planStaleReserveSweep({ status: 'pending', tsMs: now - staleMs + 1000, id: 'fresh' }, now, staleMs).release, false);
-    const stale = caps.planStaleReserveSweep({ status: 'pending', tsMs: now - staleMs - 1, etDay: '2026-11-25', id: 'stale' }, now, staleMs);
-    assert.strictEqual(stale.release, true);
-    assert.strictEqual(caps.planStaleReserveSweep({ status: 'used', tsMs: now - staleMs - 1, id: 'used' }, now, staleMs).release, false);
-    assert.strictEqual(caps.planStaleReserveSweep({ status: 'unknown', tsMs: now - staleMs - 1, id: 'held' }, now, staleMs).release, false);
-    assert.strictEqual(caps.planStaleReserveSweep({ status: 'pending', reservedReleased: true, tsMs: now - staleMs - 1, id: 'again' }, now, staleMs).release, false);
-    assert.strictEqual(caps.planStaleReserveSweep({ status: 'pending', tsMs: now - staleMs - 1, id: 'cipher_abc', winId: 'w1' }, now, staleMs).release, false);
-    // Ten stale pending reservations can be released, freeing claim 11.
-    // The sweep does not change paid or held and does not pay anyone.
+    assert.strictEqual(caps.planStaleReserveSweep({ status: 'pending', tsMs: sixteenAgo, etDay: '2026-11-25', id: 'stale' }, now, staleMs).release, true);
+    assert.strictEqual(caps.planStaleReserveSweep({ status: 'used', tsMs: sixteenAgo, id: 'used' }, now, staleMs).release, false);
+    assert.strictEqual(caps.planStaleReserveSweep({ status: 'unknown', tsMs: sixteenAgo, id: 'held' }, now, staleMs).release, false);
+    assert.strictEqual(caps.planStaleReserveSweep({ status: 'pending', reserveSwept: true, tsMs: sixteenAgo, id: 'again' }, now, staleMs).release, false);
+    assert.strictEqual(caps.planStaleReserveSweep({ status: 'pending', reservedReleased: true, tsMs: sixteenAgo, id: 'legacy' }, now, staleMs).release, false);
+    assert.strictEqual(caps.planStaleReserveSweep({ status: 'pending', tsMs: sixteenAgo, id: 'cipher_abc', winId: 'w1' }, now, staleMs).release, false);
+    assert.strictEqual(caps.planStaleReserveSweep({ status: 'pending', tsMs: sixteenAgo, id: 'noday' }, now, staleMs).reason, 'no-etDay');
+    const twoDays = now - (49 * 60 * 60 * 1000);
+    assert.strictEqual(caps.planStaleReserveSweep({ status: 'pending', tsMs: twoDays, etDay: '2026-11-23', id: 'old' }, now, staleMs).reason, 'too-old');
+
+    // Two in-flight reservations: A will go stale, B must stay reserved.
     let paid = 0;
-    let reserved = 10;
+    let reserved = 0;
     let held = 0;
-    for (let i = 0; i < 10; i++) {
-        const rel = caps.planFaucetRelease(paid, reserved);
-        paid = rel.paid;
-        reserved = rel.reserved;
+    let minOcc = Infinity;
+    function note(inFlightOrDone) {
+        const occ = paid + reserved + held;
+        if (occ < minOcc) minOcc = occ;
+        assert.ok(occ >= inFlightOrDone, 'occupancy ' + occ + ' dropped below ' + inFlightOrDone);
+        return occ;
     }
+    reserved = caps.planFaucetReserve(paid, reserved, held, 10).reserved;
+    note(1);
+    reserved = caps.planFaucetReserve(paid, reserved, held, 10).reserved;
+    assert.strictEqual(reserved, 2);
+    note(2);
+    minOcc = paid + reserved + held;
+
+    const moved = caps.planStaleReserveToHeld(paid, reserved, held);
+    paid = moved.paid;
+    reserved = moved.reserved;
+    held = moved.held;
     assert.strictEqual(paid, 0);
+    assert.strictEqual(reserved, 1, "the other claim's reservation must stay");
+    assert.strictEqual(held, 1);
+    assert.strictEqual(note(2), 2);
+
+    // A settles after the sweep: held-1, paid+1, reserved stays at B's slot.
+    const settled = caps.planSweptPaid(paid, reserved, held, 10);
+    paid = settled.paidAfter;
+    reserved = settled.reservedAfter;
+    held = settled.heldAfter;
+    assert.strictEqual(paid, 1);
+    assert.strictEqual(reserved, 1, "settling a swept claim must not eat the other reservation");
     assert.strictEqual(held, 0);
-    assert.strictEqual(reserved, 0);
-    assert.strictEqual(caps.planFaucetReserve(paid, reserved, held, 10).ok, true);
-    // A later fail or hold on an already-swept invoice must not take
-    // someone else's reservation.
-    assert.strictEqual(caps.planFaucetRelease(0, 1, { reservedAlreadyReleased: true }).reserved, 1);
-    const afterHold = caps.planFaucetHold(0, 1, 0, { reservedAlreadyReleased: true });
-    assert.strictEqual(afterHold.reserved, 1);
-    assert.strictEqual(afterHold.held, 1);
-    const afterPay = caps.planFaucetPaid(0, 1, 10, { reservedAlreadyReleased: true });
-    assert.strictEqual(afterPay.reservedAfter, 1);
-    assert.strictEqual(afterPay.paidAfter, 1);
+    assert.strictEqual(note(2), 2);
+    assert.strictEqual(minOcc, 2);
+
+    // Trip alert still fires when a swept payment reaches the cap.
+    const trip = caps.planSweptPaid(9, 1, 1, 10);
+    assert.strictEqual(trip.paidAfter, 10);
+    assert.strictEqual(trip.reservedAfter, 1);
+    assert.strictEqual(trip.heldAfter, 0);
+    assert.strictEqual(trip.tripped, true);
+    assert.strictEqual(caps.faucetAlert(trip, '2026-11-25').type, 'sitewide_faucet_cap_trip');
+
+    const failed = caps.planSweptFailed(0, 1, 1);
+    assert.strictEqual(failed.paid, 0);
+    assert.strictEqual(failed.reserved, 1);
+    assert.strictEqual(failed.held, 0);
+
+    const unk = caps.planSweptUnknown(0, 1, 1);
+    assert.strictEqual(unk.paid, 0);
+    assert.strictEqual(unk.reserved, 1);
+    assert.strictEqual(unk.held, 1);
+}
+
+function makeSweepDb(invoices, days) {
+    const rows = invoices.map(function (inv) { return Object.assign({}, inv); });
+    const dayState = JSON.parse(JSON.stringify(days || {}));
+    function tsOf(inv) { return inv.tsMs; }
+    return {
+        rows: rows,
+        dayState: dayState,
+        queries: 0,
+        collection: function (name) {
+            if (name === 'faucet_invoices') {
+                const q = function () {
+                    let status = null;
+                    let fromMs = -Infinity;
+                    let toMs = Infinity;
+                    let afterId = null;
+                    let limitN = 100;
+                    const api = {
+                        where: function (field, op, val) {
+                            const n = val instanceof Date ? val.getTime() : val;
+                            if (field === 'status' && op === '==') status = val;
+                            if (field === 'ts' && op === '>=') fromMs = n;
+                            if (field === 'ts' && op === '<=') toMs = n;
+                            return api;
+                        },
+                        orderBy: function () { return api; },
+                        limit: function (n) { limitN = n; return api; },
+                        startAfter: function (doc) { afterId = doc && doc.id; return api; },
+                        get: async function () {
+                            this && this;
+                            let list = rows.filter(function (inv) {
+                                if (status && inv.status !== status) return false;
+                                const ts = tsOf(inv);
+                                return ts >= fromMs && ts <= toMs;
+                            }).sort(function (a, b) {
+                                return tsOf(a) - tsOf(b) || String(a.id).localeCompare(String(b.id));
+                            });
+                            if (afterId) {
+                                const idx = list.findIndex(function (r) { return r.id === afterId; });
+                                list = idx >= 0 ? list.slice(idx + 1) : list;
+                            }
+                            list = list.slice(0, limitN);
+                            return {
+                                docs: list.map(function (r) {
+                                    return {
+                                        id: r.id,
+                                        ref: { id: r.id, path: 'faucet_invoices/' + r.id },
+                                        data: function () { return Object.assign({}, r); },
+                                    };
+                                }),
+                            };
+                        },
+                    };
+                    return api;
+                };
+                return {
+                    where: function () {
+                        const api = q();
+                        return api.where.apply(api, arguments);
+                    },
+                };
+            }
+            return {
+                doc: function (id) {
+                    return { id: id, path: name + '/' + id };
+                },
+            };
+        },
+        runTransaction: async function (fn) {
+            const t = {
+                get: async function (ref) {
+                    const path = String(ref.path || '');
+                    if (path.indexOf('faucet_invoices/') === 0) {
+                        const inv = rows.find(function (r) { return r.id === ref.id; });
+                        return { exists: !!inv, data: function () { return inv ? Object.assign({}, inv) : null; } };
+                    }
+                    const dayId = path.split('/')[1] || ref.id;
+                    const data = dayState[dayId] || { paid: 0, reserved: 0, held: 0, unlocks: 0 };
+                    return { exists: true, data: function () { return Object.assign({}, data); } };
+                },
+                set: function (ref, data) {
+                    const path = String(ref.path || '');
+                    if (path.indexOf('faucet_invoices/') === 0) {
+                        const inv = rows.find(function (r) { return r.id === ref.id; });
+                        if (inv) Object.assign(inv, data);
+                        return;
+                    }
+                    const id = (data && data.day) || path.split('/')[1] || ref.id;
+                    dayState[id] = Object.assign(dayState[id] || {}, data);
+                },
+            };
+            return fn(t);
+        },
+    };
+}
+
+async function sweepQueryPagesPastSweptAndCountsOnlyRealMoves() {
+    const now = Date.parse('2026-11-25T18:00:00.000Z');
+    const sixteenAgo = now - (16 * 60 * 1000);
+    const tenAgo = now - (10 * 60 * 1000);
+    const twoDays = now - (49 * 60 * 60 * 1000);
+    const invoices = [];
+    for (let i = 0; i < 100; i++) {
+        invoices.push({
+            id: 'swept-' + String(i).padStart(3, '0'),
+            status: 'pending',
+            tsMs: sixteenAgo - (100 - i) * 1000,
+            etDay: '2026-11-25',
+            reserveSwept: true,
+        });
+    }
+    invoices.push({ id: 'no-day', status: 'pending', tsMs: sixteenAgo + 1000, etDay: '' });
+    invoices.push({ id: 'fresh', status: 'pending', tsMs: tenAgo, etDay: '2026-11-25' });
+    invoices.push({ id: 'old', status: 'pending', tsMs: twoDays, etDay: '2026-11-23' });
+    invoices.push({ id: 'real', status: 'pending', tsMs: sixteenAgo + 2000, etDay: '2026-11-25' });
+    const db = makeSweepDb(invoices, { '2026-11-25': { paid: 0, reserved: 2, held: 0, unlocks: 0 } });
+    const result = await caps.sweepStaleFaucetReserves(db, now, {
+        limit: 100,
+        isOffline: async function () { return false; },
+    });
+    assert.deepStrictEqual(result.ids, ['real']);
+    assert.strictEqual(result.released, 1);
+    assert.strictEqual(db.dayState['2026-11-25'].reserved, 1);
+    assert.strictEqual(db.dayState['2026-11-25'].held, 1);
+    assert.strictEqual(db.dayState['2026-11-25'].paid, 0);
+    const real = db.rows.find(function (r) { return r.id === 'real'; });
+    assert.strictEqual(real.reserveSwept, true);
+    const noDay = db.rows.find(function (r) { return r.id === 'no-day'; });
+    assert.ok(!noDay.reserveSwept);
+}
+
+async function sweepSkipsWhenKillSwitchIsOn() {
+    const now = Date.parse('2026-11-25T18:00:00.000Z');
+    const db = makeSweepDb([{
+        id: 'real',
+        status: 'pending',
+        tsMs: now - (16 * 60 * 1000),
+        etDay: '2026-11-25',
+    }], { '2026-11-25': { paid: 0, reserved: 1, held: 0 } });
+    const originalWhere = db.collection.bind(db);
+    let queried = 0;
+    db.collection = function (name) {
+        if (name === 'faucet_invoices') queried += 1;
+        return originalWhere(name);
+    };
+    const result = await caps.sweepStaleFaucetReserves(db, now, {
+        isOffline: async function () { return true; },
+    });
+    assert.strictEqual(result.skipped, 'kill-switch');
+    assert.strictEqual(result.released, 0);
+    assert.deepStrictEqual(result.ids, []);
+    assert.strictEqual(queried, 0);
+    assert.strictEqual(db.dayState['2026-11-25'].reserved, 1);
+    assert.strictEqual(db.dayState['2026-11-25'].held, 0);
 }
 
 async function nonAdminCapCallablesWriteNothing() {
@@ -324,12 +516,14 @@ async function main() {
     heldClaimsNeedAdminAndStayOffNextDay();
     faucetCountsPaidOnly();
     tenUnknownClaimsBlockTheEleventh();
-    stalePendingReservesReleaseTheSlotOnly();
+    sweptPendingThenSettledKeepsOccupancyAndOtherReservations();
+    await sweepQueryPagesPastSweptAndCountsOnlyRealMoves();
+    await sweepSkipsWhenKillSwitchIsOn();
     settingsAreAdminLoggedAndRejectedWhenInvalid();
     capHitCopyIsOneConstant();
     alertsAtEightyAndTrip();
     await nonAdminCapCallablesWriteNothing();
-    console.log('test-sitewide-caps: 11 groups passed');
+    console.log('test-sitewide-caps: 13 groups passed');
 }
 
 main().catch(function (err) {

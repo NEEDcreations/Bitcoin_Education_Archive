@@ -2464,11 +2464,16 @@ async function _recordFaucetPaid(info) {
         if (status === 'unknown' || status === 'used') {
             return;
         }
-        paidPlan = sitewideCaps.planFaucetPaid(paid, reserved, capSettings.faucetCap, {
-            reservedAlreadyReleased: !!inv.reservedReleased,
-        });
-        paid = paidPlan.paidAfter;
-        reserved = paidPlan.reservedAfter;
+        if (sitewideCaps.isReserveSwept(inv)) {
+            paidPlan = sitewideCaps.planSweptPaid(paid, reserved, held, capSettings.faucetCap);
+            paid = paidPlan.paidAfter;
+            reserved = paidPlan.reservedAfter;
+            held = paidPlan.heldAfter;
+        } else {
+            paidPlan = sitewideCaps.planFaucetPaid(paid, reserved, capSettings.faucetCap);
+            paid = paidPlan.paidAfter;
+            reserved = paidPlan.reservedAfter;
+        }
         t.update(info.userRef, {
             _pendingClaim: admin.firestore.FieldValue.delete(),
             _pendingClaimAt: admin.firestore.FieldValue.delete(),
@@ -2522,9 +2527,9 @@ async function _holdFaucetUnknown(info) {
         const etDay = String(inv.etDay || info.etDay || sitewideCaps.etDayKey(Date.now()));
         const daySnap = await t.get(sitewideCaps.dailyRef(db, etDay));
         const capDay = sitewideCaps.dayFromSnap(daySnap);
-        const heldPlan = sitewideCaps.planFaucetHold(capDay.paid, capDay.reserved, capDay.held, {
-            reservedAlreadyReleased: !!inv.reservedReleased,
-        });
+        const heldPlan = sitewideCaps.isReserveSwept(inv)
+            ? sitewideCaps.planSweptUnknown(capDay.paid, capDay.reserved, capDay.held)
+            : sitewideCaps.planFaucetHold(capDay.paid, capDay.reserved, capDay.held);
         t.update(info.userRef, {
             _pendingClaim: admin.firestore.FieldValue.delete(),
             _pendingClaimAt: admin.firestore.FieldValue.delete(),
