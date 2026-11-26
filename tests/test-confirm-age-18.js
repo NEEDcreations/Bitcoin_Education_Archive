@@ -28,16 +28,27 @@ function HttpsError(code, message) {
     return err;
 }
 
-function createWorld(seed) {
+function isDelete(v) {
+    return !!(v && (v._delete === true || v._methodName === 'FieldValue.delete'));
+}
+
+function createWorld(seed, extra) {
     const clock = { ms: Date.parse('2026-11-25T21:10:00-05:00') };
     const docs = Object.assign({}, seed || {});
     function apply(pathKey, data, merge) {
         const cur = merge ? Object.assign({}, docs[pathKey] || {}) : {};
-        Object.keys(data || {}).forEach(function (k) { cur[k] = data[k]; });
+        Object.keys(data || {}).forEach(function (k) {
+            if (isDelete(data[k])) delete cur[k];
+            else cur[k] = data[k];
+        });
         docs[pathKey] = cur;
     }
     function ref(pathKey) {
-        return { path: pathKey };
+        return {
+            path: pathKey,
+            get: async function () { return snap(pathKey); },
+            set: async function (data, opts) { apply(pathKey, data, !!(opts && opts.merge)); },
+        };
     }
     function col(pathKey) {
         return { doc: function (id) { return ref(pathKey + '/' + id); } };
@@ -58,6 +69,7 @@ function createWorld(seed) {
                     const ms = clock.ms + stamps;
                     return { _server: true, toMillis: function () { return ms; }, id: stamps };
                 },
+                delete: function () { return { _delete: true }; },
             },
         },
     };
@@ -75,12 +87,19 @@ function createWorld(seed) {
             return result;
         },
     };
-    const handlers = confirmAge.createConfirmAge18Handlers({
+    const stepCalls = [];
+    const handlers = confirmAge.createConfirmAge18Handlers(Object.assign({
         admin: admin,
         db: db,
         HttpsError: HttpsError,
-    });
-    return { clock: clock, docs: docs, handlers: handlers };
+        now: function () { return clock.ms; },
+        throttleMs: 30000,
+        stepUp: (extra && extra.stepUp) || async function (data, context) {
+            stepCalls.push({ data: data, uid: context && context.auth && context.auth.uid });
+            return { established: true, totp: true };
+        },
+    }, extra || {}));
+    return { clock: clock, docs: docs, handlers: handlers, stepCalls: stepCalls };
 }
 
 function auth(uid, provider) {
@@ -232,23 +251,26 @@ test('a second call is idempotent and keeps the first timestamp', async function
 });
 
 test('kids accounts cannot self-confirm adult age', async function () {
-    const world = createWorld({ 'users/kid': { isMinor: true, points: 3 } });
-    await assert.rejects(function () { return world.handlers.confirmAge18({}, auth('kid')); }, function (err) {
-        return err.code === 'permission-denied';
-    });
-    assert.strictEqual(world.docs['users/kid'].over18, undefined);
-    assert.strictEqual(world.docs['users/kid'].points, 3);
+    const flags = [{ isMinor: true }, { kids: true }, { isKids: true }, { kidsMode: true }, { under13: true }];
+    for (const flag of flags) {
+        const uid = 'kid_' + Object.keys(flag)[0];
+        const seed = {};
+        seed['users/' + uid] = Object.assign({ points: 3 }, flag);
+        const world = createWorld(seed);
+        await assert.rejects(function () { return world.handlers.confirmAge18({}, auth(uid)); }, function (err) {
+            return err.code === 'permission-denied';
+        });
+        assert.strictEqual(world.docs['users/' + uid].over18, undefined);
+        assert.strictEqual(world.docs['users/' + uid].points, 3);
+    }
 });
 
-test('missing user docs receive only the confirmation fields', async function () {
+test('a missing user doc fails closed and is not created', async function () {
     const world = createWorld();
-    const out = await world.handlers.confirmAge18({}, auth('newbie'));
-    assert.strictEqual(out.success, true);
-    const doc = world.docs['users/newbie'];
-    assert.deepStrictEqual(Object.keys(doc).sort(), ['ageConfirmed18', 'ageConfirmed18At', 'over18', 'over18ConfirmedAt', 'uid']);
-    assert.strictEqual(doc.uid, 'newbie');
-    assert.strictEqual(doc.over18, true);
-    assert.strictEqual(doc.points, undefined);
+    await assert.rejects(function () { return world.handlers.confirmAge18({}, auth('newbie')); }, function (err) {
+        return err.code === 'failed-precondition';
+    });
+    assert.strictEqual(world.docs['users/newbie'], undefined);
 });
 
 test('client helper and copy', function () {
@@ -294,6 +316,102 @@ test('bindConfirmAge18 enforces App Check', function () {
     };
     confirmAge.bindConfirmAge18(fakeFn, { admin: {}, db: {} });
     assert.ok(calls.some(function (o) { return o && o.enforceAppCheck === true; }));
+    assert.strictEqual(calls.length, 2);
+});
+
+test('a successful confirm writes an audit row with only the uid', async function () {
+    const world = createWorld({ 'users/alice': { points: 1 } });
+    await world.handlers.confirmAge18({}, auth('alice'));
+    const auditKeys = Object.keys(world.docs).filter(function (k) { return k.indexOf('admin_audit_log/age18_confirm_alice_') === 0; });
+    assert.strictEqual(auditKeys.length, 1);
+    const row = world.docs[auditKeys[0]];
+    assert.strictEqual(row.action, 'age_confirm');
+    assert.strictEqual(row.uid, 'alice');
+    assert.ok(row.at && row.at._server === true);
+    assert.strictEqual(row.email, undefined);
+    assert.strictEqual(row.displayName, undefined);
+});
+
+test('a second confirm within the throttle window is rejected', async function () {
+    const world = createWorld({ 'users/cara': { points: 1 } });
+    await world.handlers.confirmAge18({}, auth('cara'));
+    // Advance past idempotent already-return: confirm a different first-time user
+    // after writing a throttle row by confirming, then try a missing-doc user
+    // immediately... better: missing-doc writes throttle, second missing call is throttled.
+    const world2 = createWorld();
+    await assert.rejects(function () { return world2.handlers.confirmAge18({}, auth('ghost')); }, function (err) {
+        return err.code === 'failed-precondition';
+    });
+    await assert.rejects(function () { return world2.handlers.confirmAge18({}, auth('ghost')); }, function (err) {
+        return err.code === 'resource-exhausted';
+    });
+    assert.strictEqual(world2.docs['users/ghost'], undefined);
+});
+
+function adminAuth(uid) {
+    return { auth: { uid: uid, token: { admin: true, firebase: { sign_in_provider: 'password' } } } };
+}
+
+test('a non-admin cannot un-confirm and step-up is not called', async function () {
+    const world = createWorld({ 'users/alice': { over18: true, ageConfirmed18: true, points: 4 } });
+    await assert.rejects(function () { return world.handlers.adminUnconfirmAge18({ uid: 'alice' }, auth('alice')); }, function (err) {
+        return err.code === 'permission-denied';
+    });
+    assert.strictEqual(world.stepCalls.length, 0);
+    assert.strictEqual(world.docs['users/alice'].over18, true);
+    assert.strictEqual(world.docs['users/alice'].points, 4);
+});
+
+test('an admin un-confirm clears the fields and writes an audit row', async function () {
+    const world = createWorld({
+        'users/alice': { over18: true, ageConfirmed18: true, over18ConfirmedAt: { _server: true }, points: 4 }
+    });
+    const out = await world.handlers.adminUnconfirmAge18({ uid: 'alice' }, adminAuth('admin1'));
+    assert.strictEqual(out.success, true);
+    assert.strictEqual(out.over18, false);
+    assert.strictEqual(world.stepCalls.length, 1);
+    const doc = world.docs['users/alice'];
+    assert.strictEqual(doc.over18, undefined);
+    assert.strictEqual(doc.ageConfirmed18, undefined);
+    assert.strictEqual(doc.over18ConfirmedAt, undefined);
+    assert.strictEqual(doc.points, 4);
+    const auditKeys = Object.keys(world.docs).filter(function (k) { return k.indexOf('admin_audit_log/age18_unconfirm_alice_') === 0; });
+    assert.strictEqual(auditKeys.length, 1);
+    assert.strictEqual(world.docs[auditKeys[0]].action, 'age_unconfirm');
+    assert.strictEqual(world.docs[auditKeys[0]].uid, 'alice');
+    assert.strictEqual(world.docs[auditKeys[0]].adminUid, 'admin1');
+});
+
+test('a missing user doc skips the prompt after failed loads', async function () {
+    const timers = [];
+    const env = bootClient({
+        setTimeout: function (fn) { timers.push(fn); return timers.length; },
+        firebase: {
+            auth: function () { return { onAuthStateChanged: function (cb) { cb({ uid: 'u1', isAnonymous: false }); } }; },
+            firestore: function () {
+                return {
+                    collection: function () {
+                        return {
+                            doc: function () {
+                                return { get: function () { return Promise.resolve({ exists: false, data: function () { return undefined; } }); } };
+                            }
+                        };
+                    }
+                };
+            }
+        }
+    });
+    function flush() {
+        const fns = timers.splice(0, timers.length);
+        fns.forEach(function (fn) { fn(); });
+        return Promise.resolve();
+    }
+    return Promise.resolve().then(flush).then(flush).then(function run(n) {
+        if (n > 20) return;
+        if (timers.length) return flush().then(function () { return run((n || 0) + 1); });
+        assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+        assert.strictEqual(env._bqAgeConfirmed18, false);
+    });
 });
 
 Promise.all(queue).then(function () {

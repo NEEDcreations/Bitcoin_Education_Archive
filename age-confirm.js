@@ -201,7 +201,19 @@
         }
     }
 
-    function consider(user) {
+    function skipPrompt() {
+        setHelper(false);
+        finishQueue('skip');
+    }
+
+    function consider(user, found) {
+        // No user doc (or a failed load after retries): skip. Do not show
+        // the prompt, and never call confirmAge18 until sign-up has created
+        // the profile.
+        if (found === false || user == null) {
+            skipPrompt();
+            return;
+        }
         if (isConfirmed(user)) {
             setHelper(true);
             finishQueue('skip');
@@ -221,28 +233,28 @@
         tries = tries || 0;
         try {
             if (!root.firebase || !root.firebase.firestore) {
-                consider(null);
+                consider(null, false);
                 return;
             }
             root.firebase.firestore().collection('users').doc(uid).get().then(function (snap) {
                 if (snap && snap.exists) {
-                    consider(snap.data() || {});
+                    consider(snap.data() || {}, true);
                     return;
                 }
                 if (tries < 8) {
                     root.setTimeout(function () { loadUserDoc(uid, tries + 1); }, 400);
                     return;
                 }
-                consider(null);
+                consider(null, false);
             }).catch(function () {
                 if (tries < 8) {
                     root.setTimeout(function () { loadUserDoc(uid, tries + 1); }, 400);
                     return;
                 }
-                consider(null);
+                consider(null, false);
             });
         } catch (e) {
-            consider(null);
+            consider(null, false);
         }
     }
 

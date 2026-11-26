@@ -61,8 +61,10 @@ const FIELDS = [
         const field = FIELDS[i];
         const createData = { points: 0, displayName: 'Bob' };
         createData[field] = field === 'lastQuizDate' ? '2026-10-22' : 1;
+        const bobId = 'bob' + i;
+        const bob = env.authenticatedContext(bobId).firestore();
         await expect('create cannot set ' + field, function () {
-            return setDoc(doc(alice, 'users/bob' + i), createData);
+            return setDoc(doc(bob, 'users/' + bobId), createData);
         }, false);
         const patch = {};
         patch[field] = field === 'lastQuizDate' ? '2026-10-23' : 2;
