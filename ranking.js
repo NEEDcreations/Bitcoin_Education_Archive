@@ -11954,10 +11954,22 @@ window._acceptTos = async function() {
     if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
     try {
         if (currentUser && auth.currentUser && !auth.currentUser.isAnonymous) {
-            await db.collection('users').doc(auth.currentUser.uid).set({
-                tosVersion: TOS_CURRENT_VERSION,
-                tosAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            var tosUid = auth.currentUser.uid;
+            var tosRef = db.collection('users').doc(tosUid);
+            var tosDoc = await tosRef.get();
+            // created can only be set on create. A TOS-only merge would open
+            // a doc without it, and a later client write cannot add it.
+            if (!tosDoc.exists) {
+                await tosRef.set(clientCreatePayload({
+                    tosVersion: TOS_CURRENT_VERSION,
+                    tosAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }));
+            } else {
+                await tosRef.set({
+                    tosVersion: TOS_CURRENT_VERSION,
+                    tosAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
             currentUser.tosVersion = TOS_CURRENT_VERSION;
             // Update local cache
             try {
