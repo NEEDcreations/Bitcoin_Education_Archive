@@ -84,6 +84,36 @@ for root,_,fs in os.walk(sys.argv[1]):
 print('appcheck debug token injected into',n,'pages')
 PY
 fi
+# Staging-only Turnstile test sitekey (Cloudflare's documented always-pass key).
+# Opt-in with STAGING_TURNSTILE_TEST_SITEKEY=1. Same hard guard as the App Check
+# debug token: refuse unless the built projectId is bitcoin-quest-staging AND the
+# Cloudflare Pages project is bq-staging. Rewrites the build output only; the repo
+# and live builds (deploy.yml copies the repo and never runs this script) keep the
+# real sitekey. Pairs with the staging-only TURNSTILE_SECRET_KEY test secret.
+if [ "${STAGING_TURNSTILE_TEST_SITEKEY:-}" = "1" ]; then
+  PAGES_PROJECT_NAME="${CLOUDFLARE_PAGES_PROJECT:-${PAGES_PROJECT:-}}"
+  if ! grep -q 'projectId: "bitcoin-quest-staging"' "$OUT/firebase-config.js"; then
+    echo 'REFUSING: STAGING_TURNSTILE_TEST_SITEKEY=1, but firebase-config projectId is not bitcoin-quest-staging' >&2
+    exit 1
+  fi
+  if [ "$PAGES_PROJECT_NAME" != "bq-staging" ]; then
+    echo "REFUSING: STAGING_TURNSTILE_TEST_SITEKEY=1, but CLOUDFLARE_PAGES_PROJECT/PAGES_PROJECT is '${PAGES_PROJECT_NAME:-unset}', not bq-staging" >&2
+    exit 1
+  fi
+  LIVE_TS_SITEKEY='0x4AAAAAAD-ivgpRkbXpgz86'
+  TEST_TS_SITEKEY='1x00000000000000000000AA'
+  TS_FILES=$(grep -rlIF "$LIVE_TS_SITEKEY" "$OUT" || true)
+  if [ -z "$TS_FILES" ]; then
+    echo 'REFUSING: STAGING_TURNSTILE_TEST_SITEKEY=1, but the live sitekey was not found in the build output' >&2
+    exit 1
+  fi
+  printf '%s\n' "$TS_FILES" | xargs sed -i "s/$LIVE_TS_SITEKEY/$TEST_TS_SITEKEY/g"
+  if grep -rqIF "$LIVE_TS_SITEKEY" "$OUT"; then
+    echo 'REFUSING: live Turnstile sitekey still in staging output after the swap' >&2
+    exit 1
+  fi
+  echo "turnstile test sitekey swapped into: $(printf '%s ' $TS_FILES)"
+fi
 printf 'User-agent: *\nDisallow: /\n' > $OUT/robots.txt
 printf '/*\n  X-Robots-Tag: noindex, nofollow\n' > $OUT/_headers
 echo "built $(git -C $SRC rev-parse --short HEAD)" > $OUT/staging-build.txt
