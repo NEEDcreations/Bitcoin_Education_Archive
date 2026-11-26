@@ -4,6 +4,7 @@
 // so tests can run it against an in-memory store.
 
 const payFailGuard = require('./payFailGuard');
+const sitewideCaps = require('./sitewideCaps');
 
 // Definite failure (nothing was sent), or an unconfirmed explicit refusal (refund only). One transaction, keyed on the
 // pending invoice record, so a second call for the same claim does nothing.
@@ -25,6 +26,9 @@ async function releaseFailedClaim(deps, info, today, lnRateRef, kind) {
             const ledgerSnap = await t.get(ledgerRef);
             const rateSnap = await t.get(lnRateRef);
             const inv = invoiceSnap.exists ? (invoiceSnap.data() || {}) : null;
+            const etDay = String((inv && inv.etDay) || info.etDay || '');
+            const capsDailyRef = etDay ? sitewideCaps.dailyRef(db, etDay) : null;
+            const capsDailySnap = capsDailyRef ? await t.get(capsDailyRef) : null;
             if (!inv || inv.status !== 'pending' || String(inv.uid || '') !== uid) {
                 console.error('[FAUCET] release skipped, invoice not pending for uid=' + payFailGuard.maskUid(uid));
                 out = { released: false, skipped: true, message: 'Payment failed. No sats were sent.' };
@@ -77,6 +81,25 @@ async function releaseFailedClaim(deps, info, today, lnRateRef, kind) {
                 }, { merge: true });
             }
             t.set(lnRateRef, ratePatch, { merge: true });
+            // Failed claims are not paid, so always drop the reserved sitewide slot
+            // on the original ET day. Held claims never come through this path.
+            if (capsDailyRef) {
+                const capDay = sitewideCaps.dayFromSnap(capsDailySnap);
+                let released;
+                if (sitewideCaps.isReserveSwept(inv)) {
+                    released = sitewideCaps.planSweptFailed(capDay.paid, capDay.reserved, capDay.held);
+                } else if (sitewideCaps.isLegacyReservedReleased(inv)) {
+                    released = sitewideCaps.planLegacyReleasedFailed(capDay.paid, capDay.reserved, capDay.held);
+                } else {
+                    released = Object.assign(sitewideCaps.planFaucetRelease(capDay.paid, capDay.reserved), { held: capDay.held });
+                }
+                t.set(capsDailyRef, {
+                    paid: released.paid,
+                    reserved: released.reserved,
+                    held: released.held,
+                    day: etDay,
+                }, { merge: true });
+            }
             // Keep the record (status failed) so this invoice can never be paid later.
             t.set(info.invoiceRef, {
                 status: 'failed',
