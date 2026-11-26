@@ -30,7 +30,7 @@ const FIELDS = [
     'coreContributorUntil', 'coreContributorTitle',
     'factionJoinedAt', 'factionBonusUntil',
     'over18', 'over18ConfirmedAt', 'ageConfirmed18', 'ageConfirmed18At', 'ageConfirmBlocked',
-    'ageUnder18', 'ageUnder18At',
+    'ageUnder18', 'ageUnder18At', 'guardianOk', 'guardianOkAt',
 ];
 
 (async function main() {

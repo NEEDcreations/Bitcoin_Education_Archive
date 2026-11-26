@@ -13,7 +13,11 @@
         title: 'Quick age check',
         body: 'Please tell us your age group. You can keep playing either way.',
         over18: "I'm 18 or older",
-        under18: "I'm under 18"
+        under18: "I'm under 18",
+        guardian: 'My parent or guardian says it\'s OK for me to play Bitcoin Quest.',
+        continueLabel: 'Continue',
+        back: 'Back',
+        notNow: 'Not now'
     };
 
     var BUTTON_STYLE = 'min-height:44px;width:100%;padding:10px 16px;background:#334155;color:#f1f5f9;border:1px solid #64748b;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;';
@@ -37,6 +41,10 @@
 
     function isUnder18(user) {
         return !!(user && user.ageUnder18 === true);
+    }
+
+    function hasGuardianOk(user) {
+        return !!(user && user.guardianOk === true);
     }
 
     function isBlocked(user) {
@@ -168,7 +176,7 @@
 
     // Waits for App Check before the call, and retries once after a fresh
     // token when an early tap still loses the race. Resolves { ok, error }.
-    function callAge(name) {
+    function callAge(name, payload) {
         var fn;
         try {
             if (!root.firebase || !root.firebase.functions) return Promise.resolve({ ok: false, error: MSG.generic });
@@ -183,7 +191,7 @@
                     missing.code = 'app-check-unavailable';
                     throw missing;
                 }
-                return fn({});
+                return fn(payload || {});
             });
         }
         return attempt().catch(function (e) {
@@ -240,7 +248,7 @@
         return btn;
     }
 
-    function showModal() {
+    function showModal(opts) {
         var document = root.document;
         if (!document || !document.body) return;
         if (document.getElementById(OVERLAY_ID)) return;
@@ -287,6 +295,7 @@
         body.style.cssText = 'margin:0 0 20px;font-size:0.95rem;line-height:1.45;color:#e2e8f0;';
 
         var actions = document.createElement('div');
+        actions.id = 'ageConfirmActions';
         actions.style.cssText = 'display:flex;flex-direction:column;gap:10px;width:100%;';
 
         var overBtn = makeChoiceButton(document, 'ageConfirmBtn', COPY.over18);
@@ -299,18 +308,14 @@
             closeOverlay();
             finishQueue('done');
         });
-        bindChoice(underBtn, COPY.under18, 'confirmAgeUnder18', function () {
-            setHelper(false);
-            patchProfileCache({ ageUnder18: true });
-            fireAgeEvent('bq-age-under18', { ageUnder18: true });
-            closeOverlay();
-            finishQueue('done');
+        underBtn.addEventListener('click', function () {
+            showGuardianStep(overlay, card, { allowBack: true });
         });
 
         actions.appendChild(overBtn);
         actions.appendChild(underBtn);
 
-        overlay.addEventListener('click', function (e) { if (e.target === overlay) dismiss(); });
+        overlay.addEventListener('click', function (e) { if (e.target === overlay && overlay.getAttribute('data-age-step') !== 'guardian-required') dismiss(); });
         card.appendChild(closeBtn);
         card.appendChild(iconWrap);
         card.appendChild(title);
@@ -325,6 +330,150 @@
             try { root.btcSheet.sync(); } catch (e) {}
         }
         try { title.focus(); } catch (e) {}
+
+        if (opts && opts.needGuardian) {
+            showGuardianStep(overlay, card, { allowBack: false });
+        }
+    }
+
+    function showGuardianStep(overlay, card, stepOpts) {
+        var document = root.document;
+        if (!document || !card) return;
+        var allowBack = !!(stepOpts && stepOpts.allowBack);
+        overlay.setAttribute('data-age-step', allowBack ? 'guardian' : 'guardian-required');
+
+        var closeBtn = null;
+        var i;
+        for (i = 0; i < card.children.length; i++) {
+            if (card.children[i] && card.children[i].getAttribute && card.children[i].getAttribute('aria-label') === 'Close') {
+                closeBtn = card.children[i];
+                break;
+            }
+        }
+        if (closeBtn) closeBtn.style.display = allowBack ? '' : 'none';
+
+        var actions = document.getElementById('ageConfirmActions');
+        if (!actions) {
+            for (i = 0; i < card.children.length; i++) {
+                if (card.children[i] && card.children[i].id === 'ageConfirmActions') actions = card.children[i];
+            }
+        }
+        // The actions div may not have an id yet; find the one that holds the choice buttons.
+        if (!actions) {
+            for (i = 0; i < card.children.length; i++) {
+                var child = card.children[i];
+                if (child && child.children) {
+                    var hasUnder = false;
+                    var j;
+                    for (j = 0; j < child.children.length; j++) {
+                        if (child.children[j] && child.children[j].id === 'ageUnder18Btn') hasUnder = true;
+                    }
+                    if (hasUnder) actions = child;
+                }
+            }
+        }
+        if (!actions) return;
+        actions.id = 'ageConfirmActions';
+        while (actions.children.length) {
+            if (actions.removeChild) actions.removeChild(actions.children[0]);
+            else actions.children.shift();
+        }
+
+        var boxLabel = document.createElement('label');
+        boxLabel.id = 'ageGuardianOkLabel';
+        boxLabel.setAttribute('for', 'ageGuardianOk');
+        boxLabel.style.cssText = 'display:flex;align-items:flex-start;gap:10px;text-align:left;margin:0 0 14px;font-size:0.95rem;line-height:1.45;color:#e2e8f0;cursor:pointer;min-height:44px;';
+
+        var box = document.createElement('input');
+        box.type = 'checkbox';
+        box.id = 'ageGuardianOk';
+        box.checked = false;
+        box.style.cssText = 'width:20px;height:20px;margin-top:2px;flex:0 0 auto;cursor:pointer;';
+
+        var boxText = document.createElement('span');
+        boxText.textContent = COPY.guardian;
+        boxLabel.appendChild(box);
+        boxLabel.appendChild(boxText);
+
+        var continueBtn = makeChoiceButton(document, 'ageGuardianContinue', COPY.continueLabel);
+        continueBtn.disabled = true;
+        continueBtn.setAttribute('aria-disabled', 'true');
+
+        function syncContinue() {
+            var on = !!box.checked;
+            continueBtn.disabled = !on;
+            continueBtn.setAttribute('aria-disabled', on ? 'false' : 'true');
+        }
+        box.addEventListener('change', syncContinue);
+        box.addEventListener('click', function () {
+            // Test DOM stubs do not toggle .checked on click.
+            if (box.checked === false || box.checked === true) {
+                /* leave as the environment set it */
+            }
+            syncContinue();
+        });
+
+        var busy = false;
+        continueBtn.addEventListener('click', function () {
+            if (busy || !box.checked || continueBtn.disabled) return;
+            busy = true;
+            continueBtn.disabled = true;
+            var label = continueBtn.querySelector('span');
+            if (label) label.textContent = 'Saving...';
+            callAge('confirmAgeUnder18', { guardianOk: true }).then(function (result) {
+                if (result.ok) {
+                    setHelper(false);
+                    patchProfileCache({ ageUnder18: true, guardianOk: true });
+                    fireAgeEvent('bq-age-under18', { ageUnder18: true, guardianOk: true });
+                    closeOverlay();
+                    finishQueue('done');
+                } else {
+                    busy = false;
+                    syncContinue();
+                    if (label) label.textContent = COPY.continueLabel;
+                    if (typeof root.showToast === 'function') root.showToast(result.error);
+                    allowGuardianDismiss(result.error);
+                }
+            });
+        });
+
+        actions.appendChild(boxLabel);
+        actions.appendChild(continueBtn);
+        if (allowBack) {
+            var backBtn = makeChoiceButton(document, 'ageGuardianBack', COPY.back);
+            backBtn.addEventListener('click', function () {
+                closeOverlay();
+                showModal();
+            });
+            actions.appendChild(backBtn);
+        }
+
+        function allowGuardianDismiss(msg) {
+            var err = document.getElementById('ageGuardianError');
+            if (!err) {
+                err = document.createElement('p');
+                err.id = 'ageGuardianError';
+                err.setAttribute('role', 'alert');
+                err.style.cssText = 'margin:10px 0 0;font-size:0.9rem;line-height:1.4;color:#fca5a5;text-align:left;';
+                actions.appendChild(err);
+            }
+            err.textContent = msg || MSG.generic;
+            if (closeBtn) closeBtn.style.display = '';
+            overlay.setAttribute('data-age-step', 'guardian');
+            if (!document.getElementById('ageGuardianNotNow')) {
+                var notNow = makeChoiceButton(document, 'ageGuardianNotNow', COPY.notNow);
+                notNow.addEventListener('click', dismiss);
+                actions.appendChild(notNow);
+            }
+            if (root.btcSheet && root.btcSheet.setCloser) {
+                try { root.btcSheet.setCloser(overlay, dismiss); } catch (e) {}
+            }
+        }
+
+        if (root.btcSheet && root.btcSheet.setCloser) {
+            try { root.btcSheet.setCloser(overlay, allowBack ? function () { closeOverlay(); showModal(); } : function () {}); } catch (e) {}
+        }
+        try { box.focus(); } catch (e) {}
     }
 
     function skipPrompt() {
@@ -340,7 +489,9 @@
             skipPrompt();
             return;
         }
-        if (isUnder18(user) || isBlocked(user) || isKidsAccount(user)) {
+        // Kids / Classroom (including under 13) stay on that path and
+        // never see this prompt. Do not change their age fields.
+        if (isKidsAccount(user) || isBlocked(user)) {
             setHelper(false);
             finishQueue('skip');
             return;
@@ -350,7 +501,26 @@
             finishQueue('skip');
             return;
         }
+        if (isUnder18(user) && hasGuardianOk(user)) {
+            setHelper(false);
+            finishQueue('skip');
+            return;
+        }
         setHelper(false);
+        // A saved under-18 answer still needs the guardian checkbox before
+        // the player can continue on a regular account. Do not honor a
+        // session dismiss for that required step.
+        if (isUnder18(user) && !hasGuardianOk(user)) {
+            if (sessionDismissed()) {
+                finishQueue('skip');
+                return;
+            }
+            var showGuardian = function () { showModal({ needGuardian: true }); };
+            var qg = queue();
+            if (qg && typeof qg.ready === 'function') qg.ready('age', showGuardian);
+            else showGuardian();
+            return;
+        }
         if (sessionDismissed()) {
             finishQueue('skip');
             return;

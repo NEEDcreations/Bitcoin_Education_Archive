@@ -1,7 +1,7 @@
 'use strict';
 
 // Two-button age confirmation. The client cannot write over18 /
-// ageConfirmed18 / ageUnder18; only these callables set them, with a
+// ageConfirmed18 / ageUnder18 / guardianOk; only these callables set them, with a
 // server timestamp. Idempotent. Ads (PR #401 hasKnownAdultAge) already
 // treats user.over18 === true as a known adult, so under-18 and
 // unanswered users stay ad-free. Never create a user doc here: a missing
@@ -121,9 +121,11 @@ function createConfirmAge18Handlers(deps) {
             over18ConfirmedAt: u.over18ConfirmedAt != null ? u.over18ConfirmedAt : null,
             ageConfirmed18At: u.ageConfirmed18At != null ? u.ageConfirmed18At : null,
             ageUnder18At: u.ageUnder18At != null ? u.ageUnder18At : null,
+            guardianOkAt: u.guardianOkAt != null ? u.guardianOkAt : null,
             over18: u.over18 === true,
             ageConfirmed18: u.ageConfirmed18 === true,
             ageUnder18: u.ageUnder18 === true,
+            guardianOk: u.guardianOk === true,
             ageConfirmBlocked: u.ageConfirmBlocked === true
         };
     }
@@ -135,7 +137,9 @@ function createConfirmAge18Handlers(deps) {
             ageConfirmed18: del,
             ageConfirmed18At: del,
             ageUnder18: del,
-            ageUnder18At: del
+            ageUnder18At: del,
+            guardianOk: del,
+            guardianOkAt: del
         };
     }
 
@@ -222,7 +226,8 @@ function createConfirmAge18Handlers(deps) {
         const userRef = db.collection('users').doc(uid);
         const atMs = nowFn();
         const now = stamp();
-        const outcome = { already: false, missing: false, kids: false, blocked: false, confirmed: false, throttled: false };
+        const acknowledged = !!(data && data.guardianOk === true);
+        const outcome = { already: false, missing: false, kids: false, blocked: false, confirmed: false, throttled: false, needGuardian: false };
 
         await db.runTransaction(async function (t) {
             const snap = await t.get(userRef);
@@ -252,8 +257,12 @@ function createConfirmAge18Handlers(deps) {
                 outcome.confirmed = true;
                 return;
             }
-            if (alreadyUnder18(user)) {
+            if (alreadyUnder18(user) && user.guardianOk === true) {
                 outcome.already = true;
+                return;
+            }
+            if (!acknowledged) {
+                outcome.needGuardian = true;
                 return;
             }
             if (tooSoon(tData)) {
@@ -261,14 +270,16 @@ function createConfirmAge18Handlers(deps) {
                 return;
             }
 
-            const patch = { ageUnder18: true };
+            const patch = { ageUnder18: true, guardianOk: true };
             if (!user.ageUnder18At) patch.ageUnder18At = now;
+            if (!user.guardianOkAt) patch.guardianOkAt = now;
             t.set(userRef, patch, { merge: true });
             t.create(auditRef('under18', uid, atMs), {
                 action: 'age_under18',
                 uid: uid,
                 at: now,
-                atMs: atMs
+                atMs: atMs,
+                guardianOk: true
             });
             t.set(throttleRef(uid), throttleFields(uid, atMs, now), { merge: true });
         });
@@ -279,6 +290,9 @@ function createConfirmAge18Handlers(deps) {
         if (outcome.blocked || outcome.confirmed) {
             throw new HttpsError('permission-denied', 'This account cannot change its age confirmation.');
         }
+        if (outcome.needGuardian) {
+            throw new HttpsError('failed-precondition', 'Parent or guardian permission is required.');
+        }
         if (outcome.missing) {
             throw new HttpsError('failed-precondition', 'Account not found.');
         }
@@ -286,9 +300,9 @@ function createConfirmAge18Handlers(deps) {
             throw new HttpsError('permission-denied', "This account's age is already set.");
         }
         if (outcome.already) {
-            return { success: true, ageUnder18: true, already: true };
+            return { success: true, ageUnder18: true, guardianOk: true, already: true };
         }
-        return { success: true, ageUnder18: true, already: false };
+        return { success: true, ageUnder18: true, guardianOk: true, already: false };
     }
 
     async function adminUnconfirmAge18(data, context) {

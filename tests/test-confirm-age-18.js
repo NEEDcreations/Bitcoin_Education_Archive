@@ -311,10 +311,12 @@ test('a kids under-18 refusal also comes before the throttle and writes nothing'
         'age_confirm_throttle/kid1': { uid: 'kid1', lastAtMs: lastAtMs }
     });
     world.clock.ms = lastAtMs + 1000;
-    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('kid1')); }, function (err) {
+    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({ guardianOk: true }, auth('kid1')); }, function (err) {
         return err.code === 'permission-denied' && err.message === "This account's age is already set.";
     });
     assert.strictEqual(world.docs['users/kid1'].ageUnder18, undefined);
+    assert.strictEqual(world.docs['users/kid1'].guardianOk, undefined);
+    assert.strictEqual(world.docs['users/kid1'].points, 1);
     assert.strictEqual(world.docs['age_confirm_throttle/kid1'].lastAtMs, lastAtMs);
 });
 
@@ -592,13 +594,16 @@ test('adminUnconfirmAge18 is on the real FRESH_ACTIONS list', async function () 
 
 test('sets ageUnder18 with a server timestamp and an audit row', async function () {
     const world = createWorld({ 'users/alice': { points: 42, sats: 9, displayName: 'Alice' } });
-    const out = await world.handlers.confirmAgeUnder18({ ageUnder18: false, ageUnder18At: 'forged' }, auth('alice'));
+    const out = await world.handlers.confirmAgeUnder18({ ageUnder18: false, ageUnder18At: 'forged', guardianOk: true, guardianOkAt: 'forged' }, auth('alice'));
     assert.strictEqual(out.success, true);
     assert.strictEqual(out.ageUnder18, true);
     assert.strictEqual(out.already, false);
     const doc = world.docs['users/alice'];
     assert.strictEqual(doc.ageUnder18, true);
     assert.ok(doc.ageUnder18At && doc.ageUnder18At._server === true);
+    assert.strictEqual(doc.guardianOk, true);
+    assert.ok(doc.guardianOkAt && doc.guardianOkAt._server === true);
+    assert.notStrictEqual(doc.guardianOkAt, 'forged');
     assert.strictEqual(doc.over18, undefined);
     assert.strictEqual(doc.points, 42);
     assert.strictEqual(doc.sats, 9);
@@ -618,7 +623,7 @@ test('sets ageUnder18 with a server timestamp and an audit row', async function 
 
 test('a second under-18 call is idempotent and keeps the first timestamp', async function () {
     const world = createWorld({ 'users/bob': { points: 1 } });
-    await world.handlers.confirmAgeUnder18({}, auth('bob'));
+    await world.handlers.confirmAgeUnder18({ guardianOk: true }, auth('bob'));
     const first = world.docs['users/bob'].ageUnder18At;
     const out = await world.handlers.confirmAgeUnder18({}, auth('bob'));
     assert.strictEqual(out.already, true);
@@ -628,7 +633,7 @@ test('a second under-18 call is idempotent and keeps the first timestamp', async
 
 test('an under-18 user cannot self-confirm 18+', async function () {
     const world = createWorld({ 'users/alice': { points: 3 } });
-    await world.handlers.confirmAgeUnder18({}, auth('alice'));
+    await world.handlers.confirmAgeUnder18({ guardianOk: true }, auth('alice'));
     await assert.rejects(function () { return world.handlers.confirmAge18({}, auth('alice')); }, function (err) {
         return err.code === 'permission-denied';
     });
@@ -664,7 +669,7 @@ test('a blocked account cannot set under 18', async function () {
 
 test('kids accounts cannot save an under-18 answer', async function () {
     const world = createWorld({ 'users/kid_isMinor': { points: 3, isMinor: true } });
-    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('kid_isMinor')); }, function (err) {
+    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({ guardianOk: true }, auth('kid_isMinor')); }, function (err) {
         return err.code === 'permission-denied' && err.message === "This account's age is already set.";
     });
     assert.strictEqual(world.docs['users/kid_isMinor'].ageUnder18, undefined);
@@ -701,7 +706,7 @@ test('under-18 and 18+ share the same throttle window', async function () {
 test('an admin reset clears under-18 and the block so the user can confirm', async function () {
     const priorUnder = { _server: true, id: 'under' };
     const world = createWorld({
-        'users/alice': { ageUnder18: true, ageUnder18At: priorUnder, points: 4 }
+        'users/alice': { ageUnder18: true, ageUnder18At: priorUnder, guardianOk: true, points: 4 }
     });
     await assert.rejects(function () { return world.handlers.confirmAge18({}, auth('alice')); }, function (err) {
         return err.code === 'permission-denied';
@@ -713,6 +718,8 @@ test('an admin reset clears under-18 and the block so the user can confirm', asy
     const doc = world.docs['users/alice'];
     assert.strictEqual(doc.ageUnder18, undefined);
     assert.strictEqual(doc.ageUnder18At, undefined);
+    assert.strictEqual(doc.guardianOk, undefined);
+    assert.strictEqual(doc.guardianOkAt, undefined);
     assert.strictEqual(doc.ageConfirmBlocked, undefined);
     assert.strictEqual(doc.points, 4);
     const auditKeys = Object.keys(world.docs).filter(function (k) { return k.indexOf('admin_audit_log/age18_reset_alice_') === 0; });
@@ -817,7 +824,7 @@ test('a saved under-18 profile skips the prompt and keeps ads off', function () 
                     collection: function () {
                         return {
                             doc: function () {
-                                return { get: function () { return Promise.resolve({ exists: true, data: function () { return { points: 1, ageUnder18: true }; } }); } };
+                                return { get: function () { return Promise.resolve({ exists: true, data: function () { return { points: 1, ageUnder18: true, guardianOk: true }; } }); } };
                             }
                         };
                     }
@@ -831,28 +838,222 @@ test('a saved under-18 profile skips the prompt and keeps ads off', function () 
     });
 });
 
-test('tapping I am under 18 saves through the callable and does not enable ads', function () {
+test('tapping I am under 18 shows the required guardian checkbox and does not save yet', function () {
     let called = [];
     const env = bootClient({
         firebase: {
             functions: function () {
                 return {
                     httpsCallable: function (name) {
-                        called.push(name);
-                        return function () { return Promise.resolve({ data: { success: true, ageUnder18: true } }); };
+                        return function (payload) {
+                            called.push({ name: name, payload: payload || {} });
+                            return Promise.resolve({ data: { success: true, ageUnder18: true, guardianOk: true } });
+                        };
                     }
                 };
             }
         }
     });
     env.showAgeConfirmPrompt();
+    assert.strictEqual(env.document.getElementById('ageGuardianOk'), null);
     const underBtn = env.document.getElementById('ageUnder18Btn');
     assert.ok(underBtn);
     underBtn.click();
-    assert.deepStrictEqual(called, ['confirmAgeUnder18']);
+    assert.strictEqual(called.length, 0);
+    const box = env.document.getElementById('ageGuardianOk');
+    const continueBtn = env.document.getElementById('ageGuardianContinue');
+    assert.ok(box);
+    assert.ok(continueBtn);
+    assert.strictEqual(box.checked, false);
+    assert.strictEqual(continueBtn.disabled, true);
+    assert.strictEqual(env.bqAgeConfirmCopy.guardian, "My parent or guardian says it's OK for me to play Bitcoin Quest.");
+    continueBtn.click();
+    assert.strictEqual(called.length, 0, 'continue is gated on the checkbox');
+    assert.ok(env.document.getElementById('ageConfirmOverlay'));
+    box.checked = true;
+    const evs = (box._events && box._events.change) || [];
+    evs.forEach(function (fn) { fn({ target: box }); });
+    assert.strictEqual(continueBtn.disabled, false);
+    continueBtn.click();
     return new Promise(function (resolve) { setTimeout(resolve, 0); }).then(function () {
+        assert.strictEqual(called.length, 1);
+        assert.strictEqual(called[0].name, 'confirmAgeUnder18');
+        assert.strictEqual(called[0].payload.guardianOk, true);
         assert.strictEqual(env._bqAgeConfirmed18, false);
         assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+    });
+});
+
+
+test('confirmAgeUnder18 rejects a write without guardianOk and does not touch XP or sats', async function () {
+    const world = createWorld({ 'users/alice': { points: 42, sats: 9, displayName: 'Alice' } });
+    await assert.rejects(function () { return world.handlers.confirmAgeUnder18({}, auth('alice')); }, function (err) {
+        return err.code === 'failed-precondition' && /guardian/i.test(err.message);
+    });
+    const doc = world.docs['users/alice'];
+    assert.strictEqual(doc.ageUnder18, undefined);
+    assert.strictEqual(doc.guardianOk, undefined);
+    assert.strictEqual(doc.points, 42);
+    assert.strictEqual(doc.sats, 9);
+});
+
+test('an existing under-18 account can add guardianOk later without changing XP or sats', async function () {
+    const prior = { _server: true, id: 'under' };
+    const world = createWorld({
+        'users/alice': { points: 11, sats: 4, ageUnder18: true, ageUnder18At: prior }
+    });
+    const out = await world.handlers.confirmAgeUnder18({ guardianOk: true }, auth('alice'));
+    assert.strictEqual(out.success, true);
+    const doc = world.docs['users/alice'];
+    assert.strictEqual(doc.ageUnder18, true);
+    assert.strictEqual(doc.ageUnder18At, prior);
+    assert.strictEqual(doc.guardianOk, true);
+    assert.ok(doc.guardianOkAt && doc.guardianOkAt._server === true);
+    assert.strictEqual(doc.points, 11);
+    assert.strictEqual(doc.sats, 4);
+});
+
+test('an under-18 profile without guardianOk is asked for the checkbox, not skipped', function () {
+    const env = bootClient({
+        firebase: {
+            auth: function () { return { onAuthStateChanged: function (cb) { cb({ uid: 'u1', isAnonymous: false }); } }; },
+            firestore: function () {
+                return {
+                    collection: function () {
+                        return {
+                            doc: function () {
+                                return { get: function () { return Promise.resolve({ exists: true, data: function () { return { points: 1, ageUnder18: true }; } }); } };
+                            }
+                        };
+                    }
+                };
+            }
+        }
+    });
+    return Promise.resolve().then(function () {
+        assert.ok(env.document.getElementById('ageConfirmOverlay'));
+        assert.ok(env.document.getElementById('ageGuardianOk'));
+        assert.strictEqual(env.document.getElementById('ageUnder18Btn'), null);
+        assert.strictEqual(env._bqAgeConfirmed18, false);
+    });
+});
+
+test('after a failed guardian save, an existing under-18 account can dismiss for this session only', function () {
+    let invokes = 0;
+    const env = bootClient({
+        _btcAppCheckForClaim: function () { return Promise.resolve(''); },
+        showToast: function () {},
+        firebase: {
+            auth: function () { return { onAuthStateChanged: function (cb) { cb({ uid: 'u1', isAnonymous: false }); } }; },
+            firestore: function () {
+                return {
+                    collection: function () {
+                        return {
+                            doc: function () {
+                                return { get: function () { return Promise.resolve({ exists: true, data: function () { return { points: 1, ageUnder18: true }; } }); } };
+                            }
+                        };
+                    }
+                };
+            },
+            functions: function () {
+                return {
+                    httpsCallable: function () {
+                        return function () {
+                            invokes++;
+                            return Promise.resolve({ data: { success: true, ageUnder18: true, guardianOk: true } });
+                        };
+                    }
+                };
+            }
+        }
+    });
+    return Promise.resolve().then(function () {
+        const overlay = env.document.getElementById('ageConfirmOverlay');
+        assert.ok(overlay);
+        assert.strictEqual(overlay.getAttribute('data-age-step'), 'guardian-required');
+        const card = overlay.children[0];
+        const closeBtn = card.children[0];
+        assert.strictEqual(closeBtn.getAttribute('aria-label'), 'Close');
+        assert.strictEqual(closeBtn.style.display, 'none');
+        assert.strictEqual(env.document.getElementById('ageGuardianNotNow'), null);
+        const box = env.document.getElementById('ageGuardianOk');
+        const continueBtn = env.document.getElementById('ageGuardianContinue');
+        box.checked = true;
+        const evs = (box._events && box._events.change) || [];
+        evs.forEach(function (fn) { fn({ target: box }); });
+        continueBtn.click();
+        return new Promise(function (resolve) { setTimeout(resolve, 5); });
+    }).then(function () {
+        assert.strictEqual(invokes, 0, 'App Check never ready, so the callable is not reached');
+        const overlay = env.document.getElementById('ageConfirmOverlay');
+        assert.ok(overlay);
+        const err = env.document.getElementById('ageGuardianError');
+        assert.ok(err);
+        assert.strictEqual(err.textContent, 'Security check is still loading. Wait a moment and tap again.');
+        assert.ok(err.textContent.indexOf('App Check token is not ready') === -1);
+        const card = overlay.children[0];
+        const closeBtn = card.children[0];
+        assert.strictEqual(closeBtn.style.display, '');
+        const notNow = env.document.getElementById('ageGuardianNotNow');
+        assert.ok(notNow);
+        notNow.click();
+        assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+        assert.strictEqual(env._bqAgeConfirmed18, false);
+        assert.strictEqual(env.sessionStorage.getItem('bq_age_confirm_dismissed'), '1');
+    });
+});
+
+test('a session-dismissed guardian prompt is not shown again until the next session', function () {
+    const store = { bq_age_confirm_dismissed: '1' };
+    const env = bootClient({
+        sessionStorage: {
+            getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+            setItem: function (k, v) { store[k] = String(v); },
+            removeItem: function (k) { delete store[k]; }
+        },
+        firebase: {
+            auth: function () { return { onAuthStateChanged: function (cb) { cb({ uid: 'u1', isAnonymous: false }); } }; },
+            firestore: function () {
+                return {
+                    collection: function () {
+                        return {
+                            doc: function () {
+                                return { get: function () { return Promise.resolve({ exists: true, data: function () { return { points: 1, ageUnder18: true }; } }); } };
+                            }
+                        };
+                    }
+                };
+            }
+        }
+    });
+    return Promise.resolve().then(function () {
+        assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+        assert.strictEqual(env._bqAgeConfirmed18, false);
+        assert.strictEqual(store.bq_age_confirm_dismissed, '1');
+    });
+});
+
+test('kids and under-13 accounts still skip the prompt and cannot gain guardianOk', function () {
+    const env = bootClient({
+        firebase: {
+            auth: function () { return { onAuthStateChanged: function (cb) { cb({ uid: 'kid1', isAnonymous: false }); } }; },
+            firestore: function () {
+                return {
+                    collection: function () {
+                        return {
+                            doc: function () {
+                                return { get: function () { return Promise.resolve({ exists: true, data: function () { return { points: 7, sats: 2, under13: true }; } }); } };
+                            }
+                        };
+                    }
+                };
+            }
+        }
+    });
+    return Promise.resolve().then(function () {
+        assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+        assert.strictEqual(env._bqAgeConfirmed18, false);
     });
 });
 
@@ -999,7 +1200,7 @@ test('every throttle write sets expireAt to lastAt plus one day', async function
     assertThrottleExpireAt(confirmed.docs, 'ann', confirmed.clock.ms);
 
     const under = createWorld({ 'users/ben': { points: 1 } });
-    await under.handlers.confirmAgeUnder18({}, auth('ben'));
+    await under.handlers.confirmAgeUnder18({ guardianOk: true }, auth('ben'));
     assertThrottleExpireAt(under.docs, 'ben', under.clock.ms);
 
     const missing = createWorld();
