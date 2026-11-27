@@ -712,6 +712,7 @@ function renderChatMessages(msgs) {
     if (_savedBanner) _savedBanner.remove();
     el.innerHTML = html;
     attachOfficialChatCtas(el, visibleMsgs);
+    attachFavorHashCtas(el, visibleMsgs);
     if (_savedBanner) el.insertBefore(_savedBanner, el.firstChild);
 
     // Auto-scroll to bottom if user was near bottom
@@ -965,6 +966,55 @@ function createOfficialChatCtaButton(label, route) {
     });
     return btn;
 }
+
+function isNachoFavorAnnouncement(m) {
+    if (!m || typeof m !== 'object') return false;
+    if (m.uid !== 'nacho-bot') return false;
+    var t = String(m.text || m.caption || '');
+    return /Satoshi'?s Favor is LIVE/i.test(t) || /Satoshi'?s Favor ends soon/i.test(t);
+}
+function openFavorHashingScreen() {
+    if (typeof window.openSatoshiFavorMiner === 'function') {
+        window.openSatoshiFavorMiner();
+        return;
+    }
+    if (typeof window.showQuestHub === 'function') {
+        window.showQuestHub();
+        window._questHubTab = 'favor';
+        setTimeout(function() { if (typeof window._renderQuestHubTab === 'function') window._renderQuestHubTab(); }, 50);
+    }
+}
+function createStartHashingButton() {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'favor-start-hashing-cta';
+    btn.textContent = 'Start hashing';
+    btn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;min-width:44px;margin-top:8px;padding:10px 14px;border:1px solid var(--accent);border-radius:10px;background:rgba(247,147,26,0.12);color:var(--accent);font:inherit;font-weight:700;font-size:0.85rem;line-height:1.2;text-decoration:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    btn.addEventListener('click', function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+        if (e && e.stopPropagation) e.stopPropagation();
+        openFavorHashingScreen();
+    });
+    return btn;
+}
+function attachFavorHashCtas(root, msgs) {
+    if (!root || !root.querySelectorAll) return;
+    var byId = Object.create(null);
+    (msgs || []).forEach(function (m) {
+        if (m && m._id) byId[m._id] = m;
+    });
+    var nodes = root.querySelectorAll('[data-msg-id]');
+    for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        var m = byId[node.getAttribute('data-msg-id')];
+        if (!isNachoFavorAnnouncement(m)) continue;
+        var existing = node.querySelector('.favor-start-hashing-cta');
+        if (existing) continue;
+        var bubble = node.firstElementChild || node;
+        bubble.appendChild(createStartHashingButton());
+    }
+}
+
 function attachOfficialChatCtas(root, msgs) {
     if (!root || !root.querySelectorAll) return;
     var byId = Object.create(null);
@@ -5515,6 +5565,10 @@ window.parseOfficialChatCta = parseOfficialChatCta;
 window.isAllowedOfficialChatRoute = isAllowedOfficialChatRoute;
 window.createOfficialChatCtaButton = createOfficialChatCtaButton;
 window.attachOfficialChatCtas = attachOfficialChatCtas;
+window.isNachoFavorAnnouncement = isNachoFavorAnnouncement;
+window.createStartHashingButton = createStartHashingButton;
+window.attachFavorHashCtas = attachFavorHashCtas;
+window.openFavorHashingScreen = openFavorHashingScreen;
 console.log('[CHAT] Global chat module loaded');
 }();
 
