@@ -2293,6 +2293,8 @@ function renderOverlayChat() {
 
     if (_overlayTab === 'dms') {
         body.innerHTML = tabHtml +
+            '<div style="flex-shrink:0;padding:8px 10px 0;display:flex;justify-content:flex-end;">' +
+                '<button type="button" id="overlayStartDmBtn" onclick="if(typeof showStartDM===\'function\')showStartDM({mount:document.getElementById(\'overlayDMsBody\'),onBack:function(){if(typeof window._switchOverlayTab===\'function\')window._switchOverlayTab(\'dms\')}})" style="padding:7px 12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Start DM</button>' +            '</div>' +
             '<div id="overlayDMsBody" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px;min-height:0;">' +
                 '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Loading DMs...</div>' +
             '</div>';
