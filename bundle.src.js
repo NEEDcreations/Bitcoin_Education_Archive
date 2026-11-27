@@ -13181,7 +13181,11 @@ var PII_PATTERNS = [
 
 // "Friends in distress" scam warning popup
 window.showFriendsInDistressWarning = function() {
-    var html = '<div id="distressWarning" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:10005;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+    // Sit above the DM window (500000), Global chat (250000), and the forum
+    // overlay (topicsBrowser 2100000 / rules 2100005). The shared helper
+    // already uses a 2100010 floor, which clears all three.
+    var z = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    var html = '<div id="distressWarning" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:' + z + ';display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #ef4444;border-radius:16px;padding:24px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(239,68,68,0.3);">' +
             '<div style="font-size:2rem;text-align:center;margin-bottom:8px;">🚨</div>' +
             '<div style="font-size:1.1rem;font-weight:800;color:#ef4444;text-align:center;margin-bottom:12px;">"Friends in Distress" Scam</div>' +
