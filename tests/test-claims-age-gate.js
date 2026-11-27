@@ -17,6 +17,8 @@ const { assessCipherClaim } = require(path.join(root, 'functions', 'src', 'ciphe
 const backfill = require(path.join(root, 'functions', 'scripts', 'backfill-real-account-at'));
 const ageGateHeld = require(path.join(root, 'functions', 'src', 'ageGateHeld'));
 const seedHeld = require(path.join(root, 'scripts', 'seed-age-gate-held'));
+const releaseHeld = require(path.join(root, 'scripts', 'release-age-gate-held'));
+const uidList = require(path.join(root, 'scripts', 'age-gate-uid-list'));
 
 const DAY = 86400000;
 const MIN = 60000;
@@ -582,14 +584,24 @@ async function test(name, fn) {
         const src = fs.readFileSync(path.join(root, 'scripts', 'seed-age-gate-held.js'), 'utf8');
         assert.ok(!src.includes("'bitcoin-education-archive'"), 'no hard-coded live project');
         assert.ok(src.includes('--confirm=AGEGATEHELD'));
+        assert.ok(src.includes('--expect-count='));
         assert.ok(!/console\.log\([^)]*uid/i.test(src), 'no uid logging');
-        assert.deepStrictEqual(seedHeld.parseArgs(['--apply']), { apply: false, applyRequested: true, confirm: false, project: '', file: '' });
-        assert.strictEqual(seedHeld.parseArgs(['--project=bitcoin-quest-staging', '--file=/tmp/x.json']).project, 'bitcoin-quest-staging');
+        const emptyApply = seedHeld.parseArgs(['--apply']);
+        assert.strictEqual(emptyApply.apply, false);
+        assert.strictEqual(emptyApply.applyRequested, true);
+        assert.strictEqual(emptyApply.confirm, false);
+        assert.strictEqual(emptyApply.project, '');
+        assert.strictEqual(emptyApply.file, '');
+        assert.strictEqual(emptyApply.expectCount.present, false);
+        assert.strictEqual(emptyApply.staging, false);
+        const staged = seedHeld.parseArgs(['--project=bitcoin-quest-staging', '--file=/tmp/x.json']);
+        assert.strictEqual(staged.project, 'bitcoin-quest-staging');
+        assert.strictEqual(staged.staging, true);
         const tmp = path.join('/tmp', 'minirufus-l1b-seed-fake.json');
-        fs.writeFileSync(tmp, JSON.stringify({ groups: { test: ['fake-uid-one', 'fake-uid-two'], other: ['fake-uid-three'] } }));
+        fs.writeFileSync(tmp, JSON.stringify(['fake-uid-one', 'fake-uid-two', 'fake-uid-three']));
         const parsed = seedHeld.parseListFile(tmp);
         assert.strictEqual(parsed.ok, true);
-        assert.deepStrictEqual(seedHeld.countsOf(parsed.groups, parsed.uids), { total: 3, groups: { test: 2, other: 1 } });
+        assert.deepStrictEqual(seedHeld.countsOf(parsed.uids), { total: 3 });
         fs.unlinkSync(tmp);
         const r = require('child_process').spawnSync(process.execPath, [path.join(root, 'scripts', 'seed-age-gate-held.js')], { encoding: 'utf8' });
         assert.strictEqual(r.status, 2);
@@ -625,13 +637,15 @@ async function test(name, fn) {
             },
         };
         const tmp = path.join('/tmp', 'minirufus-l1b-seed-apply-fake.json');
-        fs.writeFileSync(tmp, JSON.stringify({ groups: { test: ['fake-uid-apply-1'] } }));
+        fs.writeFileSync(tmp, JSON.stringify(['fake-uid-apply-1']));
         try {
             const dry = await seedHeld.main([
                 '--project=bitcoin-quest-staging',
                 '--file=' + tmp,
             ], { admin: fakeAdmin });
             assert.strictEqual(dry.apply, false);
+            assert.strictEqual(dry.staging, true);
+            assert.strictEqual(dry.counts.total, 1);
             assert.strictEqual(inited, 0, 'dry run does not initialize');
             assert.strictEqual(written, null, 'dry run does not write');
 
@@ -644,13 +658,14 @@ async function test(name, fn) {
                 '--file=' + tmp,
                 '--apply',
                 '--confirm=AGEGATEHELD',
+                '--expect-count=1',
             ], { admin: fakeAdmin });
             assert.strictEqual(applied.apply, true);
             assert.strictEqual(applied.written, true);
             assert.strictEqual(written.collection, 'config');
             assert.strictEqual(written.id, 'ageGateHeld');
-            assert.ok(written.doc && written.doc.groups && written.doc.groups.test);
-            assert.strictEqual(written.doc.groups.test[0], 'fake-uid-apply-1');
+            assert.ok(written.doc && Array.isArray(written.doc.uids));
+            assert.strictEqual(written.doc.uids[0], 'fake-uid-apply-1');
             assert.ok(inited >= 1);
 
             const like14 = {
@@ -664,6 +679,268 @@ async function test(name, fn) {
             fs.unlinkSync(tmp);
         }
     });
+
+    function writeTmpJson(name, value) {
+        const tmp = path.join('/tmp', name);
+        fs.writeFileSync(tmp, typeof value === 'string' ? value : JSON.stringify(value));
+        return tmp;
+    }
+
+    function seedFakeAdmin() {
+        const state = { inited: 0, written: null };
+        const fake = {
+            getApps: function () { return this._apps || []; },
+            initializeApp: function (opts) {
+                state.inited += 1;
+                this.options = opts;
+                this._apps = [{ options: opts }];
+            },
+            firestore: function () {
+                return {
+                    collection: function (name) {
+                        return {
+                            doc: function (id) {
+                                return {
+                                    set: async function (doc) {
+                                        state.written = { collection: name, id: id, doc: doc };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                };
+            },
+        };
+        return { admin: fake, state: state };
+    }
+
+    const SERVER_NOW = { sentinel: 'serverTimestamp' };
+
+    function releaseFakeAdmin(initial) {
+        const docs = new Map();
+        Object.keys(initial || {}).forEach(function (k) { docs.set(k, Object.assign({}, initial[k])); });
+        let inited = 0;
+        function ref(p) {
+            return {
+                path: p,
+                id: p.split('/').pop(),
+                get: async function () {
+                    if (!docs.has(p)) return { exists: false, id: this.id, data: function () { return undefined; } };
+                    return { exists: true, id: this.id, data: function () { return Object.assign({}, docs.get(p)); } };
+                },
+                set: async function (data, opts) {
+                    const prev = docs.get(p) || {};
+                    docs.set(p, opts && opts.merge ? Object.assign({}, prev, data) : Object.assign({}, data));
+                },
+            };
+        }
+        function firestore() {
+            return {
+                collection: function (name) {
+                    return { doc: function (id) { return ref(name + '/' + id); } };
+                },
+                runTransaction: async function (fn) {
+                    const pending = [];
+                    const tx = {
+                        get: async function (r) { return r.get(); },
+                        set: function (r, data, opts) { pending.push(function () { return r.set(data, opts); }); },
+                    };
+                    await fn(tx);
+                    for (let i = 0; i < pending.length; i++) await pending[i]();
+                },
+            };
+        }
+        firestore.FieldValue = { serverTimestamp: function () { return SERVER_NOW; } };
+        const admin = {
+            getApps: function () { return this._apps || []; },
+            initializeApp: function (opts) {
+                inited += 1;
+                this.options = opts;
+                this._apps = [{ options: opts }];
+            },
+            firestore: firestore,
+        };
+        return { admin: admin, docs: docs, initedOf: function () { return inited; } };
+    }
+
+    await test('uid list shape: only a JSON array of distinct uid strings is accepted', async function () {
+        function parse(value) {
+            const tmp = writeTmpJson('minirufus-agegate-shape.json', value);
+            try { return uidList.parseUidArrayFile(tmp); }
+            finally { fs.unlinkSync(tmp); }
+        }
+        assert.strictEqual(parse({ groups: { test: ['fake-uid-one'] } }).reason, 'not_uid_array');
+        assert.strictEqual(parse({ uids: ['fake-uid-one'] }).reason, 'not_uid_array');
+        assert.strictEqual(uidList.parseUidArrayText('not-json').reason, 'invalid_json');
+        assert.strictEqual(uidList.parseUidArrayText('').reason, 'empty_file');
+        assert.strictEqual(parse([]).reason, 'empty_list');
+        assert.strictEqual(parse(['fake-uid-one', '']).reason, 'invalid_uid');
+        assert.strictEqual(parse(['fake-uid-one', '  fake-uid-two']).reason, 'invalid_uid');
+        assert.strictEqual(parse(['fake-uid-one', 1]).reason, 'invalid_uid');
+        assert.strictEqual(parse(['fake-uid-one', null]).reason, 'invalid_uid');
+        assert.strictEqual(parse(['fake-uid-one', 'fake-uid-one']).reason, 'duplicate_uids');
+        const ok = parse(['fake-uid-one', 'fake-uid-two']);
+        assert.strictEqual(ok.ok, true);
+        assert.strictEqual(ok.total, 2);
+        assert.deepStrictEqual(ok.doc, { uids: ['fake-uid-one', 'fake-uid-two'] });
+    });
+
+    await test('seed and release refuse a count mismatch and write nothing', async function () {
+        const tmp = writeTmpJson('minirufus-agegate-count.json', ['fake-uid-one', 'fake-uid-two']);
+        const seed = seedFakeAdmin();
+        const rel = releaseFakeAdmin({ 'config/ageGateHeld': { uids: ['fake-uid-one', 'fake-uid-two'] } });
+        try {
+            await assert.rejects(function () {
+                return seedHeld.main([
+                    '--project=bitcoin-quest-staging',
+                    '--file=' + tmp,
+                    '--apply',
+                    '--confirm=AGEGATEHELD',
+                    '--expect-count=1',
+                ], { admin: seed.admin });
+            }, function (e) { return /expect-count does not match/.test(e.message) && e.exitCode === 2; });
+            assert.strictEqual(seed.state.written, null);
+            assert.strictEqual(seed.state.inited, 0);
+
+            await assert.rejects(function () {
+                return seedHeld.main([
+                    '--project=bitcoin-quest-staging',
+                    '--file=' + tmp,
+                    '--apply',
+                    '--confirm=AGEGATEHELD',
+                ], { admin: seed.admin });
+            }, function (e) { return /expect-count/.test(e.message) && e.exitCode === 2; });
+            assert.strictEqual(seed.state.written, null);
+
+            await assert.rejects(function () {
+                return releaseHeld.main([
+                    '--project=bitcoin-quest-staging',
+                    '--file=' + tmp,
+                    '--apply',
+                    '--confirm=AGEGATERELEASE',
+                    '--expect-count=9',
+                ], { admin: rel.admin });
+            }, function (e) { return /expect-count does not match/.test(e.message) && e.exitCode === 2; });
+            assert.strictEqual(rel.initedOf(), 0);
+            assert.deepStrictEqual(rel.docs.get('config/ageGateHeld').uids, ['fake-uid-one', 'fake-uid-two']);
+            assert.strictEqual(rel.docs.has('users/fake-uid-one'), false);
+        } finally {
+            fs.unlinkSync(tmp);
+        }
+    });
+
+    await test('release dry run writes nothing; apply removes from held and stamps realAccountAt', async function () {
+        const tmp = writeTmpJson('minirufus-agegate-release-apply.json', ['fake-uid-rel-1', 'fake-uid-rel-2']);
+        const prior = Date.parse('2026-01-01T00:00:00.000Z');
+        const rel = releaseFakeAdmin({
+            'config/ageGateHeld': { uids: ['fake-uid-rel-1', 'fake-uid-rel-2', 'fake-uid-keep'], groups: { test: ['fake-uid-rel-1'] } },
+            'users/fake-uid-rel-1': { emailHash: 'h', realAccountAt: prior },
+        });
+        try {
+            const dry = await releaseHeld.main([
+                '--project=bitcoin-quest-staging',
+                '--file=' + tmp,
+            ], { admin: rel.admin });
+            assert.strictEqual(dry.apply, false);
+            assert.strictEqual(dry.staging, true);
+            assert.strictEqual(dry.counts.total, 2);
+            assert.strictEqual(rel.initedOf(), 0, 'dry run does not initialize');
+            assert.strictEqual(rel.docs.get('users/fake-uid-rel-1').realAccountAt, prior);
+            assert.deepStrictEqual(rel.docs.get('config/ageGateHeld').uids, ['fake-uid-rel-1', 'fake-uid-rel-2', 'fake-uid-keep']);
+
+            const applied = await releaseHeld.main([
+                '--project=bitcoin-quest-staging',
+                '--file=' + tmp,
+                '--apply',
+                '--confirm=AGEGATERELEASE',
+                '--expect-count=2',
+            ], { admin: rel.admin });
+            assert.strictEqual(applied.apply, true);
+            assert.strictEqual(applied.written, true);
+            assert.strictEqual(applied.counts.removed, 2);
+            assert.strictEqual(applied.counts.stamped, 2);
+            assert.strictEqual(applied.counts.notInHeld, 0);
+            assert.deepStrictEqual(rel.docs.get('config/ageGateHeld').uids, ['fake-uid-keep']);
+            assert.deepStrictEqual(rel.docs.get('config/ageGateHeld').groups.test, []);
+            assert.strictEqual(rel.docs.get('users/fake-uid-rel-1').realAccountAt, SERVER_NOW);
+            assert.strictEqual(rel.docs.get('users/fake-uid-rel-1').emailHash, 'h');
+            assert.strictEqual(rel.docs.get('users/fake-uid-rel-2').realAccountAt, SERVER_NOW);
+        } finally {
+            fs.unlinkSync(tmp);
+        }
+    });
+
+    await test('release and seed gates, and staging comes from --project only', async function () {
+        const srcRel = fs.readFileSync(path.join(root, 'scripts', 'release-age-gate-held.js'), 'utf8');
+        const srcSeed = fs.readFileSync(path.join(root, 'scripts', 'seed-age-gate-held.js'), 'utf8');
+        const srcList = fs.readFileSync(path.join(root, 'scripts', 'age-gate-uid-list.js'), 'utf8');
+        assert.ok(srcRel.includes('--confirm=AGEGATERELEASE'));
+        assert.ok(srcSeed.includes('--confirm=AGEGATEHELD'));
+        assert.ok(!srcRel.includes("'bitcoin-education-archive'"), 'no hard-coded live project');
+        assert.ok(!/console\.log\([^)]*uid/i.test(srcRel), 'no uid logging');
+        assert.ok(!srcList.includes('GCLOUD_PROJECT'));
+        assert.ok(!srcList.includes('GOOGLE_CLOUD_PROJECT'));
+        assert.ok(!srcList.includes('FIREBASE_CONFIG'));
+        assert.ok(!srcRel.includes('process.env'));
+        assert.ok(!srcSeed.includes('process.env'));
+
+        const tmp = writeTmpJson('minirufus-agegate-gate.json', ['fake-uid-gate-1']);
+        const seed = seedFakeAdmin();
+        const rel = releaseFakeAdmin({ 'config/ageGateHeld': { uids: ['fake-uid-gate-1'] } });
+        const prevGcloud = process.env.GCLOUD_PROJECT;
+        const prevGoogle = process.env.GOOGLE_CLOUD_PROJECT;
+        process.env.GCLOUD_PROJECT = 'bitcoin-quest-staging';
+        process.env.GOOGLE_CLOUD_PROJECT = 'bitcoin-quest-staging';
+        try {
+            const liveDry = await releaseHeld.main([
+                '--project=not-a-staging-proj',
+                '--file=' + tmp,
+            ], { admin: rel.admin });
+            assert.strictEqual(liveDry.staging, false, 'env staging must not win over --project');
+            assert.strictEqual(liveDry.apply, false);
+            assert.strictEqual(rel.initedOf(), 0);
+
+            const staged = releaseHeld.parseArgs(['--project=bitcoin-quest-staging', '--file=' + tmp]);
+            assert.strictEqual(staged.staging, true);
+            assert.strictEqual(uidList.isStagingProject('bitcoin-quest-staging'), true);
+            assert.strictEqual(uidList.isStagingProject('not-a-staging-proj'), false);
+
+            await assert.rejects(function () {
+                return releaseHeld.main([
+                    '--project=not-a-staging-proj',
+                    '--file=' + tmp,
+                    '--apply',
+                ], { admin: rel.admin });
+            }, function (e) { return /AGEGATERELEASE/.test(e.message) && e.exitCode === 2; });
+            assert.strictEqual(rel.docs.get('users/fake-uid-gate-1'), undefined);
+
+            await assert.rejects(function () {
+                return seedHeld.main([
+                    '--project=not-a-staging-proj',
+                    '--file=' + tmp,
+                    '--apply',
+                    '--expect-count=1',
+                ], { admin: seed.admin });
+            }, function (e) { return /AGEGATEHELD/.test(e.message) && e.exitCode === 2; });
+            assert.strictEqual(seed.state.written, null);
+
+            const r = require('child_process').spawnSync(process.execPath, [
+                path.join(root, 'scripts', 'release-age-gate-held.js'),
+                '--project=bitcoin-quest-staging',
+                '--file=' + tmp,
+                '--apply',
+            ], { encoding: 'utf8' });
+            assert.strictEqual(r.status, 2);
+            assert.ok(/AGEGATERELEASE/.test(r.stderr));
+        } finally {
+            if (prevGcloud === undefined) delete process.env.GCLOUD_PROJECT;
+            else process.env.GCLOUD_PROJECT = prevGcloud;
+            if (prevGoogle === undefined) delete process.env.GOOGLE_CLOUD_PROJECT;
+            else process.env.GOOGLE_CLOUD_PROJECT = prevGoogle;
+            fs.unlinkSync(tmp);
+        }
+    });
+
 
     await test('rules sha256 is unchanged at 998d7570', async function () {
         const crypto = require('crypto');
