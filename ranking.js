@@ -4399,6 +4399,8 @@ function invitedReferralCount(user) {
 var _homeInvitedCount = 0;
 var _homeMaxiCount = 0;
 var _homeReachedCount = 0;
+var _homeQualifiesCount = 0;
+var _homeJoinedBeforeCount = 0;
 
 function serverReachedReferralCount(user) {
     var raw = user && user.referralMaxiReachedCount;
@@ -4408,7 +4410,7 @@ function serverReachedReferralCount(user) {
 }
 window.serverReachedReferralCount = serverReachedReferralCount;
 
-function paintInviteTier(count, invited, reached) {
+function paintInviteTier(count, invited, reached, qualifies, joinedBefore) {
     var api = referralTierApi();
     var n = (api && typeof api.normalizeCount === 'function') ? api.normalizeCount(count) : (Number(count) || 0);
     var progress = (api && typeof api.tierProgress === 'function') ? api.tierProgress(n) : {
@@ -4422,9 +4424,15 @@ function paintInviteTier(count, invited, reached) {
     if (!isFinite(inv) || inv < 0) inv = 0;
     var reachedN = (typeof reached === 'number') ? Math.floor(reached) : serverReachedReferralCount(user);
     if (!isFinite(reachedN) || reachedN < 0) reachedN = n;
+    var qualifiesN = (typeof qualifies === 'number') ? Math.floor(qualifies) : reachedN;
+    if (!isFinite(qualifiesN) || qualifiesN < 0) qualifiesN = reachedN;
+    var joinedN = (typeof joinedBefore === 'number') ? Math.floor(joinedBefore) : 0;
+    if (!isFinite(joinedN) || joinedN < 0) joinedN = 0;
     _homeInvitedCount = inv;
     _homeMaxiCount = n;
     _homeReachedCount = reachedN;
+    _homeQualifiesCount = qualifiesN;
+    _homeJoinedBeforeCount = joinedN;
     var tierEl = document.getElementById('homeInvitesTier');
     var noteEl = document.getElementById('homeInvitesNote');
     var progEl = document.getElementById('homeInvitesProgress');
@@ -4432,11 +4440,11 @@ function paintInviteTier(count, invited, reached) {
     var openBtn = document.getElementById('homeInvitesOpen') || tile;
     if (tierEl) tierEl.textContent = progress.tierLabel;
     var noteText = (api && typeof api.reachedRewardLabel === 'function')
-        ? api.reachedRewardLabel(reachedN, n)
-        : (String(reachedN) + ' reached · ' + String(n) + ' rewarded');
+        ? api.reachedRewardLabel(reachedN, qualifiesN, joinedN)
+        : (String(reachedN) + ' reached, ' + String(qualifiesN) + (qualifiesN === 1 ? ' qualifies' : ' qualify'));
     if (noteEl) noteEl.textContent = noteText;
     var helpEl = document.getElementById('homeInvitesInfoText');
-    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, reachedN, n);
+    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, reachedN, qualifiesN, joinedN);
     if (progEl) progEl.textContent = progress.progressText;
     if (tile) tile.setAttribute('data-referral-tier', String(progress.level));
     if (openBtn) {
@@ -4507,7 +4515,9 @@ window.refreshHomeStrip = function() {
         getReferralStats().then(function (stats) {
             if (!stats || stats.failed || typeof stats.invited !== 'number') return;
             var reached = typeof stats.reached === 'number' ? stats.reached : 0;
-            paintInviteTier(serverMaxiReferralCount(user), stats.invited, reached);
+            var qualifies = typeof stats.qualifies === 'number' ? stats.qualifies : reached;
+            var joinedBefore = typeof stats.joinedBefore === 'number' ? stats.joinedBefore : 0;
+            paintInviteTier(serverMaxiReferralCount(user), stats.invited, reached, qualifies, joinedBefore);
         }).catch(function () {});
     }
     if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
@@ -4652,7 +4662,7 @@ function bindReferralTierLadder() {
         help.addEventListener('mouseleave', hoverClose);
     }
     var api = referralTierApi();
-    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount);
+    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeQualifiesCount, _homeJoinedBeforeCount);
 }
 bindReferralTierLadder();
 
@@ -4662,7 +4672,7 @@ function setMaxiInfoOpen(open) {
     if (!tip) return;
     if (tip.parentElement !== document.body) document.body.appendChild(tip);
     var api = referralTierApi();
-    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount);
+    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeQualifiesCount, _homeJoinedBeforeCount);
     tip.classList.toggle('is-open', !!open);
     if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (!open) return;

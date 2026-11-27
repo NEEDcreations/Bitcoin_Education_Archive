@@ -3540,29 +3540,31 @@ async function getReferralStats() {
             .where('referrerUid', '==', uid)
             .get();
 
-        let total = snapshot.size;
-        let verified = 0;
-        let pending = 0;
-        let reachedXp = 0;
-
-        snapshot.forEach(doc => {
-            var data = doc.data() || {};
-            var rewarded = data.verified === true || data.status === 'paid' || data.ticketsAwarded === true;
-            if (rewarded) verified++;
-            else pending++;
-            if (data.maxiReachedAt || rewarded) reachedXp++;
+        var docs = [];
+        snapshot.forEach(function (doc) {
+            docs.push({ id: doc.id, data: doc.data() || {} });
         });
 
-        var stats = {
-            total: total,
-            verified: verified,
-            pending: pending,
-            invited: total,
-            maxi: verified,
-            reached: reachedXp,
-            maxiReached: reachedXp,
-            rewarded: verified
-        };
+        var api = (typeof referralTiers !== 'undefined' && referralTiers)
+            ? referralTiers
+            : (typeof window !== 'undefined' ? window.referralTiers : null);
+        var need = (api && typeof api.inviteDocsNeedingProfilePoints === 'function')
+            ? api.inviteDocsNeedingProfilePoints(docs)
+            : [];
+        var pointsByUid = {};
+        if (need.length && db) {
+            await Promise.all(need.map(function (profileUid) {
+                return db.collection('public_profiles').doc(profileUid).get().then(function (snap) {
+                    if (!snap.exists) return;
+                    var row = snap.data() || {};
+                    pointsByUid[profileUid] = row.points;
+                }).catch(function () {});
+            }));
+        }
+
+        var stats = (api && typeof api.summarizeReferralInviteDocs === 'function')
+            ? api.summarizeReferralInviteDocs(docs, pointsByUid)
+            : { total: snapshot.size, invited: snapshot.size, verified: 0, pending: snapshot.size, maxi: 0, rewarded: 0, qualifies: 0, joinedBefore: 0, reached: 0, maxiReached: 0 };
         _inviteStatsCache = { uid: uid, at: now, stats: stats };
         return stats;
     } catch (e) {
@@ -3579,7 +3581,10 @@ async function getReferralStats() {
                 maxi: maxi,
                 reached: reached,
                 maxiReached: reached,
-                rewarded: maxi
+                rewarded: maxi,
+                qualifies: reached,
+                joinedBefore: 0,
+                staleInvited: true
             };
         }
         return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
@@ -3838,16 +3843,23 @@ function _copyTextNow(text) {
 }
 
 function _inviteCountLine(stats) {
+    var api = (typeof referralTiers !== 'undefined' && referralTiers)
+        ? referralTiers
+        : (typeof window !== 'undefined' ? window.referralTiers : null);
+    if (api && typeof api.inviteCountLine === 'function') return api.inviteCountLine(stats);
     var invited = stats && typeof stats.invited === 'number' ? stats.invited : 0;
     var reached = stats && typeof stats.reached === 'number' ? stats.reached
         : (stats && typeof stats.maxiReached === 'number' ? stats.maxiReached : 0);
-    var rewarded = stats && typeof stats.rewarded === 'number' ? stats.rewarded
-        : (stats && typeof stats.maxi === 'number' ? stats.maxi : 0);
-    if (!invited && !reached && !rewarded) return 'No invites yet.';
+    var qualifies = stats && typeof stats.qualifies === 'number' ? stats.qualifies : 0;
+    var joinedBefore = stats && typeof stats.joinedBefore === 'number' ? stats.joinedBefore : 0;
+    if (!invited && !reached && !qualifies && !joinedBefore) return 'No invites yet.';
     var invitedLabel = invited === 1 ? '1 friend invited' : invited + ' friends invited';
-    var reachedLabel = (reached === 1 ? '1 reached 2,140 XP' : reached + ' reached 2,140 XP');
-    var rewardedLabel = (rewarded === 1 ? '1 rewarded' : rewarded + ' rewarded');
-    return invitedLabel + ' · ' + reachedLabel + ' · ' + rewardedLabel;
+    var qualifyText = qualifies === 1 ? '1 qualifies' : qualifies + ' qualify';
+    var line = invitedLabel + ' · ' + (reached === 1 ? '1 reached' : reached + ' reached') + ' 2,140 XP, ' + qualifyText;
+    if (joinedBefore > 0) {
+        line += ' (' + (joinedBefore === 1 ? '1 joined before using your code' : joinedBefore + ' joined before using your code') + ')';
+    }
+    return line;
 }
 
 function _fillInviteCard() {
@@ -3880,7 +3892,7 @@ function _loadInviteCounts() {
             reached = parseInt(currentUser.referralMaxiReachedCount, 10);
             if (isNaN(reached)) reached = maxi;
         }
-        if (reached || maxi) el.textContent = (reached || 0) + ' reached 2,140 XP · ' + maxi + ' rewarded';
+        if (reached || maxi) el.textContent = _inviteCountLine({ invited: 0, reached: reached || 0, qualifies: reached || 0, joinedBefore: 0 });
         else el.textContent = 'Invite counts load when you are online.';
     });
 }
