@@ -192,6 +192,7 @@ var _acType = null; // 'hash' or 'at' for autocomplete
 var _acQuery = ''; // current autocomplete search
 var _acStart = 0; // cursor position where trigger started
 var _chatUsers = {}; // uid -> username cache from messages
+if (typeof window !== 'undefined') window._chatUsers = _chatUsers;
 var _acIndex = 0; // keyboard nav index
 var REACT_EMOJIS_DEFAULT = ['👍','👎','❤️','😂','🔥','⚡','🤔','👀','🙌','🤙'];
 var REACT_EMOJIS_EXPANDED = ['👍','👎','❤️','😂','🔥','⚡','🤔','👀','🙌','💯','🤙','🦌','🎉','😢','😡','🤣','💀','🙏','💪','🤯','😱','🥳','😎','🤡','💎','🚀','⛏️','🧡','₿','🫡','👑','🐋','❌','✅','⬆️','⬇️','🍿','☠️','🫂','🤝','💩','😅','😉'];
@@ -316,6 +317,58 @@ function isSpammy(text) {
 
 // Escape HTML
 function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+
+// Delegated click actions for chat rows, DM list and the DJ bar.
+var GC_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+function gcIdOk(v) { return typeof v === 'string' && GC_ID_RE.test(v); }
+window._gcIdOk = gcIdOk;
+// Account ids may also be nostr:<hex> or ln:<key>; message ids stay strict.
+var GC_UID_RE = /^[A-Za-z0-9_:-]{1,128}$/;
+function gcUidOk(v) { return typeof v === 'string' && GC_UID_RE.test(v); }
+window._gcUidOk = gcUidOk;
+var GC_UID_ACTIONS = { profile: true, dm: true };
+var _gcMsgById = {};
+var _gcDmNames = {};
+function gcMsgFor(id) { return Object.prototype.hasOwnProperty.call(_gcMsgById, id) ? _gcMsgById[id] : null; }
+var GC_ACTIONS = {
+    profile: function(el, id) { if (typeof showUserProfile === 'function') showUserProfile(id); },
+    react: function(el, id) {
+        var e = el.getAttribute('data-emoji') || '';
+        if (!e || e.length > 10 || /[<>"'\\&;(){}]/.test(e)) return;
+        if (typeof toggleReaction === 'function') toggleReaction(id, e);
+    },
+    'react-pick': function(el, id) { if (typeof showReactPicker === 'function') showReactPicker(id, el); },
+    edit: function(el, id) { var m = gcMsgFor(id); if (m && typeof editChatMsg === 'function') editChatMsg(id, m.text || ''); },
+    pin: function(el, id) { if (typeof pinChatMessage === 'function') pinChatMessage(id); },
+    del: function(el, id) { if (typeof deleteChatMsg === 'function') deleteChatMsg(id); },
+    tip: function(el, id) {
+        var m = gcMsgFor(id);
+        if (!m || typeof m.uid !== 'string' || !gcUidOk(m.uid) || typeof showTipOverlay !== 'function') return;
+        showTipOverlay({ recipientName: (typeof m.name === 'string' && m.name) ? m.name : 'Anon', recipientUid: m.uid, context: 'Global Chat tip', label: 'Tip Message' });
+    },
+    dm: function(el, id) {
+        var name = Object.prototype.hasOwnProperty.call(_gcDmNames, id) ? _gcDmNames[id] : 'User';
+        if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+        setTimeout(function() { if (typeof openDM === 'function') openDM(id, name); }, 300);
+    }
+};
+function gcOnAction(ev) {
+    var t = ev.target;
+    var el = t && t.closest ? t.closest('[data-gc-action]') : null;
+    if (!el || !this.contains(el)) return;
+    var act = el.getAttribute('data-gc-action') || '';
+    var id = el.getAttribute('data-id') || '';
+    if (!Object.prototype.hasOwnProperty.call(GC_ACTIONS, act)) return;
+    if (!(Object.prototype.hasOwnProperty.call(GC_UID_ACTIONS, act) ? gcUidOk(id) : gcIdOk(id))) return;
+    if (act === 'tip' || act === 'dm') ev.stopPropagation();
+    GC_ACTIONS[act](el, id, ev);
+}
+function gcBindActions(container) {
+    if (!container || container._gcActionsBound) return;
+    container._gcActionsBound = true;
+    container.addEventListener('click', gcOnAction);
+}
+window._gcBindActions = gcBindActions;
 
 // Time format
 function timeAgo(ts) {
@@ -577,6 +630,8 @@ window._chatShowCount = 0;
 function renderChatMessages(msgs) {
     var el = document.getElementById('globalChatMessages');
     if (!el) return;
+    gcBindActions(el);
+    _gcMsgById = {};
 
     window._chatAllMsgs = msgs;
     // On first render or new messages, show last CHAT_INITIAL_SHOW
@@ -626,6 +681,8 @@ function renderChatMessages(msgs) {
         }
 
         if (bqSkipAnnouncement(m)) continue;
+        if (!gcIdOk(m._id)) continue;
+        _gcMsgById[m._id] = m;
         var isNacho = m.uid === 'nacho-bot' || m.isNachoAuto === true;
         var _factionStyle = !isNacho && m.faction ? window._factionNameStyle(m.faction) : '';
         var nameColor = isNacho ? '#22c55e' : isMe ? 'var(--accent)' : '#6366f1';
@@ -635,7 +692,7 @@ function renderChatMessages(msgs) {
         // Override display name for Nacho auto-replies
         if (isNacho && m.name !== '🦌 Nacho') m.name = '🦌 Nacho';
 
-        html += '<div data-msg-id="' + m._id + '" style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
+        html += '<div data-msg-id="' + esc(m._id) + '" style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
         html += '<div style="background:' + bubbleBg + ';border:1px solid ' + bubbleBorder + ';border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';padding:8px 12px;position:relative;">';
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
         // Cosmetics: chat flair prefix & nacho skin avatar
@@ -643,31 +700,40 @@ function renderChatMessages(msgs) {
         var _nachoSkinAvatar = (!isNacho && m.hasNachoSkin) ? '<img src="/nacho-deer.svg" style="width:16px;height:16px;border-radius:50%;border:1px solid #f7931a;vertical-align:-3px;margin-right:2px;filter:drop-shadow(0 0 3px rgba(247,147,26,0.5));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))" />' : '';
         var nameStyle = 'font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';';
         var nameClick = '';
+        var nameHtml;
         if (!isDeleted) {
             nameStyle += 'cursor:pointer;';
-            nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')"';
+            var nameUid = isNacho ? 'nacho-bot' : (m.uid || '');
+            if (typeof usernameTagHtml === 'function') {
+                nameHtml = usernameTagHtml(m.name || 'Anon', nameUid, { at: false });
+            } else {
+                nameClick = gcUidOk(String(m.uid || '')) ? ' data-gc-action="profile" data-id="' + esc(String(m.uid)) + '"' : '';
+                nameHtml = esc(m.name || 'Anon');
+            }
+        } else {
+            nameHtml = esc(m.name || 'Anon');
         }
         var _coreTitle = (!isNacho && m.hasCoreContributor) ? ' <span title="Core Contributor — BIP Breakthrough" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.35);color:#f97316;vertical-align:middle;">🔧 Core Contributor</span>' : '';
         _coreTitle += (!isNacho && m.hasFactionChampion) ? (function(){ var _fl = ({'🐝👑':'Hive Mind Champion','🦡👑':"Honey Badger Don't Care Champion",'🐝🛡️':'Still Buzzing','🦡🛡️':"Badger Don't Quit"})[m.factionRaceFlair]; return _fl ? ' <span title="Faction race" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">' + esc(m.factionRaceFlair + ' ' + _fl) + '</span>' : null; })() || ' <span title="Faction race champion" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">👑 Race Champion</span>' : '';
-        html += '<span style="' + nameStyle + '"' + nameClick + '>' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + _coreTitle + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
+        html += '<span style="' + nameStyle + '"' + nameClick + '>' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + nameHtml + _coreTitle + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
         if (myUid && !isDeleted) {
             html += '<span data-reply-id="' + esc(m._id) + '" data-reply-name="' + esc(m.name || 'Anon') + '" data-reply-text="' + esc((m.text||'').substring(0,50)) + '" onclick="setChatReply(this.dataset.replyId,this.dataset.replyName,this.dataset.replyText)" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
         }
         if (isMe || isAdmin) {
             if (isMe && (m.editCount || 0) < 2 && !m.isGif && !m.imageUrl && !m.gifUrl) {
-                html += '<span onclick="editChatMsg(\'' + m._id + '\',\'' + esc((m.text||'').replace(/'/g,`\\'`)) + '\')" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
+                html += '<span data-gc-action="edit" data-id="' + esc(m._id) + '" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
             }
             if (isAdmin && !m.isGif && !m.imageUrl && !m.gifUrl && m.uid !== 'nacho-bot' && m.isNachoAuto !== true) {
-                html += '<span onclick="pinChatMessage(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
+                html += '<span data-gc-action="pin" data-id="' + esc(m._id) + '" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
             }
-            html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
+            html += '<span data-gc-action="del" data-id="' + esc(m._id) + '" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
         }
         html += '</div>';
         if (m.replyToName) {
             var _replyId = m.replyTo || '';
             html += '<div data-reply-to="' + esc(_replyId) + '" onclick="window._scrollToChatMsg(this.dataset.replyTo)" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
-            html += '<span style="font-weight:700;color:#818cf8;font-size:0.7rem;display:block;margin-bottom:1px;">' + esc(m.replyToName) + '</span>';
+            html += '<span style="font-weight:700;color:#818cf8;font-size:0.7rem;display:block;margin-bottom:1px;">' + (typeof usernameTagHtml === 'function' ? usernameTagHtml(m.replyToName, (typeof resolveUsernameUid === 'function' ? resolveUsernameUid(m.replyToName, '') : ''), { at: false }) : esc(m.replyToName)) + '</span>';
             html += '<span style="color:var(--text-muted);">' + esc((m.replyToText||'').substring(0,80)) + (m.replyToText && m.replyToText.length > 80 ? '…' : '') + '</span>';
             html += '</div>';
         }
@@ -698,12 +764,12 @@ function renderChatMessages(msgs) {
             var iReacted = myUid && users.indexOf(myUid) !== -1;
             var safeEmoji = esc(emoji);
             var _uidsJson = JSON.stringify(users);
-            html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + safeEmoji.replace(/[\\'"]/g, '') + '\')" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
+            html += '<button data-gc-action="react" data-id="' + esc(m._id) + '" data-emoji="' + safeEmoji + '" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
         }
         if (myUid) {
-            html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
+            html += '<button data-gc-action="react-pick" data-id="' + esc(m._id) + '" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
             if (!isMe && !isNacho && !isDeleted && m.uid !== 'system') {
-                html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',recipientUid:\'' + String(m.uid || '').replace(/[^A-Za-z0-9_-]/g,'') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
+                html += '<button data-gc-action="tip" data-id="' + esc(m._id) + '" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
             }
         }
         html += '</div>';
@@ -715,6 +781,7 @@ function renderChatMessages(msgs) {
     if (_savedBanner) _savedBanner.remove();
     el.innerHTML = html;
     attachOfficialChatCtas(el, visibleMsgs);
+    attachFavorHashCtas(el, visibleMsgs);
     if (_savedBanner) el.insertBefore(_savedBanner, el.firstChild);
 
     // Auto-scroll to bottom if user was near bottom
@@ -968,6 +1035,55 @@ function createOfficialChatCtaButton(label, route) {
     });
     return btn;
 }
+
+function isNachoFavorAnnouncement(m) {
+    if (!m || typeof m !== 'object') return false;
+    if (m.uid !== 'nacho-bot') return false;
+    var t = String(m.text || m.caption || '');
+    return /Satoshi'?s Favor is LIVE/i.test(t) || /Satoshi'?s Favor ends soon/i.test(t);
+}
+function openFavorHashingScreen() {
+    if (typeof window.openSatoshiFavorMiner === 'function') {
+        window.openSatoshiFavorMiner();
+        return;
+    }
+    if (typeof window.showQuestHub === 'function') {
+        window.showQuestHub();
+        window._questHubTab = 'favor';
+        setTimeout(function() { if (typeof window._renderQuestHubTab === 'function') window._renderQuestHubTab(); }, 50);
+    }
+}
+function createStartHashingButton() {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'favor-start-hashing-cta';
+    btn.textContent = 'Start hashing';
+    btn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;min-width:44px;margin-top:8px;padding:10px 14px;border:1px solid var(--accent);border-radius:10px;background:rgba(247,147,26,0.12);color:var(--accent);font:inherit;font-weight:700;font-size:0.85rem;line-height:1.2;text-decoration:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    btn.addEventListener('click', function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+        if (e && e.stopPropagation) e.stopPropagation();
+        openFavorHashingScreen();
+    });
+    return btn;
+}
+function attachFavorHashCtas(root, msgs) {
+    if (!root || !root.querySelectorAll) return;
+    var byId = Object.create(null);
+    (msgs || []).forEach(function (m) {
+        if (m && m._id) byId[m._id] = m;
+    });
+    var nodes = root.querySelectorAll('[data-msg-id]');
+    for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        var m = byId[node.getAttribute('data-msg-id')];
+        if (!isNachoFavorAnnouncement(m)) continue;
+        var existing = node.querySelector('.favor-start-hashing-cta');
+        if (existing) continue;
+        var bubble = node.firstElementChild || node;
+        bubble.appendChild(createStartHashingButton());
+    }
+}
+
 function attachOfficialChatCtas(root, msgs) {
     if (!root || !root.querySelectorAll) return;
     var byId = Object.create(null);
@@ -1927,12 +2043,48 @@ function createChatOverlay() {
     // Chat panel desktop sizing. Contain overscroll so a flick inside the
     // thread does not chain into the page behind the panel.
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}}' +
+    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;height:calc(100vh - var(--chat-title-bottom, 12px) - 8px)!important;max-height:none!important;}}' +
         '#chatOverlay,#chatOverlayBody,#globalChatMessages,#overlayAnnouncementsBody,#overlayDMsBody,#chatAutocomplete,#gifResults,#emojiGrid{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}' +
+        '#globalChatMessages:has(#chatPinnedBanner){padding-top:0!important;}' +
+        '#globalChatMessages #chatPinnedBanner{top:0;}' +
         '@keyframes djPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}';
     document.head.appendChild(style);
+    bindChatTitleClearance();
+    syncChatTitleClearance();
     bindChatScrollContain(panel);
     bindChatOutsideClose();
+}
+
+// Desktop chat panel grows from the bottom and stops just below the
+// visible Bitcoin Quest homepage title. When the title is hidden
+// (signed-in home), a 12px top gap is used instead of the old 700px cap.
+function syncChatTitleClearance() {
+    var fallback = 12;
+    var bottom = fallback;
+    if (window.innerWidth > 900) {
+        var title = document.querySelector('h1.home-title');
+        var hero = document.getElementById('homeHero');
+        var heroHidden = false;
+        if (hero) {
+            var hs = window.getComputedStyle(hero);
+            heroHidden = hs.display === 'none' || hs.visibility === 'hidden';
+        }
+        if (title && !heroHidden && title.getClientRects().length) {
+            var rectBottom = Math.round(title.getBoundingClientRect().bottom);
+            if (rectBottom > 0) bottom = rectBottom;
+        }
+    }
+    document.documentElement.style.setProperty('--chat-title-bottom', bottom + 'px');
+}
+window._syncChatTitleClearance = syncChatTitleClearance;
+
+function bindChatTitleClearance() {
+    if (window._chatTitleClearanceBound) return;
+    window._chatTitleClearanceBound = true;
+    window.addEventListener('resize', function () {
+        if (window._chatTitleClearanceTimer) clearTimeout(window._chatTitleClearanceTimer);
+        window._chatTitleClearanceTimer = setTimeout(syncChatTitleClearance, 100);
+    });
 }
 
 // Portaled chat controls sit outside #chatOverlay. A tap on them is still "inside" chat.
@@ -2066,6 +2218,7 @@ window.toggleChatOverlay = function() {
     if (badge) badge.style.display = 'none';
 
     if (_overlayOpen) {
+        syncChatTitleClearance();
         renderOverlayChat();
     } else {
         // Unsubscribe when closing
@@ -2146,6 +2299,7 @@ function renderOverlayChat() {
         setTimeout(function() {
             var dmBody = document.getElementById('overlayDMsBody');
             if (!dmBody) return;
+            gcBindActions(dmBody);
             if (!isSignedIn) {
                 dmBody.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:1.5rem;margin-bottom:8px;">📬</div><div style="color:var(--text-faint);font-size:0.85rem;">Sign in to see messages</div></div>';
                 return;
@@ -2172,7 +2326,9 @@ function renderOverlayChat() {
                         if (lastMsg.length > 40) lastMsg = lastMsg.substring(0, 40) + '...';
                         var lastTime = c.lastMessageTime ? timeAgo(c.lastMessageTime) : '';
                         var isFromMe = c.lastSenderUid === myUid;
-                        html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + otherUid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName).replace(/[\\'"]/g, "") + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'rgba(249,115,22,0.3)' : 'transparent') + ';background:' + (unread > 0 ? 'rgba(249,115,22,0.05)' : 'none') + ';margin-bottom:4px;">' +
+                        if (!gcUidOk(String(otherUid || ''))) return;
+                        _gcDmNames[otherUid] = String(otherName);
+                        html += '<div data-gc-action="dm" data-id="' + esc(String(otherUid)) + '" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'rgba(249,115,22,0.3)' : 'transparent') + ';background:' + (unread > 0 ? 'rgba(249,115,22,0.05)' : 'none') + ';margin-bottom:4px;">' +
                             '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
                             '<div style="flex:1;min-width:0;">' +
                                 '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -2199,7 +2355,9 @@ function renderOverlayChat() {
                                 var otherUid = c.participants.find(function(p) { return p !== myUid; });
                                 var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
                                 var unread = c['unread_' + myUid] || 0;
-                                html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + otherUid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName).replace(/[\\'"]/g, "") + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;">' +
+                                if (!gcUidOk(String(otherUid || ''))) return;
+                                _gcDmNames[otherUid] = String(otherName);
+                                html += '<div data-gc-action="dm" data-id="' + esc(String(otherUid)) + '" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;">' +
                                     '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
                                     '<div style="flex:1;min-width:0;"><div style="font-weight:600;color:var(--heading);font-size:0.82rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName) + '</div></div>' +
                                     (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:8px;">' + unread + '</div>' : '') +
@@ -2374,7 +2532,7 @@ window.showReactPicker = function(msgId, btnEl) {
     var bg = _rIsDark ? '#1a1a2e' : '#f0f0f5';
     picker.style.cssText = 'position:fixed;z-index:260000;background:'+bg+';border:1px solid var(--border);border-radius:16px;padding:10px;width:310px;max-height:340px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);';
 
-    var cats = Object.keys(EMOJI_CATEGORIES);
+    var cats = _emojiPickerCats(false);
 
     // Search bar — same as showEmojiPicker
     var searchHtml = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
@@ -2387,15 +2545,24 @@ window.showReactPicker = function(msgId, btnEl) {
     // Category tabs
     var tabHtml = '<div id="reactEmojiTabBar" style="display:flex;gap:2px;margin-bottom:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
     cats.forEach(function(cat, i) {
-        var icon = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : '✨';
+        var icon = _emojiTabIcon(cat);
         tabHtml += '<button onclick="window._switchReactTab(\''+cat+'\')" id="reactEmojiTab_'+i+'" style="padding:5px 8px;font-size:0.95rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
     });
     tabHtml += '</div>';
 
     picker.innerHTML = searchHtml + tabHtml + '<div id="reactEmojiGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:230px;justify-content:center;"></div>';
 
+    picker.addEventListener('click', function(ev) {
+        var b = ev.target && ev.target.closest ? ev.target.closest('[data-react-emoji]') : null;
+        if (!b || !picker.contains(b)) return;
+        var e = b.getAttribute('data-react-emoji') || '';
+        if (e) _emojiRecordUse(e);
+        _closeReactPicker();
+        if (e) toggleReaction(msgId, e);
+    });
+
     function _reactEmojiBtn(e) {
-        return '<button onclick="_closeReactPicker();toggleReaction(\''+msgId+'\',\''+e+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+        return '<button data-react-emoji="'+esc(String(e))+'" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
     }
 
     window._switchReactTab = function(cat) {
@@ -2403,10 +2570,11 @@ window.showReactPicker = function(msgId, btnEl) {
         if (!grid) return;
         var si = document.getElementById('reactSearchInput');
         if (si) si.value = '';
-        var emojis = EMOJI_CATEGORIES[cat] || [];
+        var emojis = (cat === 'Recent') ? _emojiRecentTop(EMOJI_RECENT_MAX) : (EMOJI_CATEGORIES[cat] || []);
         var html = '';
         emojis.forEach(function(e) { html += _reactEmojiBtn(e); });
-        grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">No emojis here</div>';
+        var emptyMsg = (cat === 'Recent') ? 'Use emojis to fill your Recent tab' : 'No emojis here';
+        grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">' + emptyMsg + '</div>';
         cats.forEach(function(c, i) {
             var t = document.getElementById('reactEmojiTab_'+i);
             if (t) { t.style.background = c===cat?'var(--accent-bg)':'none'; t.style.borderColor = c===cat?'var(--accent)':'var(--border)'; }
@@ -2730,7 +2898,7 @@ var EMOJI_INPUT_CATEGORIES = Object.assign({}, EMOJI_CATEGORIES, { Custom: Objec
 // Flat emoji search index: [emoji, keywords]
 var EMOJI_SEARCH_INDEX = [
     ['😀','grinning happy smile face'],['😂','joy laugh crying face'],['🤣','rolling floor laughing lmao'],['😊','blush smile happy'],['😍','heart eyes love'],['🥰','smiling hearts love'],['😎','sunglasses cool'],['🤔','thinking hmm'],['😭','loudly crying sad'],['😱','scream shocked'],['😤','steam nose angry'],['😡','angry mad rage'],['💀','skull dead'],['🙈','see no evil monkey'],['💩','poop shit'],['🤡','clown joke'],['😈','smiling devil evil'],['👻','ghost spooky'],['🤖','robot'],['🥺','pleading cute'],['🤩','star struck wow'],['😴','sleeping tired'],['🥳','party hat celebrate'],['🤯','mind blown explode'],['😇','angel halo good'],['🥴','woozy drunk dizzy'],['😬','grimace awkward'],['🫠','melting face'],['🫣','peeking eye'],['❤️‍🔥','heart fire love passion'],
-    ['👍','thumbs up like approve'],['👎','thumbs down dislike'],['👏','clap applause'],['🙌','raise hands celebrate'],['🙏','pray thanks please'],['💪','muscle strong flex'],['🤝','handshake deal'],['👀','eyes look see watching'],['🤷','shrug whatever'],['🤦','facepalm smh'],['🫶','heart hands love'],['🫂','hug embrace'],['✌️','peace victory'],['🤌','italian hand pinch'],['👌','ok perfect'],['🤞','fingers crossed luck'],['🫵','point you'],
+    ['👍','thumbs up like approve'],['👎','thumbs down dislike'],['👏','clap applause'],['🙌','raise hands celebrate'],['🙏','pray thanks please'],['💪','muscle strong flex'],['🤝','handshake deal'],['👀','eyes look see watching'],['🤷','shrug whatever'],['🤦','facepalm smh'],['🫶','heart hands love'],['🫂','hug embrace'],['✌️','peace victory'],['🤌','italian hand pinch'],['👌','ok perfect'],['🤞','fingers crossed luck'],['🫵','point you'],['👋','waving hand wave hi hello'],
     ['₿','bitcoin btc'],['⚡','lightning fast zap bolt'],['🚀','rocket moon launch'],['💎','diamond gem'],['🔑','key access'],['💰','money bag rich'],['💸','money wings spend'],['📈','chart up trend bull'],['📉','chart down bear'],['⛏️','pickaxe mining'],['🏆','trophy win champion'],['🌐','globe world internet'],['🔒','lock secure'],['🪙','coin money'],['🦌','deer nacho'],['🦁','lion king'],['🐂','bull ox'],['🐋','whale'],['🐻','bear'],
     ['🔥','fire hot trending'],['💯','100 percent perfect'],['✨','sparkle star magic'],['🎉','party celebrate tada'],['⭐','star favorite'],['🌟','glowing star shine'],['❤️','red heart love'],['💔','broken heart sad'],['✅','check mark done correct'],['❌','cross wrong no'],['🔄','refresh cycle repeat'],['♾️','infinity forever'],['🎵','music note'],['🎮','video game controller'],['🎲','dice game random'],['📚','books read study'],['🍕','pizza food'],['🍺','beer drink cheers'],['☕','coffee hot drink'],['🌈','rainbow colors'],['⚽','soccer football'],['🏀','basketball'],['🎯','dart target goal'],
     ['💯','100 perfect score'],['🎊','confetti party'],['🥇','gold medal first place'],['🥈','silver second'],['🥉','bronze third'],['💫','dizzy star spin'],['🧡','orange heart'],['💛','yellow heart'],['💚','green heart'],['💙','blue heart'],['💜','purple heart'],['🖤','black heart'],['🤍','white heart'],['🤎','brown heart'],
@@ -2746,6 +2914,123 @@ var EMOJI_SEARCH_INDEX = [
     ['🌸','cherry blossom flower'],['🌺','hibiscus flower'],['🌻','sunflower'],['🌹','rose flower'],['🌷','tulip'],['☘️','shamrock clover lucky'],['🍀','four leaf clover luck'],['🌿','herb plant green'],['🌱','seedling sprout'],['🌲','evergreen tree'],['🌴','palm tree'],['🍁','maple leaf fall autumn'],['🦋','butterfly'],['🐝','bee honey'],['🌦️','sun rain weather'],['⛈️','thunderstorm lightning'],['❄️','snowflake cold winter'],['⛄','snowman'],['🌊','wave ocean water'],['🌙','crescent moon night'],['🌛','moon face'],['🌝','full moon face'],['🌞','sun face'],['🌤️','partly cloudy'],['☁️','cloud'],['🌧️','rain'],['🌈','rainbow'],['⛅','partly cloudy'],['🌡️','thermometer temperature'],['💧','droplet water'],['🔥','fire hot'],
 ];
 
+
+var EMOJI_RECENT_MAX = 5;
+var EMOJI_RECENT_STORE_CAP = 40;
+function _emojiRecentUid() {
+    try {
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.uid) {
+            return String(auth.currentUser.uid).slice(0, 128);
+        }
+    } catch (e) {}
+    return 'signed-out';
+}
+function _emojiRecentKey() {
+    return 'bqEmojiRecent:v1:' + _emojiRecentUid();
+}
+function _emojiRecentRead() {
+    try {
+        if (typeof localStorage === 'undefined' || !localStorage) return {};
+        var raw = localStorage.getItem(_emojiRecentKey());
+        var data = raw ? JSON.parse(raw) : {};
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+        return data;
+    } catch (e) { return {}; }
+}
+function _emojiRecentWrite(data) {
+    try {
+        if (typeof localStorage === 'undefined' || !localStorage) return;
+        localStorage.setItem(_emojiRecentKey(), JSON.stringify(data));
+    } catch (e) {}
+}
+function _emojiRecordUse(emoji) {
+    if (typeof emoji !== 'string' || !emoji || emoji.length > 32) return;
+    var data = _emojiRecentRead();
+    var row = data[emoji] || { n: 0, t: 0 };
+    row.n = (Number(row.n) || 0) + 1;
+    row.t = Date.now();
+    data[emoji] = row;
+    var keys = Object.keys(data);
+    if (keys.length > EMOJI_RECENT_STORE_CAP) {
+        keys.sort(function(a, b) {
+            var da = data[a], db = data[b];
+            if (da.n !== db.n) return da.n - db.n;
+            return (da.t || 0) - (db.t || 0);
+        });
+        var drop = keys.length - EMOJI_RECENT_STORE_CAP;
+        for (var i = 0; i < drop; i++) delete data[keys[i]];
+    }
+    _emojiRecentWrite(data);
+}
+function _emojiRecentTop(limit) {
+    var n = limit || EMOJI_RECENT_MAX;
+    var data = _emojiRecentRead();
+    return Object.keys(data).sort(function(a, b) {
+        var da = data[a], db = data[b];
+        if ((db.n || 0) !== (da.n || 0)) return (db.n || 0) - (da.n || 0);
+        return (db.t || 0) - (da.t || 0);
+    }).slice(0, n);
+}
+function _emojiPickerCats(includeCustom) {
+    var keys = includeCustom ? Object.keys(EMOJI_INPUT_CATEGORIES) : Object.keys(EMOJI_CATEGORIES);
+    return ['Recent'].concat(keys);
+}
+function _emojiTabIcon(cat) {
+    if (cat === 'Recent') return '🕒';
+    if (cat === 'Smileys') return '😀';
+    if (cat === 'Gestures') return '🤝';
+    if (cat === 'Bitcoin') return '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>';
+    if (cat === 'Animals') return '🐾';
+    if (cat === 'Food') return '🍔';
+    if (cat === 'Travel') return '🌍';
+    if (cat === 'Symbols') return '💬';
+    if (cat === 'Objects') return '🎁';
+    if (cat === 'Custom') return (typeof _customEmojiImg === 'function' ? _customEmojiImg('btc') : '✨');
+    return '✨';
+}
+function _emojiSearchMatches(query) {
+    var q = (query || '').trim().toLowerCase();
+    if (!q) return [];
+    var results = [];
+    var seen = {};
+    function _emojiEntryOk(entry) {
+        return !!(entry && typeof entry[0] === 'string' && typeof entry[1] === 'string');
+    }
+    EMOJI_SEARCH_INDEX.forEach(function(entry) {
+        if (!_emojiEntryOk(entry)) return;
+        var e = entry[0], kw = entry[1];
+        if (!seen[e] && kw.indexOf(q) !== -1) { results.push(e); seen[e] = true; }
+    });
+    if (typeof CUSTOM_EMOJIS !== 'undefined') {
+        Object.keys(CUSTOM_EMOJIS).forEach(function(id) {
+            var sc = ':' + id + ':';
+            var kws = (CUSTOM_EMOJIS[id] && CUSTOM_EMOJIS[id].keywords) || '';
+            if (!seen[sc] && (id.indexOf(q) !== -1 || String(kws).indexOf(q) !== -1)) { results.push(sc); seen[sc] = true; }
+        });
+    }
+    var cats = (typeof EMOJI_INPUT_CATEGORIES !== 'undefined') ? EMOJI_INPUT_CATEGORIES : EMOJI_CATEGORIES;
+    Object.keys(cats || {}).forEach(function(cat) {
+        (cats[cat] || []).forEach(function(e) {
+            if (!seen[e] && e.toLowerCase().indexOf(q) !== -1) { results.push(e); seen[e] = true; }
+        });
+    });
+    EMOJI_SEARCH_INDEX.forEach(function(entry) {
+        if (!_emojiEntryOk(entry)) return;
+        var e = entry[0], kw = entry[1];
+        if (!seen[e]) {
+            var words = kw.split(' ');
+            for (var i = 0; i < words.length; i++) {
+                if (words[i].indexOf(q) === 0) { results.push(e); seen[e] = true; break; }
+            }
+        }
+    });
+    return results;
+}
+window._emojiRecordUse = _emojiRecordUse;
+window._emojiRecentTop = _emojiRecentTop;
+window._emojiSearchMatches = _emojiSearchMatches;
+window._emojiPickerCats = _emojiPickerCats;
+
 window.showEmojiPicker = function() {
     var old = document.getElementById('gcEmojiPicker');
     if (old) { old.remove(); return; }
@@ -2755,7 +3040,7 @@ window.showEmojiPicker = function() {
     var _isDark = document.body.getAttribute('data-theme') !== 'light';
     picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 120px);left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:340px;max-height:360px;display:flex;flex-direction:column;overflow:visible;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
 
-    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
+    var cats = _emojiPickerCats(true);
     // Search bar
     var searchHtml = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
         '<input id="emojiSearchInput" type="text" placeholder="🔍 Search emojis..." autocomplete="off" ' +
@@ -2763,10 +3048,10 @@ window.showEmojiPicker = function() {
         'oninput="window._emojiSearch(this.value)">' +
         '<button onclick="document.getElementById(\'gcEmojiPicker\').remove()" style="padding:4px 8px;background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;flex-shrink:0;">&#x2715;</button>' +
         '</div>';
-    // Category tabs
+    // Category tabs (Recent is first)
     var tabHtml = '<div id="emojiTabBar" style="display:flex;gap:2px;margin-bottom:8px;overflow-x:auto;overflow-y:visible;padding:3px 0 3px 0;">';
     cats.forEach(function(cat, i) {
-        var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : cat === 'Custom' ? _customEmojiImg('btc') : '✨';
+        var label = _emojiTabIcon(cat);
         tabHtml += '<button onclick="window._switchEmojiTab(\'' + cat + '\')" id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
     });
     tabHtml += '</div>';
@@ -2792,20 +3077,24 @@ window._switchEmojiTab = function(cat) {
     // Clear search input when switching tabs
     var si = document.getElementById('emojiSearchInput');
     if (si) si.value = '';
-    var emojis = EMOJI_INPUT_CATEGORIES[cat] || [];
+    var emojis = (cat === 'Recent') ? _emojiRecentTop(EMOJI_RECENT_MAX) : (EMOJI_INPUT_CATEGORIES[cat] || []);
     var html = '';
     emojis.forEach(function(e) {
         html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + renderCustomEmojis(e) + '</button>';
     });
-    grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">No emojis here</div>';
+    var emptyMsg = (cat === 'Recent')
+        ? 'Use emojis to fill your Recent tab'
+        : 'No emojis here';
+    grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">' + emptyMsg + '</div>';
 
     // Update tab styles
-    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
+    var cats = _emojiPickerCats(true);
     cats.forEach(function(c, i) {
         var tab = document.getElementById('emojiTab_' + i);
         if (tab) {
             tab.style.background = (c === cat) ? 'var(--accent-bg)' : 'none';
             tab.style.borderColor = (c === cat) ? 'var(--accent)' : 'var(--border)';
+            tab.style.opacity = '1';
         }
     });
 };
@@ -2816,44 +3105,12 @@ window._emojiSearch = function(query) {
     var q = (query || '').trim().toLowerCase();
     if (!q) {
         // Restore first tab on empty search
-        window._switchEmojiTab(Object.keys(EMOJI_INPUT_CATEGORIES)[0]);
+        window._switchEmojiTab(_emojiPickerCats(true)[0]);
         var si = document.getElementById('emojiSearchInput');
         if (si) si.value = '';
         return;
     }
-    // Search across EMOJI_SEARCH_INDEX (keyword match) + category arrays (direct char match)
-    var results = [];
-    var seen = {};
-    function _emojiEntryOk(entry) {
-        return !!(entry && typeof entry[0] === 'string' && typeof entry[1] === 'string');
-    }
-    // 1. Keyword index search — names and keywords both live in the keyword string
-    EMOJI_SEARCH_INDEX.forEach(function(entry) {
-        if (!_emojiEntryOk(entry)) return;
-        var e = entry[0], kw = entry[1];
-        if (!seen[e] && kw.indexOf(q) !== -1) { results.push(e); seen[e] = true; }
-    });
-    Object.keys(CUSTOM_EMOJIS).forEach(function(id) {
-        var sc = ':' + id + ':';
-        if (!seen[sc] && (id.indexOf(q) !== -1 || CUSTOM_EMOJIS[id].keywords.indexOf(q) !== -1)) { results.push(sc); seen[sc] = true; }
-    });
-    // 2. Also scan all category emojis for the emoji char itself
-    Object.keys(EMOJI_INPUT_CATEGORIES).forEach(function(cat) {
-        EMOJI_INPUT_CATEGORIES[cat].forEach(function(e) {
-            if (!seen[e] && e.toLowerCase().indexOf(q) !== -1) { results.push(e); seen[e] = true; }
-        });
-    });
-    // 3. Name/keyword word prefix (fire → fire, firework, …)
-    EMOJI_SEARCH_INDEX.forEach(function(entry) {
-        if (!_emojiEntryOk(entry)) return;
-        var e = entry[0], kw = entry[1];
-        if (!seen[e]) {
-            var words = kw.split(' ');
-            for (var i = 0; i < words.length; i++) {
-                if (words[i].indexOf(q) === 0) { results.push(e); seen[e] = true; break; }
-            }
-        }
-    });
+    var results = _emojiSearchMatches(q);
     var html = '';
     if (results.length === 0) {
         html = '<div style="color:var(--text-faint);font-size:0.82rem;padding:24px;text-align:center;">No results for "' + q + '"</div>';
@@ -2864,7 +3121,7 @@ window._emojiSearch = function(query) {
     }
     grid.innerHTML = html;
     // Dim all tabs to show search mode is active
-    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
+    var cats = _emojiPickerCats(true);
     cats.forEach(function(c, i) {
         var tab = document.getElementById('emojiTab_' + i);
         if (tab) { tab.style.background = 'none'; tab.style.borderColor = 'var(--border)'; tab.style.opacity = '0.5'; }
@@ -2872,6 +3129,7 @@ window._emojiSearch = function(query) {
 };
 
 window._insertEmoji = function(emoji) {
+    _emojiRecordUse(emoji);
     var input = _gcActiveInput();
     if (!input) return;
     var start = input.selectionStart || input.value.length;
@@ -3686,10 +3944,14 @@ function showDJBar(d) {
         djActionBtn = '<button id="djTuneBtn" onclick="' + (_djListening ? 'djStopListening()' : 'djTuneIn()') + '" style="padding:6px 10px;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;' + (_djListening ? 'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;' : 'background:rgba(239,68,68,0.1);border:2px solid #ef4444;color:#ef4444;animation:djPulse 1.5s ease-in-out infinite;') + '">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>';
     }
 
-    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
+    var _djUidOk = gcUidOk(String(d.djUid || ''));
+    var _artistUidOk = gcUidOk(String(d.artistUid || ''));
+    var _trackIdOk = gcIdOk(String(d.trackId || ''));
+    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span' + (_djUidOk ? ' data-gc-action="profile" data-id="' + esc(String(d.djUid)) + '"' : '') + ' style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
 
-    var artistHtml = d.artistUid ? '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')" style="cursor:pointer;text-decoration:underline;" title="View Artist Profile">' + esc(d.trackArtist) + '</span>' : esc(d.trackArtist);
+    var artistHtml = _artistUidOk ? '<span data-gc-action="profile" data-id="' + esc(String(d.artistUid)) + '" style="cursor:pointer;text-decoration:underline;" title="View Artist Profile">' + esc(d.trackArtist) + '</span>' : esc(d.trackArtist);
 
+    gcBindActions(bar);
     bar.innerHTML =
         // Row 1: DJ label
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
@@ -3706,15 +3968,37 @@ function showDJBar(d) {
         // Row 3: Action buttons
         '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
             djActionBtn +
-            (d.artistUid ? '<button onclick="if(\'' + (d.artistUid||'') + '\'&&typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')" style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
+            (_trackIdOk ? '<button data-dj-tip="1"' + (_artistUidOk ? ' data-gc-action="profile" data-id="' + esc(String(d.artistUid)) + '"' : '') + ' style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
             tipBtn +
             (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:5px 10px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.7rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
         '</div>';
+    _djBarLast = d;
+    djRunTipHook(bar, d);
+}
+
+// One tip hook for the DJ bar. beats.js registers it; the first one wins.
+var _djTipHook = null;
+var _djBarLast = null;
+function djRunTipHook(bar, d) {
+    if (!_djTipHook) return;
+    try { _djTipHook(bar, d); } catch (e) {}
+}
+window.bqDJBarTipHook = function(fn) {
+    if (typeof fn !== 'function' || _djTipHook) return false;
+    _djTipHook = fn;
+    var bar = document.getElementById('djNowPlaying');
+    if (bar && _djBarLast) djRunTipHook(bar, _djBarLast);
+    return true;
+};
+if (typeof window._bqDJBarTipPending === 'function') {
+    window.bqDJBarTipHook(window._bqDJBarTipPending);
+    window._bqDJBarTipPending = null;
 }
 
 function hideDJBar() {
     var bar = document.getElementById('djNowPlaying');
     if (bar) { bar.remove(); }
+    _djBarLast = null;
 }
 
 // Hook into chat listener to also start DJ listener
@@ -4526,30 +4810,67 @@ function ggRegistryIndex() {
     return _ggNameIndex || ggBuildNameIndex([]);
 }
 
-function ggAppendMentionText(parent, text, mentionUid) {
-    if (!text) return;
-    if (!mentionUid) {
-        parent.appendChild(document.createTextNode(text));
-        return;
+function ggAppendHandle(parent, rawName, knownUid) {
+    var core = String(rawName || '').trim();
+    var uid = knownUid || '';
+    if (!uid && typeof resolveUsernameUid === 'function') uid = resolveUsernameUid(core, '');
+    if (!uid && typeof _longestKnownUsername === 'function') {
+        var hit = _longestKnownUsername(core, false);
+        if (hit && hit.uid && /^[A-Za-z0-9_:-]{1,128}$/.test(hit.uid)) uid = hit.uid;
     }
-    var re = _mentionRe('gu');
-    var last = 0;
-    var match;
-    while ((match = re.exec(text))) {
-        if (match.index > last) parent.appendChild(document.createTextNode(text.slice(last, match.index)));
+    if (uid && typeof appendUsernameTag === 'function') {
+        appendUsernameTag(parent, core, uid, { at: true });
+        return true;
+    }
+    if (uid) {
         var anchor = document.createElement('a');
         anchor.href = '#';
-        anchor.textContent = '@' + String(match[1] || '').trim();
-        anchor.style.cssText = 'color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;';
+        anchor.textContent = '@' + core;
+        anchor.style.cssText = 'color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+        anchor.setAttribute('data-profile-uid', uid);
         anchor.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            if (typeof showUserProfile === 'function') showUserProfile(mentionUid);
+            var id = anchor.getAttribute('data-profile-uid');
+            if (typeof openUsernameTag === 'function') openUsernameTag(id, e);
+            else if (typeof showUserProfile === 'function') showUserProfile(id);
         });
         parent.appendChild(anchor);
+        return true;
+    }
+    parent.appendChild(document.createTextNode('@' + core));
+    return false;
+}
+
+function ggAppendMentionText(parent, text, mentionUid) {
+    if (!text) return;
+    var knownUid = (typeof mentionUid === 'string' && /^[A-Za-z0-9_:-]{1,128}$/.test(mentionUid)) ? mentionUid : '';
+    var re = (typeof _mentionRe === 'function') ? _mentionRe('gu') : null;
+    if (!re) {
+        parent.appendChild(document.createTextNode(text));
+        return;
+    }
+    var last = 0;
+    var match;
+    var found = false;
+    while ((match = re.exec(text))) {
+        found = true;
+        if (match.index > last) parent.appendChild(document.createTextNode(text.slice(last, match.index)));
+        ggAppendHandle(parent, match[1], knownUid);
         last = match.index + match[0].length;
     }
     if (re.lastIndex) re.lastIndex = 0;
+    if (!found && !knownUid && typeof _mentionWordRe === 'function') {
+        var wordRe = _mentionWordRe('gu');
+        last = 0;
+        while ((match = wordRe.exec(text))) {
+            found = true;
+            if (match.index > last) parent.appendChild(document.createTextNode(text.slice(last, match.index)));
+            ggAppendHandle(parent, match[1], '');
+            last = match.index + match[0].length;
+        }
+        if (wordRe.lastIndex) wordRe.lastIndex = 0;
+    }
     if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
 }
 
@@ -5032,29 +5353,27 @@ function _renderAnnouncementItem(doc, context) {
         return '<a href="#' + hash + '" data-ann-hash="' + hash + '" class="ann-hash-link" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
     });
 
-    // 2. @username mentions — link to user profile using stored mentionUid
-    var mentionUid = m.mentionUid || '';
-    if (mentionUid) {
-        // Announcement with known uid: match multi-word display names via keyword/possessive terminators only
-        text = text.replace(_mentionRe('u'), function(_, rawName) {
-            var uname = rawName.trim();
-            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
-        });
-    } else {
-        // No uid — try multi-word first (for system announcements missing uid), then single-word for user-typed
-        // No uid — try multi-word first (for system announcements missing uid)
-        var _annMentionFound = false;
-        text = text.replace(_mentionRe('u'), function(_, rawName) {
-            _annMentionFound = true;
-            var uname = rawName.trim();
-            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
-        });
-        // Also handle any remaining single-word @mentions (user-typed in normal chat)
-        if (!_annMentionFound) {
-            text = text.replace(_mentionWordRe('gu'), function(_, uname) {
-                return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
-            });
+    // 2. @username mentions: link only when the uid is on the message or in the chat name cache.
+    // Do not issue a new Firestore read per announcement.
+    var mentionUid = (m.mentionUid && /^[A-Za-z0-9_:-]{1,128}$/.test(String(m.mentionUid))) ? String(m.mentionUid) : '';
+    function _annMentionTag(rawName, knownUid) {
+        var uname = String(rawName || '').trim();
+        var uid = knownUid || (typeof resolveUsernameUid === 'function' ? resolveUsernameUid(uname, '') : '');
+        if (typeof usernameTagHtml === 'function') {
+            return usernameTagHtml(uname, uid, { at: true, alreadyEscaped: true });
         }
+        if (!uid) return '@' + uname;
+        return '<a href="#" data-profile-uid="' + esc(uid) + '" onclick="event.preventDefault();event.stopPropagation();if(typeof openUsernameTag===\'function\')openUsernameTag(this.getAttribute(\'data-profile-uid\'),event);else if(typeof showUserProfile===\'function\')showUserProfile(this.getAttribute(\'data-profile-uid\'));return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" title="View profile">@' + uname + '</a>';
+    }
+    var _annMentionFound = false;
+    text = text.replace(_mentionRe('gu'), function(_, rawName) {
+        _annMentionFound = true;
+        return _annMentionTag(rawName, mentionUid);
+    });
+    if (!_annMentionFound) {
+        text = text.replace(_mentionWordRe('gu'), function(_, uname) {
+            return _annMentionTag(uname, mentionUid);
+        });
     }
 
 
@@ -5098,8 +5417,18 @@ function _renderAnnouncementItem(doc, context) {
     var head = document.createElement('div');
     head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;';
     var nameEl = document.createElement('span');
-    nameEl.style.cssText = 'font-size:0.75rem;font-weight:700;color:#22c55e;';
+    nameEl.style.cssText = 'font-size:0.75rem;font-weight:700;color:#22c55e;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
     nameEl.textContent = 'Nacho';
+    nameEl.setAttribute('data-profile-uid', 'nacho-bot');
+    nameEl.setAttribute('title', 'View profile');
+    nameEl.addEventListener('click', function(e) {
+        if (typeof openUsernameTag === 'function') openUsernameTag('nacho-bot', e);
+        else if (typeof showUserProfile === 'function') {
+            e.preventDefault();
+            e.stopPropagation();
+            showUserProfile('nacho-bot');
+        }
+    });
     head.appendChild(nameEl);
     if (timeStr) {
         var timeEl = document.createElement('span');
@@ -5518,6 +5847,10 @@ window.parseOfficialChatCta = parseOfficialChatCta;
 window.isAllowedOfficialChatRoute = isAllowedOfficialChatRoute;
 window.createOfficialChatCtaButton = createOfficialChatCtaButton;
 window.attachOfficialChatCtas = attachOfficialChatCtas;
+window.isNachoFavorAnnouncement = isNachoFavorAnnouncement;
+window.createStartHashingButton = createStartHashingButton;
+window.attachFavorHashCtas = attachFavorHashCtas;
+window.openFavorHashingScreen = openFavorHashingScreen;
 console.log('[CHAT] Global chat module loaded');
 }();
 

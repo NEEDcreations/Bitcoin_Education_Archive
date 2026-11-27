@@ -184,8 +184,8 @@ test('clients cannot write referralMaxiCount', () => {
 test('the reached-Maxi explainer uses the rank threshold', () => {
     assert.strictEqual(tiers.MAXI_RANK_POINTS, 2140);
     assert.strictEqual(
-        tiers.maxiCountHelp(12, 3, 2),
-        "You've invited 12 people. 3 reached 2,140 XP (Scholar exam points don't count). 2 rewarded. Tickets unlock after the account is 7 days old and passes checks. Tier badges use rewarded referrals."
+        tiers.maxiCountHelp(12, 3, 1, 2),
+        "You've invited 12 people. 3 reached 2,140 XP, 1 qualifies (2 joined before using your code). Scholar exam points don't count. Tickets unlock after the account is 7 days old and passes checks. Tier badges use rewarded referrals."
     );
     assert.strictEqual(tiers.maxiCountHelp(1, 1).indexOf("You've invited 1 person."), 0);
     const rules = require(path.join(root, 'functions/src/badgeRules'));
@@ -238,5 +238,81 @@ test('a user write names why the referrer count is recomputed', () => {
     assert.ok(service.includes('await syncReferralMaxiCount(uid, beforeSnap && beforeSnap.exists ? (beforeSnap.data() || {}) : {}, null)'));
 });
 
+test('reachedRewardLabel names qualifies and late joins', () => {
+    assert.strictEqual(
+        tiers.reachedRewardLabel(3, 1, 2),
+        '3 reached 2,140 XP, 1 qualifies (2 joined before using your code)'
+    );
+    assert.strictEqual(tiers.reachedRewardLabel(1, 1, 0), '1 reached 2,140 XP, 1 qualifies');
+    assert.strictEqual(tiers.reachedRewardLabel(2, 2, 0), '2 reached 2,140 XP, 2 qualify');
+    assert.strictEqual(tiers.reachedRewardLabel(1, 0, 1), '1 reached 2,140 XP, 0 qualify (1 joined before using your code)');
+    assert.strictEqual(tiers.reachedRewardLabel(0, 0, 0), '0 reached 2,140 XP, 0 qualify');
+});
+
+test('inviteCountLine uses the qualifies copy', () => {
+    assert.strictEqual(tiers.inviteCountLine({ invited: 0, reached: 0, qualifies: 0, joinedBefore: 0 }), 'No invites yet.');
+    assert.strictEqual(
+        tiers.inviteCountLine({ invited: 15, reached: 3, qualifies: 1, joinedBefore: 2 }),
+        '15 friends invited · 3 reached 2,140 XP, 1 qualifies (2 joined before using your code)'
+    );
+    assert.strictEqual(
+        tiers.inviteCountLine({ invited: 1, reached: 1, qualifies: 1, joinedBefore: 0 }),
+        '1 friend invited · 1 reached 2,140 XP, 1 qualifies'
+    );
+});
+
+test('summarizeReferralInviteDocs counts late Maxi friends as reached, not qualifies', () => {
+    const stats = tiers.summarizeReferralInviteDocs([
+        { id: 'a', data: { status: 'paid', verified: true, ticketsAwarded: true, maxiReachedAt: { seconds: 1 } } },
+        { id: 'b', data: { status: 'late' } },
+        { id: 'c', data: { status: 'late' } },
+        { id: 'd', data: { status: 'pending' } },
+    ], { b: 2140, c: 3000, d: 500 });
+    assert.strictEqual(stats.invited, 4);
+    assert.strictEqual(stats.qualifies, 1);
+    assert.strictEqual(stats.joinedBefore, 2);
+    assert.strictEqual(stats.reached, 3);
+    assert.strictEqual(stats.rewarded, 1);
+    assert.deepStrictEqual(tiers.inviteDocsNeedingProfilePoints([
+        { id: 'a', data: { status: 'paid', maxiReachedAt: { seconds: 1 } } },
+        { id: 'b', data: { status: 'late' } },
+        { id: 'c', data: { status: 'pending' } },
+    ]), ['b']);
+});
+
+test('planInvitedCountWrites fixes a stale referralInvited counter', () => {
+    const plan = tiers.planInvitedCountWrites({
+        users: [
+            { uid: 'ref1', referralInvited: 8 },
+            { uid: 'ref2', referralInvited: 2 },
+            { uid: 'ref3', referralInvited: 4 }
+        ],
+        referrals: [
+            { referrerUid: 'ref1' }, { referrerUid: 'ref1' }, { referrerUid: 'ref1' },
+            { referrerUid: 'ref1' }, { referrerUid: 'ref1' }, { referrerUid: 'ref1' },
+            { referrerUid: 'ref1' }, { referrerUid: 'ref1' }, { referrerUid: 'ref1' },
+            { referrerUid: 'ref1' }, { referrerUid: 'ref1' }, { referrerUid: 'ref1' },
+            { referrerUid: 'ref1' }, { referrerUid: 'ref1' }, { referrerUid: 'ref1' },
+            { referrerUid: 'ref2' }, { referrerUid: 'ref2' }
+        ]
+    });
+    assert.strictEqual(plan.summary.referralDocs, 17);
+    assert.strictEqual(plan.summary.referrers, 2);
+    assert.strictEqual(plan.summary.writes, 2);
+    const byUid = {};
+    plan.writes.forEach((row) => { byUid[row.uid] = row; });
+    assert.strictEqual(byUid.ref1.from, 8);
+    assert.strictEqual(byUid.ref1.to, 15);
+    assert.strictEqual(byUid.ref3.from, 4);
+    assert.strictEqual(byUid.ref3.to, 0);
+    assert.ok(!byUid.ref2);
+});
+
+test('invited backfill apply is blocked on production', () => {
+    const script = require('../functions/scripts/backfill_referral_invited');
+    assert.strictEqual(script.applyBlocked('bitcoin-education-archive'), true);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);
+

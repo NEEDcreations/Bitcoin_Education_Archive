@@ -4,18 +4,28 @@
 // 🦌 Nacho Q&A - Ask Nacho about Bitcoin!
 // =============================================
 
-// HTML sanitizer — prevents XSS from external data (web search, usernames, etc)
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+// HTML escaping comes from utils.js (the shared escapeHtml). This file only
+// fills it in when loaded on its own, with the same rules.
+if (typeof escapeHtml !== 'function') {
+    var escapeHtml = function(str) {
+        if (typeof str === 'number') str = String(str);
+        else if (typeof str !== 'string') return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
 }
 
-function sanitizeUrl(url) {
-    if (!url) return '';
-    var u = String(url).trim();
-    // Only allow http/https URLs
-    if (!/^https?:\/\//i.test(u)) return '';
-    return escapeHtml(u);
+// The URL check comes from utils.js. This file only fills it in when loaded
+// on its own, with the same rules. Callers escape the result.
+if (typeof sanitizeUrl !== 'function') {
+    var sanitizeUrl = function(url) {
+        if (typeof url !== 'string' || !url) return '';
+        var u = url.trim();
+        if (!u || /[\u0000-\u0020\u007f-\u009f]/.test(u)) return '';
+        if (/^https?:\/\/[^\/\\]/i.test(u)) return u;
+        if (/^\/(?![\/\\])/.test(u)) return u;
+        if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(u)) return u;
+        return '';
+    };
 }
 
 // Secret detector. Mirrors workers/nacho-search/secret-detect.mjs. Runs before any request leaves the device.
@@ -5705,7 +5715,6 @@ window.isFinancialAdvice = isFinancialAdvice;
 window.deepContentSearch = deepContentSearch;
 window.nachoWebSearch = nachoWebSearch;
 window._nachoStep5Fallback = _nachoStep5Fallback;
-window.escapeHtml = escapeHtml;
 
 })();
 

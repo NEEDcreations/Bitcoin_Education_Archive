@@ -12,6 +12,7 @@
   .hero { background: linear-gradient(135deg, rgba(247,147,26,0.12), rgba(99,102,241,0.08)); border-bottom: 1px solid var(--border); padding: 48px 24px 40px; text-align: center; }
   .hero-icon { font-size: 3rem; margin-bottom: 12px; }
   .hero h1 { font-size: 2rem; font-weight: 900; color: var(--text); margin-bottom: 6px; }
+  .hero-version { color: var(--accent); font-size: 0.85rem; font-weight: 700; margin: 8px 0 0; letter-spacing: 0.02em; }
   .hero .sub { color: var(--muted); font-size: 0.9rem; }
   .hero .site-link { display: inline-block; margin-top: 16px; padding: 8px 20px; background: var(--accent); color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.85rem; }
   .container { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
@@ -22,6 +23,9 @@
   .patch-badge.prev { background: linear-gradient(135deg, #475569, #334155); }
   .patch-title { font-size: 1.2rem; font-weight: 800; color: var(--text); }
   .patch-date { color: var(--faint); font-size: 0.78rem; margin-top: 2px; }
+  .patch-version { color: var(--muted); font-size: 0.75rem; font-weight: 700; margin-top: 2px; }
+  .patch-badge.coming { background: linear-gradient(135deg, #6366f1, #4338ca); }
+  .coming-soon-title { font-size: 1.2rem; font-weight: 800; color: var(--text); margin: 0; }
   .patch-body { padding: 20px 24px; }
   .section-label { font-size: 0.65rem; font-weight: 800; color: var(--faint); text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px; }
   .section-label:first-child { margin-top: 0; }
@@ -82,6 +86,7 @@
 <div class="hero">
   <div class="hero-icon">🦌⚡</div>
   <h1>Patch Notes</h1>
+  <p class="hero-version" id="pnAppVersion" data-sw-cache="v2743">App version <span id="pnAppVersionNum">v2743</span></p>
   <p class="sub">What changed, one week at a time</p>
 </div>
 
@@ -106,6 +111,23 @@
       <div class="item"><span class="tag feat">NEW</span><div class="item-text">Coming soon: the partnership popup will show only once, Daily Spin will show your current streak, a spin you leave mid-turn can be resumed, and the sats pot tip will explain that more watchers raise the rate, with a link to share.</div></div>
     </div>
   </details>
+
+  <!-- Coming soon sits under the Latest entry. Fill #pnUpcomingList with a JSON
+       array of strings (or { "text": "..." } objects) to publish items. Leave
+       the array empty to keep this section hidden. When adding a new Latest
+       week, keep this block directly under that entry, or the page script will
+       move it there. Set data-version="vNNNN" on a details.patch when that
+       week's service worker pin is recorded; omit it when the pin is unknown. -->
+  <script type="application/json" id="pnUpcomingList">[]</script>
+  <section class="patch coming-soon" id="comingSoonPatch" hidden>
+    <div class="patch-header">
+      <div>
+        <h2 class="coming-soon-title">Coming soon</h2>
+      </div>
+      <div class="patch-badge coming">Coming soon</div>
+    </div>
+    <div class="patch-body" id="comingSoonBody"></div>
+  </section>
 
   <details class="patch" id="week-2026-11-19">
     <summary class="patch-header">
@@ -397,6 +419,105 @@
 <footer>
   Bitcoin Education Archive · <a href="https://bitcoineducation.quest">bitcoineducation.quest</a> · <a href="/#privacy-choices">Your Privacy Choices</a> · Built by Bitcoiners, for Bitcoiners 🟠
 </footer>
+<script>
+(function(){
+  var VERSION_RE = /CACHE_NAME\s*=\s*'btc-archive-(v\d+)'/;
+
+  function applyCurrentVersion(version) {
+    var el = document.getElementById('pnAppVersion');
+    var num = document.getElementById('pnAppVersionNum');
+    var v = String(version || '').trim();
+    if (!el || !num || !/^v\d+$/.test(v)) return;
+    num.textContent = v;
+    el.setAttribute('data-sw-cache', v);
+    el.hidden = false;
+  }
+
+  function applyEntryVersions() {
+    var patches = document.querySelectorAll('details.patch');
+    for (var i = 0; i < patches.length; i++) {
+      var d = patches[i];
+      var v = String(d.getAttribute('data-version') || '').trim();
+      var slot = d.querySelector('.patch-version');
+      if (!/^v\d+$/.test(v)) {
+        if (slot) { slot.textContent = ''; slot.hidden = true; }
+        continue;
+      }
+      if (!slot) {
+        var date = d.querySelector('.patch-date');
+        if (!date || !date.parentNode) continue;
+        slot = document.createElement('div');
+        slot.className = 'patch-version';
+        date.parentNode.insertBefore(slot, date.nextSibling);
+      }
+      slot.textContent = v;
+      slot.hidden = false;
+    }
+  }
+
+  function readUpcoming() {
+    if (Array.isArray(window.PN_UPCOMING)) return window.PN_UPCOMING;
+    var hook = document.getElementById('pnUpcomingList');
+    if (!hook) return [];
+    try {
+      var data = JSON.parse(hook.textContent || '[]');
+      return Array.isArray(data) ? data : [];
+    } catch (err) { return []; }
+  }
+
+  function itemText(item) {
+    if (typeof item === 'string') return item.trim();
+    if (item && typeof item.text === 'string') return item.text.trim();
+    return '';
+  }
+
+  function renderComingSoon() {
+    var box = document.getElementById('comingSoonPatch');
+    var body = document.getElementById('comingSoonBody');
+    var latest = document.querySelector('details.patch');
+    if (!box || !body) return;
+    if (latest && box.previousElementSibling !== latest) latest.after(box);
+    var items = readUpcoming().map(itemText).filter(Boolean);
+    body.textContent = '';
+    if (!items.length) { box.hidden = true; return; }
+    for (var i = 0; i < items.length; i++) {
+      var row = document.createElement('div');
+      row.className = 'item';
+      var tag = document.createElement('span');
+      tag.className = 'tag feat';
+      tag.textContent = 'SOON';
+      var text = document.createElement('div');
+      text.className = 'item-text';
+      text.textContent = items[i];
+      row.appendChild(tag);
+      row.appendChild(text);
+      body.appendChild(row);
+    }
+    box.hidden = false;
+  }
+
+  window._pnPatchNotes = {
+    applyCurrentVersion: applyCurrentVersion,
+    applyEntryVersions: applyEntryVersions,
+    renderComingSoon: renderComingSoon,
+    readUpcoming: readUpcoming
+  };
+
+  var hero = document.getElementById('pnAppVersion');
+  if (hero) applyCurrentVersion(hero.getAttribute('data-sw-cache') || '');
+  applyEntryVersions();
+  renderComingSoon();
+
+  if (typeof fetch === 'function') {
+    fetch('/sw.js', { cache: 'no-cache' }).then(function (res) {
+      return res && res.ok ? res.text() : '';
+    }).then(function (text) {
+      var match = String(text || '').match(VERSION_RE);
+      if (match) applyCurrentVersion(match[1]);
+    }).catch(function () {});
+  }
+})();
+</script>
 <script>
 (function(){
   function openHash(){var id=decodeURIComponent(location.hash.slice(1));if(!id)return;var el=document.getElementById(id);var d=el&&el.closest('details');if(d){d.open=true;el.scrollIntoView();}}

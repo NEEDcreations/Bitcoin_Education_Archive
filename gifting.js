@@ -38,7 +38,35 @@ function _toast(msg, ms) {
 
 var SATS_OFF_MSG = 'Sats are disabled on this account.';
 
+function _satsDisabledCached() {
+    if (window._satsDisabled === true) return true;
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.satsDisabled === true) return true;
+    return false;
+}
+
+function _refreshSatsDisabledInBackground() {
+    if (typeof db === 'undefined') return;
+    var uid = _getUid();
+    if (!uid) return;
+    db.collection('users').doc(uid).get().then(function(snap) {
+        var off = snap && snap.exists && snap.data().satsDisabled === true;
+        window._satsDisabled = off;
+        if (typeof currentUser !== 'undefined' && currentUser) currentUser.satsDisabled = off;
+    }).catch(function() { /* keep the cached flag */ });
+}
+
 async function _readSatsDisabled() {
+    if (_satsDisabledCached()) {
+        window._satsDisabled = true;
+        return true;
+    }
+    // A loaded profile (or a previous read) is enough for the UI. The server
+    // still enforces satsDisabled on decryptCipher / claimCipherWin.
+    if (window._satsDisabled === false || (typeof currentUser !== 'undefined' && currentUser)) {
+        window._satsDisabled = false;
+        _refreshSatsDisabledInBackground();
+        return false;
+    }
     try {
         var uid = _getUid();
         if (uid && typeof db !== 'undefined') {
@@ -49,10 +77,6 @@ async function _readSatsDisabled() {
             return off;
         }
     } catch (e) { /* fall through to the loaded profile */ }
-    if (typeof currentUser !== 'undefined' && currentUser && currentUser.satsDisabled === true) {
-        window._satsDisabled = true;
-        return true;
-    }
     return window._satsDisabled === true;
 }
 
@@ -88,7 +112,7 @@ function _injectGiftingCSS() {
         '@keyframes decryptPulse{0%,100%{text-shadow:0 0 8px #f7931a}50%{text-shadow:0 0 24px #f7931a}}',
         '@keyframes giftBtnSpin{to{transform:rotate(360deg)}}',
         '.gifting-overlay{position:fixed;inset:0;background:rgba(2,6,23,0.82);z-index:480000;display:flex;align-items:center;justify-content:center;padding:16px;}',
-        '.gifting-modal{background:#0f172a;background-color:#0f172a;color:#e2e8f0;opacity:1;border:1px solid rgba(247,147,26,0.35);border-radius:20px;padding:22px 18px;max-width:420px;width:100%;text-align:center;box-shadow:0 16px 50px rgba(0,0,0,0.45);max-height:90vh;overflow-y:auto;}',
+        '.gifting-modal{background:#0f172a;background-color:#0f172a;color:#e2e8f0;opacity:1;border:1px solid rgba(247,147,26,0.35);border-radius:20px;padding:22px 18px;max-width:420px;width:100%;text-align:center;box-shadow:0 16px 50px rgba(0,0,0,0.45);max-height:90vh;overflow-y:auto;position:relative;}',
         '[data-theme="light"] .gifting-modal{background:#ffffff;background-color:#ffffff;color:#1e293b;}',
         '.oled-theme .gifting-modal,[data-theme="oled"] .gifting-modal{background:#000000;background-color:#000000;color:#e2e8f0;}',
         '.gifting-modal button{min-height:44px;min-width:44px;box-sizing:border-box;}',
@@ -106,9 +130,9 @@ function _injectGiftingCSS() {
         '.kc-accent{color:#f7931a;}.kc-locked{color:#a78bfa;}.kc-match{color:#34d399;}',
         '[data-theme="light"] .kc-accent{color:#c2410c;}[data-theme="light"] .kc-locked{color:#6d28d9;}[data-theme="light"] .kc-match{color:#047857;}',
         '.gift-stage-box{position:relative;height:96px;display:flex;align-items:flex-end;justify-content:center;overflow:visible;}',
-        '.gift-base{font-size:3.2rem;line-height:1;animation:giftBoxShake 0.72s ease-in-out;}',
-        '.gift-lid{position:absolute;top:6px;font-size:1.5rem;animation:giftLidPop 0.5s ease-out 0.62s forwards;}',
-        '.gift-prize-pop{position:absolute;top:8px;font-size:1.8rem;animation:giftPrizePop 0.45s ease-out 0.78s both;}',
+        '.gift-base{font-size:3.2rem;line-height:1;animation:giftBoxShake 0.4s ease-in-out;}',
+        '.gift-lid{position:absolute;top:6px;font-size:1.5rem;animation:giftLidPop 0.28s ease-out 0.1s forwards;}',
+        '.gift-prize-pop{position:absolute;top:8px;font-size:1.8rem;animation:giftPrizePop 0.25s ease-out 0.16s both;}',
         '@media (max-width:700px){.gifting-overlay{padding:12px;}.gifting-modal{padding:16px 12px;border-radius:16px;}.gift-actions{flex-direction:column;}.gift-actions button{width:100%;flex:1 1 auto;}}',
         '.kc-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin:2px 0 10px;flex-wrap:wrap;}',
         '.kc-intro p{flex:1;min-width:160px;margin:0;}',
@@ -192,6 +216,9 @@ var _forceServerHoldings = false;
 // pool so a burst still lines up on that one user document.
 var GIFT_OPEN_CONCURRENCY = 3;
 var GIFT_OPEN_ANIM_MS = 450;
+var KEY_CHECK_ANIM_MS = 400;
+var _holdingsCache = null;
+var _keyCheckSession = null;
 var _giftQueue = [];
 var _giftActiveCount = 0;
 var _giftSettled = {};
@@ -407,7 +434,8 @@ function _playGiftOpen(stage) {
             stage.style.display = 'block';
             stage.style.fontFamily = 'inherit';
             stage.style.background = 'transparent';
-            stage.style.minHeight = '72px';
+            stage.style.height = '0';
+            stage.style.minHeight = '0';
             _emptyEl(stage);
             var box = document.createElement('div');
             box.className = 'gift-stage-box';
@@ -582,7 +610,12 @@ function _finishGiftingChild(entry) {
     if (!entry) return;
     var idx = _giftingChildren.indexOf(entry);
     if (idx >= 0) _giftingChildren.splice(idx, 1);
+    var wasDecrypt = entry.id === 'decryptCipherOverlay';
     if (entry.el && entry.el.parentNode) entry.el.remove();
+    if (wasDecrypt) {
+        _keyCheckSession = null;
+        _releaseCipherBusy();
+    }
     _restoreGiftingFocus(entry);
 }
 
@@ -712,8 +745,9 @@ function _btn(label, bg) {
 
 // ─── After the daily spin ────────────────────────────────────────────────────
 
-window.awardDailyGifts = async function() {
-    if (!_isSignedIn()) return;
+window.awardDailyGifts = async function(opts) {
+    opts = opts || {};
+    if (!_isSignedIn()) return null;
     _injectGiftingCSS();
     window._suppressPendingGifts = true;
     try {
@@ -721,15 +755,26 @@ window.awardDailyGifts = async function() {
         var d = result.data || {};
         if (d.alreadyAwarded) {
             window._suppressPendingGifts = false;
-            return;
+            return d;
         }
         if (d.giftsAdded > 0 && Array.isArray(d.gifts) && d.gifts.length) {
             _toast('🎁 ' + d.giftsAdded + ' gifts earned!');
+            if (opts.deferModal) {
+                // Spin UI shows the Open button. Let a later pending check
+                // still find these if the player closes the wheel first.
+                window._suppressPendingGifts = false;
+                window._pendingGiftsChecked = false;
+                return d;
+            }
             window.showPostSpinGiftModal(d.gifts);
+            return d;
         }
+        window._suppressPendingGifts = false;
+        return d;
     } catch (e) {
         window._suppressPendingGifts = false;
         console.warn('[gifting] awardDailyGifts failed:', e.message);
+        throw e;
     }
 };
 
@@ -1032,7 +1077,7 @@ window.showPostSpinGiftModal = function(gifts, opts) {
         : ('You won ' + count + ' gift' + (count > 1 ? 's' : '') + '!');
     var sub = document.createElement('div');
     sub.style.cssText = 'color:var(--text-muted,#94a3b8);font-size:0.8rem;margin-bottom:8px;';
-    sub.textContent = 'Open them now — gifts are not saved for later.';
+    sub.textContent = 'Open a gift to see what is inside.';
     title.appendChild(emoji);
     title.appendChild(heading);
     title.appendChild(sub);
@@ -1040,7 +1085,8 @@ window.showPostSpinGiftModal = function(gifts, opts) {
 
     var stage = document.createElement('div');
     stage.id = 'giftAnimStage';
-    stage.style.cssText = 'display:none;font-family:monospace;font-size:0.68rem;color:#f7931a;word-break:break-all;min-height:36px;margin:0 0 10px;padding:8px;background:rgba(247,147,26,0.06);border-radius:8px;';
+    stage.setAttribute('aria-hidden', 'true');
+    stage.style.cssText = 'position:absolute;left:0;right:0;top:12px;height:0;overflow:visible;pointer-events:none;z-index:2;display:block;font-family:inherit;background:transparent;';
     modal.appendChild(stage);
 
     var list = document.createElement('div');
@@ -1334,6 +1380,45 @@ function _qget(q, server) {
     return q.get({ source: 'server' }).catch(function() { return q.get(); });
 }
 
+function _filteredHoldings(data) {
+    data = data || { ownKeys: [], peerKeys: [], ciphers: [] };
+    return {
+        ownKeys: (data.ownKeys || []).filter(function(k) { return !_spentKeys[k.id]; }),
+        peerKeys: (data.peerKeys || []).filter(function(k) { return !_spentKeys[k.id]; }),
+        ciphers: (data.ciphers || []).filter(function(c) { return !_spentCiphers[c.id]; }),
+    };
+}
+
+function _keyFromHoldingsCache(label) {
+    if (!label || !_holdingsCache) return null;
+    var data = _filteredHoldings(_holdingsCache);
+    var lists = [data.peerKeys, data.ownKeys];
+    for (var i = 0; i < lists.length; i++) {
+        for (var j = 0; j < lists[i].length; j++) {
+            if (lists[i][j].label === label) return lists[i][j];
+        }
+    }
+    return null;
+}
+
+function _remainingMatches() {
+    var data = _filteredHoldings(_holdingsCache);
+    var keys = data.ownKeys.concat(data.peerKeys);
+    var used = {};
+    var out = [];
+    data.ciphers.forEach(function(c) {
+        if (!c || !c.id || _spentCiphers[c.id]) return;
+        for (var i = 0; i < keys.length; i++) {
+            var k = keys[i];
+            if (!k || used[k.id] || _spentKeys[k.id] || k.label !== c.label) continue;
+            used[k.id] = true;
+            out.push({ label: c.label, cipherId: c.id, key: k });
+            return;
+        }
+    });
+    return out;
+}
+
 async function _loadHoldings() {
     var empty = { ownKeys: [], peerKeys: [], ciphers: [] };
     if (!_isSignedIn() || typeof db === 'undefined') return empty;
@@ -1347,11 +1432,12 @@ async function _loadHoldings() {
             _qget(db.collection('locked_ciphers').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(200), server),
         ]);
         function map(snap) { return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }); }
-        return {
-            ownKeys: map(snaps[0]).filter(function(k) { return !_spentKeys[k.id]; }),
-            peerKeys: map(snaps[1]).filter(function(k) { return !_spentKeys[k.id]; }),
-            ciphers: map(snaps[2]).filter(function(c) { return !_spentCiphers[c.id]; }),
+        _holdingsCache = {
+            ownKeys: map(snaps[0]),
+            peerKeys: map(snaps[1]),
+            ciphers: map(snaps[2]),
         };
+        return _filteredHoldings(_holdingsCache);
     } catch (e) {
         console.warn('[gifting] holdings:', e.message);
         return empty;
@@ -1940,6 +2026,8 @@ async function _renderMyWins(el) {
 // ─── Open a cipher ───────────────────────────────────────────────────────────
 
 async function _findKeyForLabel(label) {
+    var cached = _keyFromHoldingsCache(label);
+    if (cached) return cached;
     var uid = _getUid();
     function pick(snap) {
         if (!snap || !snap.docs) return null;
@@ -1948,16 +2036,23 @@ async function _findKeyForLabel(label) {
         }
         return null;
     }
-    async function query(status) {
+    function query(status) {
         var q = db.collection('keys').where('ownerId', '==', uid).where('status', '==', status).where('label', '==', label).limit(5);
-        return pick(await _qget(q, true));
+        return _qget(q, true).then(pick);
     }
-    return (await query('sent')) || (await query('inventory'));
+    var found = await Promise.all([query('sent'), query('inventory')]);
+    return found[0] || found[1];
 }
 
 window.openCipherWithMatch = function(cipherId, label) {
     window.decryptCipherModal(cipherId, label, null);
 };
+
+function _releaseCipherBusy() {
+    if (document.getElementById('decryptCipherOverlay')) return;
+    _cipherBusy = false;
+    _setCipherButtonsDisabled(false);
+}
 
 window.decryptCipherModal = function(cipherId, cipherLabel, knownKey) {
     _unlockAudio();
@@ -1965,57 +2060,155 @@ window.decryptCipherModal = function(cipherId, cipherLabel, knownKey) {
     _cipherBusy = true;
     _setCipherButtonsDisabled(true);
     _decryptCipherModal(cipherId, cipherLabel, knownKey).then(function() {
-        _cipherBusy = false;
-        _setCipherButtonsDisabled(false);
+        _releaseCipherBusy();
     }, function() {
-        _cipherBusy = false;
-        _setCipherButtonsDisabled(false);
+        _releaseCipherBusy();
     });
 };
 
-async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
-    var returnFocus = document.activeElement || null;
-    if (!_isSignedIn()) { _toast('Sign in to open a cipher'); return; }
-    if (await _readSatsDisabled()) { _toast(SATS_OFF_MSG); return; }
-    _injectGiftingCSS();
-    var key = (knownKey && !_spentKeys[knownKey.id]) ? knownKey : null;
-    if (!key) {
-        try { key = await _findKeyForLabel(cipherLabel); } catch (e) { key = null; }
-    }
-    if (!key) { _toast('No matching ' + cipherLabel + ' key'); return; }
-
-    var old = document.getElementById('decryptCipherOverlay');
-    if (old) _dismissGiftingChild(old);
-    var overlay = document.createElement('div');
-    overlay.id = 'decryptCipherOverlay';
-    overlay.className = 'gifting-overlay';
-    var modal = document.createElement('div');
-    modal.className = 'gifting-modal';
-    var own = key.status === 'inventory';
+function _resetDecryptModalContent(modal, cipherLabel) {
     modal.innerHTML =
         '<div id="dcLabel" style="font-family:monospace;font-size:2.4rem;font-weight:900;color:#a78bfa;letter-spacing:3px;">🔒 ' + _esc(cipherLabel) + '</div>' +
         '<div id="dcUsing" style="color:var(--text-muted);font-size:0.78rem;margin:6px 0 12px;"></div>' +
         '<div id="dcHex" style="font-family:monospace;font-size:0.7rem;color:#f7931a;word-break:break-all;min-height:48px;margin-bottom:12px;padding:10px;background:rgba(247,147,26,0.05);border-radius:8px;"></div>' +
-        '<div id="dcStatus" style="color:var(--text-muted);font-size:0.85rem;font-weight:600;">Checking the key…</div>' +
+        '<div id="dcStatus" style="color:var(--text-muted,#94a3b8);font-size:0.85rem;font-weight:600;">Checking the key…</div>' +
         '<div id="dcResult" style="display:none;"></div>';
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    var usingEl = document.getElementById('dcUsing');
-    if (usingEl) {
-        usingEl.textContent = own
-            ? ('Using your own ' + cipherLabel + ' key')
-            : ('Using the ' + cipherLabel + ' key from ' + (key.sentByName || 'a peer'));
+}
+
+function _beginKeyCheckSession(cipherId, cipherLabel, knownKey) {
+    if (_keyCheckSession && _keyCheckSession.items && _keyCheckSession.items[_keyCheckSession.index] &&
+        _keyCheckSession.items[_keyCheckSession.index].cipherId === cipherId) {
+        return _keyCheckSession;
     }
-    _mountGiftingChild(overlay, returnFocus);
+    var rest = _remainingMatches().filter(function(m) { return m.cipherId !== cipherId; });
+    _keyCheckSession = {
+        items: [{ cipherId: cipherId, label: cipherLabel, key: knownKey || null }].concat(rest),
+        index: 0
+    };
+    return _keyCheckSession;
+}
+
+function _refreshKeyCheckSession() {
+    if (!_keyCheckSession) return null;
+    var current = _keyCheckSession.items[_keyCheckSession.index];
+    var rest = _remainingMatches().filter(function(m) {
+        return !current || m.cipherId !== current.cipherId;
+    });
+    var head = current ? [current] : [];
+    _keyCheckSession.items = head.concat(rest);
+    return _keyCheckSession;
+}
+
+function _paintDecryptAdvance(resultDiv, overlay) {
+    if (!resultDiv) return;
+    _refreshKeyCheckSession();
+    var oldNext = document.getElementById('dcNextKeyBtn');
+    var oldDone = document.getElementById('dcDoneBtn');
+    var session = _keyCheckSession;
+    var remaining = session ? Math.max(0, session.items.length - session.index - 1) : 0;
+    var total = session ? session.items.length : 1;
+    var nextIdx = session ? session.index + 1 : 1;
+    if (remaining > 0) {
+        if (oldDone && oldDone.parentNode) oldDone.parentNode.removeChild(oldDone);
+        var next = oldNext || _btn('Next key (' + (nextIdx + 1) + ' of ' + total + ')');
+        next.id = 'dcNextKeyBtn';
+        next.textContent = 'Next key (' + (nextIdx + 1) + ' of ' + total + ')';
+        next.style.width = '100%';
+        next.style.marginTop = '12px';
+        next.disabled = false;
+        next.onclick = function() {
+            if (next.disabled) return;
+            next.disabled = true;
+            var nxt = session.items[nextIdx];
+            session.index = nextIdx;
+            _decryptCipherModal(nxt.cipherId, nxt.label, nxt.key, { reuseOverlay: true });
+        };
+        if (!oldNext) resultDiv.appendChild(next);
+    } else if (!oldNext) {
+        if (session && session.items && session.index >= session.items.length - 1) _keyCheckSession = null;
+        if (!oldDone) {
+            var done = _btn('Nice!');
+            done.id = 'dcDoneBtn';
+            done.style.width = '100%';
+            done.style.marginTop = '10px';
+            done.onclick = function() { _dismissGiftingChild(overlay); };
+            resultDiv.appendChild(done);
+        }
+    }
+}
+
+async function _decryptCipherModal(cipherId, cipherLabel, knownKey, opts) {
+    opts = opts || {};
+    var returnFocus = document.activeElement || null;
+    if (!_isSignedIn()) { _toast('Sign in to open a cipher'); return; }
+    _injectGiftingCSS();
+
+    var overlay = document.getElementById('decryptCipherOverlay');
+    var reuse = !!(opts.reuseOverlay && overlay);
+    var modal;
+    if (reuse) {
+        modal = overlay.querySelector('.gifting-modal') || overlay.firstChild;
+        _resetDecryptModalContent(modal, cipherLabel);
+    } else {
+        if (overlay) _dismissGiftingChild(overlay);
+        overlay = document.createElement('div');
+        overlay.id = 'decryptCipherOverlay';
+        overlay.className = 'gifting-overlay';
+        modal = document.createElement('div');
+        modal.className = 'gifting-modal';
+        _resetDecryptModalContent(modal, cipherLabel);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        _mountGiftingChild(overlay, returnFocus);
+        _beginKeyCheckSession(cipherId, cipherLabel, knownKey);
+        // Warm the queue in the background; do not block the first check.
+        _loadHoldings().then(function() {
+            var resultDiv = document.getElementById('dcResult');
+            var live = document.getElementById('decryptCipherOverlay');
+            if (resultDiv && resultDiv.style.display === 'block' && live) {
+                _paintDecryptAdvance(resultDiv, live);
+            } else {
+                _refreshKeyCheckSession();
+            }
+        }).catch(function() {});
+    }
 
     var hexEl = document.getElementById('dcHex');
     var statusEl = document.getElementById('dcStatus');
     _playUnlockSound();
-    var anim = _playHex(hexEl, 1200);
+    var anim = _playHex(hexEl, KEY_CHECK_ANIM_MS);
+
+    var satsOff = false;
+    var key = (knownKey && !_spentKeys[knownKey.id]) ? knownKey : null;
+    try {
+        var looked = await Promise.all([
+            _readSatsDisabled(),
+            key ? Promise.resolve(key) : _findKeyForLabel(cipherLabel)
+        ]);
+        satsOff = !!looked[0];
+        key = looked[1];
+    } catch (e) {
+        if (!key) key = null;
+    }
+
+    var usingEl = document.getElementById('dcUsing');
+    if (key && usingEl) {
+        var own = key.status === 'inventory';
+        usingEl.textContent = own
+            ? ('Using your own ' + cipherLabel + ' key')
+            : ('Using the ' + cipherLabel + ' key from ' + (key.sentByName || 'a peer'));
+    }
+
     var result, err;
     var capErr = null;
-    try { result = await _callCF('decryptCipher', { cipherId: cipherId, keyId: key.id }); }
-    catch (e) { capErr = e; err = e.message || 'Could not open the cipher'; }
+    if (satsOff) {
+        err = SATS_OFF_MSG;
+    } else if (!key) {
+        err = 'No matching ' + cipherLabel + ' key';
+    } else {
+        try { result = await _callCF('decryptCipher', { cipherId: cipherId, keyId: key.id }); }
+        catch (e) { capErr = e; err = e.message || 'Could not open the cipher'; }
+    }
     await anim;
 
     // Clean up local state first, so stale cards and Open buttons go away
@@ -2030,7 +2223,7 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
         });
     } else if (staleErr) {
         if (/cipher/i.test(String(err))) { _noteSpent(null, cipherId); _dropMatchBanner(cipherLabel); }
-        if (/key/i.test(String(err))) _noteSpent(key.id, null);
+        if (key && /key/i.test(String(err))) _noteSpent(key.id, null);
     }
     var refreshPromise = (!err || staleErr) ? _refreshHoldingsViews().catch(function() {}) : null;
 
@@ -2052,10 +2245,26 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
             close.style.border = '1px solid var(--border,#333)';
             close.style.color = 'var(--text-muted)';
             close.style.width = '100%';
-            close.onclick = function() { _dismissGiftingChild(overlay); };
+            close.onclick = function() { _keyCheckSession = null; _dismissGiftingChild(overlay); };
             resultDiv.appendChild(close);
+            _refreshKeyCheckSession();
+            var sessionErr = _keyCheckSession;
+            var remainErr = sessionErr ? Math.max(0, sessionErr.items.length - sessionErr.index - 1) : 0;
+            if (remainErr > 0) {
+                var nextErr = _btn('Next key (' + (sessionErr.index + 2) + ' of ' + sessionErr.items.length + ')');
+                nextErr.style.width = '100%';
+                nextErr.style.marginTop = '8px';
+                nextErr.onclick = function() {
+                    if (nextErr.disabled) return;
+                    nextErr.disabled = true;
+                    var nxt = sessionErr.items[sessionErr.index + 1];
+                    sessionErr.index = sessionErr.index + 1;
+                    _decryptCipherModal(nxt.cipherId, nxt.label, nxt.key, { reuseOverlay: true });
+                };
+                resultDiv.appendChild(nextErr);
+            }
         }
-        if (refreshPromise) await refreshPromise;
+        if (refreshPromise) refreshPromise.catch(function() {});
         return;
     }
 
@@ -2090,15 +2299,11 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
             claim.onclick = function() { window.showCipherClaim({ id: rw.winId, amount: rw.satsAmount, cipherLabel: cipherLabel, status: 'claimable' }); };
             resultDiv.appendChild(claim);
         }
-        var done = _btn('Nice!');
-        done.style.width = '100%';
-        done.style.marginTop = '10px';
-        done.onclick = function() { _dismissGiftingChild(overlay); };
-        resultDiv.appendChild(done);
+        _paintDecryptAdvance(resultDiv, overlay);
     }
     _confetti();
     _toast('🔓 Cipher ' + cipherLabel + ' opened! ' + _rewardLabel(rw));
-    await refreshPromise;
+    if (refreshPromise) refreshPromise.catch(function() {});
 }
 
 // ─── Claim a small sats win ──────────────────────────────────────────────────
@@ -2558,7 +2763,7 @@ function _drainCipherShareQueue() {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     var hexEl = document.getElementById('csHex');
-    _playHex(hexEl, 1200).then(function() {
+    _playHex(hexEl, KEY_CHECK_ANIM_MS).then(function() {
         if (!overlay.parentNode) return;
         if (hexEl) hexEl.style.display = 'none';
         var labelEl = document.getElementById('csLabel');
