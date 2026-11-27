@@ -1,0 +1,8 @@
+name = "needisbored"
+main = "src/index.js"
+compatibility_date = "2026-11-20"
+workers_dev = false
+
+[[routes]]
+pattern = "bitcoineducation.quest/needisbored*"
+zone_id = "60fbfd1fc52f7eee8de12df7f3c6d1de"

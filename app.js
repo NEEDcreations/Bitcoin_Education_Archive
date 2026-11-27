@@ -6320,7 +6320,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     // First-load and in-app deep links. fromPopState-style openers keep the hash.
     window.bqOpenForumPost = function(postId) {
         var id = String(postId || '');
-        if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) return false;
+        if (!/^[A-Za-z0-9_-]{1,256}$/.test(id)) return false;
         _showAppShell();
         try { history.replaceState({ channel: 'forum', forumPost: id }, '', '#forum/post/' + id); } catch (e) {}
         _openWhenReady(function() {
@@ -6452,7 +6452,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                     if (!window._popScriptLoading) {
                         window._popScriptLoading = true;
                         var _popS = document.createElement('script');
-                        _popS.src = 'proof-of-play.js?v=20261031_v2447';
+                        _popS.src = 'proof-of-play.js?v=20261119_v2682';
                         _popS.onload = function() { window._popScriptLoading = false; };
                         document.head.appendChild(_popS);
                     }
