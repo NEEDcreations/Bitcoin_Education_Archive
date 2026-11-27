@@ -871,7 +871,7 @@ window.openRaidHub = function() {
     var existing = document.querySelector('script[src*="quests.js"]');
     if (!existing) {
         var s = document.createElement('script');
-        s.src = 'quests.js?v=20261106_v2509';
+        s.src = 'quests.js?v=20261128_v2744';
         s.onload = function() { setTimeout(openNow, 0); };
         document.body.appendChild(s);
         return;
@@ -4070,7 +4070,8 @@ window.bqDJBarTipHook = function(fn) {
 };
 if (typeof window._bqDJBarTipPending === 'function') {
     window.bqDJBarTipHook(window._bqDJBarTipPending);
-    window._bqDJBarTipPending = null;}
+    window._bqDJBarTipPending = null;
+}
 
 function hideDJBar() {
     var bar = document.getElementById('djNowPlaying');

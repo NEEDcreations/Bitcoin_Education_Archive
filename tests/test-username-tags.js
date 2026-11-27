@@ -87,11 +87,11 @@ function loadGg(utils) {
     return sandbox;
 }
 
-test('service worker cache is v2743 and html pins match', function() {
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2743'"));
+test('service worker cache is v2744 and html pins match', function() {
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2744'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2690'"));
-    assert.ok(html.includes('bundle.min.js?v=20261127_v2743'));
-    assert.ok(html.includes('global-chat.js?v=20261127_v2743'));
+    assert.ok(html.includes('bundle.min.js?v=20261128_v2744'));
+    assert.ok(html.includes('global-chat.js?v=20261128_v2744'));
     assert.strictEqual(html, html404);
 });
 

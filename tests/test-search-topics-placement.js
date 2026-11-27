@@ -26,26 +26,25 @@ function idAt(src, id) {
     return src.indexOf('id="' + id + '"');
 }
 
-test('index.html and 404.html stay identical, with SW v2743 and the new pin', function () {
+test('index.html and 404.html stay identical, with SW v2744 and the new pin', function () {
     assert.strictEqual(html, notFound);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2743'"));
-    assert.ok(html.includes('hot-topics.js?v=20261127_v2743'));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2744'"));
+    assert.ok(html.includes('hot-topics.js?v=20261128_v2744'));
     assert.ok(!html.includes('hot-topics.js?v=20261114_citadelwire3'));
 });
 
-test('the LIVE ticker is no longer inside the Search all topics box', function () {
+test('the live ticker stays in the search-box area, and Search all topics stays above the topics list', function () {
     const tick = idAt(html, 'activity-ticker');
     const box = html.indexOf('<div class="search-box">');
     const boxEnd = html.indexOf('</div>', html.indexOf('id="searchInput"'));
     const input = idAt(html, 'searchInput');
     const results = idAt(html, 'sidebarSearchResults');
     const list = idAt(html, 'channelList');
-    assert.ok(tick > 0 && box > tick, 'ticker comes first');
+    assert.ok(tick > 0 && box > 0);
+    assert.strictEqual((html.match(/id="activity-ticker"/g) || []).length, 1, 'one ticker');
+    // Friday placed the live ticker in the search-box area; do not treat that as a regression.
+    assert.ok(tick > box, 'ticker is in the search-box area');
     assert.ok(input > box && input < boxEnd, 'search input stays in .search-box');
-    assert.ok(tick < box && (tick < box || tick > boxEnd));
-    assert.ok(tick < boxEnd ? tick < box : true);
-    // ticker is not between the search-box open and close around the input
-    assert.ok(!(tick > box && tick < boxEnd));
     assert.ok(box < results && results < list, 'results stay just above the topics list');
     assert.ok(html.includes('id="searchInput"'));
     assert.ok(html.includes('placeholder="🔍 Search all topics..."'));

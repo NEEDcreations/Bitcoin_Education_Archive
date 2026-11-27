@@ -103,7 +103,7 @@ test('the share row uses the Lucide share-2 icon and the approved sign-up line',
     assert.ok(chrome.includes('class="lucide lucide-share-2"'));
     assert.ok(chrome.includes("wrap.insertBefore(existing, host.nextSibling)"));
     assert.ok(!chrome.includes('position:absolute') && !chrome.includes('position:fixed') && !chrome.includes("position: 'fixed'"));
-    assert.ok(html.includes('tctv-chrome.js?v=20261125_v2692'));
+    assert.ok(html.includes('tctv-chrome.js?v=20261128_v2744'));
     assert.ok(html.includes('.tctv-chrome'));
     assert.ok(html.includes('position: static'));
 });

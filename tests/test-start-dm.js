@@ -104,11 +104,11 @@ function fakeDb(docs) {
 
 const queue = [];
 
-queue.push(test('index.html and 404.html match, and pins are v2736', function() {
+queue.push(test('index.html and 404.html match, and pins are v2744', function() {
     assert.strictEqual(html, html404);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2736'"));
-    assert.ok(html.includes('bundle.min.js?v=20261127_v2736'));
-    assert.ok(html.includes('global-chat.js?v=20261127_v2736'));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2744'"));
+    assert.ok(html.includes('bundle.min.js?v=20261128_v2744'));
+    assert.ok(html.includes('global-chat.js?v=20261128_v2744'));
     assert.ok(!html.includes('bundle.min.js?v=20261119_v2682b'));
 }));
 

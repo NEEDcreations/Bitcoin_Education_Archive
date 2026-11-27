@@ -55,6 +55,8 @@ function safeJSON(key, fallback) {
 // ---- HTML Escape ----
 // Prevents XSS in user-generated content rendered as innerHTML
 function escapeHtml(str) {
+    if (typeof str === 'number') str = String(str);
+    else if (typeof str !== 'string') return '';
     if (!str) return '';
     var div = document.createElement('div');
     div.appendChild(document.createTextNode(str));
@@ -64,15 +66,114 @@ function escapeHtml(str) {
     return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// ---- Safe URL (blocks javascript:, data:, vbscript:, blob: URIs) ----
+
+// ---- Clickable username tags ----
+// One shared helper for profile links. Display names and uids always go
+// through escapeHtml (or textContent). Never build HTML from raw names.
+// Prefer appendUsernameTag in DOM paths. Use usernameTagHtml only in
+// existing innerHTML renderers.
+/* USERNAME_TAGS_START */
+var USERNAME_TAG_STYLE = 'color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+
+function usernameTagUidOk(uid) {
+    return typeof uid === 'string' && /^[A-Za-z0-9_:-]{1,128}$/.test(uid);
+}
+
+function resolveUsernameUid(name, knownUid) {
+    if (usernameTagUidOk(knownUid)) return knownUid;
+    var needle = String(name == null ? '' : name).replace(/^@/, '').trim();
+    if (!needle) return '';
+    var lower = needle.toLowerCase();
+    if (lower === 'nacho' || needle === '\uD83E\uDD8C Nacho') return 'nacho-bot';
+    var cache = null;
+    if (typeof window !== 'undefined' && window && window._chatUsers) cache = window._chatUsers;
+    else if (typeof _chatUsers !== 'undefined') cache = _chatUsers;
+    if (!cache) return '';
+    for (var uid in cache) {
+        if (!Object.prototype.hasOwnProperty.call(cache, uid)) continue;
+        if (!usernameTagUidOk(uid)) continue;
+        var cand = cache[uid];
+        if (typeof cand === 'string' && cand && (cand === needle || cand.toLowerCase() === lower)) return uid;
+    }
+    return '';
+}
+
+function openUsernameTag(uid, ev) {
+    if (ev) {
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+    }
+    if (!usernameTagUidOk(uid)) return;
+    if (typeof showUserProfile === 'function') showUserProfile(uid);
+}
+
+function _usernameTagEscape(str) {
+    if (typeof escapeHtml === 'function') return escapeHtml(str);
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function(c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+function appendUsernameTag(parent, name, uid, opts) {
+    if (!parent) return null;
+    opts = opts || {};
+    var raw = String(name == null ? '' : name);
+    var core = raw.replace(/^@/, '');
+    var resolved = resolveUsernameUid(core, uid);
+    var label = raw;
+    if (opts.at === true && label && label.charAt(0) !== '@') label = '@' + core;
+    if (!resolved) {
+        parent.appendChild(document.createTextNode(opts.fallback != null ? opts.fallback : raw));
+        return null;
+    }
+    var el = document.createElement(opts.tag || 'a');
+    if ((el.tagName || opts.tag || 'a').toLowerCase() === 'a') el.href = '#';
+    el.textContent = opts.text != null ? opts.text : label;
+    el.style.cssText = USERNAME_TAG_STYLE + (opts.style || '');
+    el.setAttribute('data-profile-uid', resolved);
+    el.setAttribute('title', opts.title || 'View profile');
+    el.addEventListener('click', function(e) {
+        openUsernameTag(el.getAttribute('data-profile-uid'), e);
+    });
+    parent.appendChild(el);
+    return el;
+}
+
+function usernameTagHtml(name, uid, opts) {
+    opts = opts || {};
+    var raw = String(name == null ? '' : name);
+    var core = raw.replace(/^@/, '');
+    var display = raw;
+    if (opts.at === true && display && display.charAt(0) !== '@') display = '@' + core;
+    var resolved = resolveUsernameUid(core, uid);
+    var safeName = opts.alreadyEscaped ? display : _usernameTagEscape(display);
+    if (!resolved) return safeName;
+    var safeUid = _usernameTagEscape(resolved);
+    var title = opts.alreadyEscaped ? (opts.title || 'View profile') : _usernameTagEscape(opts.title || 'View profile');
+    return '<a href="#" data-profile-uid="' + safeUid + '" onclick="event.preventDefault();event.stopPropagation();if(typeof openUsernameTag===\'function\')openUsernameTag(this.getAttribute(\'data-profile-uid\'),event);return false;" style="' + USERNAME_TAG_STYLE + '" title="' + title + '">' + safeName + '</a>';
+}
+
+if (typeof window !== 'undefined') {
+    window.usernameTagUidOk = usernameTagUidOk;
+    window.resolveUsernameUid = resolveUsernameUid;
+    window.openUsernameTag = openUsernameTag;
+    window.appendUsernameTag = appendUsernameTag;
+    window.usernameTagHtml = usernameTagHtml;
+}
+/* USERNAME_TAGS_END */
+
+// ---- Safe URL ----
+// One shared URL check. Returns the trimmed URL when it is http(s) with a
+// host, a same-site path, or a base64 raster data image, and '' otherwise.
+// It does not escape: callers escape the result for the HTML context.
 function sanitizeUrl(url) {
-    if (!url) return '';
-    url = url.trim();
-    // Allow data:image/ URLs (base64 profile pictures stored by the app)
-    if (/^data:image\//i.test(url)) return url;
-    // Block all other data:, javascript:, vbscript:, blob: URLs
-    if (/^(javascript|data|vbscript|blob):/i.test(url)) return '';
-    return url;
+    if (typeof url !== 'string' || !url) return '';
+    var u = url.trim();
+    if (!u || /[\u0000-\u0020\u007f-\u009f]/.test(u)) return '';
+    if (/^https?:\/\/[^\/\\]/i.test(u)) return u;
+    if (/^\/(?![\/\\])/.test(u)) return u;
+    if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(u)) return u;
+    return '';
 }
 
 // ---- Time Ago ----
@@ -3580,29 +3681,31 @@ async function getReferralStats() {
             .where('referrerUid', '==', uid)
             .get();
 
-        let total = snapshot.size;
-        let verified = 0;
-        let pending = 0;
-        let reachedXp = 0;
-
-        snapshot.forEach(doc => {
-            var data = doc.data() || {};
-            var rewarded = data.verified === true || data.status === 'paid' || data.ticketsAwarded === true;
-            if (rewarded) verified++;
-            else pending++;
-            if (data.maxiReachedAt || rewarded) reachedXp++;
+        var docs = [];
+        snapshot.forEach(function (doc) {
+            docs.push({ id: doc.id, data: doc.data() || {} });
         });
 
-        var stats = {
-            total: total,
-            verified: verified,
-            pending: pending,
-            invited: total,
-            maxi: verified,
-            reached: reachedXp,
-            maxiReached: reachedXp,
-            rewarded: verified
-        };
+        var api = (typeof referralTiers !== 'undefined' && referralTiers)
+            ? referralTiers
+            : (typeof window !== 'undefined' ? window.referralTiers : null);
+        var need = (api && typeof api.inviteDocsNeedingProfilePoints === 'function')
+            ? api.inviteDocsNeedingProfilePoints(docs)
+            : [];
+        var pointsByUid = {};
+        if (need.length && db) {
+            await Promise.all(need.map(function (profileUid) {
+                return db.collection('public_profiles').doc(profileUid).get().then(function (snap) {
+                    if (!snap.exists) return;
+                    var row = snap.data() || {};
+                    pointsByUid[profileUid] = row.points;
+                }).catch(function () {});
+            }));
+        }
+
+        var stats = (api && typeof api.summarizeReferralInviteDocs === 'function')
+            ? api.summarizeReferralInviteDocs(docs, pointsByUid)
+            : { total: snapshot.size, invited: snapshot.size, verified: 0, pending: snapshot.size, maxi: 0, rewarded: 0, qualifies: 0, joinedBefore: 0, reached: 0, maxiReached: 0 };
         _inviteStatsCache = { uid: uid, at: now, stats: stats };
         return stats;
     } catch (e) {
@@ -3619,7 +3722,10 @@ async function getReferralStats() {
                 maxi: maxi,
                 reached: reached,
                 maxiReached: reached,
-                rewarded: maxi
+                rewarded: maxi,
+                qualifies: reached,
+                joinedBefore: 0,
+                staleInvited: true
             };
         }
         return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
@@ -3878,16 +3984,23 @@ function _copyTextNow(text) {
 }
 
 function _inviteCountLine(stats) {
+    var api = (typeof referralTiers !== 'undefined' && referralTiers)
+        ? referralTiers
+        : (typeof window !== 'undefined' ? window.referralTiers : null);
+    if (api && typeof api.inviteCountLine === 'function') return api.inviteCountLine(stats);
     var invited = stats && typeof stats.invited === 'number' ? stats.invited : 0;
     var reached = stats && typeof stats.reached === 'number' ? stats.reached
         : (stats && typeof stats.maxiReached === 'number' ? stats.maxiReached : 0);
-    var rewarded = stats && typeof stats.rewarded === 'number' ? stats.rewarded
-        : (stats && typeof stats.maxi === 'number' ? stats.maxi : 0);
-    if (!invited && !reached && !rewarded) return 'No invites yet.';
+    var qualifies = stats && typeof stats.qualifies === 'number' ? stats.qualifies : 0;
+    var joinedBefore = stats && typeof stats.joinedBefore === 'number' ? stats.joinedBefore : 0;
+    if (!invited && !reached && !qualifies && !joinedBefore) return 'No invites yet.';
     var invitedLabel = invited === 1 ? '1 friend invited' : invited + ' friends invited';
-    var reachedLabel = (reached === 1 ? '1 reached 2,140 XP' : reached + ' reached 2,140 XP');
-    var rewardedLabel = (rewarded === 1 ? '1 rewarded' : rewarded + ' rewarded');
-    return invitedLabel + ' · ' + reachedLabel + ' · ' + rewardedLabel;
+    var qualifyText = qualifies === 1 ? '1 qualifies' : qualifies + ' qualify';
+    var line = invitedLabel + ' · ' + (reached === 1 ? '1 reached' : reached + ' reached') + ' 2,140 XP, ' + qualifyText;
+    if (joinedBefore > 0) {
+        line += ' (' + (joinedBefore === 1 ? '1 joined before using your code' : joinedBefore + ' joined before using your code') + ')';
+    }
+    return line;
 }
 
 function _fillInviteCard() {
@@ -3920,7 +4033,7 @@ function _loadInviteCounts() {
             reached = parseInt(currentUser.referralMaxiReachedCount, 10);
             if (isNaN(reached)) reached = maxi;
         }
-        if (reached || maxi) el.textContent = (reached || 0) + ' reached 2,140 XP · ' + maxi + ' rewarded';
+        if (reached || maxi) el.textContent = _inviteCountLine({ invited: 0, reached: reached || 0, qualifies: reached || 0, joinedBefore: 0 });
         else el.textContent = 'Invite counts load when you are online.';
     });
 }
@@ -9191,6 +9304,57 @@ function forumPlainBodyHtml(text) {
     return fEsc(String(text || '')).replace(/\n/g, '<br>');
 }
 
+// Item ids accepted by the list renderers and the delegated click handler.
+var FORUM_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+function forumIdOk(id) { return typeof id === 'string' && FORUM_ID_RE.test(id); }
+function forumIdSkip(where) { try { console.warn('[forum] skipped an item with an unsupported id (' + where + ')'); } catch (e) {} }
+// Profile link markup for an author. Falls back to plain text when the uid is not usable.
+function forumProfileAttrs(uid) {
+    if (!forumIdOk(uid)) { if (uid) forumIdSkip('author'); return ''; }
+    return ' data-forum-action="profile" data-id="' + fEsc(uid) + '"';
+}
+function forumCall(name) {
+    var fn = window[name];
+    if (typeof fn === 'function') return fn.apply(window, Array.prototype.slice.call(arguments, 1));
+}
+var FORUM_ACTIONS = {
+    'view-post': function(id) { forumCall('forumViewPost', id); },
+    'vote-post': function(id) { forumCall('forumVotePost', id); },
+    'delete-post': function(id) { forumCall('forumDeletePost', id); },
+    'submit-reply': function(id) { forumCall('forumSubmitReply', id); },
+    'vote-reply': function(id) { forumCall('forumVoteReply', id); },
+    'reply-to': function(id, el) { forumCall('forumReplyToReply', id, el.getAttribute('data-author') || 'Anon'); },
+    'delete-reply': function(id, el, parent) { forumCall('forumDeleteReply', id, parent); },
+    'profile': function(id) { if (typeof showUserProfile === 'function') showUserProfile(id); },
+    'article-view': function(id) { forumCall('articleView', id); },
+    'article-edit': function(id) { forumCall('articleEdit', id); },
+    'article-pin': function(id, el) { forumCall('articleTogglePin', id, el.getAttribute('data-pin') === '1'); },
+    'article-vote': function(id) { forumCall('articleVote', id); },
+    'article-delete': function(id) { forumCall('articleDelete', id); },
+    'article-submit-reply': function(id) { forumCall('articleSubmitReply', id); },
+    'article-reply-to': function(id, el) { forumCall('articleReplyToComment', id, el.getAttribute('data-author') || 'Anon'); }
+};
+function forumOnAction(e) {
+    var t = e && e.target;
+    if (t && t.nodeType !== 1) t = t.parentNode;
+    var el = t && t.closest ? t.closest('[data-forum-action]') : null;
+    if (!el || (this && this.contains && !this.contains(el))) return;
+    var action = el.getAttribute('data-forum-action');
+    var fn = Object.prototype.hasOwnProperty.call(FORUM_ACTIONS, action) ? FORUM_ACTIONS[action] : null;
+    if (!fn) return;
+    var id = el.getAttribute('data-id');
+    var parent = el.getAttribute('data-parent');
+    if (!forumIdOk(id) || (parent !== null && !forumIdOk(parent))) { forumIdSkip('action'); return; }
+    fn(id, el, parent);
+}
+// One delegated click listener per forum container.
+function forumBindActions(fc) {
+    if (!fc || fc._forumActionsBound) return;
+    fc._forumActionsBound = true;
+    fc.addEventListener('click', forumOnAction);
+}
+window._forumIdOk = forumIdOk;
+
 // Time ago helper
 // [AUDIT FIX] timeAgo moved to utils.js
 
@@ -9227,6 +9391,7 @@ window.renderForum = function() {
     } catch(e) {}
 
     fc.innerHTML = '';
+    forumBindActions(fc);
 
     var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
     html += '<div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' + 
@@ -9407,6 +9572,7 @@ function forumRenderPosts(posts, container) {
 
     var html = '';
     posts.forEach(function(p) {
+        if (!forumIdOk(p.id)) { forumIdSkip('post'); return; }
         var lv = forumLevel(p.authorPoints);
         var cat = FORUM_CATEGORIES.find(function(c) { return c.id === p.category; });
         var catLabel = cat ? cat.emoji + ' ' + cat.name : '';
@@ -9414,21 +9580,21 @@ function forumRenderPosts(posts, container) {
         var canDelete = isOwn || isForumAdmin();
         var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
 
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:0.2s;-webkit-tap-highlight-color:rgba(247,147,26,0.1);" onclick="forumViewPost(\'' + p.id + '\')" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:0.2s;-webkit-tap-highlight-color:rgba(247,147,26,0.1);" data-forum-card="post" data-forum-action="view-post" data-id="' + fEsc(p.id) + '" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
             '<div style="display:flex;gap:10px;">' +
                 '<div style="display:flex;flex-direction:column;align-items:center;min-width:36px;flex-shrink:0;">' +
-                    '<button onclick="event.stopPropagation();forumVotePost(\'' + p.id + '\')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">👍</button>' +
+                    '<button data-forum-action="vote-post" data-id="' + fEsc(p.id) + '" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">👍</button>' +
                     '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;">' + forumCount(p.upvotes) + '</span>' +
                 '</div>' +
                 '<div style="flex:1;min-width:0;overflow:hidden;">' +
                     '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:3px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</div>' +
                     (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body).substring(0, 120) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
                     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
-                        '<span onclick="event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')" style="font-size:0.7rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-faint)') + ';cursor:pointer;transition:0.2s;">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                        '<span' + forumProfileAttrs(p.authorId) + ' style="font-size:0.7rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-faint)') + ';cursor:pointer;transition:0.2s;">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                         '<span style="font-size:0.65rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
                         '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + forumCount(p.replyCount) + '</span>' +
                         (catLabel ? '<span style="font-size:0.6rem;padding:2px 6px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);white-space:nowrap;">' + catLabel + '</span>' : '') +
-                        (canDelete ? '<button onclick="event.stopPropagation();forumDeletePost(\'' + p.id + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
+                        (canDelete ? '<button data-forum-action="delete-post" data-id="' + fEsc(p.id) + '" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -9485,6 +9651,8 @@ function forumTopicContinueLink(p) {
 window.forumViewPost = async function(postId, fromPopState) {
     var fc = document.getElementById('forumContainer');
     if (!fc || typeof db === 'undefined') return;
+    if (!forumIdOk(postId)) { forumIdSkip('post'); return; }
+    forumBindActions(fc);
     if (!fromPopState) history.pushState({ channel: 'forum', forumPost: postId }, '', '#forum/post/' + postId);
     fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;"><div style="text-align:center;padding:100px 40px;display:flex;flex-direction:column;gap:12px;">' +
         '<div class="skeleton" style="height:40px;width:80%;margin:0 auto;"></div>' +
@@ -9510,10 +9678,10 @@ window.forumViewPost = async function(postId, fromPopState) {
         html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to PlebTalk</button>';
 
         // Post
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+        html += '<div data-forum-card="post" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<h2 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 8px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</h2>' +
             '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
-                '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + forumProfileAttrs(p.authorId) + '>' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                 '<span style="font-size:0.75rem;color:var(--text-faint);">' + forumWhen(p.createdAt) + '</span>' +
             '</div>';
 
@@ -9538,16 +9706,16 @@ window.forumViewPost = async function(postId, fromPopState) {
             // [VULN-5 FIX] sanitizeUrl blocks javascript:/data:/vbscript: before writing into href
             var safeLink = typeof sanitizeUrl === 'function' ? sanitizeUrl(p.link) : '';
             if (safeLink) {
-                html += '<a href="' + fEsc(safeLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(safeLink).substring(0, 60) + (safeLink.length > 60 ? '...' : '') + '</a><br>';
+                html += '<a href="' + fEsc(safeLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(safeLink.substring(0, 60)) + (safeLink.length > 60 ? '...' : '') + '</a><br>';
             }
         }
 
         // Vote + meta + admin delete
         var canDeletePost = (auth && auth.currentUser && p.authorId === auth.currentUser.uid) || isForumAdmin();
         html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
-            '<button onclick="forumVotePost(\'' + p.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">👍 ' + forumCount(p.upvotes) + '</button>' +
+            '<button data-forum-action="vote-post" data-id="' + fEsc(p.id) + '" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">👍 ' + forumCount(p.upvotes) + '</button>' +
             '<span style="color:var(--text-faint);font-size:0.8rem;">💬 ' + forumCount(p.replyCount) + ' replies</span>' +
-            (canDeletePost ? '<button onclick="forumDeletePost(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
+            (canDeletePost ? '<button data-forum-action="delete-post" data-id="' + fEsc(p.id) + '" style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
         '</div>';
         html += '</div>';
 
@@ -9561,7 +9729,7 @@ window.forumViewPost = async function(postId, fromPopState) {
                 '<textarea id="forumReplyInput" rows="3" maxlength="1000" placeholder="Write a reply..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;min-height:70px;-webkit-appearance:none;"></textarea>' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
                     '<span id="forumReplyStatus" style="font-size:0.8rem;flex:1;min-width:0;"></span>' +
-                    '<button onclick="forumSubmitReply(\'' + p.id + '\')" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;flex-shrink:0;">Reply</button>' +
+                    '<button data-forum-action="submit-reply" data-id="' + fEsc(p.id) + '" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;flex-shrink:0;">Reply</button>' +
                 '</div></div>';
         } else {
             html += '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;background:var(--card-bg);border:2px solid var(--accent);border-radius:12px;">' +
@@ -9613,7 +9781,10 @@ async function forumLoadReplies(postId) {
         var snap = await db.collection('forum_replies').where('postId', '==', postId).orderBy('createdAt', 'asc').limit(100).get();
         var replies = [];
         snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
-        replies = replies.filter(function(r) { return r.deleted !== true && r.hidden !== true; });
+        replies = replies.filter(function(r) {
+            if (!forumIdOk(r.id)) { forumIdSkip('reply'); return false; }
+            return r.deleted !== true && r.hidden !== true;
+        });
 
         if (replies.length === 0) {
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;">No replies yet. Be the first!</div>';
@@ -9644,17 +9815,17 @@ async function forumLoadReplies(postId) {
             var canReply = auth && auth.currentUser && !auth.currentUser.isAnonymous;
             var replyToLabel = r.parentAuthorName ? '<div style="font-size:0.7rem;color:var(--accent);margin-bottom:4px;">\u21A9 ' + fEsc(r.parentAuthorName) + '</div>' : '';
             var indent = isNested ? 'margin-left:24px;border-left:2px solid var(--accent);' : '';
-            var out = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;' + indent + '">' +
+            var out = '<div data-forum-card="reply" style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;' + indent + '">' +
                 replyToLabel +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + forumProfileAttrs(r.authorId) + '>' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">' + forumWhen(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;">' +
-                    '<button onclick="forumVoteReply(\'' + r.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + (r.upvotes || 0) + '</button>' +
-                    (canReply ? '<button data-reply-id="' + r.id + '" data-reply-author="' + fEsc(r.authorName || 'Anon') + '" onclick="window.forumReplyToReply(this.dataset.replyId,this.dataset.replyAuthor)" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\u21A9 Reply</button>' : '') +
-                    (canDeleteReply ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + r.postId + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
+                    '<button data-forum-action="vote-reply" data-id="' + fEsc(r.id) + '" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + (r.upvotes || 0) + '</button>' +
+                    (canReply ? '<button data-forum-action="reply-to" data-id="' + fEsc(r.id) + '" data-author="' + fEsc(r.authorName || 'Anon') + '" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\u21A9 Reply</button>' : '') +
+                    (canDeleteReply && forumIdOk(r.postId) ? '<button data-forum-action="delete-reply" data-id="' + fEsc(r.id) + '" data-parent="' + fEsc(r.postId) + '" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
                 '</div>' +
             '</div>';
             return out;
@@ -10139,6 +10310,7 @@ window.forumSwitchTab = function(tab) {
 function mdUnescape(s) {
     return String(s).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 }
+function mdUnEsc(s) { return mdUnescape(s); }
 // Markdown URLs: http(s) or a same-site path only. Returns the URL escaped for
 // a double-quoted attribute, or '' when it is not allowed.
 var MD_DATA_IMG_RE = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+\/]+=*$/;
@@ -10249,13 +10421,13 @@ async function loadArticles() {
         var html = '';
         articles.forEach(function(a) {
             try {
-                if (!ARTICLE_ID_RE.test(String(a.id || ''))) return;
+                if (!forumIdOk(a.id)) { forumIdSkip('article'); return; }
                 var lv = forumLevel(a.authorPoints);
                 var readTime = Math.max(1, Math.round((forumCount(a.wordCount) || 500) / 200));
                 var dateStr = a.createdAt && typeof a.createdAt.toDate === 'function' ? fEsc(a.createdAt.toDate().toLocaleDateString()) : '';
                 var pinned = articlePinShown(a) ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;">📌 PINNED</span> ' : '';
                 
-                html += '<div onclick="articleView(\'' + a.id + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:12px;cursor:pointer;transition:0.2s;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+                html += '<div data-forum-action="article-view" data-id="' + fEsc(a.id) + '" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:12px;cursor:pointer;transition:0.2s;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
                 
                 var listCover = articleImgUrl(a.coverUrl);
                 if (listCover && !/["'()\\]/.test(mdUnescape(listCover))) {
@@ -10274,8 +10446,11 @@ async function loadArticles() {
                 }
                 
                 // Meta
+                var authorNameHtml = (typeof usernameTagHtml === 'function')
+                    ? usernameTagHtml(a.authorName || 'Anon', a.authorId, { at: false })
+                    : forumText(a.authorName || 'Anon');
                 html += '<div style="display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--text-faint);">' +
-                    '<span ' + (a.authorFaction ? 'style="' + window._factionNameStyle(a.authorFaction) + '"' : '') + '>' + lv.emoji + ' ' + forumText(a.authorName || 'Anon') + '</span>' +
+                    '<span ' + (a.authorFaction ? 'style="' + window._factionNameStyle(a.authorFaction) + '"' : '') + ' onclick="event.stopPropagation()">' + lv.emoji + ' ' + authorNameHtml + '</span>' +
                     '<span>·</span><span>' + readTime + ' min read</span>' +
                     (dateStr ? '<span>·</span><span>' + dateStr + '</span>' : '') +
                 '</div>';
@@ -10711,6 +10886,8 @@ window.articleSubmit = async function() {
 window.articleView = async function(articleId) {
     var fc = document.getElementById('forumContainer');
     if (!fc || !db) return;
+    if (!forumIdOk(articleId)) { forumIdSkip('article'); return; }
+    forumBindActions(fc);
     
     fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:40px 12px;text-align:center;color:var(--text-muted);">Loading article...</div>';
     
@@ -10745,14 +10922,20 @@ window.articleView = async function(articleId) {
         html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">';
         var viewPic = articleImgUrl(a.authorPic);
         if (viewPic) html += '<img src="' + viewPic + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
+        var viewAuthorHtml = (typeof usernameTagHtml === 'function')
+            ? usernameTagHtml(a.authorName || 'Anon', a.authorId, { at: false })
+            : forumText(a.authorName || 'Anon');
+        var viewAuthorClick = (typeof usernameTagHtml !== 'function' && ARTICLE_UID_RE.test(String(a.authorId || '')))
+            ? ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + String(a.authorId).replace(/[^A-Za-z0-9_:-]/g, '') + '\')"'
+            : '';
         html += '<div>' +
-            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;"' + (ARTICLE_UID_RE.test(String(a.authorId || '')) ? ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + a.authorId + '\')"' : '') + '>' + lv.emoji + ' ' + forumText(a.authorName || 'Anon') + '</div>' +
+            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;"' + (typeof usernameTagHtml === 'function' ? '' : forumProfileAttrs(a.authorId)) + '>' + lv.emoji + ' ' + viewAuthorHtml + '</div>' +
             '<div style="font-size:0.75rem;color:var(--text-faint);">' + dateStr + ' · ' + readTime + ' min read · ' + forumCount(a.wordCount).toLocaleString() + ' words</div>' +
         '</div>';
         // Edit button for author
-        if (isAuthor) html += '<button onclick="articleEdit(\'' + articleId + '\')" style="margin-left:auto;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>';
+        if (isAuthor) html += '<button data-forum-action="article-edit" data-id="' + fEsc(articleId) + '" style="margin-left:auto;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>';
         // Pin button for admin
-        if (isAdmin) html += '<button onclick="articleTogglePin(\'' + articleId + '\',' + (a.pinned === true ? 'false' : 'true') + ')" style="margin-left:' + (isAuthor ? '4px' : 'auto') + ';padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">' + (a.pinned === true ? '📌 Unpin' : '📌 Pin') + '</button>';
+        if (isAdmin) html += '<button data-forum-action="article-pin" data-id="' + fEsc(articleId) + '" data-pin="' + (a.pinned === true ? '0' : '1') + '" style="margin-left:' + (isAuthor ? '4px' : 'auto') + ';padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">' + (a.pinned === true ? '📌 Unpin' : '📌 Pin') + '</button>';
         html += '</div>';
         
         // Tags
@@ -10767,16 +10950,16 @@ window.articleView = async function(articleId) {
         
         // Action bar
         html += '<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:20px;">';
-        html += '<button onclick="articleVote(\'' + articleId + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:8px 14px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:600;font-family:inherit;">👍 ' + forumCount(a.upvotes) + '</button>';
+        html += '<button data-forum-action="article-vote" data-id="' + fEsc(articleId) + '" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:8px 14px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:600;font-family:inherit;">👍 ' + forumCount(a.upvotes) + '</button>';
         
         // Tip button
         if (typeof tipButtonHtml === 'function') {
-            html += tipButtonHtml({ recipientName: a.authorName, recipientUid: a.authorId, context: 'article', contextId: articleId, label: '⚡ Tip Author', size: 'md' });
+            html += tipButtonHtml({ recipientName: typeof a.authorName === 'string' ? a.authorName : '', recipientUid: a.authorId, context: 'article', contextId: articleId, label: '⚡ Tip Author', size: 'md' });
         }
         
         // Delete for admin/author
         if (isAuthor || isAdmin) {
-            html += '<button onclick="articleDelete(\'' + articleId + '\')" style="margin-left:auto;padding:8px 14px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🗑️ Delete</button>';
+            html += '<button data-forum-action="article-delete" data-id="' + fEsc(articleId) + '" style="margin-left:auto;padding:8px 14px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🗑️ Delete</button>';
         }
         html += '</div>';
         
@@ -10792,7 +10975,7 @@ window.articleView = async function(articleId) {
                     '<button onclick="window.articleCancelReplyTo()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1;touch-action:manipulation;" title="Cancel reply">✕</button>' +
                 '</div>' +
                 '<textarea id="articleReplyInput" rows="3" maxlength="1000" placeholder="Share your thoughts..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;"></textarea>' +
-                '<button onclick="articleSubmitReply(\'' + articleId + '\')" style="margin-top:6px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Post Comment</button>' +
+                '<button data-forum-action="article-submit-reply" data-id="' + fEsc(articleId) + '" style="margin-top:6px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Post Comment</button>' +
                 '<div id="articleReplyStatus" style="margin-top:4px;font-size:0.8rem;"></div>' +
             '</div>';
         } else {
@@ -10882,7 +11065,10 @@ async function articleLoadReplies(articleId) {
         if (snap.empty) { container.innerHTML = '<div style="padding:12px;color:var(--text-faint);font-size:0.85rem;">No comments yet. Be the first!</div>'; return; }
 
         var replies = [];
-        snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
+        snap.forEach(function(doc) {
+            if (!forumIdOk(doc.id)) { forumIdSkip('comment'); return; }
+            replies.push({ id: doc.id, ...doc.data() });
+        });
 
         // Build threaded structure (one level deep)
         var topLevel = [];
@@ -10909,12 +11095,12 @@ async function articleLoadReplies(articleId) {
             return '<div style="padding:12px 0;border-bottom:1px solid var(--border);' + indent + '">' +
                 replyToLabel +
                 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
-                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + forumProfileAttrs(r.authorId) + '>' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">· ' + rDate + '</span>' +
-                    (canDel ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
+                    (canDel ? '<button data-forum-action="delete-reply" data-id="' + fEsc(r.id) + '" data-parent="' + fEsc(articleId) + '" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
                 '</div>' +
                 '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;margin-bottom:6px;">' + bodyHtml + '</div>' +
-                (canReply ? '<button data-rid="' + r.id + '" data-rname="' + fEsc(r.authorName || 'Anon') + '" onclick="window.articleReplyToComment(this.dataset.rid,this.dataset.rname)" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +
+                (canReply ? '<button data-forum-action="article-reply-to" data-id="' + fEsc(r.id) + '" data-author="' + fEsc(r.authorName || 'Anon') + '" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +
             '</div>';
         }
 
@@ -11142,13 +11328,15 @@ function snRenderFeedCards(items) {
     var h = '';
     for (var i = 0; i < items.length; i++) {
         var item = items[i];
+        var snId = parseInt(item && item.id, 10);
+        if (isNaN(snId)) continue;
         var ago = snTimeAgo(item.createdAt);
         var domain = '';
         if (item.url) {
             try { domain = new URL(item.url).hostname.replace('www.',''); } catch(e) {}
         }
         var subName = (item.sub && item.sub.name) ? item.sub.name : '';
-        h += '<div onclick="snOpenPost(' + item.id + ')" style="cursor:pointer;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
+        h += '<div onclick="snOpenPost(' + snId + ')" style="cursor:pointer;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
         h += '<div style="display:flex;gap:12px;align-items:flex-start;">';
         // Sats badge
         h += '<div style="min-width:52px;text-align:center;padding:6px 0;">';
@@ -11177,7 +11365,7 @@ function snRenderFeedCards(items) {
         }
         h += '</div></div>';
         // View on SN link
-        h += '<a href="https://stacker.news/items/' + item.id + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="position:absolute;top:12px;right:12px;color:var(--text-muted);font-size:0.8rem;text-decoration:none;opacity:0.5;padding:4px;" onmouseover="this.style.opacity=\'1\';this.style.color=\'var(--accent)\'" onmouseout="this.style.opacity=\'0.5\';this.style.color=\'var(--text-muted)\'">\u2197</a>';
+        h += '<a href="https://stacker.news/items/' + snId + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="position:absolute;top:12px;right:12px;color:var(--text-muted);font-size:0.8rem;text-decoration:none;opacity:0.5;padding:4px;" onmouseover="this.style.opacity=\'1\';this.style.color=\'var(--accent)\'" onmouseout="this.style.opacity=\'0.5\';this.style.color=\'var(--text-muted)\'">\u2197</a>';
         h += '</div></div>';
     }
     return h;
@@ -11187,6 +11375,8 @@ function snRenderFeedCards(items) {
 window.snOpenPost = function(id) {
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
+    id = parseInt(id, 10);
+    if (isNaN(id)) return;
     fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">' +
         '<div style="text-align:center;padding:60px 0;color:var(--text-muted);">' +
             '<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>' +
@@ -11246,8 +11436,9 @@ function snRenderPost(fc, item) {
     }
 
     // View on SN link
+    var snItemId = parseInt(item.id, 10);
     h += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">';
-    h += '<a href="https://stacker.news/items/' + item.id + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);font-size:0.75rem;text-decoration:none;">View on stacker.news ↗</a>';
+    if (!isNaN(snItemId)) h += '<a href="https://stacker.news/items/' + snItemId + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);font-size:0.75rem;text-decoration:none;">View on stacker.news ↗</a>';
     h += '</div>';
 
     h += '</div>'; // end post card
@@ -12168,7 +12359,7 @@ function loadMarketListings(category, search, sort, section) {
     query.limit(50).get().then(function(snap) {
         var listings = [];
         snap.forEach(function(doc) {
-            listings.push({ id: doc.id, ...doc.data() });
+            listings.push({ ...doc.data(), id: doc.id });
         });
 
         // Client-side section filter
@@ -12198,6 +12389,7 @@ function loadMarketListings(category, search, sort, section) {
         }
 
         var savedItems = safeJSON('btc_market_saved', []);
+        mktNoteGridPay(listings);
 
         grid.innerHTML = listings.map(function(l) {
             var isSaved = savedItems.indexOf(l.id) !== -1;
@@ -12266,6 +12458,31 @@ function loadMarketListings(category, search, sort, section) {
 // [AUDIT FIX] escapeHtml moved to utils.js
 
 // ---- Single Listing Detail ----
+// Pay data for the open listing and the grid, taken from the loaded docs
+// (not the page markup). The viewer's own listings are left out.
+var _mktPayCur = null;
+var _mktGridPay = new Map();
+function mktPayEntry(l) {
+    return { sellerUid: l.sellerUid, sellerName: l.sellerName, priceSats: l.priceSats };
+}
+function mktNoteGridPay(listings) {
+    _mktGridPay = new Map();
+    listings.forEach(function(l) {
+        if (l && typeof l.id === 'string') _mktGridPay.set(l.id, mktPayEntry(l));
+    });
+}
+window._mktListingPay = function(id) {
+    if (typeof id !== 'string') return null;
+    var c = (_mktPayCur && id === _mktPayCur.id) ? _mktPayCur : (_mktGridPay.has(id) ? _mktGridPay.get(id) : null);
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
+    if (!c || (me && c.sellerUid === me)) return null;
+    return {
+        sellerUid: typeof c.sellerUid === 'string' ? c.sellerUid : '',
+        sellerName: typeof c.sellerName === 'string' ? c.sellerName : '',
+        priceSats: c.priceSats,
+    };
+};
+
 function renderListingDetail(container, listingId) {
     container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:16px;"><div style="text-align:center;padding:40px;color:var(--text-faint);">Loading...</div></div>';
 
@@ -12274,7 +12491,7 @@ function renderListingDetail(container, listingId) {
             container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:16px;text-align:center;"><div style="font-size:2rem;margin-bottom:8px;">😕</div><div style="color:var(--text-muted);">Listing not found</div><button onclick="history.back()" style="margin-top:12px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;">← Back to LightningMart</button></div>';
             return;
         }
-        var l = { id: doc.id, ...doc.data() };
+        var l = { ...doc.data(), id: doc.id };
         var cond = CONDITIONS.find(function(c) { return c.id === l.condition; });
         var condLabel = cond ? cond.label : '';
         var condColor = cond ? cond.color : 'var(--text-faint)';
@@ -12284,6 +12501,7 @@ function renderListingDetail(container, listingId) {
         var isSaved = savedItems.indexOf(l.id) !== -1;
         var isOwner = (typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.uid === l.sellerUid);
         var isAdmin = isMarketAdmin();
+        _mktPayCur = Object.assign({ id: l.id }, mktPayEntry(l));
 
         // Format price
         var priceDisplay = l.priceSats >= 1000000 ? (l.priceSats / 1000000).toFixed(2) + 'M sats' :
@@ -12791,7 +13009,7 @@ function loadMyMessages() {
                 var d = doc.data();
                 // Show if I'm the buyer or need to check if I'm the seller
                 if (d.buyerUid === myUid) {
-                    messages.push({ id: doc.id, ...d, role: 'buyer' });
+                    messages.push({ ...d, id: doc.id, role: 'buyer' });
                 }
             });
 
@@ -12803,7 +13021,7 @@ function loadMyMessages() {
                 snap.forEach(function(doc) {
                     var d = doc.data();
                     if (myListingIds.indexOf(d.listingId) !== -1 && d.buyerUid !== myUid) {
-                        messages.push({ id: doc.id, ...d, role: 'seller' });
+                        messages.push({ ...d, id: doc.id, role: 'seller' });
                     }
                 });
 
@@ -13250,7 +13468,11 @@ var PII_PATTERNS = [
 
 // "Friends in distress" scam warning popup
 window.showFriendsInDistressWarning = function() {
-    var html = '<div id="distressWarning" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:10005;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+    // Sit above the DM window (500000), Global chat (250000), and the forum
+    // overlay (topicsBrowser 2100000 / rules 2100005). The shared helper
+    // already uses a 2100010 floor, which clears all three.
+    var z = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    var html = '<div id="distressWarning" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:' + z + ';display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #ef4444;border-radius:16px;padding:24px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(239,68,68,0.3);">' +
             '<div style="font-size:2rem;text-align:center;margin-bottom:8px;">🚨</div>' +
             '<div style="font-size:1.1rem;font-weight:800;color:#ef4444;text-align:center;margin-bottom:12px;">"Friends in Distress" Scam</div>' +
@@ -13437,6 +13659,17 @@ window.blockUser = function(uid, username) {
     closeDM();
 };
 
+// Ids used by DM controls; names stay in memory and never ride in markup handlers.
+var DM_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+function dmIdOk(v) { return typeof v === 'string' && DM_ID_RE.test(v); }
+window._dmIdOk = dmIdOk;
+function dmActionTarget(ev, root) {
+    var t = ev && ev.target;
+    var el = t && t.closest ? t.closest('[data-dm-action]') : null;
+    if (!el || (root && root.contains && !root.contains(el))) return null;
+    return el;
+}
+
 window.unblockUser = function(uid, username) {
     if (!uid) return;
     var blocked = getBlockedUsers();
@@ -13457,20 +13690,31 @@ window.reportUser = function(uid, username, reason) {
 
     // Show report dialog if no reason provided
     if (!reason) {
+        if (!dmIdOk(String(uid))) return;
         var html = '<div id="reportModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500001;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
             '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:340px;width:100%;">' +
             '<div style="font-size:1rem;font-weight:800;color:var(--heading);margin-bottom:12px;">🚩 Report ' + escapeHtml(username || 'User') + '</div>' +
             '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:12px;">Why are you reporting this user?</div>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'spam\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">📧 Spam / Unwanted messages</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'scam\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎣 Scam / Phishing</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'harassment\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">😡 Harassment / Abuse</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'inappropriate\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🔞 Inappropriate content</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'impersonation\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎭 Impersonation</button>' +
+            '<button data-dm-action="report-reason" data-reason="spam" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">📧 Spam / Unwanted messages</button>' +
+            '<button data-dm-action="report-reason" data-reason="scam" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎣 Scam / Phishing</button>' +
+            '<button data-dm-action="report-reason" data-reason="harassment" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">😡 Harassment / Abuse</button>' +
+            '<button data-dm-action="report-reason" data-reason="inappropriate" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🔞 Inappropriate content</button>' +
+            '<button data-dm-action="report-reason" data-reason="impersonation" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎭 Impersonation</button>' +
             '<button onclick="document.getElementById(\'reportModal\').remove()" style="width:100%;padding:10px;margin-top:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
             '</div></div>';
         var div = document.createElement('div');
         div.innerHTML = html;
-        document.body.appendChild(div.firstChild);
+        var _reportEl = div.firstChild;
+        document.body.appendChild(_reportEl);
+        var _reportUid = String(uid), _reportName = String(username || '');
+        var REPORT_REASONS = { spam: 1, scam: 1, harassment: 1, inappropriate: 1, impersonation: 1 };
+        if (_reportEl && _reportEl.addEventListener) _reportEl.addEventListener('click', function(ev) {
+            var el = dmActionTarget(ev, _reportEl);
+            if (!el || el.getAttribute('data-dm-action') !== 'report-reason') return;
+            var why = el.getAttribute('data-reason') || '';
+            if (!Object.prototype.hasOwnProperty.call(REPORT_REASONS, why)) return;
+            submitReport(_reportUid, _reportName, why);
+        });
         return;
     }
 };
@@ -13786,6 +14030,7 @@ window.showUserProfile = function(uid) {
             return;
         }
         var u = doc.data();
+        var uName = typeof u.username === 'string' ? u.username : '';
 
         // — Profile explorer badge tracking —
         var _selfUid = auth && auth.currentUser ? auth.currentUser.uid : null;
@@ -13863,13 +14108,12 @@ window.showUserProfile = function(uid) {
         // Profile picture or rank emoji avatar
         // Also fall back to in-memory currentUser.profilePic for own profile (guards stale Firestore cache)
         var _picUrl = u.profilePic || (auth && auth.currentUser && auth.currentUser.uid === uid && typeof currentUser !== 'undefined' && currentUser ? (currentUser.profilePic || '') : '') || '';
-        var _safePickUrl = _picUrl ? (typeof sanitizeUrl === 'function' ? sanitizeUrl(_picUrl) : _picUrl) : '';
-        var _initials = (u.username || 'B').charAt(0).toUpperCase();
+        var _safePickUrl = (_picUrl && typeof sanitizeUrl === 'function') ? sanitizeUrl(_picUrl) : '';
+        var _initials = (uName || 'B').charAt(0).toUpperCase();
         var _isOwnProfile = auth && auth.currentUser && auth.currentUser.uid === uid;
-        var _isDataImg = _safePickUrl && _safePickUrl.substring(0,11) === 'data:image/';
         var avatarHtml = _safePickUrl
             ? '<div style="position:relative;display:inline-block;margin-bottom:8px;">' +
-                '<img src="' + (_isDataImg ? _safePickUrl : (typeof escapeHtml === 'function' ? escapeHtml(_safePickUrl) : _safePickUrl)) + '" ' +
+                '<img src="' + escapeHtml(_safePickUrl) + '" ' +
                 'style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);' + (_hasProfileFrame ? 'box-shadow:0 0 0 3px #f7931a,0 0 16px rgba(247,147,26,0.4);' : '') + 'display:block;" ' +
                 'onerror="this.style.display=\'none\'">' +
                 '</div>'
@@ -13884,7 +14128,7 @@ window.showUserProfile = function(uid) {
             // Avatar & name
             '<div style="text-align:center;margin-bottom:16px;">' +
                 avatarHtml +
-                '<div style="color:var(--heading);font-weight:800;font-size:1.2rem;">' + escapeHtml(u.username || 'Bitcoiner') +
+                '<div style="color:var(--heading);font-weight:800;font-size:1.2rem;">' + escapeHtml(uName || 'Bitcoiner') +
                     '<span title="' + status.label + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + status.color + ';margin-left:6px;vertical-align:middle;' + (status.status === 'online' ? 'box-shadow:0 0 8px ' + status.color + ';' : '') + '"></span>' +
                 '</div>' +
                 // Active title pill
@@ -13946,7 +14190,7 @@ window.showUserProfile = function(uid) {
             // Lightning Address & Tip button — always show for other signed-in users
             ((!_isOwnProfile && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? (function() {
                 // Stash tip data on window to avoid inline-onclick escaping issues
-                window._profileTipData = { recipientName: u.username || 'Bitcoiner', recipientUid: uid, lightningAddress: u.lightningAddress || u.lightning || '', label: 'Tip ' + (u.username || 'Bitcoiner'), context: 'profile' };
+                window._profileTipData = { recipientName: uName || 'Bitcoiner', recipientUid: uid, lightningAddress: u.lightningAddress || u.lightning || '', label: 'Tip ' + (uName || 'Bitcoiner'), context: 'profile' };
                 var _lnAddr = (u.lightningAddress || u.lightning) ? escapeHtml(u.lightningAddress || u.lightning) : '';
                 return '<div style="margin-bottom:12px;">' +
                 (_lnAddr ? '<div style="display:flex;align-items:center;gap:6px;padding:10px 12px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:10px;margin-bottom:8px;">' +
@@ -13954,12 +14198,12 @@ window.showUserProfile = function(uid) {
                     '<span style="color:#eab308;font-size:0.78rem;font-weight:600;word-break:break-all;">' + _lnAddr + '</span>' +
                     '<button onclick="event.stopPropagation();navigator.clipboard.writeText(window._profileTipData.lightningAddress);if(typeof showToast===\'function\')showToast(\'⚡ Lightning Address copied!\')" style="margin-left:auto;padding:4px 8px;background:none;border:1px solid rgba(234,179,8,0.3);border-radius:6px;color:#eab308;font-size:0.65rem;font-weight:700;cursor:pointer;white-space:nowrap;">Copy</button>' +
                 '</div>' : '') +
-                '<button onclick="event.stopPropagation();window._tipFromProfile()" style="width:100%;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.2)\'" onmouseout="this.style.background=\'rgba(234,179,8,0.1)\'>">⚡ Tip ' + escapeHtml(u.username || 'Bitcoiner') + '</button>' +
+                '<button onclick="event.stopPropagation();window._tipFromProfile()" style="width:100%;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.2)\'" onmouseout="this.style.background=\'rgba(234,179,8,0.1)\'>">⚡ Tip ' + escapeHtml(uName || 'Bitcoiner') + '</button>' +
                 '</div>';
             })() : '') +
             // Message button
             (canMessage && dmEligibility.ok ?
-                '<button onclick="document.getElementById(\'userProfileModal\').remove();openDM(\'' + uid + '\',\'' + escapeHtml(u.username || 'Bitcoiner').replace(/[\\'"]/g, "") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(u.username || 'Bitcoiner') + '</button>'
+                '<button onclick="document.getElementById(\'userProfileModal\').remove();openDM(\'' + uid + '\',\'' + escapeHtml(uName || 'Bitcoiner').replace(/[\\'"]/g, "") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(uName || 'Bitcoiner') + '</button>'
                 : (canMessage && !dmEligibility.ok ?
                     '<div style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;color:var(--text-muted);text-align:center;">' + escapeHtml(dmEligibility.reason) + '</div>'
                 : (!auth || !auth.currentUser || auth.currentUser.isAnonymous ?
@@ -13970,9 +14214,9 @@ window.showUserProfile = function(uid) {
                 '<div style="display:flex;gap:8px;margin-top:8px;">' +
                     _peerBtn +
                     (isUserBlocked(uid) ?
-                        '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
-                        : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
-                    '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
+                        '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(uName || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
+                        : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(uName || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
+                    '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + uid + '\',\'' + escapeHtml(uName || '').replace(/[\\'"]/g, "") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
                 '</div>' : '') +
             // Own-profile country nudge (only visible to yourself, only if country not set)
             (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
@@ -14106,6 +14350,8 @@ window.openDM = function(recipientUid, recipientName) {
         return;
     }
 
+    if (!dmIdOk(String(recipientUid || ''))) return;
+
     // Account eligibility check (age + points)
     var eligibility = _canAccountDM(recipientUid);
     if (!eligibility.ok) {
@@ -14128,9 +14374,17 @@ window.openDM = function(recipientUid, recipientName) {
             '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin-bottom:20px;">You\'ve blocked <strong>' + _safeRecipName + '</strong>. Unblock them to send and receive messages.</div>' +
             '<div style="display:flex;gap:10px;">' +
             '<button onclick="document.getElementById(\'dmUnblockPrompt\').remove()" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
-            '<button onclick="document.getElementById(\'dmUnblockPrompt\').remove();if(typeof unblockUser===\'function\')unblockUser(\'' + recipientUid + '\',\'' + _safeRecipName + '\');setTimeout(function(){openDM(\'' + recipientUid + '\',\'' + _safeRecipName + '\')},400)" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">✅ Unblock & Chat</button>' +
+            '<button data-dm-action="unblock" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">✅ Unblock & Chat</button>' +
             '</div></div>';
         document.body.appendChild(_promptEl);
+        var _unblockUid = String(recipientUid), _unblockName = String(recipientName || '');
+        _promptEl.addEventListener('click', function(ev) {
+            var el = dmActionTarget(ev, _promptEl);
+            if (!el || el.getAttribute('data-dm-action') !== 'unblock') return;
+            _promptEl.remove();
+            if (typeof unblockUser === 'function') unblockUser(_unblockUid, _unblockName);
+            setTimeout(function() { openDM(_unblockUid, _unblockName); }, 400);
+        });
         return;
     }
 
@@ -14147,23 +14401,51 @@ window.openDM = function(recipientUid, recipientName) {
     showDMWindow(convoId, recipientUid, recipientName, myUid, myName);
 };
 
+function dmBindWindow(win, convoId, otherUid, otherName) {
+    if (!win || !win.addEventListener) return;
+    var actions = {
+        profile: function(ev) { ev.stopPropagation(); closeDM(); if (typeof showUserProfile === 'function') showUserProfile(otherUid); },
+        report: function(ev) { ev.stopPropagation(); reportUser(otherUid, otherName); },
+        gif: function() { showDMGifPicker(convoId, otherUid, otherName); },
+        send: function() { window.sendDM(convoId, otherUid, otherName); }
+    };
+    win.addEventListener('click', function(ev) {
+        var el = dmActionTarget(ev, win);
+        if (!el) return;
+        var act = el.getAttribute('data-dm-action') || '';
+        if (Object.prototype.hasOwnProperty.call(actions, act)) actions[act](ev);
+    });
+    var fileInput = win.querySelector ? win.querySelector('#dmImageInput') : null;
+    if (fileInput) fileInput.onchange = function() {
+        if (this.files && this.files[0]) showDMImagePreview(this.files[0], convoId, otherUid, otherName);
+    };
+    win.addEventListener('keydown', function(ev) {
+        var el = dmActionTarget(ev, win);
+        if (!el || el.getAttribute('data-dm-action') !== 'send-key' || ev.key !== 'Enter') return;
+        window.sendDM(convoId, otherUid, otherName);
+    });
+}
+
 // DM chat window
 function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
     // Remove existing
     var old = document.getElementById('dmWindow');
     if (old) old.remove();
     if (window._dmUnsubscribe) { window._dmUnsubscribe(); window._dmUnsubscribe = null; }
+    if (!dmIdOk(String(otherUid || '')) || !dmIdOk(String(convoId || ''))) return;
+    otherName = String(otherName || 'User');
 
     var html = '<div id="dmWindow" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500000;display:flex;align-items:flex-end;justify-content:center;padding:0;" onclick="if(event.target===this)closeDM()">' +
         '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px 20px 0 0;max-width:500px;width:100%;height:80vh;max-height:600px;display:flex;flex-direction:column;overflow:hidden;">' +
         // Header
         '<div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">' +
-            '<div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="event.stopPropagation();closeDM();showUserProfile(\'' + otherUid + '\')">' +
+            '<div data-dm-action="profile" style="display:flex;align-items:center;gap:10px;cursor:pointer;">' +
                 '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">💬 ' + escapeHtml(otherName) + '</div>' +
                 '<div id="dmStatusDot"></div>' +
             '</div>' +
             '<div style="display:flex;gap:6px;align-items:center;">' +
-                '<button onclick="event.stopPropagation();reportUser(\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')" style="background:none;border:1px solid var(--border);color:var(--text-faint);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Report user">🚩</button>' +
+                '<button type="button" onclick="event.stopPropagation();backToDMList()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Back to messages">←</button>' +
+                '<button data-dm-action="report" style="background:none;border:1px solid var(--border);color:var(--text-faint);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Report user">🚩</button>' +
                 '<button onclick="closeDM()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             '</div>' +
         '</div>' +
@@ -14173,17 +14455,19 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         '<div id="dmMessages" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch;"></div>' +
         // Input area
         '<div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
-            '<input type="file" id="dmImageInput" accept="image/*" style="display:none;" onchange="if(this.files[0])showDMImagePreview(this.files[0],\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
+            '<input type="file" id="dmImageInput" accept="image/*" style="display:none;">' +
             '<button onclick="document.getElementById(\'dmImageInput\').click()" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:1rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Send image">📷</button>' +
-            '<button onclick="showDMGifPicker(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'\"]/g, "") + '\')" style="padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.65rem;font-weight:800;cursor:pointer;flex-shrink:0;touch-action:manipulation;letter-spacing:0.5px;" title="Send GIF">GIF</button>' +
-            '<input type="text" id="dmInput" maxlength="' + MSG_CONFIG.maxMsgLength + '" placeholder="Type a message..." style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" onkeydown="if(event.key===\'Enter\')sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
-            '<button onclick="sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')" style="padding:12px 16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;flex-shrink:0;">Send</button>' +
+            '<button data-dm-action="gif" style="padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.65rem;font-weight:800;cursor:pointer;flex-shrink:0;touch-action:manipulation;letter-spacing:0.5px;" title="Send GIF">GIF</button>' +
+            '<input type="text" id="dmInput" maxlength="' + MSG_CONFIG.maxMsgLength + '" placeholder="Type a message..." style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" data-dm-action="send-key">' +
+            '<button data-dm-action="send" style="padding:12px 16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;flex-shrink:0;">Send</button>' +
         '</div>' +
         '</div></div>';
 
     var div = document.createElement('div');
     div.innerHTML = html;
-    document.body.appendChild(div.firstChild);
+    var _dmWin = div.firstChild;
+    document.body.appendChild(_dmWin);
+    dmBindWindow(_dmWin, convoId, otherUid, otherName);
 
     // Focus input + wire up paste-to-send-image on the DM text input
     setTimeout(function() {
@@ -14307,7 +14591,7 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 var imgHtml = '';
                 if (m.imageUrl) {
                     // Fixed 240x200 box so the thread does not jump when the image arrives (CLS).
-                    imgHtml = '<img data-dm-img="1" src="' + sanitizeUrl(m.imageUrl) + '" style="' + DM_IMG_BOX + 'margin:' + (m.text ? '6px 0 0' : '0') + ';cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+                    imgHtml = '<img data-dm-img="1" src="' + escapeHtml(sanitizeUrl(m.imageUrl)) + '" style="' + DM_IMG_BOX + 'margin:' + (m.text ? '6px 0 0' : '0') + ';cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
                 }
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
@@ -14345,13 +14629,17 @@ window.showDMImagePreview = function(file, convoId, recipientUid, recipientName)
             '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;font-weight:600;">Send this image?</div>' +
             '<img src="' + objectUrl + '" style="max-width:100%;max-height:260px;border-radius:10px;display:block;margin:0 auto 14px;">' +
             '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
-                '<button onclick="document.getElementById("dmImagePreview").remove();URL.revokeObjectURL("' + objectUrl + '")" style="padding:8px 18px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:0.85rem;cursor:pointer;">Cancel</button>' +
+                '<button type="button" id="dmImageCancelBtn" style="padding:8px 18px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:0.85rem;cursor:pointer;">Cancel</button>' +
                 '<button id="dmImageConfirmBtn" style="padding:8px 18px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-family:inherit;font-size:0.85rem;font-weight:700;cursor:pointer;">Send</button>' +
             '</div>' +
         '</div>';
 
     document.body.appendChild(overlay);
 
+    document.getElementById('dmImageCancelBtn').addEventListener('click', function() {
+        overlay.remove();
+        URL.revokeObjectURL(objectUrl);
+    });
     document.getElementById('dmImageConfirmBtn').addEventListener('click', function() {
         overlay.remove();
         URL.revokeObjectURL(objectUrl);
@@ -14795,137 +15083,135 @@ function markDMRead(convoId, myUid) {
     }).catch(function() {});
 }
 
-// ---- INBOX ----
-window.showInbox = function() {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showToast === 'function') showToast('🔒 Sign in to see messages');
-        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
-        return;
+
+// ---- START DM (username search) ----
+window.searchDMUsernames = function(query) {
+    query = String(query || '').trim().replace(/^@+/, '');
+    if (!query || query.length < 2 || typeof db === 'undefined') {
+        return Promise.resolve([]);
     }
-
-    var myUid = auth.currentUser.uid;
-
-    // Remove existing
-    var old = document.getElementById('dmInbox');
-    if (old) old.remove();
-
-    var html = '<div id="dmInbox" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500000;display:flex;align-items:flex-end;justify-content:center;padding:0;" onclick="if(event.target===this)this.remove()">' +
-        '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px 20px 0 0;max-width:500px;width:100%;height:70vh;max-height:500px;display:flex;flex-direction:column;overflow:hidden;">' +
-        '<div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">' +
-            '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">📬 Messages</div>' +
-            '<button onclick="document.getElementById(\'dmInbox\').remove()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
-        '</div>' +
-        '<div id="dmInboxList" style="flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch;">' +
-            '<div style="text-align:center;color:var(--text-faint);padding:20px;">Loading...</div>' +
-        '</div></div></div>';
-
-    var div = document.createElement('div');
-    div.innerHTML = html;
-    document.body.appendChild(div.firstChild);
-
-    _loadInboxList('dmInboxList', myUid);
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
+    var variants = [query];
+    var low = query.toLowerCase();
+    var cap = query.charAt(0).toUpperCase() + query.slice(1).toLowerCase();
+    if (low !== query) variants.push(low);
+    if (cap !== query && cap !== low) variants.push(cap);
+    var seen = {};
+    var users = [];
+    function addSnap(snap) {
+        if (!snap || typeof snap.forEach !== 'function') return;
+        snap.forEach(function(doc) {
+            if (!doc || !doc.id || seen[doc.id] || doc.id === myUid) return;
+            var d = doc.data() ? doc.data() : {};
+            var name = d.username || d.displayName || '';
+            if (!name) return;
+            seen[doc.id] = true;
+            users.push({ uid: doc.id, username: name, points: d.points || 0 });
+        });
+    }
+    var searches = variants.map(function(v) {
+        return db.collection('public_profiles')
+            .where('username', '>=', v)
+            .where('username', '<=', v + '\uf8ff')
+            .limit(8)
+            .get()
+            .then(addSnap)
+            .catch(function() {});
+    });
+    return Promise.all(searches).then(function() {
+        users.sort(function(a, b) { return (b.points || 0) - (a.points || 0); });
+        return users.slice(0, 8);
+    });
 };
 
-// Fills the list element with the user's conversations. Shared by the inbox
-// popup and the DMs tab in the chat hub.
-function _loadInboxList(listId, myUid) {
-    // Load conversations
+window._openInboxDM = function(el) {
+    if (!el) return;
+    var uid = el.getAttribute('data-uid') || '';
+    var name = el.getAttribute('data-name') || 'User';
+    var inbox = document.getElementById('dmInbox');
+    if (inbox) inbox.remove();
+    if (typeof openDM === 'function') openDM(uid, name);
+};
+
+window._inboxRowHtml = function(c, myUid) {
+    var otherUid = (c.participants || []).find(function(p) { return p !== myUid; }) || '';
+    var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
+    var unread = c['unread_' + myUid] || 0;
+    var lastMsg = c.lastMessage || '';
+    if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
+    var lastTime = c.lastMessageTime ? (typeof timeAgo === 'function' ? timeAgo(c.lastMessageTime) : '') : '';
+    var isFromMe = c.lastSenderUid === myUid;
+    var isBuddy = c.isBuddyMatch === true;
+    var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
+    var safeUid = (typeof escapeHtml === 'function' ? escapeHtml(otherUid) : otherUid);
+    var safeName = (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName);
+    return '<div data-uid="' + safeUid + '" data-name="' + safeName + '" onclick="_openInboxDM(this)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';">' +
+        '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
+        '<div style="flex:1;min-width:0;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + safeName + buddyStar + '</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-faint);flex-shrink:0;">' + lastTime + '</div>' +
+            '</div>' +
+            '<div style="font-size:0.8rem;color:' + (unread > 0 ? 'var(--text)' : 'var(--text-muted)') + ';font-weight:' + (unread > 0 ? '600' : '400') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + (typeof escapeHtml === 'function' ? escapeHtml(lastMsg) : lastMsg) + '</div>' +
+        '</div>' +
+        (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
+    '</div>';
+};
+
+window._inboxEmptyHtml = function() {
+    return '<div style="text-align:center;padding:40px 20px;">' +
+        '<div style="font-size:2rem;margin-bottom:8px;">📬</div>' +
+        '<div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div>' +
+        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Use Start DM to message someone by username.</div></div>';
+};
+
+window._loadInboxConversations = function(listEl) {
+    if (!listEl) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || typeof db === 'undefined') {
+        listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.85rem;">Sign in to see messages</div>';
+        return;
+    }
+    var myUid = auth.currentUser.uid;
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:20px;">Loading...</div>';
+    function fill(snap) {
+        var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+        if (!el) return;
+        if (!snap || snap.empty) { el.innerHTML = _inboxEmptyHtml(); return; }
+        var rows = [];
+        snap.forEach(function(doc) { rows.push(_inboxRowHtml(doc.data() || {}, myUid)); });
+        el.innerHTML = rows.join('');
+    }
     db.collection('dm_conversations')
         .where('participants', 'array-contains', myUid)
         .orderBy('lastMessageTime', 'desc')
         .limit(30)
         .get()
-        .then(function(snap) {
-            var list = document.getElementById(listId);
-            if (!list) return;
-            console.log('Inbox snap size:', snap.size);
-
-            if (snap.empty) {
-                list.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
-                    '<div style="font-size:2rem;margin-bottom:8px;">📬</div>' +
-                    '<div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div>' +
-                    '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Tap a user on the leaderboard to start chatting!</div></div>';
-                return;
-            }
-
-            var _rows = [];
-            snap.forEach(function(doc) {
-                var c = doc.data();
-                var otherUid = c.participants.find(function(p) { return p !== myUid; });
-                var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
-                var unread = c['unread_' + myUid] || 0;
-                var lastMsg = c.lastMessage || '';
-                if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
-                var lastTime = c.lastMessageTime ? timeAgo(c.lastMessageTime) : '';
-                var isFromMe = c.lastSenderUid === myUid;
-                var isBuddy = c.isBuddyMatch === true;
-                var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
-
-                _rows.push('<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;var _ib=document.getElementById(\'dmInbox\');if(_ib)_ib.remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + '\'">' +
-                    '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-                            '<div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + escapeHtml(otherName) + buddyStar + '</div>' +
-                            '<div style="font-size:0.65rem;color:var(--text-faint);flex-shrink:0;">' + lastTime + '</div>' +
-                        '</div>' +
-                        '<div style="font-size:0.8rem;color:' + (unread > 0 ? 'var(--text)' : 'var(--text-muted)') + ';font-weight:' + (unread > 0 ? '600' : '400') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + escapeHtml(lastMsg) + '</div>' +
-                    '</div>' +
-                    (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
-                '</div>');
-            });
-            list.innerHTML = _rows.join('');
-        }).catch(function(err) {
-            console.error('Inbox load error:', err);
-            var list = document.getElementById(listId);
-            if (!list) return;
-            
-            if (err.code === 'failed-precondition') {
-                // Fallback: query without orderBy (no composite index needed)
+        .then(fill)
+        .catch(function(err) {
+            if (err && err.code === 'failed-precondition') {
                 db.collection('dm_conversations')
                     .where('participants', 'array-contains', myUid)
                     .limit(30)
                     .get()
                     .then(function(snap2) {
-                        var list2 = document.getElementById(listId);
-                        if (!list2) return;
-                        if (snap2.empty) {
-                            list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">📬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
-                            return;
-                        }
-                        list2.innerHTML = '';
+                        var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+                        if (!el) return;
+                        if (!snap2 || snap2.empty) { el.innerHTML = _inboxEmptyHtml(); return; }
                         var convos = [];
-                        snap2.forEach(function(doc) { convos.push({id: doc.id, ...doc.data()}); });
-                        convos.sort(function(a,b) { return (b.lastMessageTime||0) - (a.lastMessageTime||0); });
-                        convos.forEach(function(c) {
-                            var otherUid = c.participants.find(function(p) { return p !== myUid; });
-                            var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
-                            var unread = c['unread_' + myUid] || 0;
-                            var lastMsg = c.lastMessage || '';
-                            if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
-                            var isFromMe = c.lastSenderUid === myUid;
-                            var isBuddy = c.isBuddyMatch === true;
-                            var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
-                            list2.innerHTML += '<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;var _ib=document.getElementById(\'dmInbox\');if(_ib)_ib.remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';">' +
-                                '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
-                                '<div style="flex:1;min-width:0;"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + escapeHtml(otherName) + buddyStar + '</div></div>' +
-                                '<div style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + escapeHtml(lastMsg) + '</div></div>' +
-                                (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
-                            '</div>';
-                        });
-                    }).catch(function(e2) {
-                        var list2 = document.getElementById(listId);
-                        if (list2) list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">💬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
+                        snap2.forEach(function(doc) { convos.push(doc.data() || {}); });
+                        convos.sort(function(a, b) { return (b.lastMessageTime || 0) - (a.lastMessageTime || 0); });
+                        el.innerHTML = convos.map(function(c) { return _inboxRowHtml(c, myUid); }).join('');
+                    })
+                    .catch(function() {
+                        var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+                        if (el) el.innerHTML = _inboxEmptyHtml();
                     });
                 return;
             }
-
-            // Index not ready or no conversations — show empty state
-            list.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
-                '<div style="font-size:2rem;margin-bottom:8px;">💬</div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div>' +
-                '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Tap a user on the leaderboard or in PlebTalk to start chatting!</div></div>';
+            var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+            if (el) el.innerHTML = _inboxEmptyHtml();
         });
-}
+};
 
 // DMs tab in the chat hub renders the inbox inside the tab. It used to open the
 // popup and leave the tab empty. On a fresh /#dms load the route can run before
@@ -14935,8 +15221,15 @@ window._renderInboxInto = function(container) {
     function signedIn() { return !!(auth && auth.currentUser && !auth.currentUser.isAnonymous); }
     function paint() {
         if (!container.isConnected) return;
-        container.innerHTML = '<div id="dmTabInboxList" style="padding:8px;"><div style="text-align:center;color:var(--text-faint);padding:20px;">Loading...</div></div>';
-        _loadInboxList('dmTabInboxList', auth.currentUser.uid);
+        container.innerHTML =
+            '<div id="dmInboxShell" style="display:flex;flex-direction:column;height:100%;min-height:0;">' +
+                '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;">' +
+                    '<div style="font-size:1.05rem;font-weight:800;color:var(--heading);">📬 Messages</div>' +
+                    '<button type="button" id="dmStartBtn" onclick="showStartDM({mount:document.getElementById(\'dmInboxList\'),onBack:_showInboxList})" style="padding:8px 12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Start DM</button>' +
+                '</div>' +
+                '<div id="dmInboxList" style="flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch;"></div>' +
+            '</div>';
+        _loadInboxConversations(document.getElementById('dmInboxList'));
     }
     function signInPrompt() {
         if (!container.isConnected) return;
@@ -14952,6 +15245,130 @@ window._renderInboxInto = function(container) {
         if (user && !user.isAnonymous) { if (unsub) unsub(); paint(); return; }
         signInPrompt();
     });
+};
+
+window._showInboxList = function() {
+    var tab = document.getElementById('dmTabContainer');
+    var overlay = document.getElementById('overlayDMsBody');
+    var inboxList = document.getElementById('dmInboxList');
+    var startMount = document.getElementById('dmStartMount');
+    if (overlay && startMount && overlay.contains(startMount) && typeof window._switchOverlayTab === 'function') {
+        window._switchOverlayTab('dms');
+        return;
+    }
+    if (tab) {
+        _renderInboxInto(tab);
+        return;
+    }
+    if (inboxList) {
+        _loadInboxConversations(inboxList);
+        return;
+    }
+    if (typeof showInbox === 'function') showInbox();
+};
+
+window.backToDMList = function() {
+    if (typeof closeDM === 'function') closeDM();
+    if (typeof showInbox === 'function') showInbox();
+};
+
+window._pickStartDMUser = function(uid, name) {
+    if (!uid) return;
+    if (typeof openDM === 'function') openDM(uid, name || 'User');
+};
+
+window.showStartDM = function(opts) {
+    opts = opts || {};
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to send messages');
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
+    var mount = opts.mount || document.getElementById('dmInboxList') || document.getElementById('dmTabContainer') || document.getElementById('overlayDMsBody');
+    if (!mount) {
+        if (typeof showInbox === 'function') showInbox();
+        setTimeout(function() {
+            showStartDM({ mount: document.getElementById('dmInboxList') || document.getElementById('dmTabContainer') });
+        }, 0);
+        return;
+    }
+    var onBack = typeof opts.onBack === 'function' ? opts.onBack : _showInboxList;
+    mount.innerHTML =
+        '<div id="dmStartMount" style="display:flex;flex-direction:column;height:100%;min-height:0;">' +
+            '<div style="padding:10px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+                '<button type="button" id="dmStartBackBtn" style="background:none;border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:1rem;font-family:inherit;" title="Back to messages">←</button>' +
+                '<div style="font-weight:800;color:var(--heading);font-size:0.95rem;">Start DM</div>' +
+            '</div>' +
+            '<div style="padding:0 12px 8px;flex-shrink:0;">' +
+                '<input type="text" id="dmStartSearch" placeholder="Search by username" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card-bg);color:var(--text);font-size:0.9rem;font-family:inherit;">' +
+            '</div>' +
+            '<div id="dmStartResults" style="flex:1;overflow-y:auto;padding:0 8px 8px;-webkit-overflow-scrolling:touch;">' +
+                '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Type at least 2 letters to search.</div>' +
+            '</div>' +
+        '</div>';
+    var backBtn = document.getElementById('dmStartBackBtn');
+    if (backBtn) backBtn.onclick = function(e) { if (e) e.preventDefault(); onBack(); };
+    var input = document.getElementById('dmStartSearch');
+    var results = document.getElementById('dmStartResults');
+    var timer = null;
+    function renderRows(users, q) {
+        if (!results) return;
+        if (!users.length) {
+            results.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">No users found' + (q ? ' for "' + (typeof escapeHtml === 'function' ? escapeHtml(q) : q) + '"' : '') + '</div>';
+            return;
+        }
+        results.innerHTML = users.map(function(u) {
+            var safeUid = (typeof escapeHtml === 'function' ? escapeHtml(u.uid) : u.uid);
+            var safeName = (typeof escapeHtml === 'function' ? escapeHtml(u.username) : u.username);
+            return '<div data-uid="' + safeUid + '" data-name="' + safeName + '" onclick="_pickStartDMUser(this.getAttribute(\'data-uid\'), this.getAttribute(\'data-name\'))" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent;">' +
+                '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.95rem;flex-shrink:0;">' + (safeName.charAt(0).toUpperCase() || '?') + '</div>' +
+                '<div style="font-weight:700;color:var(--heading);font-size:0.88rem;">@' + safeName + '</div>' +
+            '</div>';
+        }).join('');
+    }
+    function runSearch() {
+        var q = input ? input.value : '';
+        if (!results) return;
+        if (String(q || '').trim().replace(/^@+/, '').length < 2) {
+            results.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Type at least 2 letters to search.</div>';
+            return;
+        }
+        results.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Searching...</div>';
+        searchDMUsernames(q).then(function(users) { renderRows(users || [], String(q || '').trim().replace(/^@+/, '')); });
+    }
+    if (input) {
+        input.addEventListener('input', function() {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(runSearch, 200);
+        });
+        input.addEventListener('keydown', function(e) {
+            if (e && e.key === 'Enter') { if (timer) clearTimeout(timer); runSearch(); }
+        });
+        setTimeout(function() { if (input) input.focus(); }, 0);
+    }
+};
+
+// ---- INBOX ----
+window.showInbox = function() {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to send messages');
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
+
+    var old = document.getElementById('dmInbox');
+    if (old) old.remove();
+
+    var wrap = document.createElement('div');
+    wrap.id = 'dmInbox';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500000;display:flex;align-items:flex-end;justify-content:center;padding:0;';
+    wrap.onclick = function(e) { if (e.target === wrap) wrap.remove(); };
+    wrap.innerHTML = '<div id="dmInboxInner" style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px 20px 0 0;max-width:500px;width:100%;height:70vh;max-height:500px;display:flex;flex-direction:column;overflow:hidden;position:relative;">' +
+        '<button onclick="document.getElementById(\'dmInbox\').remove()" style="position:absolute;top:12px;right:12px;z-index:2;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
+        '</div>';
+    document.body.appendChild(wrap);
+    var inner = document.getElementById('dmInboxInner');
+    if (inner && typeof _renderInboxInto === 'function') _renderInboxInto(inner);
 };
 
 // ---- UNREAD COUNT BADGE ----
@@ -16549,10 +16966,10 @@ document.addEventListener('touchend', function(e) {
     var now = Date.now();
     if (now - lastTapTime < 300) {
         // Double tap detected
-        var forumPost = e.target.closest && e.target.closest('[onclick*="forumViewPost"]');
+        var forumPost = e.target.closest && e.target.closest('[data-forum-action="view-post"]');
         if (forumPost) {
             // Find the upvote button inside
-            var upBtn = forumPost.querySelector('[onclick*="forumVotePost"]');
+            var upBtn = forumPost.querySelector('[data-forum-action="vote-post"]');
             if (upBtn) { upBtn.click(); haptic('medium'); }
             e.preventDefault();
         }
@@ -17517,7 +17934,7 @@ function walletRouteReady() {
 
 var WALLET_SCRIPT_SRCS = [
     'lightning.js?v=20261023_v2323',
-    'lightning-tips.js?v=20261119_v2666',
+    'lightning-tips.js?v=20261126_v2725',
     'wallet-router.js?v=20261104_v2482'
 ];
 var _walletTapQueued = false;
@@ -21374,6 +21791,34 @@ document.addEventListener('btcProfileSaved', function() {
         };
     })();
 
+    function _spinDayKey() {
+        return (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+    }
+
+    function _injectSpinGiftCSS() {
+        if (document.getElementById('spinGiftCSS')) return;
+        var s = document.createElement('style');
+        s.id = 'spinGiftCSS';
+        s.textContent =
+            '#spinModal .spin-gift-note,#spinModal .spin-gift-ready{color:#d6dce6;}' +
+            '[data-theme="light"] #spinModal .spin-gift-note,[data-theme="light"] #spinModal .spin-gift-ready{color:#1e3a5f;}' +
+            '.oled-theme #spinModal .spin-gift-note,.oled-theme #spinModal .spin-gift-ready,' +
+            '[data-theme="oled"] #spinModal .spin-gift-note,[data-theme="oled"] #spinModal .spin-gift-ready{color:#d6dce6;}' +
+            '#spinModal .spin-open-gift-btn{background:linear-gradient(135deg,#f7931a,#ea580c);color:#1a1208;border:none;border-radius:8px;padding:10px 24px;font-weight:800;cursor:pointer;font-family:inherit;min-height:44px;}' +
+            '#spinModal .spin-open-gift-btn:disabled{opacity:0.7;cursor:progress;}';
+        document.head.appendChild(s);
+    }
+
+    function _closeSpinModal() {
+        var openModal = document.getElementById('spinModal');
+        if (openModal) openModal.remove();
+        var deferred = window._deferredSpinGifts;
+        if (deferred && deferred.length && typeof window.showPostSpinGiftModal === 'function') {
+            window._deferredSpinGifts = null;
+            window.showPostSpinGiftModal(deferred);
+        }
+    }
+
     window.showSpinWheel = function() {
         if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('spin')) {
             if (typeof showToast === 'function') showToast('Daily Spin is in Settings → Experience Mode (Balanced or Everything).');
@@ -21390,8 +21835,9 @@ document.addEventListener('btcProfileSaved', function() {
         window._bonusSpinActive = false; // consume the flag
         if (!isBonusSpin) {
             var lastSpin = localStorage.getItem('btc_last_spin_date');
-            var today = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]); // 5 AM UTC reset — matches getDailyKey
-            if (lastSpin === today) {
+            var today = _spinDayKey(); // 5 AM UTC reset — matches getDailyKey
+            var serverSpin = (typeof currentUser !== 'undefined' && currentUser && currentUser.lastSpinDate) ? String(currentUser.lastSpinDate) : '';
+            if (lastSpin === today || serverSpin === today) {
                 showToast('🎡 You already spun today! Come back tomorrow!');
                 if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
                 return;
@@ -21422,10 +21868,11 @@ document.addEventListener('btcProfileSaved', function() {
 
         modal.innerHTML =
             '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,0.5);margin:auto;">' +
-                '<button onclick="document.getElementById(\'spinModal\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
+                '<button type="button" id="spinModalClose" aria-label="Close" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
                 '<div style="font-size:2.5rem;margin-bottom:8px;">🎡</div>' +
                 '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:4px;">Daily Spin</div>' +
-                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:20px;">Spin for Orange Tickets, XP, Nacho Closet items, and rare Freeze Tickets!</p>' +
+                '<p class="spin-gift-note" style="font-size:0.85rem;margin-bottom:8px;line-height:1.4;">Spin for Orange Tickets, XP, Nacho Closet items, and rare Freeze Tickets!</p>' +
+                '<p class="spin-gift-note" id="spinGiftCopy" style="font-size:0.82rem;font-weight:700;margin:0 0 16px;line-height:1.4;">After you spin, prizes arrive as GIFTS you can open.</p>' +
                 '<div id="spinWheelContainer" style="position:relative;width:250px;height:250px;margin:0 auto 20px;">' +
                     '<canvas id="spinCanvas" width="250" height="250" style="border-radius:50%;box-shadow:0 4px 20px rgba(0,0,0,0.4);"></canvas>' +
                     '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:20px solid #ef4444;z-index:10;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></div>' +
@@ -21435,7 +21882,10 @@ document.addEventListener('btcProfileSaved', function() {
             '</div>';
         
         document.body.appendChild(modal);
-        
+        _injectSpinGiftCSS();
+        var closeBtn = document.getElementById('spinModalClose');
+        if (closeBtn) closeBtn.onclick = function() { _closeSpinModal(); };
+
         // Draw the wheel
         var canvas = document.getElementById('spinCanvas');
         var ctx = canvas.getContext('2d');
@@ -21479,6 +21929,14 @@ document.addEventListener('btcProfileSaved', function() {
             var spinFn = (typeof firebase !== 'undefined' && firebase.functions) ? firebase.functions().httpsCallable('dailySpin') : null;
             var serverSpinPromise = spinFn ? spinFn({}) : Promise.resolve({ data: null });
             var clock = window._dailySpinClock;
+            if (!clock || typeof clock.createState !== 'function' || !canvas || !ctx) {
+                isSpinning = false;
+                spinBtn.disabled = false;
+                spinBtn.style.opacity = '';
+                spinBtn.textContent = 'SPIN! 🎰';
+                if (typeof showToast === 'function') showToast('❌ Spin failed — try again.');
+                return;
+            }
             var spinState = clock.createState();
             spinState.started = Date.now();
             spinState.segments = segments.length;
@@ -21521,13 +21979,12 @@ document.addEventListener('btcProfileSaved', function() {
                 spinBtn.textContent = 'SPIN! 🎰';
                 var msg = (err && err.message) ? err.message : '';
                 if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1) {
-                    localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0]);
-                    var openModal = document.getElementById('spinModal');
-                    if (openModal) openModal.remove();
+                    localStorage.setItem('btc_last_spin_date', _spinDayKey());
+                    _closeSpinModal();
                     if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
                     if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');
                 } else if (typeof showToast === 'function') {
-                    showToast('❌ Spin failed — try again.');
+                    showToast((msg === 'timeout') ? '⏳ The wheel took too long — try again.' : '❌ Spin failed — try again.');
                 }
             }
 
@@ -21557,6 +22014,40 @@ document.addEventListener('btcProfileSaved', function() {
 
             requestAnimationFrame(animate);
 
+            var SPIN_SERVER_TIMEOUT_MS = 15000;
+            var spinTimeout = setTimeout(function() {
+                if (spinState.serverIndex < 0 && !spinState.error) {
+                    spinState.error = new Error('timeout');
+                }
+            }, SPIN_SERVER_TIMEOUT_MS);
+
+            var giftsPromise = null;
+            function startDailyGifts() {
+                if (isBonusSpin || giftsPromise) return giftsPromise;
+                giftsPromise = Promise.resolve().then(function() {
+                    if (typeof window.awardDailyGifts === 'function') {
+                        return window.awardDailyGifts({ deferModal: true });
+                    }
+                    return new Promise(function(resolve) {
+                        var retries = 0;
+                        var timer = setInterval(function() {
+                            if (typeof window.awardDailyGifts === 'function') {
+                                clearInterval(timer);
+                                resolve(window.awardDailyGifts({ deferModal: true }));
+                            } else if (++retries >= 20) {
+                                clearInterval(timer);
+                                console.warn('[spin] gifting.js never loaded — gifts not awarded');
+                                resolve(null);
+                            }
+                        }, 250);
+                    });
+                }).catch(function(err) {
+                    console.warn('[spin] awardDailyGifts failed:', err && err.message);
+                    return null;
+                });
+                return giftsPromise;
+            }
+
             serverSpinPromise.then(function(result) {
                 var data = result && result.data;
                 var reward = data && data.reward;
@@ -21571,7 +22062,10 @@ document.addEventListener('btcProfileSaved', function() {
                 idx = ((idx % n) + n) % n;
                 serverReward = reward || { rewardIndex: idx };
                 spinState.serverIndex = idx;
+                clearTimeout(spinTimeout);
+                startDailyGifts();
             }).catch(function(err) {
+                clearTimeout(spinTimeout);
                 spinState.error = err || new Error('unknown');
             });
 
@@ -21640,11 +22134,38 @@ document.addEventListener('btcProfileSaved', function() {
                     if (typeof playBadgeSound === 'function') playBadgeSound();
                 }
 
-                resultDiv.innerHTML = '<div style="animation:fadeSlideIn 0.5s ease-out;">' +
-                    '<div style="font-size:3rem;margin-bottom:8px;">' + emoji + '</div>' +
-                    '<div style="color:var(--heading);font-weight:700;font-size:1.1rem;">' + rewardText + '</div>' +
-                    '<button onclick="document.getElementById(\'spinModal\').remove()" style="margin-top:12px;padding:10px 24px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Awesome! 🎉</button>' +
-                '</div>';
+                resultDiv.innerHTML = '';
+                var wrap = document.createElement('div');
+                wrap.style.animation = 'fadeSlideIn 0.5s ease-out';
+                var big = document.createElement('div');
+                big.style.cssText = 'font-size:3rem;margin-bottom:8px;';
+                big.textContent = emoji;
+                var line = document.createElement('div');
+                line.style.cssText = 'color:var(--heading);font-weight:700;font-size:1.1rem;';
+                line.textContent = rewardText;
+                var giftReady = document.createElement('div');
+                giftReady.id = 'spinGiftReady';
+                giftReady.className = 'spin-gift-ready';
+                giftReady.style.cssText = 'margin-top:12px;font-size:0.88rem;font-weight:700;line-height:1.4;min-height:24px;';
+                if (!isBonusSpin) giftReady.textContent = 'Preparing your GIFTS…';
+                var openGiftBtn = document.createElement('button');
+                openGiftBtn.type = 'button';
+                openGiftBtn.id = 'spinOpenGiftBtn';
+                openGiftBtn.className = 'spin-open-gift-btn';
+                openGiftBtn.style.display = 'none';
+                openGiftBtn.style.marginTop = '10px';
+                openGiftBtn.textContent = 'Open gift';
+                var doneBtn = document.createElement('button');
+                doneBtn.type = 'button';
+                doneBtn.style.cssText = 'margin-top:12px;padding:10px 24px;background:var(--accent);border:none;border-radius:8px;color:#1a1208;font-weight:700;cursor:pointer;font-family:inherit;min-height:44px;';
+                doneBtn.textContent = 'Awesome! 🎉';
+                doneBtn.onclick = function() { _closeSpinModal(); };
+                wrap.appendChild(big);
+                wrap.appendChild(line);
+                wrap.appendChild(giftReady);
+                wrap.appendChild(openGiftBtn);
+                wrap.appendChild(doneBtn);
+                resultDiv.appendChild(wrap);
 
                 if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
 
@@ -21652,23 +22173,35 @@ document.addEventListener('btcProfileSaved', function() {
                     window.BipBreakthrough.handleSpinReward(reward);
                 }
 
+                function paintSpinGifts(data) {
+                    if (!giftReady.parentNode) return;
+                    var gifts = data && Array.isArray(data.gifts) ? data.gifts : [];
+                    if (data && data.giftsAdded > 0 && gifts.length) {
+                        window._deferredSpinGifts = gifts.slice();
+                        giftReady.textContent = (gifts.length === 1)
+                            ? 'Your gift is ready to open'
+                            : ('Your ' + gifts.length + ' gifts are ready to open');
+                        openGiftBtn.style.display = 'inline-flex';
+                        openGiftBtn.disabled = false;
+                        openGiftBtn.textContent = gifts.length === 1 ? 'Open gift' : 'Open gifts';
+                        openGiftBtn.onclick = function() {
+                            if (openGiftBtn.disabled) return;
+                            openGiftBtn.disabled = true;
+                            window._deferredSpinGifts = null;
+                            var openModal = document.getElementById('spinModal');
+                            if (openModal) openModal.remove();
+                            if (typeof window.showPostSpinGiftModal === 'function') window.showPostSpinGiftModal(gifts);
+                        };
+                    } else {
+                        window._deferredSpinGifts = null;
+                        giftReady.textContent = '';
+                        openGiftBtn.style.display = 'none';
+                    }
+                }
                 if (!isBonusSpin) {
-                    setTimeout(function() {
-                        if (typeof window.awardDailyGifts === 'function') {
-                            window.awardDailyGifts();
-                        } else {
-                            var _giftRetries = 0;
-                            var _giftRetryTimer = setInterval(function() {
-                                if (typeof window.awardDailyGifts === 'function') {
-                                    clearInterval(_giftRetryTimer);
-                                    window.awardDailyGifts();
-                                } else if (++_giftRetries >= 20) {
-                                    clearInterval(_giftRetryTimer);
-                                    console.warn('[spin] gifting.js never loaded — gifts not awarded');
-                                }
-                            }, 500);
-                        }
-                    }, 800);
+                    Promise.resolve(startDailyGifts()).then(function(data) {
+                        paintSpinGifts(data || {});
+                    });
                 }
 
                 var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0') + 1; localStorage.setItem('btc_spin_count', String(_sc));
@@ -21696,7 +22229,7 @@ document.addEventListener('btcProfileSaved', function() {
             }
         });
 
-        modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+        modal.addEventListener('click', function(e) { if (e.target === modal) _closeSpinModal(); });
     };
 
     function _hasSpunToday() {
@@ -29486,6 +30019,7 @@ window.toggleAITools = function() {
     var EDIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
     window.forumEditPost = function(postId) {
+        if (typeof postId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(postId)) return;
         if (!auth || !auth.currentUser) return;
         if (typeof db === 'undefined') return;
 
@@ -29516,7 +30050,7 @@ window.toggleAITools = function() {
                     '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Body</label>' +
                     '<textarea id="editPostBody" rows="6" maxlength="2000" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;resize:vertical;">' + (typeof escapeHtml === 'function' ? escapeHtml(p.body || '') : (p.body || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')) + '</textarea>' +
                     '<div style="display:flex;gap:10px;">' +
-                        '<button onclick="forumSaveEdit(\'' + postId + '\')" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Save Changes</button>' +
+                        '<button type="button" id="forumEditSaveBtn" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Save Changes</button>' +
                         '<button onclick="document.getElementById(\'forumEditOverlay\').remove()" style="padding:12px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Cancel</button>' +
                     '</div>' +
                     '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;text-align:center;">Edited posts will show an "edited" indicator</div>' +
@@ -29525,6 +30059,8 @@ window.toggleAITools = function() {
             var div = document.createElement('div');
             div.innerHTML = html;
             document.body.appendChild(div.firstChild);
+            var saveBtn = document.getElementById('forumEditSaveBtn');
+            if (saveBtn) saveBtn.addEventListener('click', function() { window.forumSaveEdit(postId); });
         });
     };
 

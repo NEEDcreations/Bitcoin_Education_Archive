@@ -34,8 +34,8 @@ function injectedCss() {
 }
 
 test('service worker and script pins are v2731', function () {
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2743'"));
-    assert.ok(indexHtml.includes('global-chat.js?v=20261127_v2743'));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2744'"));
+    assert.ok(indexHtml.includes('global-chat.js?v=20261128_v2744'));
     assert.ok(!indexHtml.includes('global-chat.js?v=20261119_v2682'));
     assert.strictEqual(indexHtml, notFoundHtml);
 });

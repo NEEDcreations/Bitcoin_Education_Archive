@@ -368,7 +368,7 @@ test('TWA: clicks on hidden Premium or Kids links are cancelled', function () {
 test('index.html and 404.html load twa-mode.js early, before Firebase and the app', function () {
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
-    const tag = '<script src="/twa-mode.js?v=20261126_v2714"></script>';
+    const tag = '<script src="/twa-mode.js?v=20261128_v2744"></script>';
     assert.strictEqual(html.split(tag).length - 1, 1);
     const at = html.indexOf(tag);
     assert.ok(at > 0 && at < html.indexOf('</head>'));

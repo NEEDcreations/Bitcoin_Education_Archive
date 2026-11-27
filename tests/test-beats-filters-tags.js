@@ -79,12 +79,12 @@ function setup() {
 }
 
 const queue = [];
-queue.push(test('index.html and 404.html stay identical at v2735 pins', function() {
+queue.push(test('index.html and 404.html stay identical at v2744 pins', function() {
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('beats.js?v=20261127_v2735'));
-    assert.ok(html.includes('global-chat.js?v=20261127_v2735'));
+    assert.ok(html.includes('beats.js?v=20261128_v2744'));
+    assert.ok(html.includes('global-chat.js?v=20261128_v2744'));
     assert.ok(!html.includes('beats.js?v=20261119_v2666'));
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2735'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2744'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2690'"));
 }));
 

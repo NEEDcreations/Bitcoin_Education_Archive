@@ -220,10 +220,10 @@
       "Why can't I claim sats yet?",
       "Is there a lifetime sats cap?",
       "Can sats claims pause for the month?",
-      "Explain this: how old does my account need to be to claim sats?",
-      "Clarify this: how old does my account need to be to claim sats?"
+      "When does the 7-day sats wait start?",
+      "Does linking an email restart the 7-day sats wait?"
     ],
-    "answer": "Your Bitcoin Quest account needs to be at least 7 days old before you can claim sats, and other eligibility checks apply so rewards stay fair for real learners. Open Settings, then Sats, to claim when you are eligible. There is a lifetime cap of 15,000 sats per player. Claims can pause if that month's rewards have already been paid out. Try again later if that happens. The claim screen shows the details and any fee before you confirm. This describes an app rule, not income and not financial advice.",
+    "answer": "Your Bitcoin Quest account needs to be at least 7 days old before you can claim sats, counted from your account creation or from the first time you add a real email or sign-in, whichever is later, and other eligibility checks apply so rewards stay fair for real learners. Open Settings, then Sats, to claim when you are eligible. There is a lifetime cap of 15,000 sats per player. Claims can pause if that month's rewards have already been paid out. Try again later if that happens. The claim screen shows the details and any fee before you confirm. This describes an app rule, not income and not financial advice.",
     "topics": [
       "sats",
       "ln-address"
@@ -1340,7 +1340,7 @@
       "Clarify what Satoshi's Favor do in the app?",
       "Describe what Satoshi's Favor do in the app?"
     ],
-    "answer": "Satoshi's Favor is the community mining game. You contribute points, then hash during a round (an epoch) for a chance at 21,000 sats. Open Quest Hub → Favor, or open the miner. A round ends when 5 blocks are found, then difficulty adjusts so rounds stay on a steady pace. Wins pay to your Lightning address. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Satoshi's Favor is the community mining game. You contribute points, then hash during a round (an epoch) for a chance at 21,000 sats. Open Quest Hub → Favor, or open the miner. Satoshi's Favor announcements, including Nacho's ends soon post, have a Start hashing button that opens straight to the hashing screen. A round ends when 5 blocks are found, then difficulty adjusts so rounds stay on a steady pace. Wins pay to your Lightning address. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "favor",
       "one-stop-shop"
@@ -1361,7 +1361,7 @@
       "Show me how to open Satoshi's Favor?",
       "What is the way to open Satoshi's Favor?"
     ],
-    "answer": "Satoshi's Favor is the community mining game. You contribute points, then hash during a round (an epoch) for a chance at 21,000 sats. Open Quest Hub → Favor, or open the miner. A round ends when 5 blocks are found, then difficulty adjusts so rounds stay on a steady pace. Wins pay to your Lightning address. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Satoshi's Favor is the community mining game. You contribute points, then hash during a round (an epoch) for a chance at 21,000 sats. Open Quest Hub → Favor, or open the miner. Satoshi's Favor announcements, including Nacho's ends soon post, have a Start hashing button that opens straight to the hashing screen. A round ends when 5 blocks are found, then difficulty adjusts so rounds stay on a steady pace. Wins pay to your Lightning address. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "favor",
       "one-stop-shop"
@@ -1424,7 +1424,7 @@
       "Explain the Citadel?",
       "Describe the Citadel?"
     ],
-    "answer": "The Citadel is the coming-soon place to spend XP. Open Quest Hub → Citadel. It is marked coming soon, so you can look but not spend yet. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "We're building Citadels. Citadel Spark arrives January 3, 2027. Premium members collect the parts for their Citadel with Orange Tickets earned through real play. Building opens later. Open the Waitlist or the Citadels tab and sign up if you want a heads-up when the gates open. The teaser plays when you press play, with sound on. The Citadel modal and the More quests row say LAUNCHING JANUARY 3, 2027. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "citadel",
       "one-stop-shop"
@@ -1445,7 +1445,7 @@
       "Show me how to open the Citadel?",
       "What is the way to open the Citadel?"
     ],
-    "answer": "The Citadel is the coming-soon place to spend XP. Open Quest Hub → Citadel. It is marked coming soon, so you can look but not spend yet. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "We're building Citadels. Citadel Spark arrives January 3, 2027. Premium members collect the parts for their Citadel with Orange Tickets earned through real play. Building opens later. Open the Waitlist or the Citadels tab and sign up if you want a heads-up when the gates open. The teaser plays when you press play, with sound on. The Citadel modal and the More quests row say LAUNCHING JANUARY 3, 2027. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "citadel",
       "one-stop-shop"
@@ -2642,7 +2642,7 @@
       "Explain the leaderboard?",
       "Describe the leaderboard?"
     ],
-    "answer": "The leaderboard ranks players all-time, weekly, and monthly. Open the leaderboard and switch the period tab. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "The leaderboard ranks players all-time, weekly, and monthly. Open the leaderboard and switch the period tab. On the Quests, PvP, and Predictions leaderboards, you can sort by total or by percentage. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "leaderboard",
       "one-stop-shop"
@@ -2663,7 +2663,7 @@
       "Show me how to open the leaderboard?",
       "What is the way to open the leaderboard?"
     ],
-    "answer": "The leaderboard ranks players all-time, weekly, and monthly. Open the leaderboard and switch the period tab. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "The leaderboard ranks players all-time, weekly, and monthly. Open the leaderboard and switch the period tab. On the Quests, PvP, and Predictions leaderboards, you can sort by total or by percentage. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "leaderboard",
       "one-stop-shop"
@@ -2684,7 +2684,7 @@
       "Explain Global Chat?",
       "Describe Global Chat?"
     ],
-    "answer": "Global chat is the live room, with a Telegram bridge. Open the chat button and stay on the Global tab. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Global chat is the live room, with a Telegram bridge. Open the chat button and stay on the Global tab. Usernames in Global chat, the forum, and GGs are tappable tags that open that player's profile. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "global-chat",
       "one-stop-shop"
@@ -2705,7 +2705,7 @@
       "Show me how to open Global Chat?",
       "What is the way to open Global Chat?"
     ],
-    "answer": "Global chat is the live room, with a Telegram bridge. Open the chat button and stay on the Global tab. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Global chat is the live room, with a Telegram bridge. Open the chat button and stay on the Global tab. Usernames in Global chat, the forum, and GGs are tappable tags that open that player's profile. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "global-chat",
       "one-stop-shop"
@@ -2768,7 +2768,7 @@
       "Describe direct messages?",
       "Define direct messages?"
     ],
-    "answer": "Direct messages are private chats. Open the inbox, or the DMs tab in the chat hub. New accounts need a little XP and time before sending, to slow down scammers. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Direct messages are private chats. Open the inbox, or the DMs tab in the chat hub. The DMs tab shows your inbox on the first open. Use the Start DM button to search for a username, and the back button to return to the conversation list. New accounts need a little XP and time before sending, to slow down scammers. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "dms",
       "one-stop-shop"
@@ -2789,7 +2789,7 @@
       "Show me how to open direct messages?",
       "What is the way to open direct messages?"
     ],
-    "answer": "Direct messages are private chats. Open the inbox, or the DMs tab in the chat hub. New accounts need a little XP and time before sending, to slow down scammers. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Direct messages are private chats. Open the inbox, or the DMs tab in the chat hub. The DMs tab shows your inbox on the first open. Use the Start DM button to search for a username, and the back button to return to the conversation list. New accounts need a little XP and time before sending, to slow down scammers. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "dms",
       "one-stop-shop"
@@ -3062,7 +3062,7 @@
       "Describe Lightning tips?",
       "Define Lightning tips?"
     ],
-    "answer": "You can tip another user with Lightning sats if they have an address. Open a profile and use Tip. This is a tip to a person, not a donation to the site. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "You can tip another user with Lightning sats if they have an address. Open a profile and use Tip. If your wallet is already connected, pick an amount, tap Tip, and confirm once to pay from that wallet. If no wallet is connected, or a payment does not go through, you can still copy the Lightning address or invoice. Tips from Mart, the DJ bar, and beat cards use the right name and payee. This is a tip to a person, not a donation to the site. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "tips",
       "one-stop-shop"
@@ -3083,7 +3083,7 @@
       "Show me how to send a Lightning tip?",
       "What is the way to send a Lightning tip?"
     ],
-    "answer": "You can tip another user with Lightning sats if they have an address. Open a profile and use Tip. This is a tip to a person, not a donation to the site. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "You can tip another user with Lightning sats if they have an address. Open a profile and use Tip. If your wallet is already connected, pick an amount, tap Tip, and confirm once to pay from that wallet. If no wallet is connected, or a payment does not go through, you can still copy the Lightning address or invoice. Tips from Mart, the DJ bar, and beat cards use the right name and payee. This is a tip to a person, not a donation to the site. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "tips",
       "one-stop-shop"
@@ -3146,7 +3146,7 @@
       "Explain the Timechain TV watch quest?",
       "Describe the Timechain TV watch quest?"
     ],
-    "answer": "Watch 10 minutes of Timechain TV in a day to earn 100 XP and 1 orange ticket. Tap Watch TV next to the daily spin. It opens Timechain TV and starts playback. The button shows minutes watched, then Done. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Watch 10 minutes of hosted Bitcoin Quest Originals on Timechain TV in a day to earn 100 XP and 1 orange ticket. YouTube videos do not count toward that task. Tap Watch TV next to the daily spin. It opens Timechain TV and starts playback. The button shows minutes watched, then Done. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "tctv-watch",
       "one-stop-shop"
@@ -3167,7 +3167,7 @@
       "Show me how to finish the Timechain TV watch quest?",
       "What is the way to finish the Timechain TV watch quest?"
     ],
-    "answer": "Watch 10 minutes of Timechain TV in a day to earn 100 XP and 1 orange ticket. Tap Watch TV next to the daily spin. It opens Timechain TV and starts playback. The button shows minutes watched, then Done. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Watch 10 minutes of hosted Bitcoin Quest Originals on Timechain TV in a day to earn 100 XP and 1 orange ticket. YouTube videos do not count toward that task. Tap Watch TV next to the daily spin. It opens Timechain TV and starts playback. The button shows minutes watched, then Done. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "tctv-watch",
       "one-stop-shop"
@@ -3188,7 +3188,7 @@
       "Clarify this: where is Timechain TV in the app?",
       "Unpack this: where is Timechain TV in the app?"
     ],
-    "answer": "Timechain TV plays curated Bitcoin videos around the clock across 21 channels. Open Timechain TV and pick a channel. Watching 10 minutes in a day can earn 100 XP and 1 orange ticket. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Timechain TV plays curated Bitcoin videos around the clock across 21 channels. Open Timechain TV and pick a channel. Use Share this channel to copy a link that opens on the channel you were watching. A free sign-up line sits below the player and never covers the video. The 10-minute watch task counts hosted Bitcoin Quest Originals only. YouTube videos on Timechain TV do not count toward that task. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "tv",
       "one-stop-shop"
@@ -3209,7 +3209,7 @@
       "Show me how to open Timechain TV?",
       "What is the way to open Timechain TV?"
     ],
-    "answer": "Timechain TV plays curated Bitcoin videos around the clock across 21 channels. Open Timechain TV and pick a channel. Watching 10 minutes in a day can earn 100 XP and 1 orange ticket. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Timechain TV plays curated Bitcoin videos around the clock across 21 channels. Open Timechain TV and pick a channel. Use Share this channel to copy a link that opens on the channel you were watching. A free sign-up line sits below the player and never covers the video. The 10-minute watch task counts hosted Bitcoin Quest Originals only. YouTube videos on Timechain TV do not count toward that task. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "tv",
       "one-stop-shop"
@@ -3230,7 +3230,7 @@
       "Explain Bitcoin Beats?",
       "Describe Bitcoin Beats?"
     ],
-    "answer": "Bitcoin Beats is the music corner: listen, upload, DJ mode, and Nacho Radio. Open Bitcoin Beats. Use the upload tab for tracks and the livestream tab for DJ mode. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Bitcoin Beats is the music corner: listen, upload, DJ mode, and Nacho Radio. Open Bitcoin Beats. On Discover you can filter by BQ Artists, V4V Open Source, and AI, and you can hide AI songs. Tracks show Verified, BQ Artist, V4V, and AI tags, plus an upload date when you sort by Newest. Use the upload tab for tracks and the livestream tab for DJ mode. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "beats",
       "one-stop-shop"
@@ -3251,7 +3251,7 @@
       "Show me how to open Bitcoin Beats?",
       "What is the way to open Bitcoin Beats?"
     ],
-    "answer": "Bitcoin Beats is the music corner: listen, upload, DJ mode, and Nacho Radio. Open Bitcoin Beats. Use the upload tab for tracks and the livestream tab for DJ mode. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Bitcoin Beats is the music corner: listen, upload, DJ mode, and Nacho Radio. Open Bitcoin Beats. On Discover you can filter by BQ Artists, V4V Open Source, and AI, and you can hide AI songs. Tracks show Verified, BQ Artist, V4V, and AI tags, plus an upload date when you sort by Newest. Use the upload tab for tracks and the livestream tab for DJ mode. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "beats",
       "one-stop-shop"

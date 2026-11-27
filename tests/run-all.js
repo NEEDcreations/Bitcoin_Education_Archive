@@ -219,6 +219,8 @@ const TESTS = [
     { name: 'Start hashing on Favor announcements', file: 'test-sf-start-hashing.js' },
     { name: 'Username profile tags', file: 'test-username-tags.js' },
     { name: 'Leaderboard sort options', file: 'test-leaderboard-sorts.js' },
+    { name: 'Beats filters, tags, and dates', file: 'test-beats-filters-tags.js' },
+    { name: 'Start DM username search', file: 'test-start-dm.js' },
     { name: 'IRL sync source', file: 'test-irl-sync-source.js' },
     { name: 'Beats V4V invoice check', file: 'test-beats-v4v-check.js' },
     { name: 'Spin Reminder', file: 'test-spin-reminder.js' },

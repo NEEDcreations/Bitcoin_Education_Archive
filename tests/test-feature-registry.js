@@ -77,6 +77,13 @@ test('common phrasings, typos, and sentence queries', function () {
         ['refer a friend', 'referral'],
         ['what are the hot topics this week', 'hot-topics'],
         ['what is the citadel', 'citadel'],
+        ['what is citadel spark', 'citadel'],
+        ['citadel waitlist', 'citadel'],
+        ['start hashing', 'favor'],
+        ['start dm', 'dms'],
+        ['sort leaderboard by percentage', 'leaderboard'],
+        ['one-tap lightning tip', 'tips'],
+        ['beats filter hide AI', 'beats'],
         ['where is the faq', 'faq'],
         ['where are the patch notes', 'patch-notes'],
         ['where are the reset times and odds', 'resets'],
@@ -111,8 +118,27 @@ test('search indexes FAQ questions and opens the FAQ', function () {
     assert.ok(hits.some(function (h) { return /orange ticket/i.test(h.item.q + ' ' + (h.item.a || '')); }));
     const age = reg.searchFaq('7 days old to claim sats');
     assert.ok(age.length && /7 days/i.test(age[0].item.a), '7-day claim FAQ');
+    assert.ok(/real email or sign-in/i.test(age[0].item.a), 'claim age starts from first real email or sign-in');
+    const spark = reg.searchFaq('citadel spark waitlist january 3');
+    assert.ok(spark.length && /January 3, 2027/i.test(spark[0].item.a), 'citadel spark FAQ');
+    assert.ok(reg.BQ_FAQ.some(function (sec) { return sec.id === 'citadel-spark'; }), 'citadel spark section');
+    assert.ok(!reg.BQ_FAQ.some(function (sec) { return /premium/i.test(sec.id + ' ' + sec.title); }), 'no premium FAQ section');
+    const ads = reg.searchFaq('why do I see ads in the app');
+    assert.ok(ads.length && /18 or older/i.test(ads[0].item.a) && /ad-free/i.test(ads[0].item.a), 'ads FAQ');
+    const startDm = reg.searchFaq('Start DM username search');
+    assert.ok(startDm.length && /Start DM/i.test(startDm[0].item.q + ' ' + startDm[0].item.a), 'start dm FAQ');
+    const beats = reg.searchFaq('filter by BQ Artists and hide AI songs');
+    assert.ok(beats.length && /BQ Artists/i.test(beats[0].item.a), 'beats filter FAQ');
     const favor = reg.searchFaq("satoshi's favor epoch");
     assert.ok(favor.length && /epoch/i.test(favor[0].item.q + ' ' + favor[0].item.a), 'favor epoch FAQ');
+    const hashing = reg.searchFaq('Start hashing button');
+    assert.ok(hashing.length && /Start hashing/i.test(hashing[0].item.a), 'start hashing FAQ');
+    const sorts = reg.searchFaq('sort leaderboards by percentage');
+    assert.ok(sorts.length && /sort by total or by percentage/i.test(sorts[0].item.a), 'leaderboard sort FAQ');
+    const oneTap = reg.searchFaq('confirm once to pay from that wallet');
+    assert.ok(oneTap.length && /confirm once/i.test(oneTap[0].item.a), 'one-tap tips FAQ');
+    const tags = reg.searchFaq('tappable username tags');
+    assert.ok(tags.length && /tappable tags/i.test(tags[0].item.a), 'username tags FAQ');
     assert.ok(typeof reg.searchFaq === 'function');
 });
 
@@ -326,7 +352,7 @@ test('fresh load keeps #app/raid, #app/ciphers, and #questhub on the right tab',
     assert.ok(html.indexOf('location.replace(_href)') === -1);
     assert.ok(html.indexOf('id="searchOverlay" style="display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:20000;background:var(--bg);') !== -1);
     assert.ok(html.indexOf('#searchOverlay {') !== -1 && html.indexOf('background: var(--bg) !important;') !== -1);
-    assert.ok(html.indexOf('patches.js?v=20261126_v2714') !== -1);
+    assert.ok(html.indexOf('patches.js?v=20261128_v2744') !== -1);
     assert.ok(html.indexOf('patches.js?v=20261026_v2385') === -1);
     assert.ok(html.indexOf('patches.js?v=20261027_v2425') === -1);
     assert.ok(html.indexOf('patches.js?v=20261024_v2360') === -1);
