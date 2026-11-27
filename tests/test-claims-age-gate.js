@@ -598,6 +598,73 @@ async function test(name, fn) {
         assert.strictEqual(r2.status, 2);
     });
 
+    await test('seed apply path initializes without admin.apps and writes only with confirm', async function () {
+        let inited = 0;
+        let written = null;
+        const fakeAdmin = {
+            getApps: function () { return this._apps || []; },
+            initializeApp: function (opts) {
+                inited += 1;
+                this.options = opts;
+                this._apps = [{ options: opts }];
+            },
+            firestore: function () {
+                return {
+                    collection: function (name) {
+                        return {
+                            doc: function (id) {
+                                return {
+                                    set: async function (doc) {
+                                        written = { collection: name, id: id, doc: doc };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                };
+            },
+        };
+        const tmp = path.join('/tmp', 'minirufus-l1b-seed-apply-fake.json');
+        fs.writeFileSync(tmp, JSON.stringify({ groups: { test: ['fake-uid-apply-1'] } }));
+        try {
+            const dry = await seedHeld.main([
+                '--project=bitcoin-quest-staging',
+                '--file=' + tmp,
+            ], { admin: fakeAdmin });
+            assert.strictEqual(dry.apply, false);
+            assert.strictEqual(inited, 0, 'dry run does not initialize');
+            assert.strictEqual(written, null, 'dry run does not write');
+
+            const db = seedHeld.ensureFirestore(fakeAdmin, 'bitcoin-quest-staging');
+            assert.strictEqual(inited, 1, 'missing admin.apps does not throw');
+            assert.ok(db);
+
+            const applied = await seedHeld.main([
+                '--project=bitcoin-quest-staging',
+                '--file=' + tmp,
+                '--apply',
+                '--confirm=AGEGATEHELD',
+            ], { admin: fakeAdmin });
+            assert.strictEqual(applied.apply, true);
+            assert.strictEqual(applied.written, true);
+            assert.strictEqual(written.collection, 'config');
+            assert.strictEqual(written.id, 'ageGateHeld');
+            assert.ok(written.doc && written.doc.groups && written.doc.groups.test);
+            assert.strictEqual(written.doc.groups.test[0], 'fake-uid-apply-1');
+            assert.ok(inited >= 1);
+
+            const like14 = {
+                initializeApp: function () { like14.inited = true; },
+                firestore: function () { return { ok: true }; },
+            };
+            assert.doesNotThrow(function () {
+                seedHeld.ensureFirestore(like14, 'bitcoin-quest-staging');
+            }, 'firebase-admin 14 apps-undefined shape must not throw');
+        } finally {
+            fs.unlinkSync(tmp);
+        }
+    });
+
     await test('rules sha256 is unchanged at 998d7570', async function () {
         const crypto = require('crypto');
         const sha = crypto.createHash('sha256').update(fs.readFileSync(path.join(root, 'firestore.rules'))).digest('hex');

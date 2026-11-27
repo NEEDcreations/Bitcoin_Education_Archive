@@ -85,8 +85,29 @@ function parseListFile(filePath) {
     return { ok: true, uids: uids, groups: groups, doc: doc };
 }
 
-async function main() {
-    const args = parseArgs(process.argv.slice(2));
+// Initialize the same way functions/src/firebaseAdmin.js does. Do not read
+// admin.apps.length: on firebase-admin 14 that property can be undefined and
+// throws. Prefer getApps() from firebase-admin/app, or a provided getApps.
+function ensureFirestore(adminMod, projectId) {
+    var already = 0;
+    if (adminMod && typeof adminMod.getApps === 'function') {
+        already = adminMod.getApps().length;
+    } else if (adminMod && adminMod.apps) {
+        already = adminMod.apps.length || 0;
+    } else {
+        try {
+            var appMod = require('firebase-admin/app');
+            already = appMod.getApps().length;
+        } catch (e) {
+            already = 0;
+        }
+    }
+    if (!already) adminMod.initializeApp({ projectId: projectId });
+    return adminMod.firestore();
+}
+
+async function main(argv, deps) {
+    const args = parseArgs(argv || process.argv.slice(2));
     if (!args.project) {
         console.error('Refusing: pass --project=<id> (there is no default project)');
         process.exit(2);
@@ -113,17 +134,17 @@ async function main() {
     const out = { project: args.project, apply: args.apply, counts: counts };
     if (!args.apply) {
         console.log(JSON.stringify(out, null, 2));
-        return;
+        return out;
     }
-    const admin = require('firebase-admin');
-    if (!admin.apps.length) admin.initializeApp({ projectId: args.project });
-    const db = admin.firestore();
+    const admin = (deps && deps.admin) || require('../functions/src/firebaseAdmin');
+    const db = ensureFirestore(admin, args.project);
     await db.collection(ageGateHeld.DOC_COLLECTION).doc(ageGateHeld.DOC_ID).set(parsed.doc);
     out.written = true;
     console.log(JSON.stringify(out, null, 2));
+    return out;
 }
 
-module.exports = { parseArgs, parseListFile, countsOf };
+module.exports = { parseArgs, parseListFile, countsOf, ensureFirestore, main };
 
 if (require.main === module) {
     main().catch(function (e) { console.error('seed failed:', e && e.message); process.exit(1); });
