@@ -12,21 +12,33 @@
 // ─── Check Lightning Connection ──────────────────────────
 
 function isLnConnected() {
-    // Check if lightning.js has an active connection
+    if (typeof window.lnIsConnected === 'function') return !!window.lnIsConnected();
+    // Fallback if lightning.js has not loaded. Match restoreLnState(): NWC
+    // needs the session secret, and WebLN needs the provider.
     var state = null;
     try { state = JSON.parse(localStorage.getItem('btc_ln_state')); } catch(e) {}
-    if (state && state.method === 'nwc' && state.nwcRelay) return true;
+    if (state && state.method === 'nwc' && state.nwcRelay && state.nwcPubkey) {
+        try { return !!sessionStorage.getItem('btc_ln_secret'); } catch(e) { return false; }
+    }
     if (state && state.method === 'webln' && typeof window.webln !== 'undefined') return true;
-    // Also check live WebLN
-    if (typeof window.webln !== 'undefined') return true;
     return false;
 }
 
 function getLnMethod() {
+    if (typeof window.lnGetMethod === 'function') return window.lnGetMethod();
+    if (!isLnConnected()) return null;
     try {
         var s = JSON.parse(localStorage.getItem('btc_ln_state'));
         return s ? s.method : null;
     } catch(e) { return null; }
+}
+
+function lnSessionExpired() {
+    if (typeof window.lnSessionExpired === 'function') return !!window.lnSessionExpired();
+    var state = null;
+    try { state = JSON.parse(localStorage.getItem('btc_ln_state')); } catch(e) {}
+    if (!state || state.method !== 'nwc' || !state.nwcRelay || !state.nwcPubkey) return false;
+    try { return !sessionStorage.getItem('btc_ln_secret'); } catch(e) { return false; }
 }
 
 // ─── Send Payment via Connected Wallet ───────────────────
@@ -270,9 +282,12 @@ window.showTipOverlay = function(opts) {
         presetsHtml += '</div>';
     }
 
-    // Connection status banner
+    // Connection status banner — same source of truth as Lightning settings.
+    var expired = !connected && lnSessionExpired();
     var connBanner = connected
         ? '<div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;margin-bottom:14px;font-size:0.75rem;color:#22c55e;"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;"></div> Lightning wallet connected</div>'
+        : expired
+        ? '<div style="padding:10px 12px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;margin-bottom:14px;font-size:0.75rem;color:#eab308;text-align:center;">Your Lightning wallet session ended. Reconnect to tip with one tap, or copy the invoice.<br><button onclick="this.closest(\'[id]\').remove();go(\'lightning\')" style="margin-top:6px;padding:5px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">Reconnect Wallet</button></div>'
         : '<div style="padding:10px 12px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;margin-bottom:14px;font-size:0.75rem;color:#eab308;text-align:center;">⚡ No wallet connected — invoice will be shown to copy<br><button onclick="this.closest(\'[id]\').remove();go(\'lightning\')" style="margin-top:6px;padding:5px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">Connect Wallet</button></div>';
 
     ov.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:22px;padding:26px;max-width:380px;width:100%;animation:fadeSlideIn 0.3s ease-out;">' +
@@ -310,6 +325,7 @@ window.showTipOverlay = function(opts) {
 
     // Store opts for executeTip
     window._tipOpts = opts;
+    window._tipConfirmAmt = null;
 
     // Show USD equivalent
     window.updateTipUsd = function() {
@@ -323,6 +339,46 @@ window.showTipOverlay = function(opts) {
     };
     if (!fixed) setTimeout(window.updateTipUsd, 100);
 };
+
+
+function _tipFetchJson(url) {
+    var ctrl = null;
+    try {
+        var AC = (typeof window !== 'undefined' && window.AbortController) || (typeof AbortController === 'function' ? AbortController : null);
+        if (AC) ctrl = new AC();
+    } catch (e) { ctrl = null; }
+    var timer = null;
+    try {
+        if (ctrl && typeof setTimeout === 'function') {
+            timer = setTimeout(function() { try { ctrl.abort(); } catch (e2) {} }, 15000);
+        }
+    } catch (e) { timer = null; }
+    function _clear() {
+        if (timer != null && typeof clearTimeout === 'function') {
+            try { clearTimeout(timer); } catch (e) {}
+        }
+    }
+    return fetch(url, ctrl && ctrl.signal ? { signal: ctrl.signal } : {}).then(function(resp) {
+        _clear();
+        if (!resp.ok) {
+            var err = new Error('The recipient\'s wallet did not return an invoice (HTTP ' + resp.status + '). Try again, or send to their Lightning Address by hand.');
+            err.tipKind = 'http';
+            throw err;
+        }
+        return resp.json().then(function(data) { return data; }, function() {
+            var err = new Error('The recipient\'s wallet sent a response that could not be read. Try again, or send to their Lightning Address by hand.');
+            err.tipKind = 'json';
+            throw err;
+        });
+    }).catch(function(e) {
+        _clear();
+        if (e && (e.tipKind === 'http' || e.tipKind === 'json')) throw e;
+        if (e && (e.name === 'AbortError' || /aborted/i.test(e.message || ''))) {
+            throw new Error('The recipient\'s wallet did not respond in time. Try again, or send to their Lightning Address by hand.');
+        }
+        throw new Error('Could not reach the recipient\'s wallet server. Try again, or send to their Lightning Address by hand.');
+    });
+}
 
 // ─── Execute Tip / Payment ───────────────────────────────
 
@@ -372,10 +428,25 @@ window.executeTip = async function() {
         return;
     }
 
+    var connectedNow = isLnConnected();
+    if (connectedNow && window._tipConfirmAmt !== amount) {
+        window._tipConfirmAmt = amount;
+        var large = amount >= 10000;
+        res.innerHTML = '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;text-align:left;margin-top:4px;">' +
+            '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;margin-bottom:4px;">Confirm this tip</div>' +
+            '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.5;">Bitcoin Quest will pay ' + amount.toLocaleString() + ' sats to ' + escapeHtml(opts.recipientName || 'this user') + ' on your behalf from your connected wallet. ' +
+            (large ? 'This is a large tip. ' : '') +
+            'No payment is sent until you confirm, and you will see a verified success or failure after your wallet confirms.</div></div>';
+        btn.textContent = 'Confirm: pay ' + amount.toLocaleString() + ' sats';
+        btn.disabled = false;
+        return;
+    }
+
     btn.disabled = true;
     btn.textContent = '⏳ Processing…';
 
     var method = getLnMethod();
+    var canPayDirect = connectedNow && typeof window.lnSendPaymentDirect === 'function';
     var memo = '⚡ Tip to ' + (opts.recipientName || 'user') + (opts.context ? ' (' + opts.context + ')' : '');
 
     try {
@@ -386,7 +457,7 @@ window.executeTip = async function() {
                 _tipVerifyFailed(res, btn, opts);
                 return;
             }
-            if (method && typeof window.lnSendPaymentDirect === 'function') {
+            if (canPayDirect) {
                 await window.lnSendPaymentDirect(givenPr);
                 showTipSuccess(amount, opts);
                 return;
@@ -414,7 +485,7 @@ window.executeTip = async function() {
                     opts._serverInvoice = true;
                     window._tipServerInvoice = invData;
                     window._tipVerifyUrl = invData.verifyUrl || null;
-                    if (method && typeof window.lnSendPaymentDirect === 'function') {
+                    if (canPayDirect) {
                         try {
                             await window.lnSendPaymentDirect(serverPr);
                             showTipSuccess(amount, opts);
@@ -457,15 +528,23 @@ window.executeTip = async function() {
             var parts = opts.lightningAddress.split('@');
             if (parts.length === 2) {
                 try {
-                    var lnurlResp = await fetch('https://' + parts[1] + '/.well-known/lnurlp/' + parts[0]);
-                    if (lnurlResp.ok) {
-                        var lnurlData = await lnurlResp.json();
-                        if (lnurlData.callback) {
-                            var msats = amount * 1000;
-                            var cbUrl = lnurlData.callback + (lnurlData.callback.includes('?') ? '&' : '?') + 'amount=' + msats;
-                            var cbResp = await fetch(cbUrl);
-                            var cbData = await cbResp.json();
-                            if (cbData && cbData.pr) {
+                    var lnurlData = await _tipFetchJson('https://' + parts[1] + '/.well-known/lnurlp/' + encodeURIComponent(parts[0]));
+                    if (!lnurlData || !lnurlData.callback) {
+                        _tipShowAddressBox(res, btn, opts, '\u26a1 Wallet did not return an invoice', 'The recipient\'s wallet did not provide a payment callback. Send to their Lightning Address by hand.');
+                        return;
+                    }
+                    var msats = amount * 1000;
+                    if (lnurlData.minSendable && msats < Number(lnurlData.minSendable)) {
+                        _tipShowAddressBox(res, btn, opts, '\u26a1 Amount too small', 'This wallet requires at least ' + Math.ceil(Number(lnurlData.minSendable) / 1000) + ' sats.');
+                        return;
+                    }
+                    if (lnurlData.maxSendable && msats > Number(lnurlData.maxSendable)) {
+                        _tipShowAddressBox(res, btn, opts, '\u26a1 Amount too large', 'This wallet accepts at most ' + Math.floor(Number(lnurlData.maxSendable) / 1000) + ' sats.');
+                        return;
+                    }
+                    var cbUrl = lnurlData.callback + (lnurlData.callback.includes('?') ? '&' : '?') + 'amount=' + msats;
+                    var cbData = await _tipFetchJson(cbUrl);
+                    if (cbData && cbData.pr) {
                                 var parsedPr = tipParseInvoice(cbData.pr, msats);
                                 if (!parsedPr) {
                                     _tipVerifyFailed(res, btn, opts);
@@ -477,7 +556,7 @@ window.executeTip = async function() {
                                 }
                                 var checkedPr = parsedPr.invoice;
                                 window._tipVerifyUrl = cbData.verify || null;
-                                if (method && typeof window.lnSendPaymentDirect === 'function') {
+                                if (canPayDirect) {
                                     try {
                                         var payResult = await window.lnSendPaymentDirect(checkedPr);
                                         showTipSuccess(amount, opts);
@@ -487,16 +566,14 @@ window.executeTip = async function() {
                                         // Fall through to show QR code instead of "Can't tip yet"
                                     }
                                 }
-                                showInvoiceCopy(checkedPr, amount, opts);
+                                                                showInvoiceCopy(checkedPr, amount, opts);
                                 return;
-                            }
-                        }
                     }
+                    _tipShowAddressBox(res, btn, opts, 'Wallet did not return an invoice', 'The recipient\'s wallet did not include an invoice in its response. Send to their Lightning Address by hand.');
+                    return;
                 } catch(e) {
                     console.warn('[TIP] LNURL-pay error:', e);
-                    // Address exists but server unreachable — don't fall through to "hasn't added address"
-                    // Show the address so tipper can send manually from their wallet app
-                    _tipShowAddressBox(res, btn, opts, '\u26a1 Wallet server unreachable', '');
+                    _tipShowAddressBox(res, btn, opts, 'Wallet server unreachable', (e && e.message) ? String(e.message) : 'Could not reach the recipient\'s wallet server. Try again, or send to their Lightning Address by hand.');
                     return;
                 }
             }
