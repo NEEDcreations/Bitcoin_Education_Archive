@@ -1,6 +1,5 @@
-// Cache-buster pin. Bunch 2 combo in progress; temporary pin btc-archive-v2725 (spin-gifts, tip modal, tip wiring). Patch notes banner refresh + Back to app is btc-archive-v2690 (index.html, 404.html, patch-notes.html; no JS pins). Patch notes Faster Loads + Timelines is btc-archive-v2687 (patch-notes.html; no JS pins). Terms 16g + raffle Official Rules is btc-archive-v2686 (terms.html, raffle-rules.html, resets.html, quests.js 20261120_v2686). Timelines & Odds page + what's-new banner is btc-archive-v2684 (resets.html, index.html, 404.html, patch-notes.html; no JS pins). Guest onboarding fixes are btc-archive-v2683 (ranking.js, onboarding.js 20261119_v2683). Proof of Play + chat CTA links + 10 Timechain games is btc-archive-v2682 (proof-of-play.js, global-chat.js, bundle.min.js 20261119_v2682). Onboarding questions-first is btc-archive-v2681 (popup-stack.js, features.registry.js 20261119_v2681). Dry run v3 step 3 is btc-archive-v2667 (article; bundle.min.js 20261119_v2667). Step 2 v2666: beats.js, lightning-tips.js. Step 1 v2665: global-chat.js, ranking.js.// Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
-// gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
-// timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
+// Cache-buster pin. Bunch 2 combo in progress; temporary pin btc-archive-v2725 (spin-gifts, tip modal, tip wiring, tctv-share). Patch notes banner refresh + Back to app is btc-archive-v2690 (index.html, 404.html, patch-notes.html; no JS pins). Patch notes Faster Loads + Timelines is btc-archive-v2687 (patch-notes.html; no JS pins). Terms 16g + raffle Official Rules is btc-archive-v2686 (terms.html, raffle-rules.html, resets.html, quests.js 20261120_v2686). Timelines & Odds page + what's-new banner is btc-archive-v2684 (resets.html, index.html, 404.html, patch-notes.html; no JS pins). Guest onboarding fixes are btc-archive-v2683 (ranking.js, onboarding.js 20261119_v2683). Proof of Play + chat CTA links + 10 Timechain games is btc-archive-v2682 (proof-of-play.js, global-chat.js, bundle.min.js 20261119_v2682). Onboarding questions-first is btc-archive-v2681 (popup-stack.js, features.registry.js 20261119_v2681). Dry run v3 step 3 is btc-archive-v2667 (article; bundle.min.js 20261119_v2667). Step 2 v2666: beats.js, lightning-tips.js. Step 1 v2665: global-chat.js, ranking.js.// Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.// gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
+// timechain-tv.js is 20261126_v2725. scholar.js is 20261105_v2490.
 // patches.js stays 20261026_v2385. bundle.min.js is 20261119_v2665.
 // earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261031_v2446.
 // modules.js and learning-quests.js stay 20261026_v2377.
@@ -8,7 +7,7 @@
 // global-chat.js is 20261031_v2448. gifting.js is 20261030_v2439. quests.js is 20261030_v2443.
 // satoshi-favor.js stays 20261026_v2368.
 // onboarding.js is 20261109_v2542. today-card.js is 20261031_v2448.
-// features.registry.js stays 20261024_v2368. achievement-share.js is 20261109_v2536. miniapp-share.js is 20261107_v2526.
+// features.registry.js stays 20261024_v2368. achievement-share.js is 20261109_v2536. miniapp-share.js is 20261126_v2725.
 // patches.js stays 20261026_v2385. nacho-qa.js stays 20261024_v2350.
 // gifting.js is 20261030_v2439.
 // notifications.js stays 20261024_v2357.
@@ -52,7 +51,7 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
 
 test('service worker cache is v2725', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2725'"))
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2725'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2690'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2687'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2686'"));
@@ -547,7 +546,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('achievement-share.js?v=20261109_v2536'));
     assert.ok(html.includes('bip-breakthrough.js?v=20261105_v2499'));
     assert.ok(!html.includes('achievement-share.js?v=20261104_v2476'));
-    assert.ok(html.includes('miniapp-share.js?v=20261107_v2526'));
+    assert.ok(html.includes('miniapp-share.js?v=20261126_v2725'));
+    assert.ok(!html.includes('miniapp-share.js?v=20261107_v2526'));
     assert.ok(!html.includes('miniapp-share.js?v=20261031_v2447'));
     assert.ok(!html.includes('achievement-share.js?v=20261026_v2391'));
     assert.ok(!html.includes('achievement-share.js?v=20261026_v2390'));
@@ -726,7 +726,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('patches.js?v=20261023_v2349'));
     assert.ok(!html.includes('patches.js?v=20261022_v2263'));
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
-    assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
+    assert.ok(html.includes('timechain-tv.js?v=20261126_v2725'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261105_v2502'));
     assert.ok(!html.includes('timechain-tv.js?v=20261031_v2447'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2383'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));

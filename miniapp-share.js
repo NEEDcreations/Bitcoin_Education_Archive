@@ -6,6 +6,7 @@
         root.MiniAppShare = api;
         root.miniAppShare = function (appId, ctx) { return api.open(appId, ctx); };
         root.miniAppConsumeHash = function (hash) { return api.consumeHash(hash); };
+        root.tctvShareChannel = function (ctx) { return api.shareTctvChannel(ctx); };
     }
     if (root && root.document) {
         var boot = function () { api.install(root); };
@@ -302,7 +303,9 @@
             }
             name = 'Bitcoin Beats';
         }
-        var url = buildUrl(hash, ctx.code, ctx.src, appId);
+        var src = ctx.src;
+        if (appId === 'tctv' && (src == null || src === '')) src = 'tctv';
+        var url = buildUrl(hash, ctx.code, src, appId);
         return { id: appId, name: name, sentence: sentence, hash: hash, url: url };
     }
 
@@ -337,6 +340,7 @@
             if (!id) id = root._currentStation || '';
             try { if (!id && root.localStorage) id = root.localStorage.getItem('tctv_lastStation') || ''; } catch (e2) {}
             ctx.channel = id || '0';
+            ctx.src = 'tctv';
         } else if (appId === 'beats') {
             var np = root._beatsNowPlaying || {};
             ctx.title = np.title || '';
@@ -578,6 +582,59 @@
         doc.body.insertBefore(wrap, doc.body.firstChild);
     }
 
+
+    var TCTV_COPY_TOAST = 'Link copied. It opens right on this channel.';
+
+    function copyTextToClipboard(text) {
+        var nav = root.navigator;
+        if (nav && nav.clipboard && typeof nav.clipboard.writeText === 'function') {
+            return Promise.resolve(nav.clipboard.writeText(text));
+        }
+        return Promise.reject(new Error('clipboard unavailable'));
+    }
+
+    function shareNativeOrCopy(model) {
+        model = model || {};
+        var url = String(model.url || '');
+        var sentence = String(model.sentence || '');
+        var nav = root.navigator;
+        if (nav && typeof nav.share === 'function') {
+            var payload = { title: String(model.name || 'Timechain TV'), text: sentence ? (sentence + '\n' + url) : url };
+            return Promise.resolve(nav.share(payload)).then(function () {
+                return { method: 'share', url: url, model: model };
+            }).catch(function (err) {
+                var name = err && err.name ? String(err.name) : '';
+                if (name === 'AbortError') return { method: 'share-abort', url: url, model: model };
+                return copySharedUrl(url, model);
+            });
+        }
+        return copySharedUrl(url, model);
+    }
+
+    function copySharedUrl(url, model) {
+        return copyTextToClipboard(url).then(function () {
+            if (root && typeof root.showToast === 'function') root.showToast(TCTV_COPY_TOAST);
+            return { method: 'copy', url: url, model: model, toast: TCTV_COPY_TOAST };
+        }).catch(function () {
+            return { method: 'copy-failed', url: url, model: model };
+        });
+    }
+
+    function shareTctvChannel(ctx) {
+        var merged = liveCtx('tctv');
+        ctx = ctx || {};
+        Object.keys(ctx).forEach(function (key) { merged[key] = ctx[key]; });
+        if (merged.code == null) merged.code = null;
+        merged.src = 'tctv';
+        var model = shareModel('tctv', merged);
+        if (!model) return null;
+        var result = shareNativeOrCopy(model);
+        if (result && typeof result.then === 'function') {
+            model.shareResult = result;
+        }
+        return model;
+    }
+
     function install(win) {
         if (win) root = win;
         if (!root.document || install.done) return;
@@ -615,6 +672,9 @@
         splitLanding: splitLanding,
         consumeHash: consumeHash,
         open: open,
+        shareNativeOrCopy: shareNativeOrCopy,
+        shareTctvChannel: shareTctvChannel,
+        TCTV_COPY_TOAST: TCTV_COPY_TOAST,
         place: place,
         install: install
     };
