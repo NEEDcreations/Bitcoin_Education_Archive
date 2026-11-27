@@ -9687,6 +9687,32 @@ exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
     console.log(`[BACKUP] Export started → ${exportPath}`, result.name);
 });
 
+// ── Nightly vault copy (User Data item 1) ─────────────────────────────────────
+// 3:00 AM UTC (10 PM ET), ~1h after dailyFirestoreBackup starts (it finishes ~2:05-2:15 UTC). Copies the
+// finished export into the 10-year retention bucket under nightly/<day>/.
+// Never deletes or overwrites. Runs as fn-vault-copy (objectViewer on the
+// backups bucket, objectCreator + objectViewer on the vault bucket; no delete). See
+// docs/BACKUP-HARDENING.md; the account and grants are Phil-only steps and
+// must exist before this function is deployed.
+const vaultCopy = require('./src/vaultCopy');
+const { backupSa } = require('./src/runtimeServiceAccounts');
+exports.nightlyVaultCopy = onSchedule({
+    schedule: '0 3 * * *',
+    timeZone: 'UTC',
+    region: 'us-central1',
+    memory: '256MiB',
+    timeoutSeconds: 540,
+    retryCount: 2,
+    serviceAccount: backupSa('nightlyVaultCopy'),
+}, async () => {
+    const out = await vaultCopy.runVaultCopy({
+        storage: admin.storage(),
+        projectId: process.env.GCLOUD_PROJECT || 'bitcoin-education-archive',
+        log: function (m) { console.log(m); },
+    });
+    console.log('[VAULT] run', JSON.stringify(out.map(function (r) { return { day: r.day, status: r.status, objects: r.objects || 0 }; })));
+});
+
 // ================================================================
 // NACHO RADIO — Auto-DJ that keeps beats playing in Global Chat
 // Runs every minute: starts Nacho when no human is DJing,
