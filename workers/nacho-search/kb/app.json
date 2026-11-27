@@ -8,7 +8,7 @@
       "Explain Satoshi's Favor?",
       "Describe Satoshi's Favor?"
     ],
-    "answer": "Satoshi's Favor is the community mining game in Quest Hub. You contribute points, then hash during a window for a chance at the prize. Open Quest Hub, then Favor, or open the miner. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Satoshi's Favor is the community mining game in Quest Hub. You contribute points, then hash during a round (an epoch) for a chance at 21,000 sats, paid to your Lightning address. A round ends when 5 blocks are found, then difficulty adjusts so rounds stay on a steady pace. Open Quest Hub, then Favor, or open the miner. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "favor",
       "quest-hub"
@@ -164,7 +164,7 @@
     "followUps": [
       "app-powalk",
       "app-ln-withdraw",
-      "app-xp-cap"
+      "app-sats-claim"
     ],
     "sources": "features.registry.js entry gifts."
   },
@@ -184,8 +184,8 @@
     ],
     "followUps": [
       "app-ln-withdraw",
-      "app-xp-cap",
-      "app-nook-exact"
+      "app-sats-claim",
+      "app-favor-rounds"
     ],
     "sources": "features.registry.js entry proof-of-walk."
   },
@@ -205,11 +205,83 @@
       "lightning-wallet"
     ],
     "followUps": [
+      "app-sats-claim",
+      "app-favor-rounds",
+      "app-safety-inapp"
+    ],
+    "sources": "ranking.js lifetime line and lightning.js connect options, as of 2026."
+  },
+  {
+    "id": "app-sats-claim",
+    "category": "app",
+    "question": "How old does my account need to be to claim sats?",
+    "alts": [
+      "How do I claim sats if my account is new?",
+      "Why can't I claim sats yet?",
+      "Is there a lifetime sats cap?",
+      "Can sats claims pause for the month?",
+      "Explain this: how old does my account need to be to claim sats?",
+      "Clarify this: how old does my account need to be to claim sats?"
+    ],
+    "answer": "Your Bitcoin Quest account needs to be at least 7 days old before you can claim sats, and other eligibility checks apply so rewards stay fair for real learners. Open Settings, then Sats, to claim when you are eligible. There is a lifetime cap of 15,000 sats per player. Claims can pause if that month's rewards have already been paid out. Try again later if that happens. The claim screen shows the details and any fee before you confirm. This describes an app rule, not income and not financial advice.",
+    "topics": [
+      "sats",
+      "ln-address"
+    ],
+    "followUps": [
+      "app-favor-rounds",
+      "app-safety-inapp",
+      "app-xp-cap"
+    ],
+    "sources": "Public eligibility on resets.html; other checks stay unpublished."
+  },
+  {
+    "id": "app-favor-rounds",
+    "category": "app",
+    "question": "How do Satoshi's Favor rounds work?",
+    "alts": [
+      "How does Favor difficulty change?",
+      "What is a Favor epoch?",
+      "When does a Satoshi's Favor round end?",
+      "Explain how Satoshi's Favor rounds work?",
+      "Describe how Satoshi's Favor rounds work?",
+      "In what way do Satoshi's Favor rounds work?"
+    ],
+    "answer": "A Satoshi's Favor round is an epoch. It ends when 5 blocks are found, then difficulty adjusts so rounds stay on a steady pace. You hash during the open round for a chance at 21,000 sats, paid to your Lightning address. Open Quest Hub, then Favor, or open the miner. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "favor",
+      "quest-hub"
+    ],
+    "followUps": [
+      "app-safety-inapp",
+      "app-xp-cap",
+      "app-nook-exact"
+    ],
+    "sources": "features.registry.js entry favor."
+  },
+  {
+    "id": "app-safety-inapp",
+    "category": "app",
+    "question": "Will Bitcoin Quest or Nacho ever ask for my seed phrase?",
+    "alts": [
+      "Is Nacho financial advice?",
+      "Can support message me for my seed?",
+      "How do I stay safe from scams in the app?",
+      "Explain this: will Bitcoin Quest or Nacho ever ask for my seed phrase?",
+      "Clarify this: will Bitcoin Quest or Nacho ever ask for my seed phrase?",
+      "Unpack this: will Bitcoin Quest or Nacho ever ask for my seed phrase?"
+    ],
+    "answer": "No. Official help, Nacho, and anyone claiming to work for the app will not ask for your seed phrase, recovery words, or wallet password. Do not install remote-control software for someone in chat or DMs. If a message rushes you, pause, close the chat, and use a channel you looked up yourself. Nacho explains Bitcoin and is not financial, legal, or tax advice.",
+    "topics": [
+      "security",
+      "dms"
+    ],
+    "followUps": [
       "app-xp-cap",
       "app-nook-exact",
       "app-cipher-what"
     ],
-    "sources": "ranking.js lifetime line and lightning.js connect options, as of 2026."
+    "sources": "In-app safety rules."
   },
   {
     "id": "app-xp-cap",
@@ -325,7 +397,7 @@
       "Explain Timechain TV on this site?",
       "Describe Timechain TV on this site?"
     ],
-    "answer": "Timechain TV plays Bitcoin videos around the clock. Watching 10 minutes in a day can earn 100 XP and 1 orange ticket. Open Timechain TV and pick a channel. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Timechain TV plays curated Bitcoin videos around the clock across 21 channels. Watching 10 minutes in a day can earn 100 XP and 1 orange ticket. Open Timechain TV and pick a channel. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "tv",
       "tctv-watch"
@@ -1268,7 +1340,7 @@
       "Clarify what Satoshi's Favor do in the app?",
       "Describe what Satoshi's Favor do in the app?"
     ],
-    "answer": "Satoshi's Favor is the community mining game. You contribute points, then hash during a window. Open Quest Hub → Favor, or open the miner. Hash during the window for a chance at the prize. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Satoshi's Favor is the community mining game. You contribute points, then hash during a round (an epoch) for a chance at 21,000 sats. Open Quest Hub → Favor, or open the miner. A round ends when 5 blocks are found, then difficulty adjusts so rounds stay on a steady pace. Wins pay to your Lightning address. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "favor",
       "one-stop-shop"
@@ -1289,7 +1361,7 @@
       "Show me how to open Satoshi's Favor?",
       "What is the way to open Satoshi's Favor?"
     ],
-    "answer": "Satoshi's Favor is the community mining game. You contribute points, then hash during a window. Open Quest Hub → Favor, or open the miner. Hash during the window for a chance at the prize. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Satoshi's Favor is the community mining game. You contribute points, then hash during a round (an epoch) for a chance at 21,000 sats. Open Quest Hub → Favor, or open the miner. A round ends when 5 blocks are found, then difficulty adjusts so rounds stay on a steady pace. Wins pay to your Lightning address. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "favor",
       "one-stop-shop"
@@ -1730,7 +1802,7 @@
       "Explain the orange ticket raffle?",
       "Describe the orange ticket raffle?"
     ],
-    "answer": "The raffle takes Orange Ticket entries from the Nook. A winner is drawn on the 1st. Open the Nook and buy raffle entries. More entries, better odds. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "The raffle takes Orange Ticket entries from the Nook. A winner is drawn on the 1st. Open the Nook and buy raffle entries. More entries, better odds. Official Rules are at /raffle-rules.html. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "raffle",
       "one-stop-shop"
@@ -1751,7 +1823,7 @@
       "Show me how to enter the orange ticket raffle?",
       "What is the way to enter the orange ticket raffle?"
     ],
-    "answer": "The raffle takes Orange Ticket entries from the Nook. A winner is drawn on the 1st. Open the Nook and buy raffle entries. More entries, better odds. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "The raffle takes Orange Ticket entries from the Nook. A winner is drawn on the 1st. Open the Nook and buy raffle entries. More entries, better odds. Official Rules are at /raffle-rules.html. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "raffle",
       "one-stop-shop"
@@ -2444,7 +2516,7 @@
       "Explain the Proof of Play arcade?",
       "Describe the Proof of Play arcade?"
     ],
-    "answer": "Proof of Play is the arcade of Bitcoin games, plus a PvP corner. Open the arcade from the menu or the Proof of Play page. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Proof of Play is Timechain Arcade: 21 Bitcoin games, plus a PvP corner. Open the arcade from the menu or the Proof of Play page. A New badge marks the newest games. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "proof-of-play",
       "one-stop-shop"
@@ -2465,7 +2537,7 @@
       "Show me how to open Proof of Play?",
       "What is the way to open Proof of Play?"
     ],
-    "answer": "Proof of Play is the arcade of Bitcoin games, plus a PvP corner. Open the arcade from the menu or the Proof of Play page. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Proof of Play is Timechain Arcade: 21 Bitcoin games, plus a PvP corner. Open the arcade from the menu or the Proof of Play page. A New badge marks the newest games. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "proof-of-play",
       "one-stop-shop"
@@ -3116,7 +3188,7 @@
       "Clarify this: where is Timechain TV in the app?",
       "Unpack this: where is Timechain TV in the app?"
     ],
-    "answer": "Timechain TV plays Bitcoin videos around the clock. Open Timechain TV and pick a channel. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Timechain TV plays curated Bitcoin videos around the clock across 21 channels. Open Timechain TV and pick a channel. Watching 10 minutes in a day can earn 100 XP and 1 orange ticket. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "tv",
       "one-stop-shop"
@@ -3137,7 +3209,7 @@
       "Show me how to open Timechain TV?",
       "What is the way to open Timechain TV?"
     ],
-    "answer": "Timechain TV plays Bitcoin videos around the clock. Open Timechain TV and pick a channel. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Timechain TV plays curated Bitcoin videos around the clock across 21 channels. Open Timechain TV and pick a channel. Watching 10 minutes in a day can earn 100 XP and 1 orange ticket. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "tv",
       "one-stop-shop"
@@ -3200,7 +3272,7 @@
       "Describe Hot Topics?",
       "Define Hot Topics?"
     ],
-    "answer": "Hot Topics is the weekly list in the sidebar. Go home and scroll the sidebar to the Hot Topics section. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Hot Topics is the weekly list in the sidebar, including a Citadel Wire panel for more high-signal news. Go home and scroll the sidebar to the Hot Topics section. You can collapse the Citadel Wire panel when you want the space. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "hot-topics",
       "one-stop-shop"
@@ -3221,7 +3293,7 @@
       "Show me how to read Hot Topics?",
       "What is the way to read Hot Topics?"
     ],
-    "answer": "Hot Topics is the weekly list in the sidebar. Go home and scroll the sidebar to the Hot Topics section. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Hot Topics is the weekly list in the sidebar, including a Citadel Wire panel for more high-signal news. Go home and scroll the sidebar to the Hot Topics section. You can collapse the Citadel Wire panel when you want the space. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "hot-topics",
       "one-stop-shop"
@@ -3454,7 +3526,7 @@
     ],
     "answer": "Delete account is on the Account tab. You confirm your username, and any sats balance is forfeited. There is no waiting period. Open Settings → Account and choose Delete account. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "delete-account",
       "one-stop-shop"
     ],
     "followUps": [
@@ -3475,7 +3547,7 @@
     ],
     "answer": "Delete account is on the Account tab. You confirm your username, and any sats balance is forfeited. There is no waiting period. Open Settings → Account and choose Delete account. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "delete-account",
       "one-stop-shop"
     ],
     "followUps": [
@@ -3496,7 +3568,7 @@
     ],
     "answer": "Email sign-ins can change the address from the Account tab. Linked Google, X, GitHub, and Facebook emails stay with that sign-in. Open Settings → Account and choose Change email or Add email. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "change-email",
       "one-stop-shop"
     ],
     "followUps": [
@@ -3517,7 +3589,7 @@
     ],
     "answer": "Email sign-ins can change the address from the Account tab. Linked Google, X, GitHub, and Facebook emails stay with that sign-in. Open Settings → Account and choose Change email or Add email. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "change-email",
       "one-stop-shop"
     ],
     "followUps": [
@@ -3691,7 +3763,7 @@
     "followUps": [
       "app-onboarding-intro-what",
       "app-onboarding-intro-how",
-      "app-faq-what"
+      "app-patch-notes-what"
     ],
     "sources": "features.registry.js entry donate."
   },
@@ -3711,8 +3783,8 @@
     ],
     "followUps": [
       "app-onboarding-intro-how",
-      "app-faq-what",
-      "app-faq-how"
+      "app-patch-notes-what",
+      "app-patch-notes-how"
     ],
     "sources": "features.registry.js entry onboarding-intro."
   },
@@ -3731,11 +3803,95 @@
       "one-stop-shop"
     ],
     "followUps": [
+      "app-patch-notes-what",
+      "app-patch-notes-how",
+      "app-resets-what"
+    ],
+    "sources": "features.registry.js entry onboarding-intro."
+  },
+  {
+    "id": "app-patch-notes-what",
+    "category": "app",
+    "question": "Where are the Patch Notes?",
+    "alts": [
+      "Explain this: where are the Patch Notes?",
+      "Clarify this: where are the Patch Notes?",
+      "Unpack this: where are the Patch Notes?"
+    ],
+    "answer": "Patch Notes lists what changed in the app, one week at a time. Open Patch Notes from search or at /patch-notes.html. Newest week first. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-patch-notes-how",
+      "app-resets-what",
+      "app-resets-how"
+    ],
+    "sources": "features.registry.js entry patch-notes."
+  },
+  {
+    "id": "app-patch-notes-how",
+    "category": "app",
+    "question": "How do I open Patch Notes?",
+    "alts": [
+      "How can I open Patch Notes?",
+      "Show me how to open Patch Notes?",
+      "What is the way to open Patch Notes?"
+    ],
+    "answer": "Patch Notes lists what changed in the app, one week at a time. Open Patch Notes from search or at /patch-notes.html. Newest week first. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-resets-what",
+      "app-resets-how",
+      "app-faq-what"
+    ],
+    "sources": "features.registry.js entry patch-notes."
+  },
+  {
+    "id": "app-resets-what",
+    "category": "app",
+    "question": "What is the Resets, Timelines & Odds page?",
+    "alts": [
+      "Define the Resets, Timelines & Odds page?",
+      "Explain the Resets, Timelines & Odds page?",
+      "Describe the Resets, Timelines & Odds page?"
+    ],
+    "answer": "Resets, Timelines & Odds lists claim and game schedules, daily spin odds, Favor, gifts, locked ciphers, the raffle, and the BIP Breakthrough schedule. Open it from the home link, search, or at /resets.html. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-resets-how",
+      "app-faq-what",
+      "app-faq-how"
+    ],
+    "sources": "features.registry.js entry resets."
+  },
+  {
+    "id": "app-resets-how",
+    "category": "app",
+    "question": "How do I open Resets, Timelines & Odds?",
+    "alts": [
+      "How can I open Resets, Timelines & Odds?",
+      "Show me how to open Resets, Timelines & Odds?",
+      "What is the way to open Resets, Timelines & Odds?"
+    ],
+    "answer": "Resets, Timelines & Odds lists claim and game schedules, daily spin odds, Favor, gifts, locked ciphers, the raffle, and the BIP Breakthrough schedule. Open it from the home link, search, or at /resets.html. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
+      "one-stop-shop"
+    ],
+    "followUps": [
       "app-faq-what",
       "app-faq-how",
       "app-shortcuts-what"
     ],
-    "sources": "features.registry.js entry onboarding-intro."
+    "sources": "features.registry.js entry resets."
   },
   {
     "id": "app-faq-what",
