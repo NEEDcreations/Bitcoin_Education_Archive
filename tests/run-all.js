@@ -112,6 +112,7 @@ const TESTS = [
     { name: 'Quest leaderboard', file: 'test-quest-leaderboard.js' },
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
     { name: 'Timechain TV Leave', file: 'test-tctv-leave.js' },
+    { name: 'Timechain TV Block Height', file: 'test-tctv-block-height.js' },
     { name: 'Timechain TV Views', file: 'test-tctv-views.js' },
     { name: 'Timechain TV Daily Watch', file: 'test-tctv-watch.js' },
     { name: 'Timechain TV player fallback', file: 'test-tctv-player-fallback.js' },

@@ -255,8 +255,8 @@ test('pages pin the new helpers and keep index identical to 404', function () {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('miniapp-share.js?v=20261128_v2744'));
-    assert.ok(html.includes('timechain-tv.js?v=20261128_v2744'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2744'"));
+    assert.ok(html.includes('timechain-tv.js?v=20261128_v2745'));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2745'"));
 });
 
 Promise.all(pending).then(function () {

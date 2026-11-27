@@ -54,7 +54,7 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
 
 test('service worker cache is v2744', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2744'"))
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2745'"))
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2719'"))
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2718'"))
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2717'"))
@@ -754,14 +754,14 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('patches.js?v=20261023_v2349'));
     assert.ok(!html.includes('patches.js?v=20261022_v2263'));
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
-    assert.ok(html.includes('timechain-tv.js?v=20261128_v2744'));
+    assert.ok(html.includes('timechain-tv.js?v=20261128_v2745'));
     assert.ok(!html.includes('timechain-tv.js?v=20261105_v2502'));
     assert.ok(!html.includes('timechain-tv.js?v=20261031_v2447'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2383'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2744');
+    assert.ok(swVersion && swVersion[1] === 'v2745');
     assert.notStrictEqual(swVersion[1], 'v2719');
     assert.notStrictEqual(swVersion[1], 'v2718');
     assert.notStrictEqual(swVersion[1], 'v2717');
@@ -1048,7 +1048,7 @@ test('sat-all-1128 pins (SW v2744; shipped feature files 20261128_v2744)', () =>
     assert.ok(!html.includes('age-confirm.js?v=20261126_v2714'));
     assert.ok(html.includes('popup-stack.js?v=20261128_v2744'));
     assert.ok(html.includes('onboarding.js?v=20261128_v2744'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2744'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2745'"));
     assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2719'"));
     assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2718'"));
     assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2714'"));
