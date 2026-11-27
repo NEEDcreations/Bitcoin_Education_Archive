@@ -56,14 +56,15 @@ test('every mini app posts one referral link and the example sentence', () => {
         assert.strictEqual(linkCount(post), 1, app.id + ' post');
         assert.strictEqual((post.match(/bitcoineducation\.quest/gi) || []).length, 1, app.id + ' domain');
         assert.ok(post.startsWith(model.sentence + '\n'), app.id);
-        assert.strictEqual(model.url, 'https://bitcoineducation.quest/?ref=' + CODE + '&card=' + app.id + '#' + app.hash, app.id);
+        const srcQuery = app.id === 'tctv' ? '&src=tctv' : '';
+        assert.strictEqual(model.url, 'https://bitcoineducation.quest/?ref=' + CODE + srcQuery + '&card=' + app.id + '#' + app.hash, app.id);
         const landing = api.splitLanding(model.url);
         assert.strictEqual(landing.ref, CODE, app.id);
         assert.strictEqual(landing.hash, app.hash, app.id);
         const guest = api.shareModel(app.id, Object.assign({ code: '' }, app.ctx));
         assert.strictEqual(guest.sentence, app.sentence, app.id + ' guest');
         assert.strictEqual(guest.url.includes('ref='), false, app.id + ' guest ref');
-        assert.strictEqual(guest.url, 'https://bitcoineducation.quest/?card=' + app.id + '#' + app.hash, app.id + ' guest url');
+        assert.strictEqual(guest.url, 'https://bitcoineducation.quest/?' + (app.id === 'tctv' ? 'src=tctv&' : '') + 'card=' + app.id + '#' + app.hash, app.id + ' guest url');
         assert.strictEqual(linkCount(api.postText(guest)), 1, app.id + ' guest post');
         ['timechainarcade.com', 'galaxymind.space', 'ryracer.com', 'github.io'].forEach(function (host) {
             assert.strictEqual(model.url.includes(host), false, app.id + ' ' + host);
@@ -330,9 +331,9 @@ test('a TCTV landing still stores the referral code for signup', () => {
 test('pages ship the helper, one Latest line, and the current cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('miniapp-share.js?v=20261107_v2526'));
+    assert.ok(html.includes('miniapp-share.js?v=20261126_v2725'));
     assert.ok(html.includes('achievement-share.js?v=20261109_v2536'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2570'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2725'"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
     assert.strictEqual(notes.includes('Latest: A returning signed-in player'), false);
