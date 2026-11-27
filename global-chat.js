@@ -1980,12 +1980,48 @@ function createChatOverlay() {
     // Chat panel desktop sizing. Contain overscroll so a flick inside the
     // thread does not chain into the page behind the panel.
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}}' +
+    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;height:calc(100vh - var(--chat-title-bottom, 12px) - 8px)!important;max-height:none!important;}}' +
         '#chatOverlay,#chatOverlayBody,#globalChatMessages,#overlayAnnouncementsBody,#overlayDMsBody,#chatAutocomplete,#gifResults,#emojiGrid{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}' +
+        '#globalChatMessages:has(#chatPinnedBanner){padding-top:0!important;}' +
+        '#globalChatMessages #chatPinnedBanner{top:0;}' +
         '@keyframes djPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}';
     document.head.appendChild(style);
+    bindChatTitleClearance();
+    syncChatTitleClearance();
     bindChatScrollContain(panel);
     bindChatOutsideClose();
+}
+
+// Desktop chat panel grows from the bottom and stops just below the
+// visible Bitcoin Quest homepage title. When the title is hidden
+// (signed-in home), a 12px top gap is used instead of the old 700px cap.
+function syncChatTitleClearance() {
+    var fallback = 12;
+    var bottom = fallback;
+    if (window.innerWidth > 900) {
+        var title = document.querySelector('h1.home-title');
+        var hero = document.getElementById('homeHero');
+        var heroHidden = false;
+        if (hero) {
+            var hs = window.getComputedStyle(hero);
+            heroHidden = hs.display === 'none' || hs.visibility === 'hidden';
+        }
+        if (title && !heroHidden && title.getClientRects().length) {
+            var rectBottom = Math.round(title.getBoundingClientRect().bottom);
+            if (rectBottom > 0) bottom = rectBottom;
+        }
+    }
+    document.documentElement.style.setProperty('--chat-title-bottom', bottom + 'px');
+}
+window._syncChatTitleClearance = syncChatTitleClearance;
+
+function bindChatTitleClearance() {
+    if (window._chatTitleClearanceBound) return;
+    window._chatTitleClearanceBound = true;
+    window.addEventListener('resize', function () {
+        if (window._chatTitleClearanceTimer) clearTimeout(window._chatTitleClearanceTimer);
+        window._chatTitleClearanceTimer = setTimeout(syncChatTitleClearance, 100);
+    });
 }
 
 // Portaled chat controls sit outside #chatOverlay. A tap on them is still "inside" chat.
@@ -2119,6 +2155,7 @@ window.toggleChatOverlay = function() {
     if (badge) badge.style.display = 'none';
 
     if (_overlayOpen) {
+        syncChatTitleClearance();
         renderOverlayChat();
     } else {
         // Unsubscribe when closing
