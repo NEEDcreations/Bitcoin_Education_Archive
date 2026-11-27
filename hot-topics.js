@@ -136,7 +136,18 @@
     // ── Inject sidebar HTML + CSS ─────────────────────────────────────────────
     function injectSidebarSection() {
         var channelList = document.getElementById('channelList');
-        if (!channelList) return;
+        var searchInput = document.getElementById('searchInput');
+        var searchBox = null;
+        if (searchInput) {
+            var n = searchInput.parentNode;
+            while (n && n !== document && n.nodeType === 1) {
+                var cls = (n.className && n.className.baseVal != null) ? n.className.baseVal : String(n.className || '');
+                if ((' ' + cls + ' ').indexOf(' search-box ') !== -1) { searchBox = n; break; }
+                n = n.parentNode;
+            }
+            if (!searchBox) searchBox = searchInput.parentNode;
+        }
+        if (!searchBox && !channelList) return;
 
         // Don't double-inject
         if (document.getElementById(HT_CONTAINER_ID + 'Wrapper')) return;
@@ -387,7 +398,8 @@
         `;
         document.head.appendChild(style);
 
-        // HTML wrapper — injected before channelList content
+        // HTML wrapper — sits below the LIVE ticker and above Search all topics,
+        // just over the topics list.
         var wrapper = document.createElement('div');
         wrapper.id = HT_CONTAINER_ID + 'Wrapper';
         wrapper.innerHTML =
@@ -400,7 +412,13 @@
             '</div>' +
             '<div id="' + HT_CONTAINER_ID + '"></div>';
 
-        channelList.insertBefore(wrapper, channelList.firstChild);
+        if (searchBox && searchBox.parentNode) {
+            searchBox.parentNode.insertBefore(wrapper, searchBox);
+        } else if (channelList) {
+            channelList.insertBefore(wrapper, channelList.firstChild);
+        } else {
+            return;
+        }
         injectCitadelWirePanel(wrapper);
     }
 
