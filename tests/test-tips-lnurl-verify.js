@@ -246,8 +246,13 @@ async function runFallback(file, pr, opt) {
     }));
     win.lnSendPaymentDirect = async (inv) => { paid.push(inv); };
     win._renderQRCode = (el, data) => { qr.push(data); };
+    if (!opt.noWallet) {
+        win.lnIsConnected = () => true;
+        win.lnGetMethod = () => 'nwc';
+    }
     win._tipOpts = opt.tipOpts || { lightningAddress: 'alice@example.com', fixedAmount: true, suggestedAmount: 1000 };
     await win.executeTip();
+    if (win._tipConfirmAmt) await win.executeTip();
     return { paid, qr, res: mk('tipResult').innerHTML, calls, serverCalls };
 }
 

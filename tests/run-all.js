@@ -187,6 +187,7 @@ const TESTS = [
     { name: 'Double XP all sources', file: 'test-double-xp-all.js' },
     { name: 'Tip Confirmation', file: 'test-tip-confirm.js' },
     { name: 'Tip invoice check', file: 'test-tips-lnurl-verify.js' },
+    { name: 'Tip modal detection', file: 'test-tip-modal-detect.js' },
     { name: 'Beats V4V invoice check', file: 'test-beats-v4v-check.js' },
     { name: 'Spin Reminder', file: 'test-spin-reminder.js' },
     { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },

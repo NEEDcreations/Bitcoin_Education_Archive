@@ -336,6 +336,27 @@ function restoreLnState() {
     return false;
 }
 
+// Shared with lightning-tips.js so the tip modal uses the same connection
+// state as the Lightning settings page (including the NWC session secret).
+window.lnIsConnected = function() {
+    if (!_ln.connected) restoreLnState();
+    return !!_ln.connected;
+};
+window.lnGetMethod = function() {
+    if (!_ln.connected) restoreLnState();
+    return _ln.connected ? _ln.method : null;
+};
+window.lnSessionExpired = function() {
+    if (_ln.connected) return false;
+    try {
+        var s = JSON.parse(localStorage.getItem('btc_ln_state') || 'null');
+        if (s && s.method === 'nwc' && s.nwcRelay && s.nwcPubkey && !sessionStorage.getItem('btc_ln_secret')) {
+            return true;
+        }
+    } catch (e) {}
+    return false;
+};
+
 // ─── MAIN RENDER ─────────────────────────────────────────
 
 window.renderLightning = function() {
