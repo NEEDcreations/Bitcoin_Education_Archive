@@ -2371,7 +2371,7 @@ window.showReactPicker = function(msgId, btnEl) {
     var bg = _rIsDark ? '#1a1a2e' : '#f0f0f5';
     picker.style.cssText = 'position:fixed;z-index:260000;background:'+bg+';border:1px solid var(--border);border-radius:16px;padding:10px;width:310px;max-height:340px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);';
 
-    var cats = Object.keys(EMOJI_CATEGORIES);
+    var cats = _emojiPickerCats(false);
 
     // Search bar — same as showEmojiPicker
     var searchHtml = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
@@ -2384,7 +2384,7 @@ window.showReactPicker = function(msgId, btnEl) {
     // Category tabs
     var tabHtml = '<div id="reactEmojiTabBar" style="display:flex;gap:2px;margin-bottom:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
     cats.forEach(function(cat, i) {
-        var icon = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : '✨';
+        var icon = _emojiTabIcon(cat);
         tabHtml += '<button onclick="window._switchReactTab(\''+cat+'\')" id="reactEmojiTab_'+i+'" style="padding:5px 8px;font-size:0.95rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
     });
     tabHtml += '</div>';
@@ -2392,7 +2392,7 @@ window.showReactPicker = function(msgId, btnEl) {
     picker.innerHTML = searchHtml + tabHtml + '<div id="reactEmojiGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:230px;justify-content:center;"></div>';
 
     function _reactEmojiBtn(e) {
-        return '<button onclick="_closeReactPicker();toggleReaction(\''+msgId+'\',\''+e+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+        return '<button onclick="_emojiRecordUse(\''+e+'\');_closeReactPicker();toggleReaction(\''+msgId+'\',\''+e+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
     }
 
     window._switchReactTab = function(cat) {
@@ -2400,10 +2400,11 @@ window.showReactPicker = function(msgId, btnEl) {
         if (!grid) return;
         var si = document.getElementById('reactSearchInput');
         if (si) si.value = '';
-        var emojis = EMOJI_CATEGORIES[cat] || [];
+        var emojis = (cat === 'Recent') ? _emojiRecentTop(EMOJI_RECENT_MAX) : (EMOJI_CATEGORIES[cat] || []);
         var html = '';
         emojis.forEach(function(e) { html += _reactEmojiBtn(e); });
-        grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">No emojis here</div>';
+        var emptyMsg = (cat === 'Recent') ? 'Use emojis to fill your Recent tab' : 'No emojis here';
+        grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">' + emptyMsg + '</div>';
         cats.forEach(function(c, i) {
             var t = document.getElementById('reactEmojiTab_'+i);
             if (t) { t.style.background = c===cat?'var(--accent-bg)':'none'; t.style.borderColor = c===cat?'var(--accent)':'var(--border)'; }
@@ -2727,7 +2728,7 @@ var EMOJI_INPUT_CATEGORIES = Object.assign({}, EMOJI_CATEGORIES, { Custom: Objec
 // Flat emoji search index: [emoji, keywords]
 var EMOJI_SEARCH_INDEX = [
     ['😀','grinning happy smile face'],['😂','joy laugh crying face'],['🤣','rolling floor laughing lmao'],['😊','blush smile happy'],['😍','heart eyes love'],['🥰','smiling hearts love'],['😎','sunglasses cool'],['🤔','thinking hmm'],['😭','loudly crying sad'],['😱','scream shocked'],['😤','steam nose angry'],['😡','angry mad rage'],['💀','skull dead'],['🙈','see no evil monkey'],['💩','poop shit'],['🤡','clown joke'],['😈','smiling devil evil'],['👻','ghost spooky'],['🤖','robot'],['🥺','pleading cute'],['🤩','star struck wow'],['😴','sleeping tired'],['🥳','party hat celebrate'],['🤯','mind blown explode'],['😇','angel halo good'],['🥴','woozy drunk dizzy'],['😬','grimace awkward'],['🫠','melting face'],['🫣','peeking eye'],['❤️‍🔥','heart fire love passion'],
-    ['👍','thumbs up like approve'],['👎','thumbs down dislike'],['👏','clap applause'],['🙌','raise hands celebrate'],['🙏','pray thanks please'],['💪','muscle strong flex'],['🤝','handshake deal'],['👀','eyes look see watching'],['🤷','shrug whatever'],['🤦','facepalm smh'],['🫶','heart hands love'],['🫂','hug embrace'],['✌️','peace victory'],['🤌','italian hand pinch'],['👌','ok perfect'],['🤞','fingers crossed luck'],['🫵','point you'],
+    ['👍','thumbs up like approve'],['👎','thumbs down dislike'],['👏','clap applause'],['🙌','raise hands celebrate'],['🙏','pray thanks please'],['💪','muscle strong flex'],['🤝','handshake deal'],['👀','eyes look see watching'],['🤷','shrug whatever'],['🤦','facepalm smh'],['🫶','heart hands love'],['🫂','hug embrace'],['✌️','peace victory'],['🤌','italian hand pinch'],['👌','ok perfect'],['🤞','fingers crossed luck'],['🫵','point you'],['👋','waving hand wave hi hello'],
     ['₿','bitcoin btc'],['⚡','lightning fast zap bolt'],['🚀','rocket moon launch'],['💎','diamond gem'],['🔑','key access'],['💰','money bag rich'],['💸','money wings spend'],['📈','chart up trend bull'],['📉','chart down bear'],['⛏️','pickaxe mining'],['🏆','trophy win champion'],['🌐','globe world internet'],['🔒','lock secure'],['🪙','coin money'],['🦌','deer nacho'],['🦁','lion king'],['🐂','bull ox'],['🐋','whale'],['🐻','bear'],
     ['🔥','fire hot trending'],['💯','100 percent perfect'],['✨','sparkle star magic'],['🎉','party celebrate tada'],['⭐','star favorite'],['🌟','glowing star shine'],['❤️','red heart love'],['💔','broken heart sad'],['✅','check mark done correct'],['❌','cross wrong no'],['🔄','refresh cycle repeat'],['♾️','infinity forever'],['🎵','music note'],['🎮','video game controller'],['🎲','dice game random'],['📚','books read study'],['🍕','pizza food'],['🍺','beer drink cheers'],['☕','coffee hot drink'],['🌈','rainbow colors'],['⚽','soccer football'],['🏀','basketball'],['🎯','dart target goal'],
     ['💯','100 perfect score'],['🎊','confetti party'],['🥇','gold medal first place'],['🥈','silver second'],['🥉','bronze third'],['💫','dizzy star spin'],['🧡','orange heart'],['💛','yellow heart'],['💚','green heart'],['💙','blue heart'],['💜','purple heart'],['🖤','black heart'],['🤍','white heart'],['🤎','brown heart'],
@@ -2743,6 +2744,123 @@ var EMOJI_SEARCH_INDEX = [
     ['🌸','cherry blossom flower'],['🌺','hibiscus flower'],['🌻','sunflower'],['🌹','rose flower'],['🌷','tulip'],['☘️','shamrock clover lucky'],['🍀','four leaf clover luck'],['🌿','herb plant green'],['🌱','seedling sprout'],['🌲','evergreen tree'],['🌴','palm tree'],['🍁','maple leaf fall autumn'],['🦋','butterfly'],['🐝','bee honey'],['🌦️','sun rain weather'],['⛈️','thunderstorm lightning'],['❄️','snowflake cold winter'],['⛄','snowman'],['🌊','wave ocean water'],['🌙','crescent moon night'],['🌛','moon face'],['🌝','full moon face'],['🌞','sun face'],['🌤️','partly cloudy'],['☁️','cloud'],['🌧️','rain'],['🌈','rainbow'],['⛅','partly cloudy'],['🌡️','thermometer temperature'],['💧','droplet water'],['🔥','fire hot'],
 ];
 
+
+var EMOJI_RECENT_MAX = 5;
+var EMOJI_RECENT_STORE_CAP = 40;
+function _emojiRecentUid() {
+    try {
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.uid) {
+            return String(auth.currentUser.uid).slice(0, 128);
+        }
+    } catch (e) {}
+    return 'signed-out';
+}
+function _emojiRecentKey() {
+    return 'bqEmojiRecent:v1:' + _emojiRecentUid();
+}
+function _emojiRecentRead() {
+    try {
+        if (typeof localStorage === 'undefined' || !localStorage) return {};
+        var raw = localStorage.getItem(_emojiRecentKey());
+        var data = raw ? JSON.parse(raw) : {};
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+        return data;
+    } catch (e) { return {}; }
+}
+function _emojiRecentWrite(data) {
+    try {
+        if (typeof localStorage === 'undefined' || !localStorage) return;
+        localStorage.setItem(_emojiRecentKey(), JSON.stringify(data));
+    } catch (e) {}
+}
+function _emojiRecordUse(emoji) {
+    if (typeof emoji !== 'string' || !emoji || emoji.length > 32) return;
+    var data = _emojiRecentRead();
+    var row = data[emoji] || { n: 0, t: 0 };
+    row.n = (Number(row.n) || 0) + 1;
+    row.t = Date.now();
+    data[emoji] = row;
+    var keys = Object.keys(data);
+    if (keys.length > EMOJI_RECENT_STORE_CAP) {
+        keys.sort(function(a, b) {
+            var da = data[a], db = data[b];
+            if (da.n !== db.n) return da.n - db.n;
+            return (da.t || 0) - (db.t || 0);
+        });
+        var drop = keys.length - EMOJI_RECENT_STORE_CAP;
+        for (var i = 0; i < drop; i++) delete data[keys[i]];
+    }
+    _emojiRecentWrite(data);
+}
+function _emojiRecentTop(limit) {
+    var n = limit || EMOJI_RECENT_MAX;
+    var data = _emojiRecentRead();
+    return Object.keys(data).sort(function(a, b) {
+        var da = data[a], db = data[b];
+        if ((db.n || 0) !== (da.n || 0)) return (db.n || 0) - (da.n || 0);
+        return (db.t || 0) - (da.t || 0);
+    }).slice(0, n);
+}
+function _emojiPickerCats(includeCustom) {
+    var keys = includeCustom ? Object.keys(EMOJI_INPUT_CATEGORIES) : Object.keys(EMOJI_CATEGORIES);
+    return ['Recent'].concat(keys);
+}
+function _emojiTabIcon(cat) {
+    if (cat === 'Recent') return '🕒';
+    if (cat === 'Smileys') return '😀';
+    if (cat === 'Gestures') return '🤝';
+    if (cat === 'Bitcoin') return '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>';
+    if (cat === 'Animals') return '🐾';
+    if (cat === 'Food') return '🍔';
+    if (cat === 'Travel') return '🌍';
+    if (cat === 'Symbols') return '💬';
+    if (cat === 'Objects') return '🎁';
+    if (cat === 'Custom') return (typeof _customEmojiImg === 'function' ? _customEmojiImg('btc') : '✨');
+    return '✨';
+}
+function _emojiSearchMatches(query) {
+    var q = (query || '').trim().toLowerCase();
+    if (!q) return [];
+    var results = [];
+    var seen = {};
+    function _emojiEntryOk(entry) {
+        return !!(entry && typeof entry[0] === 'string' && typeof entry[1] === 'string');
+    }
+    EMOJI_SEARCH_INDEX.forEach(function(entry) {
+        if (!_emojiEntryOk(entry)) return;
+        var e = entry[0], kw = entry[1];
+        if (!seen[e] && kw.indexOf(q) !== -1) { results.push(e); seen[e] = true; }
+    });
+    if (typeof CUSTOM_EMOJIS !== 'undefined') {
+        Object.keys(CUSTOM_EMOJIS).forEach(function(id) {
+            var sc = ':' + id + ':';
+            var kws = (CUSTOM_EMOJIS[id] && CUSTOM_EMOJIS[id].keywords) || '';
+            if (!seen[sc] && (id.indexOf(q) !== -1 || String(kws).indexOf(q) !== -1)) { results.push(sc); seen[sc] = true; }
+        });
+    }
+    var cats = (typeof EMOJI_INPUT_CATEGORIES !== 'undefined') ? EMOJI_INPUT_CATEGORIES : EMOJI_CATEGORIES;
+    Object.keys(cats || {}).forEach(function(cat) {
+        (cats[cat] || []).forEach(function(e) {
+            if (!seen[e] && e.toLowerCase().indexOf(q) !== -1) { results.push(e); seen[e] = true; }
+        });
+    });
+    EMOJI_SEARCH_INDEX.forEach(function(entry) {
+        if (!_emojiEntryOk(entry)) return;
+        var e = entry[0], kw = entry[1];
+        if (!seen[e]) {
+            var words = kw.split(' ');
+            for (var i = 0; i < words.length; i++) {
+                if (words[i].indexOf(q) === 0) { results.push(e); seen[e] = true; break; }
+            }
+        }
+    });
+    return results;
+}
+window._emojiRecordUse = _emojiRecordUse;
+window._emojiRecentTop = _emojiRecentTop;
+window._emojiSearchMatches = _emojiSearchMatches;
+window._emojiPickerCats = _emojiPickerCats;
+
 window.showEmojiPicker = function() {
     var old = document.getElementById('gcEmojiPicker');
     if (old) { old.remove(); return; }
@@ -2752,7 +2870,7 @@ window.showEmojiPicker = function() {
     var _isDark = document.body.getAttribute('data-theme') !== 'light';
     picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 120px);left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:340px;max-height:360px;display:flex;flex-direction:column;overflow:visible;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
 
-    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
+    var cats = _emojiPickerCats(true);
     // Search bar
     var searchHtml = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
         '<input id="emojiSearchInput" type="text" placeholder="🔍 Search emojis..." autocomplete="off" ' +
@@ -2760,10 +2878,10 @@ window.showEmojiPicker = function() {
         'oninput="window._emojiSearch(this.value)">' +
         '<button onclick="document.getElementById(\'gcEmojiPicker\').remove()" style="padding:4px 8px;background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;flex-shrink:0;">&#x2715;</button>' +
         '</div>';
-    // Category tabs
+    // Category tabs (Recent is first)
     var tabHtml = '<div id="emojiTabBar" style="display:flex;gap:2px;margin-bottom:8px;overflow-x:auto;overflow-y:visible;padding:3px 0 3px 0;">';
     cats.forEach(function(cat, i) {
-        var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : cat === 'Custom' ? _customEmojiImg('btc') : '✨';
+        var label = _emojiTabIcon(cat);
         tabHtml += '<button onclick="window._switchEmojiTab(\'' + cat + '\')" id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
     });
     tabHtml += '</div>';
@@ -2789,20 +2907,24 @@ window._switchEmojiTab = function(cat) {
     // Clear search input when switching tabs
     var si = document.getElementById('emojiSearchInput');
     if (si) si.value = '';
-    var emojis = EMOJI_INPUT_CATEGORIES[cat] || [];
+    var emojis = (cat === 'Recent') ? _emojiRecentTop(EMOJI_RECENT_MAX) : (EMOJI_INPUT_CATEGORIES[cat] || []);
     var html = '';
     emojis.forEach(function(e) {
         html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + renderCustomEmojis(e) + '</button>';
     });
-    grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">No emojis here</div>';
+    var emptyMsg = (cat === 'Recent')
+        ? 'Use emojis to fill your Recent tab'
+        : 'No emojis here';
+    grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">' + emptyMsg + '</div>';
 
     // Update tab styles
-    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
+    var cats = _emojiPickerCats(true);
     cats.forEach(function(c, i) {
         var tab = document.getElementById('emojiTab_' + i);
         if (tab) {
             tab.style.background = (c === cat) ? 'var(--accent-bg)' : 'none';
             tab.style.borderColor = (c === cat) ? 'var(--accent)' : 'var(--border)';
+            tab.style.opacity = '1';
         }
     });
 };
@@ -2813,44 +2935,12 @@ window._emojiSearch = function(query) {
     var q = (query || '').trim().toLowerCase();
     if (!q) {
         // Restore first tab on empty search
-        window._switchEmojiTab(Object.keys(EMOJI_INPUT_CATEGORIES)[0]);
+        window._switchEmojiTab(_emojiPickerCats(true)[0]);
         var si = document.getElementById('emojiSearchInput');
         if (si) si.value = '';
         return;
     }
-    // Search across EMOJI_SEARCH_INDEX (keyword match) + category arrays (direct char match)
-    var results = [];
-    var seen = {};
-    function _emojiEntryOk(entry) {
-        return !!(entry && typeof entry[0] === 'string' && typeof entry[1] === 'string');
-    }
-    // 1. Keyword index search — names and keywords both live in the keyword string
-    EMOJI_SEARCH_INDEX.forEach(function(entry) {
-        if (!_emojiEntryOk(entry)) return;
-        var e = entry[0], kw = entry[1];
-        if (!seen[e] && kw.indexOf(q) !== -1) { results.push(e); seen[e] = true; }
-    });
-    Object.keys(CUSTOM_EMOJIS).forEach(function(id) {
-        var sc = ':' + id + ':';
-        if (!seen[sc] && (id.indexOf(q) !== -1 || CUSTOM_EMOJIS[id].keywords.indexOf(q) !== -1)) { results.push(sc); seen[sc] = true; }
-    });
-    // 2. Also scan all category emojis for the emoji char itself
-    Object.keys(EMOJI_INPUT_CATEGORIES).forEach(function(cat) {
-        EMOJI_INPUT_CATEGORIES[cat].forEach(function(e) {
-            if (!seen[e] && e.toLowerCase().indexOf(q) !== -1) { results.push(e); seen[e] = true; }
-        });
-    });
-    // 3. Name/keyword word prefix (fire → fire, firework, …)
-    EMOJI_SEARCH_INDEX.forEach(function(entry) {
-        if (!_emojiEntryOk(entry)) return;
-        var e = entry[0], kw = entry[1];
-        if (!seen[e]) {
-            var words = kw.split(' ');
-            for (var i = 0; i < words.length; i++) {
-                if (words[i].indexOf(q) === 0) { results.push(e); seen[e] = true; break; }
-            }
-        }
-    });
+    var results = _emojiSearchMatches(q);
     var html = '';
     if (results.length === 0) {
         html = '<div style="color:var(--text-faint);font-size:0.82rem;padding:24px;text-align:center;">No results for "' + q + '"</div>';
@@ -2861,7 +2951,7 @@ window._emojiSearch = function(query) {
     }
     grid.innerHTML = html;
     // Dim all tabs to show search mode is active
-    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
+    var cats = _emojiPickerCats(true);
     cats.forEach(function(c, i) {
         var tab = document.getElementById('emojiTab_' + i);
         if (tab) { tab.style.background = 'none'; tab.style.borderColor = 'var(--border)'; tab.style.opacity = '0.5'; }
@@ -2869,6 +2959,7 @@ window._emojiSearch = function(query) {
 };
 
 window._insertEmoji = function(emoji) {
+    _emojiRecordUse(emoji);
     var input = _gcActiveInput();
     if (!input) return;
     var start = input.selectionStart || input.value.length;
