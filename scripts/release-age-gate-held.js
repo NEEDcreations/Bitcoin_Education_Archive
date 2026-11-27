@@ -14,13 +14,20 @@
  * Duplicates, blanks, non-strings, objects, wrappers, and text lists
  * are rejected. The applied total must match --expect-count.
  *
- * Each apply step is one transaction per uid: remove that uid from the
- * held doc (uids array and any groups) AND set
- * users/{uid}.realAccountAt to server now (merge). A released account
- * always gets a fresh 7-day wait, even if it was already stamped or
- * legacy-synced. If the held doc is missing or unreadable, the
- * transaction fails closed and does not stamp. A uid that is not in
- * the doc is still stamped (the remove is a no-op).
+ * Each apply step is one transaction per uid. Membership is decided
+ * inside that transaction: if the uid is in the held doc, remove it
+ * (uids array and any groups) AND set users/{uid}.realAccountAt to
+ * server now (merge), so a released account always gets a fresh 7-day
+ * wait even if it was already stamped or legacy-synced. If the uid is
+ * not in the held doc, skip it: no stamp and no write. It is counted
+ * as not_held. If the held doc is missing or unreadable, the
+ * transaction fails closed and does not stamp.
+ *
+ * The dry run is also read-only against the held doc and reports
+ * not_held (and held) alongside the file total. A missing or
+ * unreadable held doc fails closed. --expect-count still has to match
+ * the file total, including not_held entries, so a changed file
+ * cannot be applied.
  *
  *   node scripts/release-age-gate-held.js --project=<id> --file=/path/to/private.json
  *   node scripts/release-age-gate-held.js --project=<id> --file=/path/to/private.json --expect-count=<n> --apply --confirm=AGEGATERELEASE
@@ -64,6 +71,34 @@ function parseListFile(filePath) {
 
 const ensureFirestore = uidList.ensureFirestore;
 
+function failHeld(reason) {
+    const msg = reason === 'held_doc_missing'
+        ? 'Refusing: held doc is missing'
+        : 'Refusing: held doc is unreadable';
+    const e = new Error(msg);
+    e.exitCode = 1;
+    throw e;
+}
+
+async function loadHeld(db) {
+    const heldRef = db.collection(ageGateHeld.DOC_COLLECTION).doc(ageGateHeld.DOC_ID);
+    const snap = await heldRef.get();
+    if (!snap.exists) failHeld('held_doc_missing');
+    const parsed = ageGateHeld.parseHeldDoc(snap.data() || {});
+    if (!parsed.ok) failHeld('held_doc_unreadable');
+    return parsed;
+}
+
+function membershipCounts(fileUids, heldParsed) {
+    let held = 0;
+    let notHeld = 0;
+    fileUids.forEach(function (uid) {
+        if (heldParsed.uids.has(uid)) held += 1;
+        else notHeld += 1;
+    });
+    return { held: held, not_held: notHeld };
+}
+
 function stripUid(data, uid) {
     const next = Object.assign({}, data);
     let removed = false;
@@ -91,26 +126,25 @@ async function releaseOne(db, FieldValue, uid) {
     const heldRef = db.collection(ageGateHeld.DOC_COLLECTION).doc(ageGateHeld.DOC_ID);
     const userRef = db.collection('users').doc(uid);
     let removed = false;
+    let stamped = false;
+    let notHeld = false;
     await db.runTransaction(async function (tx) {
         const snap = await tx.get(heldRef);
-        if (!snap.exists) {
-            const e = new Error('held_doc_missing');
-            e.exitCode = 1;
-            throw e;
-        }
+        if (!snap.exists) failHeld('held_doc_missing');
         const current = snap.data() || {};
         const parsed = ageGateHeld.parseHeldDoc(current);
-        if (!parsed.ok) {
-            const e = new Error('held_doc_unreadable');
-            e.exitCode = 1;
-            throw e;
+        if (!parsed.ok) failHeld('held_doc_unreadable');
+        if (!parsed.uids.has(uid)) {
+            notHeld = true;
+            return;
         }
         const next = stripUid(current, uid);
         removed = next.removed;
         tx.set(heldRef, next.data);
         tx.set(userRef, { realAccountAt: FieldValue.serverTimestamp() }, { merge: true });
+        stamped = true;
     });
-    return { removed: removed, stamped: true };
+    return { removed: removed, stamped: stamped, not_held: notHeld };
 }
 
 async function main(argv, deps) {
@@ -147,12 +181,16 @@ async function main(argv, deps) {
         apply: args.apply,
         counts: counts,
     };
+    const admin = (deps && deps.admin) || require('../functions/src/firebaseAdmin');
+    const db = ensureFirestore(admin, args.project);
     if (!args.apply) {
+        const held = await loadHeld(db);
+        const mem = membershipCounts(parsed.uids, held);
+        out.counts.held = mem.held;
+        out.counts.not_held = mem.not_held;
         console.log(JSON.stringify(out, null, 2));
         return out;
     }
-    const admin = (deps && deps.admin) || require('../functions/src/firebaseAdmin');
-    const db = ensureFirestore(admin, args.project);
     const FieldValue = admin.firestore && admin.firestore.FieldValue;
     if (!FieldValue || typeof FieldValue.serverTimestamp !== 'function') {
         const e = new Error('missing FieldValue.serverTimestamp');
@@ -161,17 +199,18 @@ async function main(argv, deps) {
     }
     let removed = 0;
     let stamped = 0;
-    let notInHeld = 0;
+    let notHeld = 0;
     for (let i = 0; i < parsed.uids.length; i++) {
         const result = await releaseOne(db, FieldValue, parsed.uids[i]);
         if (result.removed) removed += 1;
-        else notInHeld += 1;
         if (result.stamped) stamped += 1;
+        if (result.not_held) notHeld += 1;
     }
+    out.counts.held = stamped;
     out.counts.removed = removed;
     out.counts.stamped = stamped;
-    out.counts.notInHeld = notInHeld;
-    out.written = true;
+    out.counts.not_held = notHeld;
+    out.written = stamped > 0;
     console.log(JSON.stringify(out, null, 2));
     return out;
 }
@@ -183,6 +222,8 @@ module.exports = {
     ensureFirestore: ensureFirestore,
     stripUid: stripUid,
     releaseOne: releaseOne,
+    loadHeld: loadHeld,
+    membershipCounts: membershipCounts,
     main: main,
 };
 

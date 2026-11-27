@@ -844,8 +844,10 @@ async function test(name, fn) {
             assert.strictEqual(dry.apply, false);
             assert.strictEqual(dry.staging, true);
             assert.strictEqual(dry.counts.total, 2);
-            assert.strictEqual(rel.initedOf(), 0, 'dry run does not initialize');
-            assert.strictEqual(rel.docs.get('users/fake-uid-rel-1').realAccountAt, prior);
+            assert.strictEqual(dry.counts.held, 2);
+            assert.strictEqual(dry.counts.not_held, 0);
+            assert.ok(rel.initedOf() >= 1, 'dry run reads the held doc');
+            assert.strictEqual(rel.docs.get('users/fake-uid-rel-1').realAccountAt, prior, 'dry run does not stamp');
             assert.deepStrictEqual(rel.docs.get('config/ageGateHeld').uids, ['fake-uid-rel-1', 'fake-uid-rel-2', 'fake-uid-keep']);
 
             const applied = await releaseHeld.main([
@@ -859,12 +861,84 @@ async function test(name, fn) {
             assert.strictEqual(applied.written, true);
             assert.strictEqual(applied.counts.removed, 2);
             assert.strictEqual(applied.counts.stamped, 2);
-            assert.strictEqual(applied.counts.notInHeld, 0);
+            assert.strictEqual(applied.counts.not_held, 0);
+            assert.strictEqual(applied.counts.held, 2);
             assert.deepStrictEqual(rel.docs.get('config/ageGateHeld').uids, ['fake-uid-keep']);
             assert.deepStrictEqual(rel.docs.get('config/ageGateHeld').groups.test, []);
             assert.strictEqual(rel.docs.get('users/fake-uid-rel-1').realAccountAt, SERVER_NOW);
             assert.strictEqual(rel.docs.get('users/fake-uid-rel-1').emailHash, 'h');
             assert.strictEqual(rel.docs.get('users/fake-uid-rel-2').realAccountAt, SERVER_NOW);
+        } finally {
+            fs.unlinkSync(tmp);
+        }
+    });
+
+    await test('release skips uids that are not in the held doc and reports not_held', async function () {
+        const tmp = writeTmpJson('minirufus-agegate-nothold.json', ['fake-uid-held-1', 'fake-uid-skip-1', 'fake-uid-held-2']);
+        const prior = Date.parse('2026-02-01T00:00:00.000Z');
+        const rel = releaseFakeAdmin({
+            'config/ageGateHeld': { uids: ['fake-uid-held-1', 'fake-uid-held-2', 'fake-uid-keep'] },
+            'users/fake-uid-held-1': { emailHash: 'h', realAccountAt: prior },
+            'users/fake-uid-skip-1': { emailHash: 's', realAccountAt: prior },
+        });
+        try {
+            const dry = await releaseHeld.main([
+                '--project=bitcoin-quest-staging',
+                '--file=' + tmp,
+            ], { admin: rel.admin });
+            assert.strictEqual(dry.apply, false);
+            assert.strictEqual(dry.counts.total, 3);
+            assert.strictEqual(dry.counts.held, 2);
+            assert.strictEqual(dry.counts.not_held, 1);
+            assert.strictEqual(rel.docs.get('users/fake-uid-held-1').realAccountAt, prior);
+            assert.strictEqual(rel.docs.get('users/fake-uid-skip-1').realAccountAt, prior);
+            assert.deepStrictEqual(rel.docs.get('config/ageGateHeld').uids, ['fake-uid-held-1', 'fake-uid-held-2', 'fake-uid-keep']);
+
+            const applied = await releaseHeld.main([
+                '--project=bitcoin-quest-staging',
+                '--file=' + tmp,
+                '--apply',
+                '--confirm=AGEGATERELEASE',
+                '--expect-count=3',
+            ], { admin: rel.admin });
+            assert.strictEqual(applied.apply, true);
+            assert.strictEqual(applied.written, true);
+            assert.strictEqual(applied.counts.total, 3);
+            assert.strictEqual(applied.counts.removed, 2);
+            assert.strictEqual(applied.counts.stamped, 2);
+            assert.strictEqual(applied.counts.held, 2);
+            assert.strictEqual(applied.counts.not_held, 1);
+            assert.deepStrictEqual(rel.docs.get('config/ageGateHeld').uids, ['fake-uid-keep']);
+            assert.strictEqual(rel.docs.get('users/fake-uid-held-1').realAccountAt, SERVER_NOW);
+            assert.strictEqual(rel.docs.get('users/fake-uid-held-1').emailHash, 'h');
+            assert.strictEqual(rel.docs.get('users/fake-uid-held-2').realAccountAt, SERVER_NOW);
+            assert.strictEqual(rel.docs.get('users/fake-uid-skip-1').realAccountAt, prior, 'not_held uid is not stamped');
+            assert.strictEqual(rel.docs.get('users/fake-uid-skip-1').emailHash, 's');
+        } finally {
+            fs.unlinkSync(tmp);
+        }
+    });
+
+    await test('release dry run fails closed if the held doc is missing or unreadable', async function () {
+        const tmp = writeTmpJson('minirufus-agegate-missing-held.json', ['fake-uid-held-1']);
+        const missing = releaseFakeAdmin({});
+        const unread = releaseFakeAdmin({ 'config/ageGateHeld': { uids: 'not-an-array' } });
+        try {
+            await assert.rejects(function () {
+                return releaseHeld.main([
+                    '--project=bitcoin-quest-staging',
+                    '--file=' + tmp,
+                ], { admin: missing.admin });
+            }, function (e) { return /held doc is missing/.test(e.message) && e.exitCode === 1; });
+            assert.strictEqual(missing.docs.has('users/fake-uid-held-1'), false);
+
+            await assert.rejects(function () {
+                return releaseHeld.main([
+                    '--project=bitcoin-quest-staging',
+                    '--file=' + tmp,
+                ], { admin: unread.admin });
+            }, function (e) { return /held doc is unreadable/.test(e.message) && e.exitCode === 1; });
+            assert.strictEqual(unread.docs.has('users/fake-uid-held-1'), false);
         } finally {
             fs.unlinkSync(tmp);
         }
@@ -898,7 +972,9 @@ async function test(name, fn) {
             ], { admin: rel.admin });
             assert.strictEqual(liveDry.staging, false, 'env staging must not win over --project');
             assert.strictEqual(liveDry.apply, false);
-            assert.strictEqual(rel.initedOf(), 0);
+            assert.strictEqual(liveDry.counts.not_held, 0);
+            assert.strictEqual(rel.docs.get('users/fake-uid-gate-1'), undefined, 'dry run does not stamp');
+            assert.deepStrictEqual(rel.docs.get('config/ageGateHeld').uids, ['fake-uid-gate-1']);
 
             const staged = releaseHeld.parseArgs(['--project=bitcoin-quest-staging', '--file=' + tmp]);
             assert.strictEqual(staged.staging, true);
