@@ -3905,6 +3905,80 @@ function startDJListener() {
     }
 }
 
+
+function _djTagCacheGet(trackId) {
+    if (!window._djTagCache) window._djTagCache = {};
+    return trackId ? window._djTagCache[trackId] : null;
+}
+function _djTrackLikeFromState(d) {
+    return {
+        artist: d.trackArtist,
+        authorName: d.trackArtist,
+        authorId: d.artistUid || d.authorId || '',
+        title: d.trackTitle,
+        copyrightConfirmed: d.copyrightConfirmed === true,
+        v4vSplits: d.v4vSplits,
+        imported: d.imported,
+        v4vImport: d.v4vImport,
+        source: d.source,
+        sourceType: d.sourceType,
+        importSource: d.importSource,
+        v4v: d.v4v,
+        ai: d.ai,
+        isAI: d.isAI,
+        aiDeclared: d.aiDeclared,
+        verified: d.verified,
+        verifiedArtist: d.verifiedArtist,
+        bqArtist: d.bqArtist
+    };
+}
+function _djTagsHtml(track) {
+    if (typeof beatsTagsHtml === 'function' && typeof beatsTrackTags === 'function') {
+        return beatsTagsHtml(beatsTrackTags(track));
+    }
+    // Fallback when Beats is not loaded yet. Same display rules; Verified is only honored if already set.
+    var name = String((track && (track.authorName || track.artist)) || '');
+    var verified = !!(track && (track.verified === true || track.verifiedArtist === true));
+    var imported = !!(track && (track.imported === true || track.v4vImport === true || track.source === 'v4v' || track.sourceType === 'v4v' || track.importSource));
+    var hasSplits = !!(track && Array.isArray(track.v4vSplits) && track.v4vSplits.length);
+    var v4v = imported || hasSplits || !!(track && track.v4v === true);
+    var bqArtist = !!(track && (track.bqArtist === true || track.copyrightConfirmed === true));
+    var declaredAi = !!(track && (track.ai === true || track.isAI === true || track.aiDeclared === true || track.aiGenerated === true));
+    var ai = !verified && (declaredAi || /^\s*needcreations\s*$/i.test(name));
+    var parts = [];
+    if (verified) parts.push('<span class="beats-tag beats-tag-verified" title="Verified artist">Verified</span>');
+    if (bqArtist) parts.push('<span class="beats-tag beats-tag-bq" title="Uploaded by a Bitcoin Quest user">BQ Artist</span>');
+    if (v4v) parts.push('<span class="beats-tag beats-tag-v4v" title="V4V open source import">V4V</span>');
+    if (ai) parts.push('<span class="beats-tag beats-tag-ai" title="Identified as AI">AI</span>');
+    if (!parts.length) return '';
+    return '<div class="beats-tag-row">' + parts.join('') + '</div>';
+}
+function _djEnsureTagStyles() {
+    if (document.getElementById('beatsPlayerCSS') || document.getElementById('djTagCSS')) return;
+    var css = document.createElement('style');
+    css.id = 'djTagCSS';
+    css.textContent = '.beats-tag-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}.beats-tag{display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:0.02em;padding:2px 7px;border-radius:999px;line-height:1.3;}.beats-tag-verified{background:rgba(15,118,110,0.18);color:#5eead4;border:1px solid rgba(15,118,110,0.4);}.beats-tag-bq{background:rgba(247,147,26,0.16);color:#f7931a;border:1px solid rgba(247,147,26,0.4);}.beats-tag-v4v{background:rgba(234,179,8,0.16);color:#eab308;border:1px solid rgba(234,179,8,0.4);}.beats-tag-ai{background:rgba(100,116,139,0.2);color:#cbd5e1;border:1px solid rgba(100,116,139,0.45);}';
+    document.head.appendChild(css);
+}
+function _djFillNowPlayingTags(bar, d) {
+    if (!bar || !d) return;
+    _djEnsureTagStyles();
+    var slot = bar.querySelector('#djNowPlayingTags');
+    if (!slot) return;
+    var trackId = d.trackId || '';
+    var cached = _djTagCacheGet(trackId);
+    slot.innerHTML = _djTagsHtml(cached || _djTrackLikeFromState(d));
+    if (!trackId || cached || typeof db === 'undefined') return;
+    db.collection('beats_tracks').doc(trackId).get().then(function(doc) {
+        if (!doc || doc.exists === false) return;
+        var track = Object.assign({ id: doc.id }, doc.data() || {});
+        if (!window._djTagCache) window._djTagCache = {};
+        window._djTagCache[trackId] = track;
+        var live = document.getElementById('djNowPlayingTags');
+        if (live) live.innerHTML = _djTagsHtml(track);
+    }).catch(function() {});
+}
+
 function showDJBar(d) {
     var container = document.getElementById('globalChatMessages');
     if (!container) return;
@@ -3963,6 +4037,7 @@ function showDJBar(d) {
             '<div style="flex:1;min-width:0;">' +
                 '<div style="font-size:0.85rem;color:var(--heading,#fff);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">♫ ' + esc(d.trackTitle) + '</div>' +
                 '<div style="font-size:0.72rem;color:var(--text-muted);">' + artistHtml + '</div>' +
+                '<div id="djNowPlayingTags"></div>' +
             '</div>' +
         '</div>' +
         // Row 3: Action buttons
@@ -3973,6 +4048,7 @@ function showDJBar(d) {
             (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:5px 10px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.7rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
         '</div>';
     _djBarLast = d;
+    if (typeof _djFillNowPlayingTags === 'function') _djFillNowPlayingTags(bar, d);
     djRunTipHook(bar, d);
 }
 
@@ -3992,8 +4068,7 @@ window.bqDJBarTipHook = function(fn) {
 };
 if (typeof window._bqDJBarTipPending === 'function') {
     window.bqDJBarTipHook(window._bqDJBarTipPending);
-    window._bqDJBarTipPending = null;
-}
+    window._bqDJBarTipPending = null;}
 
 function hideDJBar() {
     var bar = document.getElementById('djNowPlaying');
