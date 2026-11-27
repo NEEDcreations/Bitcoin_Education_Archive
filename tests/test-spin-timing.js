@@ -106,5 +106,20 @@ test('the click handler uses only the server reward', () => {
     assert.ok(app.includes("{ label: '⭐ 50 XP', value: 'points_50', weight: 3"));
 });
 
+
+test('the spin modal tells players prizes arrive as GIFTS', () => {
+    const modal = app.slice(app.indexOf('function _spinDayKey()'), app.indexOf('function _hasSpunToday()'));
+    assert.ok(modal.includes('After you spin, prizes arrive as GIFTS you can open.'));
+    assert.ok(modal.includes('Your gift is ready to open'));
+    assert.ok(modal.includes('awardDailyGifts({ deferModal: true })'));
+    assert.ok(!modal.includes('}, 800)'));
+    assert.ok(modal.includes('SPIN_SERVER_TIMEOUT_MS = 15000'));
+    assert.ok(modal.includes("localStorage.setItem('btc_last_spin_date', _spinDayKey())"));
+    assert.ok(!modal.includes("localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0])"));
+    assert.ok(modal.includes('#d6dce6'));
+    assert.ok(modal.includes('#1e3a5f'));
+    assert.ok(modal.includes('_closeSpinModal'));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);

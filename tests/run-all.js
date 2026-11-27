@@ -77,6 +77,7 @@ const TESTS = [
     { name: 'Gift open popup', file: 'test-gift-open.js' },
     { name: 'Gift drop hint', file: 'test-gift-drop-hint.js' },
     { name: 'Daily spin timing', file: 'test-spin-timing.js' },
+    { name: 'Key check speed and next key', file: 'test-key-check.js' },
     { name: 'Gift modal stacking', file: 'test-modal-stack.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
     { name: 'Cipher sats balance claim', file: 'test-cipher-sats-claim.js' },
