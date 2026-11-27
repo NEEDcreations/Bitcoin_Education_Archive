@@ -694,6 +694,39 @@ function createNacho() {
         .nacho-x:hover { opacity: 1; }
         #nacho-text { word-wrap: break-word; max-height: none; overflow: visible; padding-right: 4px; }
 
+        /* Quick trivia: the bubble must receive taps and can grow so every answer is reachable. */
+        #nacho-bubble[data-trivia="1"] {
+            pointer-events: auto;
+            max-height: 60vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            transition: opacity 0.2s ease;
+            transform: none;
+        }
+        #nacho-bubble[data-trivia="1"].show { transform: none; }
+        #nacho-bubble[data-trivia="1"].trivia-expanded {
+            max-height: min(85vh, 640px);
+        }
+        #nacho-bubble[data-trivia="1"] #nacho-text,
+        #nacho-bubble[data-trivia="1"] button { pointer-events: auto; }
+        #nachoTriviaOptions button {
+            display: block;
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            box-sizing: border-box;
+            text-align: left;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+        #nachoTriviaOptions:not(.is-expanded) button[data-trivia-opt].is-overflow { display: none; }
+        #nachoTriviaExpand { display: none; }
+        #nachoTriviaExpand.is-needed { display: block; }
+
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
         /* 1. Tap tap — like Clippy tapping on the screen */
@@ -965,6 +998,8 @@ function createNacho() {
                 border-radius: 14px;
                 z-index: 200050;
             }
+            #nacho-bubble[data-trivia="1"] { max-height: 60vh; }
+            #nacho-bubble[data-trivia="1"].trivia-expanded { max-height: min(85vh, 640px); }
             #nacho-bubble::before,
             #nacho-bubble::after { display: none !important; }
             #nacho-avatar .nacho-name { font-size: 0.7rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(230px, 76vw); white-space: normal; padding: 5px 10px; }
@@ -977,6 +1012,8 @@ function createNacho() {
                 font-size: 0.82rem;
                 padding: 12px 14px;
             }
+            #nacho-bubble[data-trivia="1"] { max-height: 60vh; }
+            #nacho-bubble[data-trivia="1"].trivia-expanded { max-height: min(85vh, 640px); }
             #nacho-avatar .nacho-name { font-size: 0.65rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(220px, 74vw); white-space: normal; padding: 5px 8px; }
         }
 

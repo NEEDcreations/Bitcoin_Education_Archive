@@ -5422,6 +5422,39 @@ function createNacho() {
         .nacho-x:hover { opacity: 1; }
         #nacho-text { word-wrap: break-word; max-height: none; overflow: visible; padding-right: 4px; }
 
+        /* Quick trivia: the bubble must receive taps and can grow so every answer is reachable. */
+        #nacho-bubble[data-trivia="1"] {
+            pointer-events: auto;
+            max-height: 60vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            transition: opacity 0.2s ease;
+            transform: none;
+        }
+        #nacho-bubble[data-trivia="1"].show { transform: none; }
+        #nacho-bubble[data-trivia="1"].trivia-expanded {
+            max-height: min(85vh, 640px);
+        }
+        #nacho-bubble[data-trivia="1"] #nacho-text,
+        #nacho-bubble[data-trivia="1"] button { pointer-events: auto; }
+        #nachoTriviaOptions button {
+            display: block;
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            box-sizing: border-box;
+            text-align: left;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+        #nachoTriviaOptions:not(.is-expanded) button[data-trivia-opt].is-overflow { display: none; }
+        #nachoTriviaExpand { display: none; }
+        #nachoTriviaExpand.is-needed { display: block; }
+
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
         /* 1. Tap tap — like Clippy tapping on the screen */
@@ -5693,6 +5726,8 @@ function createNacho() {
                 border-radius: 14px;
                 z-index: 200050;
             }
+            #nacho-bubble[data-trivia="1"] { max-height: 60vh; }
+            #nacho-bubble[data-trivia="1"].trivia-expanded { max-height: min(85vh, 640px); }
             #nacho-bubble::before,
             #nacho-bubble::after { display: none !important; }
             #nacho-avatar .nacho-name { font-size: 0.7rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(230px, 76vw); white-space: normal; padding: 5px 10px; }
@@ -5705,6 +5740,8 @@ function createNacho() {
                 font-size: 0.82rem;
                 padding: 12px 14px;
             }
+            #nacho-bubble[data-trivia="1"] { max-height: 60vh; }
+            #nacho-bubble[data-trivia="1"].trivia-expanded { max-height: min(85vh, 640px); }
             #nacho-avatar .nacho-name { font-size: 0.65rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(220px, 74vw); white-space: normal; padding: 5px 8px; }
         }
 
@@ -8533,16 +8570,27 @@ function renderNachoTrivia(t) {
     window._btcNachoTriviaAnswered = false;
     if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
 
-    var html = '<div style="margin-bottom:8px;font-weight:700;color:var(--heading,#fff);font-size:0.9rem;">🧠 Quick Trivia! (+' + t.pts + ' pts)</div>' +
-        '<div style="color:var(--text,#eee);margin-bottom:10px;line-height:1.5;">' + t.q + '</div>';
+    var esc = (typeof escapeHtml === 'function') ? escapeHtml : function(s) {
+        return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+    var qText = esc(t.q);
+    var html = '<div style="margin-bottom:8px;font-weight:700;color:var(--heading,#fff);font-size:0.9rem;">🧠 Quick Trivia! (+' + Number(t.pts || 0) + ' pts)</div>' +
+        '<div style="color:var(--text,#eee);margin-bottom:10px;line-height:1.5;">' + qText + '</div>';
 
+    html += '<div id="nachoTriviaOptions">';
     for (var i = 0; i < t.options.length; i++) {
-        html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();nachoTriviaAnswer(' + i + ',' + t.correct + ',' + t.pts + ',this)" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.15s;">' + String.fromCharCode(65 + i) + '. ' + t.options[i] + '</button>';
+        var optClass = i >= 2 ? ' is-overflow' : '';
+        html += '<button type="button" data-trivia-opt="' + i + '" class="' + optClass.replace(/^ /, '') + '" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();nachoTriviaAnswer(' + i + ',' + t.correct + ',' + t.pts + ',this)" style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);">' + String.fromCharCode(65 + i) + '. ' + esc(t.options[i]) + '</button>';
+    }
+    html += '</div>';
+    if (t.options.length > 2) {
+        html += '<button type="button" id="nachoTriviaExpand" class="is-needed" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(window.expandNachoTrivia)window.expandNachoTrivia()" style="display:block;width:100%;min-height:44px;margin:4px 0 0;padding:8px 12px;background:transparent;border:1px solid var(--border,#333);border-radius:8px;color:var(--accent,#f7931a);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Show all answers</button>';
     }
     html += '<button type="button" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(window.btcDismissNachoTrivia)window.btcDismissNachoTrivia(\'button\')" style="display:block;width:100%;min-height:44px;margin-top:8px;padding:8px 12px;background:transparent;border:2px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Not now / Back</button>';
 
     textEl.innerHTML = html;
     bubble.classList.add('show');
+    bubble.classList.remove('trivia-expanded');
     if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
     if (!window._btcTriviaHistory && typeof history !== 'undefined' && history && typeof history.pushState === 'function') {
         try {
@@ -8552,6 +8600,18 @@ function renderNachoTrivia(t) {
     }
     return true;
 }
+
+window.expandNachoTrivia = function() {
+    var bubble = document.getElementById('nacho-bubble');
+    if (bubble) bubble.classList.add('trivia-expanded');
+    var opts = document.getElementById('nachoTriviaOptions');
+    if (opts) opts.classList.add('is-expanded');
+    var btn = document.getElementById('nachoTriviaExpand');
+    if (btn) {
+        btn.classList.remove('is-needed');
+        btn.hidden = true;
+    }
+};
 
 window.showNachoTrivia = function() {
     // ---- ANTI-INTERRUPTION SHIELD ----
@@ -8577,7 +8637,9 @@ window._replayNachoTrivia = function(pending) {
 
 window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
     window._btcNachoTriviaAnswered = true;
-    var buttons = btn.parentElement.querySelectorAll('button');
+    var box = btn.parentElement;
+    var buttons = box.querySelectorAll('button[data-trivia-opt]');
+    if (!buttons.length) buttons = box.querySelectorAll('button');
     for (var i = 0; i < buttons.length; i++) {
         buttons[i].disabled = true;
         buttons[i].style.cursor = 'default';
