@@ -62,8 +62,8 @@ There is no checked-in ESLint or Prettier config. Match the file you are editing
 Install dependencies once:
 
 ```bash
-npm ci --prefix functions
-npm ci --prefix tests/rules
+npm ci --ignore-scripts --prefix functions
+npm ci --ignore-scripts --prefix tests/rules
 ```
 
 Function suites load `functions/index.js` from `functions/node_modules`. Rules suites load `@firebase/rules-unit-testing` from `tests/rules/node_modules`. `node tests/run-all.js` runs `npm ci` in `tests/rules` for you. It does not install `functions/`.
