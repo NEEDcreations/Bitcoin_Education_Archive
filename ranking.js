@@ -438,6 +438,7 @@ var APP_CHECK_CALLABLES = {
     armSayHi: 1,
     chooseFaction: 1,
     claimCipherSats: 1,
+    claimCipherWin: 1,
     claimFavorBlock: 1,
     claimOnboardingQuestStep: 1,
     claimReplyBonus: 1,

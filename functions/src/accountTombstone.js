@@ -275,10 +275,6 @@ function applyFlagsPatch(summary) {
     return { user: user, ledger: ledger };
 }
 
-function effectiveAgeDays(authAgeDays, summary) {
-    return Math.max(Number(authAgeDays) || 0, summary ? (Number(summary.ageDays) || 0) : 0);
-}
-
 function effectiveWithdrawn(current, summary) {
     return (Number(current) || 0) + (summary ? (Number(summary.lifetimeSats) || 0) : 0);
 }
@@ -423,7 +419,6 @@ module.exports = {
     shouldRetain: shouldRetain,
     buildRecord: buildRecord,
     applyFlagsPatch: applyFlagsPatch,
-    effectiveAgeDays: effectiveAgeDays,
     effectiveWithdrawn: effectiveWithdrawn,
     pulledCreatedMs: pulledCreatedMs,
     lookupByMaterials: lookupByMaterials,

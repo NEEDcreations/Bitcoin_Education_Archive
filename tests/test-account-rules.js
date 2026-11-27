@@ -15,6 +15,7 @@ assert.ok(keysFn.includes("'emailHistory'"));
 assert.ok(keysFn.includes("'emailHistoryHashes'"));
 assert.ok(keysFn.includes("'providersHash'"));
 assert.ok(keysFn.includes("'providerHashes'"));
+assert.ok(keysFn.includes("'realAccountAt'"), 'realAccountAt is server-only (claims age gate)');
 assert.ok(!keysFn.includes("'referredBy'"), 'referredBy stays out of userProfileServerOnlyKeys');
 assert.ok(!createRule.includes("'email'"), 'create allowlist no longer includes email');
 ['deleted_accounts', 'email_history', 'email_change_pending', 'email_link_claims', 'identity_history'].forEach(function (name) {
