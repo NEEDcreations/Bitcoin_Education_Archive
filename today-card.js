@@ -71,6 +71,18 @@
             var key = keys[i];
             if (Object.prototype.hasOwnProperty.call(serverProfile, key)) user[key] = serverProfile[key];
         }
+        // Display only: keep home, Settings, and Profile on the same points value.
+        if (Object.prototype.hasOwnProperty.call(serverProfile, 'points')) {
+            var next = Math.floor(Number(serverProfile.points) || 0);
+            if (!isFinite(next) || next < 0) next = 0;
+            var prev = Math.floor(Number(user.points) || 0);
+            var recentAward = (typeof window._xpDisplayAwardAt === 'number') && (Date.now() - window._xpDisplayAwardAt < 8000);
+            if (recentAward && prev > next) next = prev;
+            if (next !== prev) {
+                user.points = next;
+                if (typeof window.refreshXpDisplays === 'function') window.refreshXpDisplays();
+            }
+        }
     }
 
     function serverField(name) {
@@ -438,6 +450,35 @@
         if (track) track.setAttribute('title', label);
     }
 
+    window.refreshXpDisplays = window.refreshXpDisplays || function () {
+        try {
+            if (typeof updateRankUI === 'function') updateRankUI();
+        } catch (e1) {}
+        try {
+            if (typeof publishAuthDisplay === 'function' && typeof currentUser !== 'undefined' && currentUser && currentUser.uid) {
+                publishAuthDisplay(currentUser.uid, currentUser);
+            }
+        } catch (e2) {}
+        try {
+            if (typeof currentUser === 'undefined' || !currentUser) return;
+            var pts = Math.floor(Number(currentUser.points) || 0);
+            if (!isFinite(pts) || pts < 0) pts = 0;
+            var label = pts.toLocaleString() + ' XP';
+            var lvlName = (typeof getLevel === 'function') ? (getLevel(pts).name || '') : '';
+            var acc = document.getElementById('settingsAccountXp');
+            if (acc) {
+                var rest = acc.getAttribute('data-xp-suffix') || '';
+                acc.textContent = (lvlName ? (lvlName + ' · ') : '') + label + rest;
+            }
+            var dataXp = document.getElementById('settingsDataXp');
+            if (dataXp) dataXp.textContent = label;
+            var dataLvl = document.getElementById('settingsDataLevel');
+            if (dataLvl && lvlName) dataLvl.textContent = lvlName;
+            var stat = document.getElementById('statPts');
+            if (stat) stat.textContent = pts.toLocaleString();
+        } catch (e3) {}
+    };
+
     window._paintDailyXpMeter = function (snap) {
         var text = document.getElementById('dailyXpMeterText');
         var fill = document.getElementById('dailyXpMeterFill');
@@ -484,10 +525,28 @@
         return isFinite(n) && n >= 0 ? n : -1;
     }
 
-    // A later note wins. Equal times keep the higher total.
+    // Confirmed totals for the same day are monotonic: a later, lower
+    // triviaXpStatus result must not drop a higher confirmed reading.
+    // An optimistic preview can still be replaced by a later confirmed total,
+    // including a lower one after the daily cap, or by an explicit revert.
     function newerDailyXp(a, b) {
         if (!a) return b || null;
         if (!b) return a;
+        if (a._revert && (!b._revert || xpNotedAt(a) >= xpNotedAt(b))) return a;
+        if (b._revert) return b;
+        var aConf = !a._optimistic;
+        var bConf = !b._optimistic;
+        if (aConf !== bConf) {
+            var conf = aConf ? a : b;
+            var opt = aConf ? b : a;
+            if (xpNotedAt(conf) >= xpNotedAt(opt) || xpAmount(conf) >= xpAmount(opt)) return conf;
+            return opt;
+        }
+        if (aConf && bConf) {
+            var aa = xpAmount(a);
+            var bb = xpAmount(b);
+            if (aa !== bb) return aa >= bb ? a : b;
+        }
         var at = xpNotedAt(a);
         var bt = xpNotedAt(b);
         if (at !== bt) return at > bt ? a : b;
@@ -532,7 +591,7 @@
         if (!token) return;
         var server = window._serverDailyXp;
         if (server && !server._optimistic && xpNotedAt(server) > token.at) return;
-        var snap = { signedIn: true, dailyXp: token.before, _xpNotedAt: (token.at || Date.now()) + 1 };
+        var snap = { signedIn: true, dailyXp: token.before, _xpNotedAt: (token.at || Date.now()) + 1, _revert: true };
         rememberDailyXp(snap, token.uid || triviaCallerUid());
         triviaXpCacheAt = 0;
         loadDailyXpMeter();

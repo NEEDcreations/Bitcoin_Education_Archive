@@ -5590,6 +5590,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                 localStorage.setItem(_capKey, String(_dailyUsed + awarded));
             } catch(e) {}
             currentUser.points = newPoints;
+            window._xpDisplayAwardAt = Date.now();
             _showPointsToast(awarded, reason);
             if (typeof notifySelfPoints === 'function') notifySelfPoints(awarded, reason);
         }
@@ -5605,6 +5606,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         }
 
         updateRankUI();
+        if (typeof window.refreshXpDisplays === 'function') window.refreshXpDisplays();
         if (typeof renderProgressRings === 'function') renderProgressRings();
         refreshLeaderboardIfOpen();
         if (typeof nachoOnPoints === 'function') nachoOnPoints(pts);
@@ -5670,6 +5672,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             }
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
+                window._xpDisplayAwardAt = Date.now();
                 _showPointsToast(awarded, reason, result.data.doubled === true);
             }
             if (result.data.dailyXp != null && typeof window._paintDailyXpMeter === 'function') {
@@ -5711,6 +5714,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         throw e;
     }
     updateRankUI();
+    if (typeof window.refreshXpDisplays === 'function') window.refreshXpDisplays();
     if (typeof renderProgressRings === 'function') renderProgressRings();
     refreshLeaderboardIfOpen();
     if (typeof nachoOnPoints === 'function') nachoOnPoints(pts);
@@ -9146,7 +9150,7 @@ function showSettingsPage(tab) {
         html += '<div style="text-align:center;margin-bottom:20px;">' +
             '<div style="margin-bottom:8px;position:relative;display:inline-block;">' + _pfpHtml + '</div>' +
             '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
-            '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP' + (currentUser && currentUser.faction ? ' · ' + (currentUser.faction === 'cyber_hornets' ? '🐝 Cyber Hornets' : '🦡 Honey Badgers') : '') + '</div>' +
+            '<div id="settingsAccountXp" data-xp-suffix="' + (currentUser && currentUser.faction ? ' · ' + (currentUser.faction === 'cyber_hornets' ? '🐝 Cyber Hornets' : '🦡 Honey Badgers') : '') + '" style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP' + (currentUser && currentUser.faction ? ' · ' + (currentUser.faction === 'cyber_hornets' ? '🐝 Cyber Hornets' : '🦡 Honey Badgers') : '') + '</div>' +
             '<div id="settingsTitlePill">' + _titlePillHtml + '</div>' +
             _equipTitleHtml +
             '<div style="margin-top:10px;"><a href="/patch-notes.html" id="settingsWhatsNew" onclick="if(window._markPatchSeen)window._markPatchSeen()" style="display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:700;font-size:0.85rem;text-decoration:none;">What\'s new <span class="whats-new-dot" hidden></span></a></div>' +
@@ -10532,8 +10536,8 @@ function accountDeleteRowHtml(user) {
 
         html += '<div style="text-align:center;margin-bottom:16px;">' +
             '<div style="font-size:2rem;margin-bottom:4px;">' + lvl.emoji + '</div>' +
-            '<div style="color:var(--heading);font-weight:700;font-size:1.3rem;">' + pts.toLocaleString() + ' XP</div>' +
-            '<div style="color:var(--text-muted);font-size:0.85rem;">' + lvl.name + '</div></div>';
+            '<div id="settingsDataXp" style="color:var(--heading);font-weight:700;font-size:1.3rem;">' + pts.toLocaleString() + ' XP</div>' +
+            '<div id="settingsDataLevel" style="color:var(--text-muted);font-size:0.85rem;">' + lvl.name + '</div></div>';
 
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Your Stats</div>';
