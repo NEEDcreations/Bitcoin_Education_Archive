@@ -8025,6 +8025,106 @@ function _predLbFillProgress(period, data) {
     else el.textContent = '';
 }
 
+
+/* LB_SORTS_START */
+// Client-only sort toggles for Quests, PvP, and Predictions.
+// Defaults stay total (quests completed, wins, correct predictions).
+// Percent sorts use LB_PCT_MIN_ATTEMPTS when the row has a count.
+var LB_PCT_MIN_ATTEMPTS = 10;
+var LB_SORT_STORAGE = { quest: 'btc_lb_sort_quest', pvp: 'btc_lb_sort_pvp', predict: 'btc_lb_sort_predict' };
+
+function _lbSortMode(board) {
+    try {
+        var raw = localStorage.getItem(LB_SORT_STORAGE[board] || '');
+        if (raw === 'pct') return 'pct';
+    } catch (e) {}
+    return 'total';
+}
+
+function _lbSetSortMode(board, mode) {
+    var next = mode === 'pct' ? 'pct' : 'total';
+    try { localStorage.setItem(LB_SORT_STORAGE[board], next); } catch (e) {}
+    if (board === 'quest' && typeof _renderQuestBoard === 'function') _renderQuestBoard();
+    else if (board === 'predict' && typeof _renderPredictorBoard === 'function') _renderPredictorBoard();
+    else if (board === 'pvp') {
+        var el = document.getElementById('pvpLeaderboardList');
+        if (el && typeof _renderPvpSnapshot === 'function') _renderPvpSnapshot(el, window._pvpLbDoc || { rows: [] });
+    }
+}
+window._lbSetSortMode = _lbSetSortMode;
+
+function _lbPctValue(numer, denom) {
+    var n = Number(numer) || 0;
+    var d = Number(denom) || 0;
+    if (d <= 0) return 0;
+    return Math.round((n / d) * 100);
+}
+
+function _lbSortRows(rows, opts) {
+    opts = opts || {};
+    var mode = opts.mode === 'pct' ? 'pct' : 'total';
+    var min = opts.min != null ? opts.min : LB_PCT_MIN_ATTEMPTS;
+    var list = (rows || []).map(function(row) {
+        var copy = {};
+        if (row) {
+            for (var k in row) {
+                if (Object.prototype.hasOwnProperty.call(row, k)) copy[k] = row[k];
+            }
+        }
+        return copy;
+    });
+    function totalOf(row) { return Number(opts.totalOf ? opts.totalOf(row) : (row[opts.totalKey] || 0)) || 0; }
+    function denomOf(row) { return Number(opts.denomOf ? opts.denomOf(row) : (row[opts.denomKey] || 0)) || 0; }
+    function pctOf(row) {
+        if (typeof opts.pctOf === 'function') return opts.pctOf(row);
+        if (row.pct != null && row.pct !== '' && isFinite(Number(row.pct))) return Number(row.pct);
+        return _lbPctValue(row[opts.numerKey], denomOf(row));
+    }
+    if (mode === 'pct' && opts.applyMin) {
+        list = list.filter(function(row) { return denomOf(row) >= min; });
+    }
+    list.sort(function(a, b) {
+        if (mode === 'pct') {
+            var ap = pctOf(a);
+            var bp = pctOf(b);
+            if (bp !== ap) return bp - ap;
+        }
+        var at = totalOf(a);
+        var bt = totalOf(b);
+        if (bt !== at) return bt - at;
+        if (mode !== 'pct') {
+            var ap2 = pctOf(a);
+            var bp2 = pctOf(b);
+            if (bp2 !== ap2) return bp2 - ap2;
+        }
+        var an = String((a && a.username) || '').toLowerCase();
+        var bn = String((b && b.username) || '').toLowerCase();
+        if (an !== bn) return an < bn ? -1 : 1;
+        return String((a && a.uid) || '').localeCompare(String((b && b.uid) || ''));
+    });
+    list.forEach(function(row, i) { row.rank = i + 1; });
+    return list;
+}
+
+function _lbSortToggleHtml(board, totalLabel, pctLabel) {
+    var mode = _lbSortMode(board);
+    function btn(value, label) {
+        var on = mode === value;
+        return '<button type="button" onclick="event.stopPropagation();_lbSetSortMode(\'' + board + '\',\'' + value + '\')" style="flex:1;min-width:0;padding:5px 4px;border:1px solid ' + (on ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (on ? 'var(--accent)' : 'none') + ';color:' + (on ? '#fff' : 'var(--text-muted)') + ';font-size:0.7rem;font-weight:' + (on ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + label + '</button>';
+    }
+    return '<div class="lb-sort-toggles" data-lb-sort="' + board + '" style="display:flex;gap:4px;padding:0 0 10px;">' +
+        btn('total', totalLabel) +
+        btn('pct', pctLabel) +
+        '</div>';
+}
+
+function _lbPctFilterNote(board, mode, count, skipped) {
+    if (mode !== 'pct' || !skipped) return '';
+    var noun = board === 'pvp' ? 'matches' : (board === 'predict' ? 'predictions' : 'attempts');
+    return '<div class="lb-sort-note" style="font-size:0.72rem;color:var(--text-muted);margin:0 0 8px;">Showing people with at least ' + LB_PCT_MIN_ATTEMPTS + ' ' + noun + '.</div>';
+}
+/* LB_SORTS_END */
+
 function _renderPredictorBoard() {
     var root = document.getElementById('predictorBoard');
     if (!root) return;
@@ -8041,12 +8141,22 @@ function _renderPredictorBoard() {
         var active = period === p[0];
         html += '<button type="button" onclick="_predLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
     });
-    html += '</div>' + _lbRankBox('predict') + '<div id="predictorLeaderboardList">';
-    if (!rows.length) {
-        html += '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No Questers have qualified yet.</div>';
+    html += '</div>' + _lbSortToggleHtml('predict', 'Correct predictions', 'Correct %') + _lbRankBox('predict') + '<div id="predictorLeaderboardList">';
+    var predMode = _lbSortMode('predict');
+    var predSorted = _lbSortRows(rows, {
+        mode: predMode,
+        applyMin: true,
+        totalKey: 'correct',
+        numerKey: 'correct',
+        denomKey: 'total'
+    });
+    var predSkipped = Math.max(0, rows.length - predSorted.length);
+    if (predMode === 'pct') html += _lbPctFilterNote('predict', predMode, predSorted.length, predSkipped);
+    if (!predSorted.length) {
+        html += '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">' + (predSkipped ? 'Nobody has ' + LB_PCT_MIN_ATTEMPTS + ' or more predictions yet.' : 'No Questers have qualified yet.') + '</div>';
     } else {
         var myUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : '';
-        var predSplit = _lbSplitRows(rows, function (entry) {
+        var predSplit = _lbSplitRows(predSorted, function (entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var correctN = Number(entry.correct) || 0;
@@ -8252,12 +8362,21 @@ function _renderQuestBoard() {
         var active = period === p[0];
         html += '<button type="button" onclick="_questLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
     });
-    html += '</div>' + _lbRankBox('quest') + '<div id="questLeaderboardList">';
-    if (!rows.length) {
+    html += '</div>' + _lbSortToggleHtml('quest', 'Quests completed', 'Correct %') + _lbRankBox('quest') + '<div id="questLeaderboardList">';
+    var questMode = _lbSortMode('quest');
+    // Quest snapshot rows have passes and pct only, not attempts, so the
+    // percent sort cannot apply LB_PCT_MIN_ATTEMPTS here.
+    var questSorted = _lbSortRows(rows, {
+        mode: questMode,
+        applyMin: false,
+        totalKey: 'passes',
+        numerKey: 'passes'
+    });
+    if (!questSorted.length) {
         html += '<div class="quest-lb-empty">Nobody has qualified yet.</div>';
     } else {
         var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
-        var questSplit = _lbSplitRows(rows, function (entry) {
+        var questSplit = _lbSplitRows(questSorted, function (entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var rawName = entry.username || '';
@@ -8324,14 +8443,27 @@ async function _loadQuestLeaderboard() {
 // PVP leaderboard. One snapshot doc, already ordered by win rate. Wins and losses are on each row.
 function _renderPvpSnapshot(container, doc) {
     if (!container) return;
+    if (doc) window._pvpLbDoc = doc;
     var rows = (doc && doc.rows) || [];
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    if (!rows.length && !(currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0)) {
-        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
+    var pvpMode = _lbSortMode('pvp');
+    var pvpSorted = _lbSortRows(rows, {
+        mode: pvpMode,
+        applyMin: true,
+        totalOf: function(row) { return Number(row.wins) || 0; },
+        denomOf: function(row) { return (Number(row.wins) || 0) + (Number(row.losses) || 0); },
+        pctOf: function(row) { return _lbPctValue(row.wins, (Number(row.wins) || 0) + (Number(row.losses) || 0)); }
+    });
+    var pvpSkipped = Math.max(0, rows.length - pvpSorted.length);
+    if (!pvpSorted.length && !(currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0)) {
+        container.innerHTML = _lbSortToggleHtml('pvp', 'Wins', 'Win %') +
+            (pvpSkipped ? '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">Nobody has ' + LB_PCT_MIN_ATTEMPTS + ' or more matches yet.</div>' :
+            '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>');
         return;
     }
     var seenMe = false;
-    var pvpSplit = _lbSplitRows(rows, function (p) {
+    var pvpHead = _lbSortToggleHtml('pvp', 'Wins', 'Win %') + _lbPctFilterNote('pvp', pvpMode, pvpSorted.length, pvpSkipped);
+    var pvpSplit = _lbSplitRows(pvpSorted, function (p) {
         var rank = p.rank || 0;
         var wins = p.wins || 0;
         var losses = p.losses || 0;
@@ -8353,7 +8485,7 @@ function _renderPvpSnapshot(container, doc) {
             '<span data-lb-tip="1" onclick="event.stopPropagation();if(window._tipFromEl)_tipFromEl(this)" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + name + '">⚡</span>' +
             '</div>';
     });
-    var pvpHtml = pvpSplit.html;
+    var pvpHtml = pvpHead + pvpSplit.html;
     if (pvpSplit.rest) pvpHtml += _lbMoreButton(_lbStashMore(pvpSplit.rest), pvpSplit.total, 'players');
     if (!seenMe && currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0) {
         var mine = LbPrefix.pvpRecordText(currentUser.pvpWins, currentUser.pvpLosses);
