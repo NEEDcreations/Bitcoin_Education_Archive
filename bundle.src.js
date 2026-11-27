@@ -64,6 +64,102 @@ function escapeHtml(str) {
     return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+
+// ---- Clickable username tags ----
+// One shared helper for profile links. Display names and uids always go
+// through escapeHtml (or textContent). Never build HTML from raw names.
+// Prefer appendUsernameTag in DOM paths. Use usernameTagHtml only in
+// existing innerHTML renderers.
+/* USERNAME_TAGS_START */
+var USERNAME_TAG_STYLE = 'color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+
+function usernameTagUidOk(uid) {
+    return typeof uid === 'string' && /^[A-Za-z0-9_:-]{1,128}$/.test(uid);
+}
+
+function resolveUsernameUid(name, knownUid) {
+    if (usernameTagUidOk(knownUid)) return knownUid;
+    var needle = String(name == null ? '' : name).replace(/^@/, '').trim();
+    if (!needle) return '';
+    var lower = needle.toLowerCase();
+    if (lower === 'nacho' || needle === '\uD83E\uDD8C Nacho') return 'nacho-bot';
+    var cache = null;
+    if (typeof window !== 'undefined' && window && window._chatUsers) cache = window._chatUsers;
+    else if (typeof _chatUsers !== 'undefined') cache = _chatUsers;
+    if (!cache) return '';
+    for (var uid in cache) {
+        if (!Object.prototype.hasOwnProperty.call(cache, uid)) continue;
+        if (!usernameTagUidOk(uid)) continue;
+        var cand = cache[uid];
+        if (typeof cand === 'string' && cand && (cand === needle || cand.toLowerCase() === lower)) return uid;
+    }
+    return '';
+}
+
+function openUsernameTag(uid, ev) {
+    if (ev) {
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+    }
+    if (!usernameTagUidOk(uid)) return;
+    if (typeof showUserProfile === 'function') showUserProfile(uid);
+}
+
+function _usernameTagEscape(str) {
+    if (typeof escapeHtml === 'function') return escapeHtml(str);
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function(c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+function appendUsernameTag(parent, name, uid, opts) {
+    if (!parent) return null;
+    opts = opts || {};
+    var raw = String(name == null ? '' : name);
+    var core = raw.replace(/^@/, '');
+    var resolved = resolveUsernameUid(core, uid);
+    var label = raw;
+    if (opts.at === true && label && label.charAt(0) !== '@') label = '@' + core;
+    if (!resolved) {
+        parent.appendChild(document.createTextNode(opts.fallback != null ? opts.fallback : raw));
+        return null;
+    }
+    var el = document.createElement(opts.tag || 'a');
+    if ((el.tagName || opts.tag || 'a').toLowerCase() === 'a') el.href = '#';
+    el.textContent = opts.text != null ? opts.text : label;
+    el.style.cssText = USERNAME_TAG_STYLE + (opts.style || '');
+    el.setAttribute('data-profile-uid', resolved);
+    el.setAttribute('title', opts.title || 'View profile');
+    el.addEventListener('click', function(e) {
+        openUsernameTag(el.getAttribute('data-profile-uid'), e);
+    });
+    parent.appendChild(el);
+    return el;
+}
+
+function usernameTagHtml(name, uid, opts) {
+    opts = opts || {};
+    var raw = String(name == null ? '' : name);
+    var core = raw.replace(/^@/, '');
+    var display = raw;
+    if (opts.at === true && display && display.charAt(0) !== '@') display = '@' + core;
+    var resolved = resolveUsernameUid(core, uid);
+    var safeName = opts.alreadyEscaped ? display : _usernameTagEscape(display);
+    if (!resolved) return safeName;
+    var safeUid = _usernameTagEscape(resolved);
+    var title = opts.alreadyEscaped ? (opts.title || 'View profile') : _usernameTagEscape(opts.title || 'View profile');
+    return '<a href="#" data-profile-uid="' + safeUid + '" onclick="event.preventDefault();event.stopPropagation();if(typeof openUsernameTag===\'function\')openUsernameTag(this.getAttribute(\'data-profile-uid\'),event);return false;" style="' + USERNAME_TAG_STYLE + '" title="' + title + '">' + safeName + '</a>';
+}
+
+if (typeof window !== 'undefined') {
+    window.usernameTagUidOk = usernameTagUidOk;
+    window.resolveUsernameUid = resolveUsernameUid;
+    window.openUsernameTag = openUsernameTag;
+    window.appendUsernameTag = appendUsernameTag;
+    window.usernameTagHtml = usernameTagHtml;
+}
+/* USERNAME_TAGS_END */
+
 // ---- Safe URL (blocks javascript:, data:, vbscript:, blob: URIs) ----
 function sanitizeUrl(url) {
     if (!url) return '';
@@ -10205,8 +10301,11 @@ async function loadArticles() {
                 }
                 
                 // Meta
+                var authorNameHtml = (typeof usernameTagHtml === 'function')
+                    ? usernameTagHtml(a.authorName || 'Anon', a.authorId, { at: false })
+                    : forumText(a.authorName || 'Anon');
                 html += '<div style="display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--text-faint);">' +
-                    '<span ' + (a.authorFaction ? 'style="' + window._factionNameStyle(a.authorFaction) + '"' : '') + '>' + lv.emoji + ' ' + forumText(a.authorName || 'Anon') + '</span>' +
+                    '<span ' + (a.authorFaction ? 'style="' + window._factionNameStyle(a.authorFaction) + '"' : '') + ' onclick="event.stopPropagation()">' + lv.emoji + ' ' + authorNameHtml + '</span>' +
                     '<span>·</span><span>' + readTime + ' min read</span>' +
                     (dateStr ? '<span>·</span><span>' + dateStr + '</span>' : '') +
                 '</div>';
@@ -10676,8 +10775,14 @@ window.articleView = async function(articleId) {
         html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">';
         var viewPic = articleImgUrl(a.authorPic);
         if (viewPic) html += '<img src="' + viewPic + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
+        var viewAuthorHtml = (typeof usernameTagHtml === 'function')
+            ? usernameTagHtml(a.authorName || 'Anon', a.authorId, { at: false })
+            : forumText(a.authorName || 'Anon');
+        var viewAuthorClick = (typeof usernameTagHtml !== 'function' && ARTICLE_UID_RE.test(String(a.authorId || '')))
+            ? ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + String(a.authorId).replace(/[^A-Za-z0-9_:-]/g, '') + '\')"'
+            : '';
         html += '<div>' +
-            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;"' + (ARTICLE_UID_RE.test(String(a.authorId || '')) ? ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + a.authorId + '\')"' : '') + '>' + lv.emoji + ' ' + forumText(a.authorName || 'Anon') + '</div>' +
+            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;"' + viewAuthorClick + '>' + lv.emoji + ' ' + viewAuthorHtml + '</div>' +
             '<div style="font-size:0.75rem;color:var(--text-faint);">' + dateStr + ' · ' + readTime + ' min read · ' + forumCount(a.wordCount).toLocaleString() + ' words</div>' +
         '</div>';
         // Edit button for author

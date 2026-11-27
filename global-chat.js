@@ -192,6 +192,7 @@ var _acType = null; // 'hash' or 'at' for autocomplete
 var _acQuery = ''; // current autocomplete search
 var _acStart = 0; // cursor position where trigger started
 var _chatUsers = {}; // uid -> username cache from messages
+if (typeof window !== 'undefined') window._chatUsers = _chatUsers;
 var _acIndex = 0; // keyboard nav index
 var REACT_EMOJIS_DEFAULT = ['👍','👎','❤️','😂','🔥','⚡','🤔','👀','🙌','🤙'];
 var REACT_EMOJIS_EXPANDED = ['👍','👎','❤️','😂','🔥','⚡','🤔','👀','🙌','💯','🤙','🦌','🎉','😢','😡','🤣','💀','🙏','💪','🤯','😱','🥳','😎','🤡','💎','🚀','⛏️','🧡','₿','🫡','👑','🐋','❌','✅','⬆️','⬇️','🍿','☠️','🫂','🤝','💩','😅','😉'];
@@ -640,13 +641,22 @@ function renderChatMessages(msgs) {
         var _nachoSkinAvatar = (!isNacho && m.hasNachoSkin) ? '<img src="/nacho-deer.svg" style="width:16px;height:16px;border-radius:50%;border:1px solid #f7931a;vertical-align:-3px;margin-right:2px;filter:drop-shadow(0 0 3px rgba(247,147,26,0.5));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))" />' : '';
         var nameStyle = 'font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';';
         var nameClick = '';
+        var nameHtml;
         if (!isDeleted) {
             nameStyle += 'cursor:pointer;';
-            nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')"';
+            var nameUid = isNacho ? 'nacho-bot' : (m.uid || '');
+            if (typeof usernameTagHtml === 'function') {
+                nameHtml = usernameTagHtml(m.name || 'Anon', nameUid, { at: false });
+            } else {
+                nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + esc(nameUid) + '\')"';
+                nameHtml = esc(m.name || 'Anon');
+            }
+        } else {
+            nameHtml = esc(m.name || 'Anon');
         }
         var _coreTitle = (!isNacho && m.hasCoreContributor) ? ' <span title="Core Contributor — BIP Breakthrough" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.35);color:#f97316;vertical-align:middle;">🔧 Core Contributor</span>' : '';
         _coreTitle += (!isNacho && m.hasFactionChampion) ? (function(){ var _fl = ({'🐝👑':'Hive Mind Champion','🦡👑':"Honey Badger Don't Care Champion",'🐝🛡️':'Still Buzzing','🦡🛡️':"Badger Don't Quit"})[m.factionRaceFlair]; return _fl ? ' <span title="Faction race" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">' + esc(m.factionRaceFlair + ' ' + _fl) + '</span>' : null; })() || ' <span title="Faction race champion" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">👑 Race Champion</span>' : '';
-        html += '<span style="' + nameStyle + '"' + nameClick + '>' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + _coreTitle + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
+        html += '<span style="' + nameStyle + '"' + nameClick + '>' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + nameHtml + _coreTitle + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
         if (myUid && !isDeleted) {
             html += '<span data-reply-id="' + esc(m._id) + '" data-reply-name="' + esc(m.name || 'Anon') + '" data-reply-text="' + esc((m.text||'').substring(0,50)) + '" onclick="setChatReply(this.dataset.replyId,this.dataset.replyName,this.dataset.replyText)" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
@@ -664,7 +674,7 @@ function renderChatMessages(msgs) {
         if (m.replyToName) {
             var _replyId = m.replyTo || '';
             html += '<div data-reply-to="' + esc(_replyId) + '" onclick="window._scrollToChatMsg(this.dataset.replyTo)" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
-            html += '<span style="font-weight:700;color:#818cf8;font-size:0.7rem;display:block;margin-bottom:1px;">' + esc(m.replyToName) + '</span>';
+            html += '<span style="font-weight:700;color:#818cf8;font-size:0.7rem;display:block;margin-bottom:1px;">' + (typeof usernameTagHtml === 'function' ? usernameTagHtml(m.replyToName, (typeof resolveUsernameUid === 'function' ? resolveUsernameUid(m.replyToName, '') : ''), { at: false }) : esc(m.replyToName)) + '</span>';
             html += '<span style="color:var(--text-muted);">' + esc((m.replyToText||'').substring(0,80)) + (m.replyToText && m.replyToText.length > 80 ? '…' : '') + '</span>';
             html += '</div>';
         }
@@ -4523,30 +4533,67 @@ function ggRegistryIndex() {
     return _ggNameIndex || ggBuildNameIndex([]);
 }
 
-function ggAppendMentionText(parent, text, mentionUid) {
-    if (!text) return;
-    if (!mentionUid) {
-        parent.appendChild(document.createTextNode(text));
-        return;
+function ggAppendHandle(parent, rawName, knownUid) {
+    var core = String(rawName || '').trim();
+    var uid = knownUid || '';
+    if (!uid && typeof resolveUsernameUid === 'function') uid = resolveUsernameUid(core, '');
+    if (!uid && typeof _longestKnownUsername === 'function') {
+        var hit = _longestKnownUsername(core, false);
+        if (hit && hit.uid && /^[A-Za-z0-9_:-]{1,128}$/.test(hit.uid)) uid = hit.uid;
     }
-    var re = _mentionRe('gu');
-    var last = 0;
-    var match;
-    while ((match = re.exec(text))) {
-        if (match.index > last) parent.appendChild(document.createTextNode(text.slice(last, match.index)));
+    if (uid && typeof appendUsernameTag === 'function') {
+        appendUsernameTag(parent, core, uid, { at: true });
+        return true;
+    }
+    if (uid) {
         var anchor = document.createElement('a');
         anchor.href = '#';
-        anchor.textContent = '@' + String(match[1] || '').trim();
-        anchor.style.cssText = 'color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;';
+        anchor.textContent = '@' + core;
+        anchor.style.cssText = 'color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+        anchor.setAttribute('data-profile-uid', uid);
         anchor.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            if (typeof showUserProfile === 'function') showUserProfile(mentionUid);
+            var id = anchor.getAttribute('data-profile-uid');
+            if (typeof openUsernameTag === 'function') openUsernameTag(id, e);
+            else if (typeof showUserProfile === 'function') showUserProfile(id);
         });
         parent.appendChild(anchor);
+        return true;
+    }
+    parent.appendChild(document.createTextNode('@' + core));
+    return false;
+}
+
+function ggAppendMentionText(parent, text, mentionUid) {
+    if (!text) return;
+    var knownUid = (typeof mentionUid === 'string' && /^[A-Za-z0-9_:-]{1,128}$/.test(mentionUid)) ? mentionUid : '';
+    var re = (typeof _mentionRe === 'function') ? _mentionRe('gu') : null;
+    if (!re) {
+        parent.appendChild(document.createTextNode(text));
+        return;
+    }
+    var last = 0;
+    var match;
+    var found = false;
+    while ((match = re.exec(text))) {
+        found = true;
+        if (match.index > last) parent.appendChild(document.createTextNode(text.slice(last, match.index)));
+        ggAppendHandle(parent, match[1], knownUid);
         last = match.index + match[0].length;
     }
     if (re.lastIndex) re.lastIndex = 0;
+    if (!found && !knownUid && typeof _mentionWordRe === 'function') {
+        var wordRe = _mentionWordRe('gu');
+        last = 0;
+        while ((match = wordRe.exec(text))) {
+            found = true;
+            if (match.index > last) parent.appendChild(document.createTextNode(text.slice(last, match.index)));
+            ggAppendHandle(parent, match[1], '');
+            last = match.index + match[0].length;
+        }
+        if (wordRe.lastIndex) wordRe.lastIndex = 0;
+    }
     if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
 }
 
@@ -5029,29 +5076,27 @@ function _renderAnnouncementItem(doc, context) {
         return '<a href="#' + hash + '" data-ann-hash="' + hash + '" class="ann-hash-link" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
     });
 
-    // 2. @username mentions — link to user profile using stored mentionUid
-    var mentionUid = m.mentionUid || '';
-    if (mentionUid) {
-        // Announcement with known uid: match multi-word display names via keyword/possessive terminators only
-        text = text.replace(_mentionRe('u'), function(_, rawName) {
-            var uname = rawName.trim();
-            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
-        });
-    } else {
-        // No uid — try multi-word first (for system announcements missing uid), then single-word for user-typed
-        // No uid — try multi-word first (for system announcements missing uid)
-        var _annMentionFound = false;
-        text = text.replace(_mentionRe('u'), function(_, rawName) {
-            _annMentionFound = true;
-            var uname = rawName.trim();
-            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
-        });
-        // Also handle any remaining single-word @mentions (user-typed in normal chat)
-        if (!_annMentionFound) {
-            text = text.replace(_mentionWordRe('gu'), function(_, uname) {
-                return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
-            });
+    // 2. @username mentions: link only when the uid is on the message or in the chat name cache.
+    // Do not issue a new Firestore read per announcement.
+    var mentionUid = (m.mentionUid && /^[A-Za-z0-9_:-]{1,128}$/.test(String(m.mentionUid))) ? String(m.mentionUid) : '';
+    function _annMentionTag(rawName, knownUid) {
+        var uname = String(rawName || '').trim();
+        var uid = knownUid || (typeof resolveUsernameUid === 'function' ? resolveUsernameUid(uname, '') : '');
+        if (typeof usernameTagHtml === 'function') {
+            return usernameTagHtml(uname, uid, { at: true, alreadyEscaped: true });
         }
+        if (!uid) return '@' + uname;
+        return '<a href="#" data-profile-uid="' + esc(uid) + '" onclick="event.preventDefault();event.stopPropagation();if(typeof openUsernameTag===\'function\')openUsernameTag(this.getAttribute(\'data-profile-uid\'),event);else if(typeof showUserProfile===\'function\')showUserProfile(this.getAttribute(\'data-profile-uid\'));return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" title="View profile">@' + uname + '</a>';
+    }
+    var _annMentionFound = false;
+    text = text.replace(_mentionRe('gu'), function(_, rawName) {
+        _annMentionFound = true;
+        return _annMentionTag(rawName, mentionUid);
+    });
+    if (!_annMentionFound) {
+        text = text.replace(_mentionWordRe('gu'), function(_, uname) {
+            return _annMentionTag(uname, mentionUid);
+        });
     }
 
 
@@ -5095,8 +5140,18 @@ function _renderAnnouncementItem(doc, context) {
     var head = document.createElement('div');
     head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;';
     var nameEl = document.createElement('span');
-    nameEl.style.cssText = 'font-size:0.75rem;font-weight:700;color:#22c55e;';
+    nameEl.style.cssText = 'font-size:0.75rem;font-weight:700;color:#22c55e;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
     nameEl.textContent = 'Nacho';
+    nameEl.setAttribute('data-profile-uid', 'nacho-bot');
+    nameEl.setAttribute('title', 'View profile');
+    nameEl.addEventListener('click', function(e) {
+        if (typeof openUsernameTag === 'function') openUsernameTag('nacho-bot', e);
+        else if (typeof showUserProfile === 'function') {
+            e.preventDefault();
+            e.stopPropagation();
+            showUserProfile('nacho-bot');
+        }
+    });
     head.appendChild(nameEl);
     if (timeStr) {
         var timeEl = document.createElement('span');

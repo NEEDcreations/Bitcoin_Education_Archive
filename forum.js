@@ -1275,8 +1275,11 @@ async function loadArticles() {
                 }
                 
                 // Meta
+                var authorNameHtml = (typeof usernameTagHtml === 'function')
+                    ? usernameTagHtml(a.authorName || 'Anon', a.authorId, { at: false })
+                    : forumText(a.authorName || 'Anon');
                 html += '<div style="display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--text-faint);">' +
-                    '<span ' + (a.authorFaction ? 'style="' + window._factionNameStyle(a.authorFaction) + '"' : '') + '>' + lv.emoji + ' ' + forumText(a.authorName || 'Anon') + '</span>' +
+                    '<span ' + (a.authorFaction ? 'style="' + window._factionNameStyle(a.authorFaction) + '"' : '') + ' onclick="event.stopPropagation()">' + lv.emoji + ' ' + authorNameHtml + '</span>' +
                     '<span>·</span><span>' + readTime + ' min read</span>' +
                     (dateStr ? '<span>·</span><span>' + dateStr + '</span>' : '') +
                 '</div>';
@@ -1746,8 +1749,14 @@ window.articleView = async function(articleId) {
         html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">';
         var viewPic = articleImgUrl(a.authorPic);
         if (viewPic) html += '<img src="' + viewPic + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
+        var viewAuthorHtml = (typeof usernameTagHtml === 'function')
+            ? usernameTagHtml(a.authorName || 'Anon', a.authorId, { at: false })
+            : forumText(a.authorName || 'Anon');
+        var viewAuthorClick = (typeof usernameTagHtml !== 'function' && ARTICLE_UID_RE.test(String(a.authorId || '')))
+            ? ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + String(a.authorId).replace(/[^A-Za-z0-9_:-]/g, '') + '\')"'
+            : '';
         html += '<div>' +
-            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;"' + (ARTICLE_UID_RE.test(String(a.authorId || '')) ? ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + a.authorId + '\')"' : '') + '>' + lv.emoji + ' ' + forumText(a.authorName || 'Anon') + '</div>' +
+            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;"' + viewAuthorClick + '>' + lv.emoji + ' ' + viewAuthorHtml + '</div>' +
             '<div style="font-size:0.75rem;color:var(--text-faint);">' + dateStr + ' · ' + readTime + ' min read · ' + forumCount(a.wordCount).toLocaleString() + ' words</div>' +
         '</div>';
         // Edit button for author
