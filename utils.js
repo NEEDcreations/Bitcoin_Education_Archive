@@ -66,6 +66,102 @@ function escapeHtml(str) {
     return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+
+// ---- Clickable username tags ----
+// One shared helper for profile links. Display names and uids always go
+// through escapeHtml (or textContent). Never build HTML from raw names.
+// Prefer appendUsernameTag in DOM paths. Use usernameTagHtml only in
+// existing innerHTML renderers.
+/* USERNAME_TAGS_START */
+var USERNAME_TAG_STYLE = 'color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;';
+
+function usernameTagUidOk(uid) {
+    return typeof uid === 'string' && /^[A-Za-z0-9_:-]{1,128}$/.test(uid);
+}
+
+function resolveUsernameUid(name, knownUid) {
+    if (usernameTagUidOk(knownUid)) return knownUid;
+    var needle = String(name == null ? '' : name).replace(/^@/, '').trim();
+    if (!needle) return '';
+    var lower = needle.toLowerCase();
+    if (lower === 'nacho' || needle === '\uD83E\uDD8C Nacho') return 'nacho-bot';
+    var cache = null;
+    if (typeof window !== 'undefined' && window && window._chatUsers) cache = window._chatUsers;
+    else if (typeof _chatUsers !== 'undefined') cache = _chatUsers;
+    if (!cache) return '';
+    for (var uid in cache) {
+        if (!Object.prototype.hasOwnProperty.call(cache, uid)) continue;
+        if (!usernameTagUidOk(uid)) continue;
+        var cand = cache[uid];
+        if (typeof cand === 'string' && cand && (cand === needle || cand.toLowerCase() === lower)) return uid;
+    }
+    return '';
+}
+
+function openUsernameTag(uid, ev) {
+    if (ev) {
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+    }
+    if (!usernameTagUidOk(uid)) return;
+    if (typeof showUserProfile === 'function') showUserProfile(uid);
+}
+
+function _usernameTagEscape(str) {
+    if (typeof escapeHtml === 'function') return escapeHtml(str);
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function(c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+function appendUsernameTag(parent, name, uid, opts) {
+    if (!parent) return null;
+    opts = opts || {};
+    var raw = String(name == null ? '' : name);
+    var core = raw.replace(/^@/, '');
+    var resolved = resolveUsernameUid(core, uid);
+    var label = raw;
+    if (opts.at === true && label && label.charAt(0) !== '@') label = '@' + core;
+    if (!resolved) {
+        parent.appendChild(document.createTextNode(opts.fallback != null ? opts.fallback : raw));
+        return null;
+    }
+    var el = document.createElement(opts.tag || 'a');
+    if ((el.tagName || opts.tag || 'a').toLowerCase() === 'a') el.href = '#';
+    el.textContent = opts.text != null ? opts.text : label;
+    el.style.cssText = USERNAME_TAG_STYLE + (opts.style || '');
+    el.setAttribute('data-profile-uid', resolved);
+    el.setAttribute('title', opts.title || 'View profile');
+    el.addEventListener('click', function(e) {
+        openUsernameTag(el.getAttribute('data-profile-uid'), e);
+    });
+    parent.appendChild(el);
+    return el;
+}
+
+function usernameTagHtml(name, uid, opts) {
+    opts = opts || {};
+    var raw = String(name == null ? '' : name);
+    var core = raw.replace(/^@/, '');
+    var display = raw;
+    if (opts.at === true && display && display.charAt(0) !== '@') display = '@' + core;
+    var resolved = resolveUsernameUid(core, uid);
+    var safeName = opts.alreadyEscaped ? display : _usernameTagEscape(display);
+    if (!resolved) return safeName;
+    var safeUid = _usernameTagEscape(resolved);
+    var title = opts.alreadyEscaped ? (opts.title || 'View profile') : _usernameTagEscape(opts.title || 'View profile');
+    return '<a href="#" data-profile-uid="' + safeUid + '" onclick="event.preventDefault();event.stopPropagation();if(typeof openUsernameTag===\'function\')openUsernameTag(this.getAttribute(\'data-profile-uid\'),event);return false;" style="' + USERNAME_TAG_STYLE + '" title="' + title + '">' + safeName + '</a>';
+}
+
+if (typeof window !== 'undefined') {
+    window.usernameTagUidOk = usernameTagUidOk;
+    window.resolveUsernameUid = resolveUsernameUid;
+    window.openUsernameTag = openUsernameTag;
+    window.appendUsernameTag = appendUsernameTag;
+    window.usernameTagHtml = usernameTagHtml;
+}
+/* USERNAME_TAGS_END */
+
 // ---- Safe URL ----
 // One shared URL check. Returns the trimmed URL when it is http(s) with a
 // host, a same-site path, or a base64 raster data image, and '' otherwise.
