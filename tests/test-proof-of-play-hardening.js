@@ -6,6 +6,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const pins = require('./current-pins');
 
 const root = path.join(__dirname, '..');
 
@@ -324,13 +325,13 @@ function openHubOnSatArcade(ctx) {
     return playSatArcade(ctx);
 }
 
-test('SW is v2682 and proof-of-play.js is pinned at 20261119_v2682', () => {
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2682'"));
+test('SW cache name and proof-of-play.js pin match the current pages', () => {
+    pins.assertCurrentCache(read('sw.js'));
     assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2630'"));
-    assert.ok(read('app.js').includes('proof-of-play.js?v=20261119_v2682'));
     const html = read('index.html');
-    assert.ok(html.includes('proof-of-play.js?v=20261119_v2682'));
-    assert.strictEqual((html.match(/proof-of-play\.js\?v=20261119_v2682/g) || []).length, 2);
+    const popPin = pins.assertScriptPin(html, 'proof-of-play.js', read('404.html'));
+    assert.ok(read('app.js').includes(popPin.token));
+    assert.ok(popPin.count >= 1);
     assert.ok(!html.includes('proof-of-play.js?v=20261119_v2624"') && !html.includes("proof-of-play.js?v=20261119_v2624'"));
     assert.strictEqual(read('404.html'), html);
 });

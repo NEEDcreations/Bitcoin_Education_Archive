@@ -2,6 +2,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const pins = require('./current-pins');
 
 const root = path.join(__dirname, '..');
 const mig = require('../scripts/migrate-push-optin');
@@ -167,7 +168,7 @@ queue.push(test('dry-run is the default and --apply is explicit', function () {
     assert.ok(privacy.includes('If a device already had a push token and you had not turned notifications off, that registration stays on.'));
     assert.ok(terms.includes('when it already had a push token and you had not turned notifications off'));
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    pins.assertCurrentCache(sw);
     assert.ok(!sw.includes('btc-archive-v2438'));
     assert.ok(!sw.includes('btc-archive-v2437'));
     assert.ok(!sw.includes('btc-archive-v2436'));

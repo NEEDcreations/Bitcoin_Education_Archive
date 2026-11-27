@@ -2,6 +2,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const pins = require('./current-pins');
 
 const root = path.join(__dirname, '..');
 function read(rel) { return fs.readFileSync(path.join(root, rel), 'utf8'); }
@@ -120,7 +121,7 @@ test('client and workers share the safe push path', function() {
     assert.ok(sw.includes('clients.matchAll'));
     assert.ok(sw.includes('navigate'));
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2497'"));
+    pins.assertCurrentCache(sw);
     assert.ok(!sw.includes('btc-archive-v2438'));
     assert.ok(!sw.includes('btc-archive-v2437'));
     assert.ok(!sw.includes('btc-archive-v2436'));
@@ -221,7 +222,7 @@ test('client and workers share the safe push path', function() {
     assert.ok(rules.includes('request.auth.uid == uid'));
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('push-prefs.js?v=20261022_v2322'));
+    pins.assertScriptPin(html, 'push-prefs.js');
     assert.ok(html.includes('id="settings-notifications"') === false);
     assert.ok(html.includes("sessionStorage.setItem('btc_open_notif_settings'"));
     assert.ok(read('ranking.js').includes('id="settings-notifications"'));

@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const share = require('../achievement-share.js');
+const pins = require('./current-pins');
 
 const root = path.join(__dirname, '..');
 function read(name) { return fs.readFileSync(path.join(root, name), 'utf8'); }
@@ -384,12 +385,12 @@ test('shown marker is an owner string and the worker OG is static', () => {
     });
 });
 
-test('pages ship one script, one Latest line, and the v2394 cache', () => {
+test('pages ship one script, one Latest line, and the current SW cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('achievement-share.js?v=20261031_v2447'));
-    assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
-    assert.ok(html.includes('features.registry.js?v=20261104_v2482'));
+    pins.assertScriptPin(html, 'achievement-share.js');
+    pins.assertScriptPin(html, 'timechain-tv.js');
+    pins.assertScriptPin(html, 'features.registry.js');
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
     assert.ok(!notes.includes('Latest: ' + STREAKS_NOTE));
@@ -399,7 +400,7 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(!notes.includes('Latest: ' + SHARE_NOTE));
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    pins.assertCurrentCache(read('sw.js'));
     assert.ok(!read('sw.js').includes('btc-archive-v2438'));
     assert.ok(!read('sw.js').includes('btc-archive-v2437'));
     assert.ok(!read('sw.js').includes('btc-archive-v2436'));

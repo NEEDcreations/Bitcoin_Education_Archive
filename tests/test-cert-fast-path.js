@@ -5,6 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const pins = require('./current-pins');
 
 const root = path.join(__dirname, '..');
 function read(name) { return fs.readFileSync(path.join(root, name), 'utf8'); }
@@ -188,13 +189,14 @@ test('sources post verifyCertificate and paint fields as text', () => {
     assert.strictEqual(read('index.html'), read('404.html'));
     const app = read('app.js');
     assert.ok(app.includes('if (window._certPainted !== _certRaw) _paintBundleCert(_certRaw, false)'));
-    assert.ok(app.includes("shareable-certs.js?v=20261028_v2410"));
+    const certPin = pins.assertScriptPin(read('index.html'), 'shareable-certs.js');
+    assert.ok(app.includes(certPin.token));
     const early = hashScript();
     assert.ok(early.includes('DOMContentLoaded'));
     assert.ok(early.includes('firebase.firestore'));
     assert.strictEqual(early.includes("window._loadDeferred();") && early.indexOf('DOMContentLoaded') < early.lastIndexOf('_loadDeferred'), true);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    pins.assertCurrentCache(sw);
     assert.ok(!sw.includes('btc-archive-v2438'));
     assert.ok(!sw.includes('btc-archive-v2437'));
     assert.ok(!sw.includes('btc-archive-v2436'));

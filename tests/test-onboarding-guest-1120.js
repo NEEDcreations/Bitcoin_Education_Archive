@@ -5,6 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const pins = require('./current-pins');
 
 const root = path.join(__dirname, '..');
 function read(name) { return fs.readFileSync(path.join(root, name), 'utf8'); }
@@ -182,9 +183,9 @@ test('service worker updates wait if signup or onboarding is open', function () 
     assert.ok(html.includes('_reloadWhenIdle'));
     assert.ok(html.includes("getElementById('btcIntroOverlay')"));
     assert.ok(html404.includes('_reloadWhenIdle'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2683'"));
-    assert.ok(html.includes('onboarding.js?v=20261119_v2683'));
-    assert.ok(html.includes('ranking.js?v=20261119_v2683'));
+    pins.assertCurrentCache(read('sw.js'));
+    pins.assertScriptPin(html, 'onboarding.js', html404);
+    pins.assertScriptPin(html, 'ranking.js', html404);
 });
 
 test('intro overlay sits above the account sheet', function () {

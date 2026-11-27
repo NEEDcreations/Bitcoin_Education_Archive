@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+const pins = require('./current-pins');
 
 const root = path.join(__dirname, '..');
 const bonus = require(path.join(root, 'functions/src/replyBonus'));
@@ -618,7 +619,7 @@ test('client shows the server amount and does not render user text', function ()
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
     assert.ok(!html.includes('joining the conversation'));
-    assert.ok(html.includes('global-chat.js?v=20261102_v2467'));
+    pins.assertScriptPin(html, 'global-chat.js');
     assert.ok(!html.includes('global-chat.js?v=20261030_v2436'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2432'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2379'));
@@ -644,7 +645,7 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
-    assert.ok(html.includes('ranking.js?v=20261102_v2466'));
+    pins.assertScriptPin(html, 'ranking.js');
     assert.ok(!html.includes('ranking.js?v=20261029_v2431'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -670,7 +671,7 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 
-    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    pins.assertCurrentCache(swText);
     assert.ok(!swText.includes('btc-archive-v2438'));
     assert.ok(!swText.includes('btc-archive-v2437'));
     assert.ok(!swText.includes('btc-archive-v2436'));
