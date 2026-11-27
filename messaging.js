@@ -1011,6 +1011,7 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
                 '<div id="dmStatusDot"></div>' +
             '</div>' +
             '<div style="display:flex;gap:6px;align-items:center;">' +
+                '<button type="button" onclick="event.stopPropagation();backToDMList()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Back to messages">←</button>' +
                 '<button onclick="event.stopPropagation();reportUser(\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')" style="background:none;border:1px solid var(--border);color:var(--text-faint);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Report user">🚩</button>' +
                 '<button onclick="closeDM()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             '</div>' +
@@ -1637,130 +1638,275 @@ function markDMRead(convoId, myUid) {
     }).catch(function() {});
 }
 
-// ---- INBOX ----
-window.showInbox = function() {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showToast === 'function') showToast('🔒 Sign in to see messages');
-        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+
+// ---- START DM (username search) ----
+window.searchDMUsernames = function(query) {
+    query = String(query || '').trim().replace(/^@+/, '');
+    if (!query || query.length < 2 || typeof db === 'undefined') {
+        return Promise.resolve([]);
+    }
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
+    var variants = [query];
+    var low = query.toLowerCase();
+    var cap = query.charAt(0).toUpperCase() + query.slice(1).toLowerCase();
+    if (low !== query) variants.push(low);
+    if (cap !== query && cap !== low) variants.push(cap);
+    var seen = {};
+    var users = [];
+    function addSnap(snap) {
+        if (!snap || typeof snap.forEach !== 'function') return;
+        snap.forEach(function(doc) {
+            if (!doc || !doc.id || seen[doc.id] || doc.id === myUid) return;
+            var d = doc.data() ? doc.data() : {};
+            var name = d.username || d.displayName || '';
+            if (!name) return;
+            seen[doc.id] = true;
+            users.push({ uid: doc.id, username: name, points: d.points || 0 });
+        });
+    }
+    var searches = variants.map(function(v) {
+        return db.collection('public_profiles')
+            .where('username', '>=', v)
+            .where('username', '<=', v + '\uf8ff')
+            .limit(8)
+            .get()
+            .then(addSnap)
+            .catch(function() {});
+    });
+    return Promise.all(searches).then(function() {
+        users.sort(function(a, b) { return (b.points || 0) - (a.points || 0); });
+        return users.slice(0, 8);
+    });
+};
+
+window._openInboxDM = function(el) {
+    if (!el) return;
+    var uid = el.getAttribute('data-uid') || '';
+    var name = el.getAttribute('data-name') || 'User';
+    var inbox = document.getElementById('dmInbox');
+    if (inbox) inbox.remove();
+    if (typeof openDM === 'function') openDM(uid, name);
+};
+
+window._inboxRowHtml = function(c, myUid) {
+    var otherUid = (c.participants || []).find(function(p) { return p !== myUid; }) || '';
+    var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
+    var unread = c['unread_' + myUid] || 0;
+    var lastMsg = c.lastMessage || '';
+    if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
+    var lastTime = c.lastMessageTime ? (typeof timeAgo === 'function' ? timeAgo(c.lastMessageTime) : '') : '';
+    var isFromMe = c.lastSenderUid === myUid;
+    var isBuddy = c.isBuddyMatch === true;
+    var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
+    var safeUid = (typeof escapeHtml === 'function' ? escapeHtml(otherUid) : otherUid);
+    var safeName = (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName);
+    return '<div data-uid="' + safeUid + '" data-name="' + safeName + '" onclick="_openInboxDM(this)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';">' +
+        '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
+        '<div style="flex:1;min-width:0;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + safeName + buddyStar + '</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-faint);flex-shrink:0;">' + lastTime + '</div>' +
+            '</div>' +
+            '<div style="font-size:0.8rem;color:' + (unread > 0 ? 'var(--text)' : 'var(--text-muted)') + ';font-weight:' + (unread > 0 ? '600' : '400') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + (typeof escapeHtml === 'function' ? escapeHtml(lastMsg) : lastMsg) + '</div>' +
+        '</div>' +
+        (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
+    '</div>';
+};
+
+window._inboxEmptyHtml = function() {
+    return '<div style="text-align:center;padding:40px 20px;">' +
+        '<div style="font-size:2rem;margin-bottom:8px;">📬</div>' +
+        '<div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div>' +
+        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Use Start DM to message someone by username.</div></div>';
+};
+
+window._loadInboxConversations = function(listEl) {
+    if (!listEl) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || typeof db === 'undefined') {
+        listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.85rem;">Sign in to see messages</div>';
         return;
     }
-
     var myUid = auth.currentUser.uid;
-
-    // Remove existing
-    var old = document.getElementById('dmInbox');
-    if (old) old.remove();
-
-    var html = '<div id="dmInbox" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500000;display:flex;align-items:flex-end;justify-content:center;padding:0;" onclick="if(event.target===this)this.remove()">' +
-        '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px 20px 0 0;max-width:500px;width:100%;height:70vh;max-height:500px;display:flex;flex-direction:column;overflow:hidden;">' +
-        '<div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">' +
-            '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">📬 Messages</div>' +
-            '<button onclick="document.getElementById(\'dmInbox\').remove()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
-        '</div>' +
-        '<div id="dmInboxList" style="flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch;">' +
-            '<div style="text-align:center;color:var(--text-faint);padding:20px;">Loading...</div>' +
-        '</div></div></div>';
-
-    var div = document.createElement('div');
-    div.innerHTML = html;
-    document.body.appendChild(div.firstChild);
-
-    // Load conversations
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:20px;">Loading...</div>';
+    function fill(snap) {
+        var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+        if (!el) return;
+        if (!snap || snap.empty) { el.innerHTML = _inboxEmptyHtml(); return; }
+        var rows = [];
+        snap.forEach(function(doc) { rows.push(_inboxRowHtml(doc.data() || {}, myUid)); });
+        el.innerHTML = rows.join('');
+    }
     db.collection('dm_conversations')
         .where('participants', 'array-contains', myUid)
         .orderBy('lastMessageTime', 'desc')
         .limit(30)
         .get()
-        .then(function(snap) {
-            var list = document.getElementById('dmInboxList');
-            if (!list) return;
-            console.log('Inbox snap size:', snap.size);
-
-            if (snap.empty) {
-                list.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
-                    '<div style="font-size:2rem;margin-bottom:8px;">📬</div>' +
-                    '<div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div>' +
-                    '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Tap a user on the leaderboard to start chatting!</div></div>';
-                return;
-            }
-
-            var _rows = [];
-            snap.forEach(function(doc) {
-                var c = doc.data();
-                var otherUid = c.participants.find(function(p) { return p !== myUid; });
-                var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
-                var unread = c['unread_' + myUid] || 0;
-                var lastMsg = c.lastMessage || '';
-                if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
-                var lastTime = c.lastMessageTime ? timeAgo(c.lastMessageTime) : '';
-                var isFromMe = c.lastSenderUid === myUid;
-                var isBuddy = c.isBuddyMatch === true;
-                var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
-
-                _rows.push('<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + '\'">' +
-                    '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-                            '<div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + escapeHtml(otherName) + buddyStar + '</div>' +
-                            '<div style="font-size:0.65rem;color:var(--text-faint);flex-shrink:0;">' + lastTime + '</div>' +
-                        '</div>' +
-                        '<div style="font-size:0.8rem;color:' + (unread > 0 ? 'var(--text)' : 'var(--text-muted)') + ';font-weight:' + (unread > 0 ? '600' : '400') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + escapeHtml(lastMsg) + '</div>' +
-                    '</div>' +
-                    (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
-                '</div>');
-            });
-            list.innerHTML = _rows.join('');
-        }).catch(function(err) {
-            console.error('Inbox load error:', err);
-            var list = document.getElementById('dmInboxList');
-            if (!list) return;
-            
-            if (err.code === 'failed-precondition') {
-                // Fallback: query without orderBy (no composite index needed)
+        .then(fill)
+        .catch(function(err) {
+            if (err && err.code === 'failed-precondition') {
                 db.collection('dm_conversations')
                     .where('participants', 'array-contains', myUid)
                     .limit(30)
                     .get()
                     .then(function(snap2) {
-                        var list2 = document.getElementById('dmInboxList');
-                        if (!list2) return;
-                        if (snap2.empty) {
-                            list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">📬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
-                            return;
-                        }
-                        list2.innerHTML = '';
+                        var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+                        if (!el) return;
+                        if (!snap2 || snap2.empty) { el.innerHTML = _inboxEmptyHtml(); return; }
                         var convos = [];
-                        snap2.forEach(function(doc) { convos.push({id: doc.id, ...doc.data()}); });
-                        convos.sort(function(a,b) { return (b.lastMessageTime||0) - (a.lastMessageTime||0); });
-                        convos.forEach(function(c) {
-                            var otherUid = c.participants.find(function(p) { return p !== myUid; });
-                            var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
-                            var unread = c['unread_' + myUid] || 0;
-                            var lastMsg = c.lastMessage || '';
-                            if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
-                            var isFromMe = c.lastSenderUid === myUid;
-                            var isBuddy = c.isBuddyMatch === true;
-                            var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
-                            list2.innerHTML += '<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';">' +
-                                '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
-                                '<div style="flex:1;min-width:0;"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + escapeHtml(otherName) + buddyStar + '</div></div>' +
-                                '<div style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + escapeHtml(lastMsg) + '</div></div>' +
-                                (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
-                            '</div>';
-                        });
-                    }).catch(function(e2) {
-                        var list2 = document.getElementById('dmInboxList');
-                        if (list2) list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">💬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
+                        snap2.forEach(function(doc) { convos.push(doc.data() || {}); });
+                        convos.sort(function(a, b) { return (b.lastMessageTime || 0) - (a.lastMessageTime || 0); });
+                        el.innerHTML = convos.map(function(c) { return _inboxRowHtml(c, myUid); }).join('');
+                    })
+                    .catch(function() {
+                        var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+                        if (el) el.innerHTML = _inboxEmptyHtml();
                     });
                 return;
             }
-
-            // Index not ready or no conversations — show empty state
-            list.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
-                '<div style="font-size:2rem;margin-bottom:8px;">💬</div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div>' +
-                '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Tap a user on the leaderboard or in PlebTalk to start chatting!</div></div>';
+            var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+            if (el) el.innerHTML = _inboxEmptyHtml();
         });
+};
+
+window._renderInboxInto = function(container) {
+    if (!container) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        container.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:1.5rem;margin-bottom:8px;">📬</div><div style="color:var(--text-muted);font-size:0.85rem;">Sign in to see messages</div></div>';
+        return;
+    }
+    container.innerHTML =
+        '<div id="dmInboxShell" style="display:flex;flex-direction:column;height:100%;min-height:0;">' +
+            '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;">' +
+                '<div style="font-size:1.05rem;font-weight:800;color:var(--heading);">📬 Messages</div>' +
+                '<button type="button" id="dmStartBtn" onclick="showStartDM({mount:document.getElementById(\'dmInboxList\'),onBack:_showInboxList})" style="padding:8px 12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Start DM</button>' +
+            '</div>' +
+            '<div id="dmInboxList" style="flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch;"></div>' +
+        '</div>';
+    _loadInboxConversations(document.getElementById('dmInboxList'));
+};
+
+window._showInboxList = function() {
+    var tab = document.getElementById('dmTabContainer');
+    var overlay = document.getElementById('overlayDMsBody');
+    var inboxList = document.getElementById('dmInboxList');
+    var startMount = document.getElementById('dmStartMount');
+    if (overlay && startMount && overlay.contains(startMount) && typeof window._switchOverlayTab === 'function') {
+        window._switchOverlayTab('dms');
+        return;
+    }
+    if (tab) {
+        _renderInboxInto(tab);
+        return;
+    }
+    if (inboxList) {
+        _loadInboxConversations(inboxList);
+        return;
+    }
+    if (typeof showInbox === 'function') showInbox();
+};
+
+window.backToDMList = function() {
+    if (typeof closeDM === 'function') closeDM();
+    if (typeof showInbox === 'function') showInbox();
+};
+
+window._pickStartDMUser = function(uid, name) {
+    if (!uid) return;
+    if (typeof openDM === 'function') openDM(uid, name || 'User');
+};
+
+window.showStartDM = function(opts) {
+    opts = opts || {};
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to send messages');
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
+    var mount = opts.mount || document.getElementById('dmInboxList') || document.getElementById('dmTabContainer') || document.getElementById('overlayDMsBody');
+    if (!mount) {
+        if (typeof showInbox === 'function') showInbox();
+        setTimeout(function() {
+            showStartDM({ mount: document.getElementById('dmInboxList') || document.getElementById('dmTabContainer') });
+        }, 0);
+        return;
+    }
+    var onBack = typeof opts.onBack === 'function' ? opts.onBack : _showInboxList;
+    mount.innerHTML =
+        '<div id="dmStartMount" style="display:flex;flex-direction:column;height:100%;min-height:0;">' +
+            '<div style="padding:10px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+                '<button type="button" id="dmStartBackBtn" style="background:none;border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:1rem;font-family:inherit;" title="Back to messages">←</button>' +
+                '<div style="font-weight:800;color:var(--heading);font-size:0.95rem;">Start DM</div>' +
+            '</div>' +
+            '<div style="padding:0 12px 8px;flex-shrink:0;">' +
+                '<input type="text" id="dmStartSearch" placeholder="Search by username" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card-bg);color:var(--text);font-size:0.9rem;font-family:inherit;">' +
+            '</div>' +
+            '<div id="dmStartResults" style="flex:1;overflow-y:auto;padding:0 8px 8px;-webkit-overflow-scrolling:touch;">' +
+                '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Type at least 2 letters to search.</div>' +
+            '</div>' +
+        '</div>';
+    var backBtn = document.getElementById('dmStartBackBtn');
+    if (backBtn) backBtn.onclick = function(e) { if (e) e.preventDefault(); onBack(); };
+    var input = document.getElementById('dmStartSearch');
+    var results = document.getElementById('dmStartResults');
+    var timer = null;
+    function renderRows(users, q) {
+        if (!results) return;
+        if (!users.length) {
+            results.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">No users found' + (q ? ' for "' + (typeof escapeHtml === 'function' ? escapeHtml(q) : q) + '"' : '') + '</div>';
+            return;
+        }
+        results.innerHTML = users.map(function(u) {
+            var safeUid = (typeof escapeHtml === 'function' ? escapeHtml(u.uid) : u.uid);
+            var safeName = (typeof escapeHtml === 'function' ? escapeHtml(u.username) : u.username);
+            return '<div data-uid="' + safeUid + '" data-name="' + safeName + '" onclick="_pickStartDMUser(this.getAttribute(\'data-uid\'), this.getAttribute(\'data-name\'))" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent;">' +
+                '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.95rem;flex-shrink:0;">' + (safeName.charAt(0).toUpperCase() || '?') + '</div>' +
+                '<div style="font-weight:700;color:var(--heading);font-size:0.88rem;">@' + safeName + '</div>' +
+            '</div>';
+        }).join('');
+    }
+    function runSearch() {
+        var q = input ? input.value : '';
+        if (!results) return;
+        if (String(q || '').trim().replace(/^@+/, '').length < 2) {
+            results.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Type at least 2 letters to search.</div>';
+            return;
+        }
+        results.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Searching...</div>';
+        searchDMUsernames(q).then(function(users) { renderRows(users || [], String(q || '').trim().replace(/^@+/, '')); });
+    }
+    if (input) {
+        input.addEventListener('input', function() {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(runSearch, 200);
+        });
+        input.addEventListener('keydown', function(e) {
+            if (e && e.key === 'Enter') { if (timer) clearTimeout(timer); runSearch(); }
+        });
+        setTimeout(function() { if (input) input.focus(); }, 0);
+    }
+};
+
+// ---- INBOX ----
+window.showInbox = function() {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to send messages');
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
+
+    var old = document.getElementById('dmInbox');
+    if (old) old.remove();
+
+    var wrap = document.createElement('div');
+    wrap.id = 'dmInbox';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500000;display:flex;align-items:flex-end;justify-content:center;padding:0;';
+    wrap.onclick = function(e) { if (e.target === wrap) wrap.remove(); };
+    wrap.innerHTML = '<div id="dmInboxInner" style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px 20px 0 0;max-width:500px;width:100%;height:70vh;max-height:500px;display:flex;flex-direction:column;overflow:hidden;position:relative;">' +
+        '<button onclick="document.getElementById(\'dmInbox\').remove()" style="position:absolute;top:12px;right:12px;z-index:2;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
+        '</div>';
+    document.body.appendChild(wrap);
+    var inner = document.getElementById('dmInboxInner');
+    if (inner && typeof _renderInboxInto === 'function') _renderInboxInto(inner);
 };
 
 // ---- UNREAD COUNT BADGE ----
