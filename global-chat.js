@@ -317,6 +317,58 @@ function isSpammy(text) {
 // Escape HTML
 function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
 
+// Delegated click actions for chat rows, DM list and the DJ bar.
+var GC_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+function gcIdOk(v) { return typeof v === 'string' && GC_ID_RE.test(v); }
+window._gcIdOk = gcIdOk;
+// Account ids may also be nostr:<hex> or ln:<key>; message ids stay strict.
+var GC_UID_RE = /^[A-Za-z0-9_:-]{1,128}$/;
+function gcUidOk(v) { return typeof v === 'string' && GC_UID_RE.test(v); }
+window._gcUidOk = gcUidOk;
+var GC_UID_ACTIONS = { profile: true, dm: true };
+var _gcMsgById = {};
+var _gcDmNames = {};
+function gcMsgFor(id) { return Object.prototype.hasOwnProperty.call(_gcMsgById, id) ? _gcMsgById[id] : null; }
+var GC_ACTIONS = {
+    profile: function(el, id) { if (typeof showUserProfile === 'function') showUserProfile(id); },
+    react: function(el, id) {
+        var e = el.getAttribute('data-emoji') || '';
+        if (!e || e.length > 10 || /[<>"'\\&;(){}]/.test(e)) return;
+        if (typeof toggleReaction === 'function') toggleReaction(id, e);
+    },
+    'react-pick': function(el, id) { if (typeof showReactPicker === 'function') showReactPicker(id, el); },
+    edit: function(el, id) { var m = gcMsgFor(id); if (m && typeof editChatMsg === 'function') editChatMsg(id, m.text || ''); },
+    pin: function(el, id) { if (typeof pinChatMessage === 'function') pinChatMessage(id); },
+    del: function(el, id) { if (typeof deleteChatMsg === 'function') deleteChatMsg(id); },
+    tip: function(el, id) {
+        var m = gcMsgFor(id);
+        if (!m || typeof m.uid !== 'string' || !gcUidOk(m.uid) || typeof showTipOverlay !== 'function') return;
+        showTipOverlay({ recipientName: (typeof m.name === 'string' && m.name) ? m.name : 'Anon', recipientUid: m.uid, context: 'Global Chat tip', label: 'Tip Message' });
+    },
+    dm: function(el, id) {
+        var name = Object.prototype.hasOwnProperty.call(_gcDmNames, id) ? _gcDmNames[id] : 'User';
+        if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+        setTimeout(function() { if (typeof openDM === 'function') openDM(id, name); }, 300);
+    }
+};
+function gcOnAction(ev) {
+    var t = ev.target;
+    var el = t && t.closest ? t.closest('[data-gc-action]') : null;
+    if (!el || !this.contains(el)) return;
+    var act = el.getAttribute('data-gc-action') || '';
+    var id = el.getAttribute('data-id') || '';
+    if (!Object.prototype.hasOwnProperty.call(GC_ACTIONS, act)) return;
+    if (!(Object.prototype.hasOwnProperty.call(GC_UID_ACTIONS, act) ? gcUidOk(id) : gcIdOk(id))) return;
+    if (act === 'tip' || act === 'dm') ev.stopPropagation();
+    GC_ACTIONS[act](el, id, ev);
+}
+function gcBindActions(container) {
+    if (!container || container._gcActionsBound) return;
+    container._gcActionsBound = true;
+    container.addEventListener('click', gcOnAction);
+}
+window._gcBindActions = gcBindActions;
+
 // Time format
 function timeAgo(ts) {
     if (!ts) return '';
@@ -574,6 +626,8 @@ window._chatShowCount = 0;
 function renderChatMessages(msgs) {
     var el = document.getElementById('globalChatMessages');
     if (!el) return;
+    gcBindActions(el);
+    _gcMsgById = {};
 
     window._chatAllMsgs = msgs;
     // On first render or new messages, show last CHAT_INITIAL_SHOW
@@ -623,6 +677,8 @@ function renderChatMessages(msgs) {
         }
 
         if (bqSkipAnnouncement(m)) continue;
+        if (!gcIdOk(m._id)) continue;
+        _gcMsgById[m._id] = m;
         var isNacho = m.uid === 'nacho-bot' || m.isNachoAuto === true;
         var _factionStyle = !isNacho && m.faction ? window._factionNameStyle(m.faction) : '';
         var nameColor = isNacho ? '#22c55e' : isMe ? 'var(--accent)' : '#6366f1';
@@ -632,7 +688,7 @@ function renderChatMessages(msgs) {
         // Override display name for Nacho auto-replies
         if (isNacho && m.name !== '🦌 Nacho') m.name = '🦌 Nacho';
 
-        html += '<div data-msg-id="' + m._id + '" style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
+        html += '<div data-msg-id="' + esc(m._id) + '" style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
         html += '<div style="background:' + bubbleBg + ';border:1px solid ' + bubbleBorder + ';border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';padding:8px 12px;position:relative;">';
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
         // Cosmetics: chat flair prefix & nacho skin avatar
@@ -642,7 +698,7 @@ function renderChatMessages(msgs) {
         var nameClick = '';
         if (!isDeleted) {
             nameStyle += 'cursor:pointer;';
-            nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')"';
+            nameClick = gcUidOk(String(m.uid || '')) ? ' data-gc-action="profile" data-id="' + esc(String(m.uid)) + '"' : '';
         }
         var _coreTitle = (!isNacho && m.hasCoreContributor) ? ' <span title="Core Contributor — BIP Breakthrough" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.35);color:#f97316;vertical-align:middle;">🔧 Core Contributor</span>' : '';
         _coreTitle += (!isNacho && m.hasFactionChampion) ? (function(){ var _fl = ({'🐝👑':'Hive Mind Champion','🦡👑':"Honey Badger Don't Care Champion",'🐝🛡️':'Still Buzzing','🦡🛡️':"Badger Don't Quit"})[m.factionRaceFlair]; return _fl ? ' <span title="Faction race" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">' + esc(m.factionRaceFlair + ' ' + _fl) + '</span>' : null; })() || ' <span title="Faction race champion" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">👑 Race Champion</span>' : '';
@@ -653,12 +709,12 @@ function renderChatMessages(msgs) {
         }
         if (isMe || isAdmin) {
             if (isMe && (m.editCount || 0) < 2 && !m.isGif && !m.imageUrl && !m.gifUrl) {
-                html += '<span onclick="editChatMsg(\'' + m._id + '\',\'' + esc((m.text||'').replace(/'/g,`\\'`)) + '\')" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
+                html += '<span data-gc-action="edit" data-id="' + esc(m._id) + '" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
             }
             if (isAdmin && !m.isGif && !m.imageUrl && !m.gifUrl && m.uid !== 'nacho-bot' && m.isNachoAuto !== true) {
-                html += '<span onclick="pinChatMessage(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
+                html += '<span data-gc-action="pin" data-id="' + esc(m._id) + '" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
             }
-            html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
+            html += '<span data-gc-action="del" data-id="' + esc(m._id) + '" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
         }
         html += '</div>';
         if (m.replyToName) {
@@ -695,12 +751,12 @@ function renderChatMessages(msgs) {
             var iReacted = myUid && users.indexOf(myUid) !== -1;
             var safeEmoji = esc(emoji);
             var _uidsJson = JSON.stringify(users);
-            html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + safeEmoji.replace(/[\\'"]/g, '') + '\')" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
+            html += '<button data-gc-action="react" data-id="' + esc(m._id) + '" data-emoji="' + safeEmoji + '" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
         }
         if (myUid) {
-            html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
+            html += '<button data-gc-action="react-pick" data-id="' + esc(m._id) + '" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
             if (!isMe && !isNacho && !isDeleted && m.uid !== 'system') {
-                html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',recipientUid:\'' + String(m.uid || '').replace(/[^A-Za-z0-9_-]/g,'') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
+                html += '<button data-gc-action="tip" data-id="' + esc(m._id) + '" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
             }
         }
         html += '</div>';
@@ -2143,6 +2199,7 @@ function renderOverlayChat() {
         setTimeout(function() {
             var dmBody = document.getElementById('overlayDMsBody');
             if (!dmBody) return;
+            gcBindActions(dmBody);
             if (!isSignedIn) {
                 dmBody.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:1.5rem;margin-bottom:8px;">📬</div><div style="color:var(--text-faint);font-size:0.85rem;">Sign in to see messages</div></div>';
                 return;
@@ -2169,7 +2226,9 @@ function renderOverlayChat() {
                         if (lastMsg.length > 40) lastMsg = lastMsg.substring(0, 40) + '...';
                         var lastTime = c.lastMessageTime ? timeAgo(c.lastMessageTime) : '';
                         var isFromMe = c.lastSenderUid === myUid;
-                        html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + otherUid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName).replace(/[\\'"]/g, "") + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'rgba(249,115,22,0.3)' : 'transparent') + ';background:' + (unread > 0 ? 'rgba(249,115,22,0.05)' : 'none') + ';margin-bottom:4px;">' +
+                        if (!gcUidOk(String(otherUid || ''))) return;
+                        _gcDmNames[otherUid] = String(otherName);
+                        html += '<div data-gc-action="dm" data-id="' + esc(String(otherUid)) + '" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'rgba(249,115,22,0.3)' : 'transparent') + ';background:' + (unread > 0 ? 'rgba(249,115,22,0.05)' : 'none') + ';margin-bottom:4px;">' +
                             '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
                             '<div style="flex:1;min-width:0;">' +
                                 '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -2196,7 +2255,9 @@ function renderOverlayChat() {
                                 var otherUid = c.participants.find(function(p) { return p !== myUid; });
                                 var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
                                 var unread = c['unread_' + myUid] || 0;
-                                html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + otherUid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName).replace(/[\\'"]/g, "") + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;">' +
+                                if (!gcUidOk(String(otherUid || ''))) return;
+                                _gcDmNames[otherUid] = String(otherName);
+                                html += '<div data-gc-action="dm" data-id="' + esc(String(otherUid)) + '" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;">' +
                                     '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
                                     '<div style="flex:1;min-width:0;"><div style="font-weight:600;color:var(--heading);font-size:0.82rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName) + '</div></div>' +
                                     (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:8px;">' + unread + '</div>' : '') +
@@ -2391,8 +2452,16 @@ window.showReactPicker = function(msgId, btnEl) {
 
     picker.innerHTML = searchHtml + tabHtml + '<div id="reactEmojiGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:230px;justify-content:center;"></div>';
 
+    picker.addEventListener('click', function(ev) {
+        var b = ev.target && ev.target.closest ? ev.target.closest('[data-react-emoji]') : null;
+        if (!b || !picker.contains(b)) return;
+        var e = b.getAttribute('data-react-emoji') || '';
+        _closeReactPicker();
+        if (e) toggleReaction(msgId, e);
+    });
+
     function _reactEmojiBtn(e) {
-        return '<button onclick="_closeReactPicker();toggleReaction(\''+msgId+'\',\''+e+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+        return '<button data-react-emoji="'+esc(String(e))+'" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
     }
 
     window._switchReactTab = function(cat) {
@@ -3683,10 +3752,14 @@ function showDJBar(d) {
         djActionBtn = '<button id="djTuneBtn" onclick="' + (_djListening ? 'djStopListening()' : 'djTuneIn()') + '" style="padding:6px 10px;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;' + (_djListening ? 'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;' : 'background:rgba(239,68,68,0.1);border:2px solid #ef4444;color:#ef4444;animation:djPulse 1.5s ease-in-out infinite;') + '">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>';
     }
 
-    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
+    var _djUidOk = gcUidOk(String(d.djUid || ''));
+    var _artistUidOk = gcUidOk(String(d.artistUid || ''));
+    var _trackIdOk = gcIdOk(String(d.trackId || ''));
+    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span' + (_djUidOk ? ' data-gc-action="profile" data-id="' + esc(String(d.djUid)) + '"' : '') + ' style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
 
-    var artistHtml = d.artistUid ? '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')" style="cursor:pointer;text-decoration:underline;" title="View Artist Profile">' + esc(d.trackArtist) + '</span>' : esc(d.trackArtist);
+    var artistHtml = _artistUidOk ? '<span data-gc-action="profile" data-id="' + esc(String(d.artistUid)) + '" style="cursor:pointer;text-decoration:underline;" title="View Artist Profile">' + esc(d.trackArtist) + '</span>' : esc(d.trackArtist);
 
+    gcBindActions(bar);
     bar.innerHTML =
         // Row 1: DJ label
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
@@ -3703,15 +3776,37 @@ function showDJBar(d) {
         // Row 3: Action buttons
         '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
             djActionBtn +
-            (d.artistUid ? '<button onclick="if(\'' + (d.artistUid||'') + '\'&&typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')" style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
+            (_trackIdOk ? '<button data-dj-tip="1"' + (_artistUidOk ? ' data-gc-action="profile" data-id="' + esc(String(d.artistUid)) + '"' : '') + ' style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
             tipBtn +
             (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:5px 10px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.7rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
         '</div>';
+    _djBarLast = d;
+    djRunTipHook(bar, d);
+}
+
+// One tip hook for the DJ bar. beats.js registers it; the first one wins.
+var _djTipHook = null;
+var _djBarLast = null;
+function djRunTipHook(bar, d) {
+    if (!_djTipHook) return;
+    try { _djTipHook(bar, d); } catch (e) {}
+}
+window.bqDJBarTipHook = function(fn) {
+    if (typeof fn !== 'function' || _djTipHook) return false;
+    _djTipHook = fn;
+    var bar = document.getElementById('djNowPlaying');
+    if (bar && _djBarLast) djRunTipHook(bar, _djBarLast);
+    return true;
+};
+if (typeof window._bqDJBarTipPending === 'function') {
+    window.bqDJBarTipHook(window._bqDJBarTipPending);
+    window._bqDJBarTipPending = null;
 }
 
 function hideDJBar() {
     var bar = document.getElementById('djNowPlaying');
     if (bar) { bar.remove(); }
+    _djBarLast = null;
 }
 
 // Hook into chat listener to also start DJ listener

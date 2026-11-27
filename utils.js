@@ -55,6 +55,8 @@ function safeJSON(key, fallback) {
 // ---- HTML Escape ----
 // Prevents XSS in user-generated content rendered as innerHTML
 function escapeHtml(str) {
+    if (typeof str === 'number') str = String(str);
+    else if (typeof str !== 'string') return '';
     if (!str) return '';
     var div = document.createElement('div');
     div.appendChild(document.createTextNode(str));
@@ -64,15 +66,18 @@ function escapeHtml(str) {
     return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// ---- Safe URL (blocks javascript:, data:, vbscript:, blob: URIs) ----
+// ---- Safe URL ----
+// One shared URL check. Returns the trimmed URL when it is http(s) with a
+// host, a same-site path, or a base64 raster data image, and '' otherwise.
+// It does not escape: callers escape the result for the HTML context.
 function sanitizeUrl(url) {
-    if (!url) return '';
-    url = url.trim();
-    // Allow data:image/ URLs (base64 profile pictures stored by the app)
-    if (/^data:image\//i.test(url)) return url;
-    // Block all other data:, javascript:, vbscript:, blob: URLs
-    if (/^(javascript|data|vbscript|blob):/i.test(url)) return '';
-    return url;
+    if (typeof url !== 'string' || !url) return '';
+    var u = url.trim();
+    if (!u || /[\u0000-\u0020\u007f-\u009f]/.test(u)) return '';
+    if (/^https?:\/\/[^\/\\]/i.test(u)) return u;
+    if (/^\/(?![\/\\])/.test(u)) return u;
+    if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(u)) return u;
+    return '';
 }
 
 // ---- Time Ago ----
