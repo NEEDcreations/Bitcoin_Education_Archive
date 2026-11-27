@@ -38,7 +38,7 @@ function assessCipherClaim(input) {
     if (shown < MIN_ACCOUNT_AGE_DAYS) {
         return {
             ok: false,
-            error: 'Account must be at least ' + MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + shown + ' days.',
+            error: require('./realAccountAge').tooYoungMessage(MIN_ACCOUNT_AGE_DAYS, shown, src.ageSource),
         };
     }
     if (isSatsBanned({ satsDisabled: src.satsDisabled === true }, { banned: src.ledgerBanned === true })) {

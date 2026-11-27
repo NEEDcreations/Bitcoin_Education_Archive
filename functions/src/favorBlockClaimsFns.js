@@ -139,6 +139,7 @@ function factory(functionsV1, deps) {
             emailVerified: verified,
             ageKnown: realAge.ageKnown === true,
             ageDays: realAge.ageKnown === true ? realAge.ageDays : 0,
+            ageSource: realAge.ageSource,
             satsDisabled: u.satsDisabled === true,
             ledgerBanned: ledgerBanned,
         });

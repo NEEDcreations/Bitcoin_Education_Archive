@@ -1797,7 +1797,7 @@ exports.claimSats = functionsV1.runWith({
         if (!ageGate.ageKnown) throw new Error('age unknown');
         const ageDays = ageGate.ageDays;
         if (ageDays < FAUCET.MIN_ACCOUNT_AGE_DAYS) {
-            return { success: false, error: 'Account must be at least ' + FAUCET.MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + ageDays + ' days.' };
+            return { success: false, error: require('./src/realAccountAge').tooYoungMessage(FAUCET.MIN_ACCOUNT_AGE_DAYS, ageDays, ageGate.ageSource) };
         }
         const authCreatedMs = creationDate.getTime();
         const earlyUser = userPreSnap.exists ? userPreSnap.data() : {};

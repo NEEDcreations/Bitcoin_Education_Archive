@@ -1227,6 +1227,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, enforceAppChec
     const realAge = payoutGate.age || { ageKnown: false, ageDays: 0 };
     ageKnown = ageKnown && realAge.ageKnown;
     ageDays = realAge.ageKnown ? Math.min(ageDays, realAge.ageDays) : 0;
+    const ageSource = realAge.ageSource;
     const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
     if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
         await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
@@ -1264,6 +1265,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, enforceAppChec
             emailVerified: verifiedAuthEmail || verifiedTokenEmail === true,
             ageKnown: ageKnown,
             ageDays: ageDays,
+            ageSource: ageSource,
             satsDisabled: userRow.satsDisabled === true || tombSatsDisabled,
             ledgerBanned: (ledgerDoc.exists && ledgerDoc.data().banned === true) || tombLedgerBanned,
         });
@@ -1801,6 +1803,7 @@ const claimCipherSats = functionsV1.runWith({
     const realAge = payoutGate.age || { ageKnown: false, ageDays: 0 };
     ageKnown = ageKnown && realAge.ageKnown;
     ageDays = realAge.ageKnown ? Math.min(ageDays, realAge.ageDays) : 0;
+    const ageSource = realAge.ageSource;
     tombSatsDisabled = !!(looked.summary && looked.summary.satsDisabled);
     tombLedgerBanned = !!(looked.summary && looked.summary.ledgerBanned);
 
@@ -1861,6 +1864,7 @@ const claimCipherSats = functionsV1.runWith({
             emailVerified: verifiedAuthEmail || verifiedTokenEmail === true,
             ageKnown: ageKnown,
             ageDays: ageDays,
+            ageSource: ageSource,
             satsDisabled: user.satsDisabled === true || tombSatsDisabled,
             ledgerBanned: (ledgerSnap.exists && ledgerSnap.data().banned === true) || tombLedgerBanned,
             profileBanned: user.banned === true || !!user.ban_reason,

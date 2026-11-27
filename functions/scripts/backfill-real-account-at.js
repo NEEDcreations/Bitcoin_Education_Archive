@@ -12,17 +12,18 @@
  * Never lowers anything, never touches XP, sats, tickets or claims.
  * Only writes realAccountAt when the field is missing.
  *
- * Default is a READ-ONLY dry run (counts only, uids truncated, no emails).
- * Writing needs BOTH --apply and --confirm=REALACCOUNT, and Phil's OK.
+ * --project=<id> is required (no default project). Default is a READ-ONLY
+ * dry run (counts only, uids truncated, no emails). Writing needs BOTH --apply
+ * and --confirm=REALACCOUNT, and Phil's OK. Each write re-reads the profile in
+ * a transaction and skips it if realAccountAt (or a sync) appeared meanwhile.
  *
- *   node functions/scripts/backfill-real-account-at.js
- *   node functions/scripts/backfill-real-account-at.js --apply --confirm=REALACCOUNT
+ *   node functions/scripts/backfill-real-account-at.js --project=bitcoin-quest-staging
+ *   node functions/scripts/backfill-real-account-at.js --project=<id> --apply --confirm=REALACCOUNT
  */
 'use strict';
 
 const realAccountAge = require('../src/realAccountAge');
 
-const PROJECT_ID = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'bitcoin-education-archive';
 const PAGE = 1000;
 
 function shortUid(uid) {
@@ -32,7 +33,12 @@ function shortUid(uid) {
 function parseArgs(argv) {
     const apply = argv.indexOf('--apply') !== -1;
     const confirm = argv.some(function (a) { return a === '--confirm=REALACCOUNT'; });
-    return { apply: apply && confirm, applyRequested: apply, confirm: confirm };
+    let project = '';
+    argv.forEach(function (a) {
+        const m = /^--project=([a-z0-9-]{4,40})$/.exec(String(a));
+        if (m) project = m[1];
+    });
+    return { apply: apply && confirm, applyRequested: apply, confirm: confirm, project: project };
 }
 
 function hasRealIdentity(authUser) {
@@ -44,6 +50,19 @@ function hasRealIdentity(authUser) {
         if (id && id !== 'anonymous') return true;
     }
     return false;
+}
+
+// Inside a transaction: re-read the profile and write only if the plan still
+// says 'set' (realAccountAt still missing, profile still unsynced).
+async function applyOne(db, authUser) {
+    const ref = db.collection('users').doc(authUser.uid);
+    return db.runTransaction(async function (t) {
+        const snap = await t.get(ref);
+        const plan = planFor(authUser, snap.exists ? (snap.data() || {}) : null);
+        if (plan.action !== 'set') return { written: false, reason: plan.reason };
+        t.update(ref, { realAccountAt: plan.realAccountAt });
+        return { written: true };
+    });
 }
 
 // Pure: what to do for one Auth user + users doc (null when missing).
@@ -59,10 +78,15 @@ function planFor(authUser, userDoc) {
 
 async function main() {
     const args = parseArgs(process.argv.slice(2));
+    if (!args.project) {
+        console.error('Refusing: pass --project=<id> (there is no default project)');
+        process.exit(2);
+    }
     if (args.applyRequested && !args.confirm) {
         console.error('Refusing: --apply also needs --confirm=REALACCOUNT');
         process.exit(2);
     }
+    const PROJECT_ID = args.project;
     const admin = require('firebase-admin');
     if (!admin.apps.length) admin.initializeApp({ projectId: PROJECT_ID });
     const db = admin.firestore();
@@ -79,7 +103,9 @@ async function main() {
             if (plan.action !== 'set') continue;
             if (sample.length < 10) sample.push(shortUid(u.uid));
             if (args.apply) {
-                await db.collection('users').doc(u.uid).set({ realAccountAt: plan.realAccountAt }, { merge: true });
+                const res = await applyOne(db, u);
+                if (!res.written) counts['raced_' + res.reason] = (counts['raced_' + res.reason] || 0) + 1;
+                else counts.written = (counts.written || 0) + 1;
             }
         }
         pageToken = page.pageToken;
@@ -87,7 +113,7 @@ async function main() {
     console.log(JSON.stringify({ project: PROJECT_ID, apply: args.apply, counts: counts, sample: sample }, null, 2));
 }
 
-module.exports = { planFor, hasRealIdentity, parseArgs };
+module.exports = { planFor, hasRealIdentity, parseArgs, applyOne };
 
 if (require.main === module) {
     main().catch(function (e) { console.error('backfill failed:', e && e.message); process.exit(1); });

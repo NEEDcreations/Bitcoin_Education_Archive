@@ -203,6 +203,7 @@ function planCipherSatsClaim(input) {
         emailVerified: src.emailVerified === true,
         ageKnown: src.ageKnown === true,
         ageDays: src.ageDays,
+        ageSource: src.ageSource,
         satsDisabled: src.satsDisabled === true,
         ledgerBanned: src.ledgerBanned === true,
     });

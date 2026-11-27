@@ -98,7 +98,7 @@ function authUser(uid, createdMs, extra) {
 }
 
 function gateFor(age) {
-    return assessCipherClaim({ email: 'x@example.com', emailVerified: true, ageKnown: age.ageKnown, ageDays: age.ageDays });
+    return assessCipherClaim({ email: 'x@example.com', emailVerified: true, ageKnown: age.ageKnown, ageDays: age.ageDays, ageSource: age.ageSource });
 }
 
 let passed = 0;
@@ -112,10 +112,10 @@ async function test(name, fn) {
     await test('boundary: 6d23h59m is refused, 7d00h passes (mocked creationTime)', async function () {
         const synced = { emailHash: 'h' };
         const young = realAccountAge.ageFrom(authUser('a', NOW - (7 * DAY - MIN)), synced, NOW);
-        assert.deepStrictEqual(young, { ageKnown: true, ageDays: 6 });
+        assert.deepStrictEqual(young, { ageKnown: true, ageDays: 6, ageSource: 'created' });
         assert.strictEqual(gateFor(young).ok, false);
         const old = realAccountAge.ageFrom(authUser('a', NOW - 7 * DAY), synced, NOW);
-        assert.deepStrictEqual(old, { ageKnown: true, ageDays: 7 });
+        assert.deepStrictEqual(old, { ageKnown: true, ageDays: 7, ageSource: 'created' });
         assert.strictEqual(gateFor(old).ok, true);
     });
 
@@ -131,7 +131,7 @@ async function test(name, fn) {
             createdAt: NOW - 999 * DAY, uid: 'someone-old', realAccountAtClient: NOW - 999 * DAY,
         };
         const age = realAccountAge.ageFrom(authUser('a', NOW - 2 * DAY), forged, NOW);
-        assert.deepStrictEqual(age, { ageKnown: true, ageDays: 2 });
+        assert.deepStrictEqual(age, { ageKnown: true, ageDays: 2, ageSource: 'created' });
         assert.strictEqual(gateFor(age).ok, false);
         // An earlier realAccountAt can never make an account older than Auth says.
         const early = realAccountAge.ageFrom(authUser('a', NOW - 2 * DAY), { realAccountAt: NOW - 400 * DAY }, NOW);
@@ -172,7 +172,7 @@ async function test(name, fn) {
         const r = await emailChange.beginPayout(db, authApiFor({ fresh1: a }), 'fresh1', a, NOW, {}, true);
         assert.strictEqual(r.ok, true);
         assert.ok(r.tomb && r.tomb.summary.ageDays >= 400, 'tombstone still read (bans/caps)');
-        assert.deepStrictEqual(r.age, { ageKnown: true, ageDays: 1 });
+        assert.deepStrictEqual(r.age, { ageKnown: true, ageDays: 1, ageSource: 'created' });
         assert.strictEqual(gateFor(r.age).ok, false);
     });
 
@@ -182,8 +182,9 @@ async function test(name, fn) {
         const r = await emailChange.beginPayout(db, authApiFor({ guest1: a }), 'guest1', a, NOW, {}, true);
         assert.strictEqual(r.ok, true);
         assert.strictEqual(db.docs.get('users/guest1').realAccountAt, NOW, 'stamped at first real identity');
-        assert.deepStrictEqual(r.age, { ageKnown: true, ageDays: 0 });
+        assert.deepStrictEqual(r.age, { ageKnown: true, ageDays: 0, ageSource: 'linked' });
         assert.strictEqual(gateFor(r.age).ok, false);
+        assert.strictEqual(gateFor(r.age).error, 'Sats claims open 7 days after you linked your email or sign-in. It has been 0 days.');
         // 6d23h59m later still refused, 7 days later it passes.
         const r2 = await emailChange.beginPayout(db, authApiFor({ guest1: a }), 'guest1', a, NOW + 7 * DAY - MIN, {}, true);
         assert.strictEqual(gateFor(r2.age).ok, false);
@@ -230,7 +231,7 @@ async function test(name, fn) {
         const db = createDb({ 'users/old1': { emailHash: tomb.emailHmac(a.email), email: a.email, points: 9000, satsWithdrawn: 300 } });
         const r = await emailChange.beginPayout(db, authApiFor({ old1: a }), 'old1', a, NOW, {}, true);
         assert.strictEqual(r.ok, true);
-        assert.deepStrictEqual(r.age, { ageKnown: true, ageDays: 200 });
+        assert.deepStrictEqual(r.age, { ageKnown: true, ageDays: 200, ageSource: 'created' });
         assert.strictEqual(gateFor(r.age).ok, true);
         const after = db.docs.get('users/old1');
         assert.strictEqual(after.realAccountAt, undefined);
@@ -248,7 +249,7 @@ async function test(name, fn) {
     });
 
     await test('never-synced profile is not eligible until reconcile stamps it; unknown creation is refused', async function () {
-        assert.deepStrictEqual(realAccountAge.ageFrom(authUser('x', NOW - 50 * DAY), {}, NOW), { ageKnown: true, ageDays: 0 });
+        assert.deepStrictEqual(realAccountAge.ageFrom(authUser('x', NOW - 50 * DAY), {}, NOW), { ageKnown: true, ageDays: 0, ageSource: 'linked' });
         assert.strictEqual(realAccountAge.ageFrom({ metadata: {} }, { emailHash: 'h' }, NOW).ageKnown, false);
         assert.strictEqual(gateFor(realAccountAge.ageFrom({ metadata: {} }, { emailHash: 'h' }, NOW)).ok, false);
     });
@@ -261,7 +262,57 @@ async function test(name, fn) {
         assert.strictEqual(backfill.planFor(real, { realAccountAt: 5 }).reason, 'already_set');
         assert.strictEqual(backfill.planFor(real, null).reason, 'no_profile');
         assert.strictEqual(backfill.planFor({ uid: 'anon', providerData: [], metadata: { creationTime: new Date(created).toUTCString() } }, {}).reason, 'no_real_identity');
-        assert.deepStrictEqual(backfill.parseArgs(['--apply']), { apply: false, applyRequested: true, confirm: false });
+        assert.deepStrictEqual(backfill.parseArgs(['--apply']), { apply: false, applyRequested: true, confirm: false, project: '' });
+        assert.strictEqual(backfill.parseArgs(['--project=bitcoin-quest-staging']).project, 'bitcoin-quest-staging');
+        assert.strictEqual(backfill.parseArgs(['--project=../x']).project, '');
+    });
+
+    await test('backfill script refuses to run without --project (no default to live)', async function () {
+        const src = fs.readFileSync(path.join(root, 'functions', 'scripts', 'backfill-real-account-at.js'), 'utf8');
+        assert.ok(!src.includes("'bitcoin-education-archive'"), 'no hard-coded live project');
+        const r = require('child_process').spawnSync(process.execPath, [path.join(root, 'functions', 'scripts', 'backfill-real-account-at.js')], { encoding: 'utf8' });
+        assert.strictEqual(r.status, 2);
+        assert.ok(/--project/.test(r.stderr));
+    });
+
+    await test('backfill applyOne: transactional re-read skips a profile that got realAccountAt or synced meanwhile', async function () {
+        function txDb(doc) {
+            const store = { doc: doc };
+            const ref = { get: async function () { return { exists: !!store.doc, data: function () { return Object.assign({}, store.doc); } }; } };
+            return {
+                store: store,
+                collection: function () { return { doc: function () { return ref; } }; },
+                runTransaction: async function (fn) {
+                    return fn({ get: function (r) { return r.get(); }, update: function (r, d) { store.doc = Object.assign({}, store.doc, d); } });
+                },
+            };
+        }
+        const created = NOW - 100 * DAY;
+        const a = authUser('b2', created);
+        const fresh = txDb({ points: 5 });
+        assert.deepStrictEqual(await backfill.applyOne(fresh, a), { written: true });
+        assert.strictEqual(fresh.store.doc.realAccountAt, created);
+        assert.strictEqual(fresh.store.doc.points, 5);
+        const already = txDb({ realAccountAt: NOW });
+        assert.deepStrictEqual(await backfill.applyOne(already, a), { written: false, reason: 'already_set' });
+        assert.strictEqual(already.store.doc.realAccountAt, NOW, 'never overwritten');
+        const synced = txDb({ emailHash: 'h' });
+        assert.deepStrictEqual(await backfill.applyOne(synced, a), { written: false, reason: 'synced_uses_creation' });
+        assert.strictEqual(synced.store.doc.realAccountAt, undefined);
+    });
+
+    await test('refusal text: linked accounts are told the 7 days count from the link; others keep the old text', async function () {
+        assert.strictEqual(realAccountAge.tooYoungMessage(7, 3, 'linked'), 'Sats claims open 7 days after you linked your email or sign-in. It has been 3 days.');
+        assert.strictEqual(realAccountAge.tooYoungMessage(7, 3, 'created'), 'Account must be at least 7 days old. Yours is 3 days.');
+        assert.strictEqual(assessCipherClaim({ email: 'x@e.com', emailVerified: true, ageKnown: true, ageDays: 2 }).error, 'Account must be at least 7 days old. Yours is 2 days.');
+        const fresh = realAccountAge.ageFrom(authUser('n', NOW - 3 * DAY), { emailHash: 'h', realAccountAt: NOW - 3 * DAY }, NOW);
+        assert.strictEqual(fresh.ageSource, 'created', 'a normal signup stamped at creation is not "linked"');
+        const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+        assert.ok(index.includes('tooYoungMessage(FAUCET.MIN_ACCOUNT_AGE_DAYS, ageDays, ageGate.ageSource)'));
+    });
+
+    await test('dead effectiveAgeDays helper is removed', async function () {
+        assert.strictEqual(tomb.effectiveAgeDays, undefined);
     });
 
     await test('rules: realAccountAt is a server-only profile key', async function () {

@@ -63,19 +63,30 @@ function startMs(authUser, user) {
     if (!Number.isFinite(created)) return { known: false, ms: NaN };
     const u = user || {};
     const real = millisOf(u.realAccountAt);
-    if (real > 0) return { known: true, ms: Math.max(created, real) };
-    if (legacySynced(u)) return { known: true, ms: created };
+    if (real > 0) return { known: true, ms: Math.max(created, real), linked: real > created };
+    if (legacySynced(u)) return { known: true, ms: created, linked: false };
     // Never synced: no verified email or provider reached the profile yet.
     // Not eligible until reconcileEmail stamps it.
-    return { known: true, ms: Infinity };
+    return { known: true, ms: Infinity, linked: true };
 }
 
 function ageFrom(authUser, user, nowMs) {
     const start = startMs(authUser, user);
-    if (!start.known) return { ageKnown: false, ageDays: 0 };
-    if (start.ms === Infinity) return { ageKnown: true, ageDays: 0 };
+    if (!start.known) return { ageKnown: false, ageDays: 0, ageSource: 'unknown' };
+    const source = start.linked ? 'linked' : 'created';
+    if (start.ms === Infinity) return { ageKnown: true, ageDays: 0, ageSource: source };
     const now = Number(nowMs) || Date.now();
-    return { ageKnown: true, ageDays: Math.max(0, Math.floor((now - start.ms) / DAY_MS)) };
+    return { ageKnown: true, ageDays: Math.max(0, Math.floor((now - start.ms) / DAY_MS)), ageSource: source };
+}
+
+// Refusal text for a too-young account. When the clock started at the first
+// email or sign-in link, say so, so the number matches what the player sees.
+function tooYoungMessage(minDays, ageDays, ageSource) {
+    const shown = Number.isFinite(Number(ageDays)) ? Math.floor(Number(ageDays)) : 0;
+    if (ageSource === 'linked') {
+        return 'Sats claims open ' + minDays + ' days after you linked your email or sign-in. It has been ' + shown + ' days.';
+    }
+    return 'Account must be at least ' + minDays + ' days old. Yours is ' + shown + ' days.';
 }
 
 module.exports = {
@@ -87,4 +98,5 @@ module.exports = {
     stampFor: stampFor,
     startMs: startMs,
     ageFrom: ageFrom,
+    tooYoungMessage: tooYoungMessage,
 };
