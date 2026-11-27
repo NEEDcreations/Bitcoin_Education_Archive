@@ -1180,7 +1180,7 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
     return bolt;
 }
 
-const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret, nwcUrlSecret], serviceAccount: runtimeSa('claimCipherWin') }).https.onCall(async (data, context) => {
+const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, enforceAppCheck: true, secrets: [deletionHmacSecret, nwcUrlSecret], serviceAccount: runtimeSa('claimCipherWin') }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
@@ -1223,6 +1223,10 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     }
     const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true);
     if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
+    // Claims age-gate hardening: later of Auth creation and users.realAccountAt.
+    const realAge = payoutGate.age || { ageKnown: false, ageDays: 0 };
+    ageKnown = ageKnown && realAge.ageKnown;
+    ageDays = realAge.ageKnown ? Math.min(ageDays, realAge.ageDays) : 0;
     const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
     if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
         await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
@@ -1776,7 +1780,7 @@ const claimCipherSats = functionsV1.runWith({
         authUser = await admin.auth().getUser(uid);
         const created = new Date(authUser.metadata.creationTime).getTime();
         if (Number.isFinite(created)) {
-            ageDays = accountTombstone.effectiveAgeDays(Math.floor((Date.now() - created) / 86400000), null);
+            ageDays = Math.floor((Date.now() - created) / 86400000);
             ageKnown = true;
         }
     } catch (e) {
@@ -1792,9 +1796,11 @@ const claimCipherSats = functionsV1.runWith({
     if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
         await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
     }
-    if (looked.summary && Number.isFinite(Number(looked.summary.ageDays))) {
-        ageDays = accountTombstone.effectiveAgeDays(ageDays, looked.summary);
-    }
+    // Claims age-gate hardening: raw Auth age, or less when users.realAccountAt
+    // is later. Deleted-account (tombstone) age is no longer credited.
+    const realAge = payoutGate.age || { ageKnown: false, ageDays: 0 };
+    ageKnown = ageKnown && realAge.ageKnown;
+    ageDays = realAge.ageKnown ? Math.min(ageDays, realAge.ageDays) : 0;
     tombSatsDisabled = !!(looked.summary && looked.summary.satsDisabled);
     tombLedgerBanned = !!(looked.summary && looked.summary.ledgerBanned);
 

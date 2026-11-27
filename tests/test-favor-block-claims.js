@@ -1484,6 +1484,86 @@ test('cap hit alerts once and does not pay', async function () {
     assert.strictEqual(h.pays.length, 1);
 });
 
+// ---------- claimFavorBlock account gate: 7-day age (claims age-gate hardening, Nov 27 2026) ----------
+function favorGateHarness(users, docs) {
+    const store = new Map(Object.keys(docs || {}).map(function (k) { return [k, Object.assign({}, docs[k])]; }));
+    function ref(p) {
+        return {
+            get: async function () { const v = store.get(p); return { exists: v !== undefined, data: function () { return v && Object.assign({}, v); } }; },
+            set: async function (d, o) { const prev = store.get(p) || {}; store.set(p, o && o.merge ? Object.assign({}, prev, d) : Object.assign({}, d)); },
+            delete: async function () { store.delete(p); },
+        };
+    }
+    const db = {
+        store: store,
+        collection: function (c) {
+            return {
+                doc: function (id) { return ref(c + '/' + id); },
+                where: function () { return { limit: function () { return this; }, get: async function () { return { forEach: function () {}, docs: [], empty: true }; } }; },
+            };
+        },
+        getAll: async function () { return Promise.all(Array.prototype.slice.call(arguments).map(function (r) { return r.get(); })); },
+    };
+    const authApi = {
+        getUser: async function (uid) { if (!users[uid]) { const e = new Error('nf'); e.code = 'auth/user-not-found'; throw e; } return users[uid]; },
+        getUserByEmail: async function (email) {
+            const hit = Object.keys(users).map(function (k) { return users[k]; }).find(function (u) { return u.email === email; });
+            if (!hit) { const e = new Error('nf'); e.code = 'auth/user-not-found'; throw e; }
+            return hit;
+        },
+        revokeRefreshTokens: async function () {},
+    };
+    function HttpsError(code, msg) { const e = new Error(msg); e.code = code; return e; }
+    const onCall = function (fn) { return fn; };
+    const functionsV1 = { https: { HttpsError: HttpsError, onCall: onCall }, runWith: function () { return { https: { onCall: onCall } }; } };
+    const fns = require(path.join(root, 'functions/src/favorBlockClaimsFns.js')).factory(functionsV1, { db: db, admin: { auth: function () { return authApi; } } });
+    return { db: db, gate: fns.accountGate };
+}
+function favorAuthUser(uid, createdMs) {
+    return {
+        uid: uid, email: uid + '@example.com', emailVerified: true, disabled: false,
+        providerData: [{ providerId: 'password', uid: uid + '@example.com' }],
+        metadata: { creationTime: new Date(createdMs).toUTCString() },
+    };
+}
+async function withHmacSecret(fn) {
+    const prev = process.env.DELETION_HMAC_SECRET;
+    process.env.DELETION_HMAC_SECRET = 'unit-deletion-secret-0123456789';
+    try { return await fn(); } finally { if (prev === undefined) delete process.env.DELETION_HMAC_SECRET; else process.env.DELETION_HMAC_SECRET = prev; }
+}
+
+test('claimFavorBlock account gate: 6d23h59m old is refused, 7d passes; client age fields ignored', async function () {
+    await withHmacSecret(async function () {
+        const tomb = require(path.join(root, 'functions/src/accountTombstone.js'));
+        const now = Date.now();
+        const young = favorAuthUser('fyoung', now - (7 * 86400000 - 60000));
+        const old = favorAuthUser('fold', now - 7 * 86400000 - 5000);
+        const h = favorGateHarness({ fyoung: young, fold: old }, {
+            'users/fyoung': { emailHash: tomb.emailHmac(young.email), ageDays: 999, created: now - 999 * 86400000 },
+            'users/fold': { emailHash: tomb.emailHmac(old.email) },
+        });
+        const ctxOf = function (uid) { return { auth: { uid: uid, token: { email: uid + '@example.com', email_verified: true } } }; };
+        const r1 = await h.gate('fyoung', ctxOf('fyoung'));
+        assert.strictEqual(r1.ok, false);
+        assert.strictEqual(r1.code, 'claim_rules');
+        assert.ok(/7 days/.test(r1.detail), r1.detail);
+        const r2 = await h.gate('fold', ctxOf('fold'));
+        assert.deepStrictEqual(r2, { ok: true });
+    });
+});
+
+test('claimFavorBlock account gate: a pre-aged guest whose first email lands now is refused', async function () {
+    await withHmacSecret(async function () {
+        const now = Date.now();
+        const guest = favorAuthUser('fguest', now - 30 * 86400000);
+        const h = favorGateHarness({ fguest: guest }, { 'users/fguest': { points: 10 } });
+        const r = await h.gate('fguest', { auth: { uid: 'fguest', token: {} } });
+        assert.strictEqual(r.ok, false);
+        assert.strictEqual(r.code, 'claim_rules');
+        assert.ok(h.db.store.get('users/fguest').realAccountAt >= now, 'stamped at first real identity');
+    });
+});
+
 (async function main() {
     for (const t of queue) {
         try { await t.fn(); console.log('\u2705 ' + t.name); passed++; }

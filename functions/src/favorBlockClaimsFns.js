@@ -131,13 +131,14 @@ function factory(functionsV1, deps) {
             try { await accountTombstone.applyIdentityFlags(db, uid, s); } catch (e) { /* still refused */ }
             return { ok: false, code: 'banned' };
         }
-        const created = new Date(authUser.metadata && authUser.metadata.creationTime).getTime();
+        // Claims age-gate hardening: later of Auth creation and users.realAccountAt.
+        const realAge = gate.age || { ageKnown: false, ageDays: 0 };
         const verified = !!(authUser.email && authUser.emailVerified === true);
         const g = assessCipherClaim({
             email: verified ? authUser.email : '',
             emailVerified: verified,
-            ageKnown: Number.isFinite(created),
-            ageDays: Number.isFinite(created) ? Math.floor((Date.now() - created) / 86400000) : 0,
+            ageKnown: realAge.ageKnown === true,
+            ageDays: realAge.ageKnown === true ? realAge.ageDays : 0,
             satsDisabled: u.satsDisabled === true,
             ledgerBanned: ledgerBanned,
         });
@@ -288,6 +289,7 @@ function factory(functionsV1, deps) {
     return {
         adminResolveFavorReview: adminResolveFavorReview,
         claimFavorBlock: claimFavorBlock,
+        accountGate: accountGate,
         myFavorEpochClaims: myFavorEpochClaims,
         adminSetFavorClaims: adminSetFavorClaims,
         adminFreezeFavorEpoch: adminFreezeFavorEpoch,

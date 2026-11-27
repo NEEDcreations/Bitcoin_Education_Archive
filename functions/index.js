@@ -1782,7 +1782,6 @@ exports.claimSats = functionsV1.runWith({
         const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, userRecord, Date.now(), context.auth.token || {}, true);
         if (!payoutGate.ok) return { success: false, error: payoutGate.error };
         const creationDate = new Date(userRecord.metadata.creationTime);
-        const authAgeDays = Math.floor((Date.now() - creationDate.getTime()) / 86400000);
         const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
         tombSummary = looked.summary;
         if (looked.configured && (tombSummary.banned || tombSummary.satsDisabled || tombSummary.ledgerBanned)) {
@@ -1792,7 +1791,11 @@ exports.claimSats = functionsV1.runWith({
             const again = faucetGuard.assessBan(flaggedUser, flaggedLedger);
             if (!again.ok) return { success: false, error: again.error };
         }
-        const ageDays = accountTombstone.effectiveAgeDays(authAgeDays, tombSummary);
+        // Claims age-gate hardening: Auth creation time or users.realAccountAt,
+        // whichever is later. Deleted-account age is not credited.
+        const ageGate = payoutGate.age || { ageKnown: false, ageDays: 0 };
+        if (!ageGate.ageKnown) throw new Error('age unknown');
+        const ageDays = ageGate.ageDays;
         if (ageDays < FAUCET.MIN_ACCOUNT_AGE_DAYS) {
             return { success: false, error: 'Account must be at least ' + FAUCET.MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + ageDays + ' days.' };
         }

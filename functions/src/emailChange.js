@@ -10,6 +10,7 @@ const { runtimeSa } = require('./runtimeServiceAccounts');
 // provider-set change holds sats for 72 hours. Nothing here logs an email address.
 
 const accountTombstone = require('./accountTombstone');
+const realAccountAge = require('./realAccountAge');
 
 const PREP_TTL_MS = 60 * 60 * 1000;
 const SATS_HOLD_MS = 72 * 60 * 60 * 1000;
@@ -380,8 +381,15 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
         }
     }
 
+    // Claims age-gate hardening: the first verified email or first provider set
+    // stamps users.realAccountAt once (see realAccountAge.js).
+    const firstIdentity = (!prevHash && !!nextHash)
+        || (knowProviders && !prevProvidersHash && !!nextProvidersHash);
+    const realStamp = firstIdentity ? realAccountAge.stampFor(user, authUser, clock) : null;
+
     if (!emailChanged && !seedMismatch && !providerChanged) {
         const seed = {};
+        if (realStamp != null) seed.realAccountAt = realStamp;
         if (!prevHash && nextHash) {
             seed.email = verified;
             seed.emailHash = nextHash;
@@ -402,6 +410,7 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
     }
 
     const patch = { satsHold: clock + SATS_HOLD_MS };
+    if (realStamp != null) patch.realAccountAt = realStamp;
     if (nextHash) {
         patch.email = verified;
         patch.emailHash = nextHash;
@@ -484,15 +493,20 @@ async function beginPayout(db, authApi, uid, authUser, nowMs, token, providersKn
     }
     const tomb = reconciled && reconciled.tomb;
     let holdUntil = Number(reconciled && reconciled.holdUntil) || 0;
+    // profile is the users doc read after reconcile, so a realAccountAt stamped
+    // just now is included. null when the read failed (claims then refuse).
+    let profile = null;
     try {
         const snap = await db.collection('users').doc(uid).get();
         const user = snap && snap.exists ? (snap.data() || {}) : {};
+        profile = user;
         holdUntil = Math.max(holdUntil, Number(user.satsHold) || 0);
     } catch (e) { /* the hold written above still applies */ }
     if ((reconciled && reconciled.hold) || holdUntil > clock) {
         return { ok: false, hold: true, error: HOLD_ERROR, holdUntil: holdUntil, tomb: tomb };
     }
-    return { ok: true, reconciled: reconciled, holdUntil: holdUntil, tomb: tomb };
+    const age = profile ? realAccountAge.ageFrom(authUser, profile, clock) : { ageKnown: false, ageDays: 0 };
+    return { ok: true, reconciled: reconciled, holdUntil: holdUntil, tomb: tomb, profile: profile, age: age };
 }
 
 function createEmailChangeHandlers(options) {

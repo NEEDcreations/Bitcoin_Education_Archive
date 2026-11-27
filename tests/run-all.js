@@ -153,6 +153,7 @@ const TESTS = [
     { name: 'Donate points', file: 'test-donate-points.js' },
     { name: 'Account deletion', file: 'test-delete-account.js' },
     { name: 'Email change', file: 'test-email-change.js' },
+    { name: 'Claims age-gate hardening', file: 'test-claims-age-gate.js' },
     { name: 'Account rules', file: 'test-account-rules.js' },
     { name: 'PvP Questions', file: 'test-pvp-questions.js' },
     { name: 'PvP Flow', file: 'test-pvp-flow.js' },

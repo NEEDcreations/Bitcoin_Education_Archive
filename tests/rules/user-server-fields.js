@@ -29,6 +29,7 @@ const FIELDS = [
     'bipBreakthroughClaimedBipId', 'bipBadges',
     'coreContributorUntil', 'coreContributorTitle',
     'factionJoinedAt', 'factionBonusUntil',
+    'realAccountAt',
 ];
 
 (async function main() {
