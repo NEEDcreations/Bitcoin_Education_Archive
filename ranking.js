@@ -1,7 +1,7 @@
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
-// Bitcoin Education Archive - Ranking System
+// Bitcoin Quest - Ranking System
 // =============================================
 
 // The main bundle replaces these once it parses. Auth now resolves before that
@@ -2869,7 +2869,7 @@ window.nostrSignInWithExtension = async function() {
         var pubkey = await window.nostr.getPublicKey();
         if (!pubkey || !/^[a-f0-9]{64}$/.test(pubkey)) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Could not get public key</span>'; return; }
         if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Signing auth event...</span>';
-        var signed = await window.nostr.signEvent({ kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Education Archive', pubkey: pubkey });
+        var signed = await window.nostr.signEvent({ kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Quest', pubkey: pubkey });
         if (!signed || !signed.sig) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Signing cancelled</span>'; return; }
         await nostrCompleteAuth(pubkey, signed.sig, signed);
     } catch(e) { console.error('Nostr extension error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Extension error: ' + (e.message || 'Unknown') + '</span>'; }
@@ -2907,7 +2907,7 @@ window.nostrSignInWithNsec = async function() {
         var privkeyHex = decoded.data;
         if (typeof privkeyHex !== 'string') { privkeyHex = Array.from(new Uint8Array(privkeyHex)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join(''); }
         var pubkey = NT.getPublicKey(privkeyHex);
-        var event = { kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Education Archive', pubkey: pubkey };
+        var event = { kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Quest', pubkey: pubkey };
         event.id = NT.getEventHash(event);
         event.sig = NT.signEvent(event, privkeyHex);
         // Wipe the private key from memory/DOM before anything goes over the network.
@@ -9098,10 +9098,10 @@ function showSettingsPage(tab) {
     // Set page title to app name when on security tab — Authy/browser extensions
     // read document.title (not the otpauth issuer) when auto-detecting QR codes.
     if (settingsTab === 'security') {
-        document.title = 'Bitcoin Education Archive';
-    } else if (document.title === 'Bitcoin Education Archive') {
+        document.title = 'Bitcoin Quest';
+    } else if (document.title === 'Bitcoin Quest') {
         // Restore to channel title when leaving security tab
-        document.title = (typeof _currentChannelTitle !== 'undefined' && _currentChannelTitle) ? _currentChannelTitle : 'Bitcoin Education Archive';
+        document.title = (typeof _currentChannelTitle !== 'undefined' && _currentChannelTitle) ? _currentChannelTitle : 'Bitcoin Quest';
     }
     const modal = document.getElementById('usernameModal');
     const box = modal.querySelector('.username-box');

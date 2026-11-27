@@ -69,7 +69,7 @@ async function weblnMakeInvoice(amountSats, memo) {
     if (!window.webln) throw new Error('WebLN not available');
     var result = await window.webln.makeInvoice({
         amount: amountSats,
-        defaultMemo: memo || 'Bitcoin Education Archive',
+        defaultMemo: memo || 'Bitcoin Quest',
     });
     return result.paymentRequest;
 }
@@ -239,7 +239,7 @@ async function nwcGetBalance() {
 async function nwcMakeInvoice(amountSats, memo) {
     var result = await nwcRequest('make_invoice', {
         amount: amountSats * 1000, // sats → msats
-        description: memo || 'Bitcoin Education Archive',
+        description: memo || 'Bitcoin Quest',
     });
     return result.invoice; // bolt11 string
 }

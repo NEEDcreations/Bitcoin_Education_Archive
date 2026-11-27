@@ -122,7 +122,7 @@ function injectMeetupBuilder() {
                 _mbResource('📕', 'How to Start a Bitcoin Meetup', 'https://www.whatisbitcoin.com/guides/start-your-own-bitcoin-meetup', 'Comprehensive guide covering venues, promotion, format, content ideas, and growing your community from zero.') +
                 _mbResource('🎓', 'My First Bitcoin', 'https://myfirstbitcoin.org/', 'Free open-source Bitcoin education curriculum. Perfect for structured meetup presentations — tested in El Salvador schools.') +
                 _mbResource('🌳', 'Bodarc', 'https://github.com/KC-Bitcoiners/bodarc', 'Open-source community website built by KC Bitcoiners. Forkable Next.js static site using Nostr as its data layer — get a storefront for circular economy, education resources, calendar, galleries, and committee management. Fully Nostr-ified and zappable.') +
-                _mbResource('🦌', 'This Archive!', null, 'Use the 146 channels in the Bitcoin Education Archive as meetup discussion topics. One channel per meetup = 2+ years of weekly content!') +
+                _mbResource('🦌', 'This Archive!', null, 'Use the 146 channels in the Bitcoin Quest as meetup discussion topics. One channel per meetup = 2+ years of weekly content!') +
             '</div>' +
         '</div>' +
 

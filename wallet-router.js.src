@@ -37,7 +37,7 @@ window.go = async function(id, btn, fromPopState) {
     // Render
     if (typeof window[route.render] === 'function') window[route.render]();
 
-    document.title = 'Lightning Wallet — Bitcoin Education Archive';
+    document.title = 'Lightning Wallet — Bitcoin Quest';
 
     if (typeof setFloatingElementsVisible === 'function') setFloatingElementsVisible(true);
     if (typeof nachoOnPage === 'function') nachoOnPage('wallet');

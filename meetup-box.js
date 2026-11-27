@@ -232,7 +232,7 @@ window.downloadMeetupTemplate = function(idx) {
     }
     lines.push('');
     lines.push('───────────────────────────────────────');
-    lines.push('Generated from Bitcoin Education Archive');
+    lines.push('Generated from Bitcoin Quest');
     lines.push('https://bitcoineducation.quest');
 
     var text = lines.join('\n');

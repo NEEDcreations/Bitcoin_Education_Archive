@@ -207,7 +207,7 @@ function certValid(fc, certId, payload) {
     wrap.appendChild(certEl('div', 'display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:20px;color:#22c55e;font-size:0.8rem;font-weight:700;margin-bottom:16px;', '✅ VERIFIED CERTIFICATE'));
     wrap.appendChild(certEl('div', 'font-size:4rem;margin:8px 0 12px;', emoji));
     wrap.appendChild(certEl('h2', 'color:var(--heading,#e2e8f0);font-size:1.4rem;font-weight:900;margin:0 0 4px;', title));
-    wrap.appendChild(certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;margin:0 0 20px;', 'Bitcoin Education Archive Certification'));
+    wrap.appendChild(certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;margin:0 0 20px;', 'Bitcoin Quest Certification'));
     var card = certEl('div', 'background:var(--card-bg,#141425);border:2px solid ' + color + ';border-radius:20px;padding:24px;margin:0 auto 20px;text-align:center;max-width:440px;');
     card.appendChild(certEl('div', 'color:var(--text-faint,#64748b);font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;', 'AWARDED TO'));
     card.appendChild(certEl('div', 'color:var(--heading,#e2e8f0);font-size:1.5rem;font-weight:900;margin-bottom:16px;word-break:break-word;', String(payload.name || '')));

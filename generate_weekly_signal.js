@@ -41,7 +41,7 @@ const html = `
     <div class="container">
         <div class="header">
             <h1>📡 THE WEEKLY SIGNAL</h1>
-            <div style="font-size: 14px; opacity: 0.9; margin-top: 5px;">Bitcoin Education Archive</div>
+            <div style="font-size: 14px; opacity: 0.9; margin-top: 5px;">Bitcoin Quest</div>
         </div>
         <div class="content">
             <div class="section-title">The Big Stories</div>

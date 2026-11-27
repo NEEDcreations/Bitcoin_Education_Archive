@@ -1,5 +1,5 @@
 // ============================================================
-// Bitcoin Education Archive — UX Improvements
+// Bitcoin Quest — UX Improvements
 // [AUDIT FIX U4-U11] Title updates, search highlights, offline,
 // toast queue, sidebar scroll restore, smooth transitions
 // Load AFTER app.js
@@ -16,7 +16,7 @@
         if (channelTitle) {
             // Strip emoji from title for cleaner tab display
             const clean = channelTitle.replace(/[\u{1F300}-\u{1FFFF}]/gu, '').trim();
-            document.title = clean + ' — Bitcoin Education Archive';
+            document.title = clean + ' — Bitcoin Quest';
         } else {
             document.title = _originalTitle;
         }

@@ -4,7 +4,7 @@
     window.updatePageTitle = function(channelTitle) {
         if (channelTitle) {
             const clean = channelTitle.replace(/[\u{1F300}-\u{1FFFF}]/gu, '').trim();
-            document.title = clean + ' — Bitcoin Education Archive';
+            document.title = clean + ' — Bitcoin Quest';
         } else {
             document.title = _originalTitle;
         }

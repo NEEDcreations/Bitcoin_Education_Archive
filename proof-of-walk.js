@@ -420,19 +420,19 @@ window.renderPOWSupport = function() {
         '<div style="text-align:center;margin-bottom:28px;">' +
             '<div style="font-size:2.5rem;margin-bottom:8px;">👟</div>' +
             '<h1 style="font-size:1.5rem;font-weight:800;color:var(--heading);margin:0 0 6px;">Proof of Walk — Support</h1>' +
-            '<p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 12px;">Help center for walkers using Strava with Bitcoin Education Archive</p>' +
+            '<p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 12px;">Help center for walkers using Strava with Bitcoin Quest</p>' +
             '<a href="https://www.strava.com" target="_blank" rel="noopener noreferrer"><img src="https://assets.bitcoineducation.quest/images/strava/pwrdBy_strava_white.svg" alt="Powered by Strava" style="height:28px;opacity:0.7;"></a>' +
         '</div>' +
 
         '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
             '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 10px;">What is Proof of Walk?</h2>' +
-            '<p style="color:var(--text);font-size:0.9rem;line-height:1.6;margin:0;">Proof of Walk is a feature of <a href="https://bitcoineducation.quest" style="color:var(--accent);">Bitcoin Education Archive</a> that rewards you with in-app points for physical activity. Connect your <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava</a> account and earn <strong>50 points per kilometer</strong> for every Walk, Run, or Hike you log — up to 42 km (2,100 points) per day. Proof of Walk is not developed or endorsed by Strava.</p>' +
+            '<p style="color:var(--text);font-size:0.9rem;line-height:1.6;margin:0;">Proof of Walk is a feature of <a href="https://bitcoineducation.quest" style="color:var(--accent);">Bitcoin Quest</a> that rewards you with in-app points for physical activity. Connect your <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava</a> account and earn <strong>50 points per kilometer</strong> for every Walk, Run, or Hike you log — up to 42 km (2,100 points) per day. Proof of Walk is not developed or endorsed by Strava.</p>' +
         '</div>' +
 
         '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
             '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 10px;">How to Connect</h2>' +
             '<ol style="color:var(--text);font-size:0.9rem;line-height:1.8;margin:0;padding-left:20px;">' +
-                '<li>Sign in to Bitcoin Education Archive</li>' +
+                '<li>Sign in to Bitcoin Quest</li>' +
                 '<li>Open <strong>Explore Apps</strong> and tap <strong>Proof of Walk</strong></li>' +
                 '<li>Tap the official <strong>Connect with Strava</strong> button — you\u2019ll be redirected to Strava to authorize</li>' +
                 '<li>Review the permissions and grant access</li>' +
@@ -466,7 +466,7 @@ window.renderPOWSupport = function() {
 
             '<div style="margin-bottom:14px;">' +
                 '<p style="font-weight:700;color:var(--heading);font-size:0.9rem;margin:0 0 4px;">How do I disconnect and delete my data?</p>' +
-                '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0;">Two options:<br><strong>In-app:</strong> Open Proof of Walk and tap <strong>Disconnect &amp; Delete Data</strong>. This removes your Strava tokens and all activity history from our system immediately.<br><strong>On Strava:</strong> Go to <a href="https://www.strava.com/settings/apps" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">strava.com/settings/apps</a>, find Bitcoin Education Archive, and click Revoke Access.<br>You can also email us to request full data deletion.</p>' +
+                '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0;">Two options:<br><strong>In-app:</strong> Open Proof of Walk and tap <strong>Disconnect &amp; Delete Data</strong>. This removes your Strava tokens and all activity history from our system immediately.<br><strong>On Strava:</strong> Go to <a href="https://www.strava.com/settings/apps" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">strava.com/settings/apps</a>, find Bitcoin Quest, and click Revoke Access.<br>You can also email us to request full data deletion.</p>' +
             '</div>' +
 
             '<div style="margin-bottom:14px;">' +
@@ -531,7 +531,7 @@ window.renderPOWSupport = function() {
         '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;">' +
             '<h2 style="font-size:1.1rem;font-weight:700;color:var(--heading);margin:0 0 10px;">Legal</h2>' +
             '<ul style="color:var(--text-muted);font-size:0.85rem;line-height:1.8;margin:0;padding-left:20px;">' +
-                '<li>Proof of Walk is a feature of Bitcoin Education Archive. It is not developed, endorsed, or sponsored by Strava.</li>' +
+                '<li>Proof of Walk is a feature of Bitcoin Quest. It is not developed, endorsed, or sponsored by Strava.</li>' +
                 '<li>"Strava" and the Strava logo are trademarks of Strava, Inc.</li>' +
                 '<li>Our use of the Strava API is subject to the <a href="https://www.strava.com/legal/api" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava API Agreement</a>, <a href="https://www.strava.com/legal/terms" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava Terms of Service</a>, and <a href="https://www.strava.com/legal/privacy" target="_blank" rel="noopener noreferrer" style="color:#fc4c02;">Strava Privacy Policy</a>.</li>' +
             '</ul>' +

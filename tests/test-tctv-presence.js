@@ -375,7 +375,7 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!sw.includes('btc-archive-v2240'));
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
+    assert.ok(html.includes('timechain-tv.js?v=20261127_v2739'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
@@ -537,7 +537,7 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('ranking.js?v=20261022_v2250'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2246'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2250'));
-    assert.ok(html.includes('lightning.js?v=20261023_v2323'));
+    assert.ok(html.includes('lightning.js?v=20261127_v2739'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_tctv2'));
     assert.ok(!html.includes('timechain-tv.js?v=20261007_2230'));
     assert.ok(!html.includes('ranking.js?v=20261022_appcheck'));

@@ -1,7 +1,7 @@
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
-// 🦌 Nacho - Bitcoin Education Archive Mascot
+// 🦌 Nacho - Bitcoin Quest Mascot
 // "Nacho keys, nacho cheese."
 // A cartoon deer with large antlers — Inspired by Clippy (Microsoft Office '97)
 // =============================================
@@ -2324,7 +2324,7 @@ window.showNacho = function() {
     // NEW: First-time user tour (First 5 Minutes)
     if (visits <= 2 && channelsVisited < 3 && !localStorage.getItem('btc_nacho_tour_shown')) {
         var tourSteps = [
-            { text: "Welcome to the Bitcoin Education Archive, {name}! I'm Nacho, your deer guide! 🦌", pose: 'wave', delay: 0 },
+            { text: "Welcome to the Bitcoin Quest, {name}! I'm Nacho, your deer guide! 🦌", pose: 'wave', delay: 0 },
             { text: "Click the grid icons to explore Bitcoin topics. Start with the orange ones — they're beginner-friendly! 📚", pose: 'point', delay: 4000 },
             { text: "See the 🔥 number? That's your streak! Come back daily to keep it growing. ⚡", pose: 'fire', delay: 8000 },
             { text: "Tap me anytime to chat, or double-tap to enter Nacho Mode for deep conversations! 💬", pose: 'cheese', delay: 12000 }

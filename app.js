@@ -900,7 +900,7 @@
         navHtml += '<div style="max-width:720px;margin:24px auto 8px;padding:14px 22px;font-size:0.62rem;line-height:1.55;color:var(--text-faint);text-align:center;letter-spacing:0.2px;opacity:0.7;">' +
             '<div style="font-weight:700;font-size:0.58rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1.2px;">Disclaimer</div>' +
             'This Bitcoin education is presented authentically and from a first-principles standpoint that maximizes truth. However, this is <strong>not financial, investment, legal, or tax advice</strong> and anyone reading this material should still verify its validity by doing their own research. ' +
-            'Bitcoin is volatile and you can lose money. Bitcoin Education Archive, its operators, and contributors make no warranty regarding the accuracy, completeness, or timeliness of any educational content and accept no liability for decisions made based on it. Always consult a licensed professional before making financial decisions. ' +
+            'Bitcoin is volatile and you can lose money. Bitcoin Quest, its operators, and contributors make no warranty regarding the accuracy, completeness, or timeliness of any educational content and accept no liability for decisions made based on it. Always consult a licensed professional before making financial decisions. ' +
             '<a href="/terms.html" style="color:var(--text-muted);text-decoration:underline;">Terms</a> · <a href="/privacy.html" style="color:var(--text-muted);text-decoration:underline;">Privacy</a>' +
         '</div>';
         msgsEl.innerHTML += navHtml;
@@ -1822,7 +1822,7 @@
         var hero = document.getElementById('hero');
         var h1 = hero ? hero.querySelector('h1') : null;
         var title = (h1 && h1.textContent) ? h1.textContent : String(id || '');
-        var text = title + ' — Bitcoin Education Archive';
+        var text = title + ' — Bitcoin Quest';
         var base = 'https://bitcoineducation.quest/#' + id;
         var url = (typeof shareDeepUrl === 'function') ? shareDeepUrl(base) : base;
         return { text: text, url: url };
@@ -4615,7 +4615,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         wrap.appendChild(_certEl('div', 'display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:20px;color:#22c55e;font-size:0.8rem;font-weight:700;margin-bottom:16px;', '✅ VERIFIED CERTIFICATE'));
         wrap.appendChild(_certEl('div', 'font-size:4rem;margin:8px 0 12px;', emoji));
         wrap.appendChild(_certEl('h2', 'color:var(--heading,#e2e8f0);font-size:1.4rem;font-weight:900;margin:0 0 4px;', title));
-        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;margin:0 0 20px;', 'Bitcoin Education Archive Certification'));
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;margin:0 0 20px;', 'Bitcoin Quest Certification'));
         var card = _certEl('div', 'background:var(--card-bg,#141425);border:2px solid ' + color + ';border-radius:20px;padding:24px;margin:0 auto 20px;text-align:center;max-width:440px;');
         card.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;', 'AWARDED TO'));
         card.appendChild(_certEl('div', 'color:var(--heading,#e2e8f0);font-size:1.5rem;font-weight:900;margin-bottom:16px;word-break:break-word;', String(payload.name || '')));
@@ -4777,7 +4777,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
             _showCertPage();
             if (typeof window.renderCertVerification !== 'function') {
-                var _certSrc = 'shareable-certs.js?v=20261028_v2410';
+                var _certSrc = 'shareable-certs.js?v=20261127_v2739';
                 var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]');
                 if (!_existingCertScript) {
                     var _certScript = document.createElement('script');
@@ -5240,7 +5240,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_graphic', title: '📊 Random Graphic', desc: 'See a random Bitcoin graphic or chart', keywords: 'graphic chart data visual infographic random graphics', action: 'goRandomGraphic()' },
         { id: '_quiz', title: '🎮 Quiz Me', desc: 'Test your Bitcoin knowledge with Nacho', keywords: 'quiz question test knowledge trivia game answer', action: 'nachoQuizMe()' },
         { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Real-time Bitcoin trivia battles against other players', keywords: 'pvp battle fight 1v1 versus trivia quiz compete multiplayer arena duel challenge opponent leaderboard wins losses', action: 'enterPVPMode()' },
-        { id: '_donate', title: '💛 Donate', desc: 'Support Bitcoin Education Archive with sats', keywords: 'donate support tip sats lightning contribute funding', action: 'showDonateModal()' },
+        { id: '_donate', title: '💛 Donate', desc: 'Support Bitcoin Quest with sats', keywords: 'donate support tip sats lightning contribute funding', action: 'showDonateModal()' },
         { id: '_theme', title: '🌙 Toggle Theme', desc: 'Switch between dark and light mode', keywords: 'theme dark light mode toggle switch appearance color night day', action: 'document.getElementById("themeToggle").click()' },
         { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
         { id: '_keyboard', title: '⌨️ Keyboard Shortcuts', desc: 'View all keyboard shortcuts', keywords: 'keyboard shortcut hotkey key binding keys shortcuts help', action: 'showKeyboardHelp()' },
@@ -6585,7 +6585,7 @@ window._updateSEO = function(id, title, desc) {
     if (!id) return;
     
     // 1. Update Title
-    var baseTitle = 'Bitcoin Education Archive';
+    var baseTitle = 'Bitcoin Quest';
     document.title = (title ? title + ' | ' : '') + baseTitle;
     
     // 2. Update Canonical URL

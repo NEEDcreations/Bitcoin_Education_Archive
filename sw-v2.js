@@ -1,4 +1,4 @@
-// Bitcoin Education Archive - Service Worker v15
+// Bitcoin Quest - Service Worker v15
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
 const CACHE_NAME = 'btc-archive-v23';
 const IMG_CACHE = 'btc-images-v2';
@@ -112,7 +112,7 @@ self.addEventListener('push', event => {
   try {
     const data = event.data.json();
     const options = {
-      body: data.notification?.body || 'New update from Bitcoin Education Archive',
+      body: data.notification?.body || 'New update from Bitcoin Quest',
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-72x72.png',
       vibrate: [200, 100, 200],
@@ -122,7 +122,7 @@ self.addEventListener('push', event => {
     
     event.waitUntil(
       self.registration.showNotification(
-        data.notification?.title || 'Bitcoin Education Archive',
+        data.notification?.title || 'Bitcoin Quest',
         options
       )
     );

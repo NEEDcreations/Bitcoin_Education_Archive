@@ -1824,7 +1824,7 @@ window.beatsShowDMCA = function() {
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;">' +
             '<h3 style="color:var(--heading);font-weight:800;margin-bottom:16px;">📜 Copyright & Takedown Policy</h3>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">' +
-                '<p><strong style="color:var(--heading);">User Responsibility</strong><br>Users who upload music to Bitcoin Beats represent and warrant that they own the copyright or have obtained all necessary permissions. Bitcoin Education Archive acts as a hosting platform and does not pre-screen uploads.</p>' +
+                '<p><strong style="color:var(--heading);">User Responsibility</strong><br>Users who upload music to Bitcoin Beats represent and warrant that they own the copyright or have obtained all necessary permissions. Bitcoin Quest acts as a hosting platform and does not pre-screen uploads.</p>' +
                 '<p><strong style="color:var(--heading);">Copyright Infringement</strong><br>We respect intellectual property rights. If you believe content on Bitcoin Beats infringes your copyright, you may submit a takedown request.</p>' +
                 '<p><strong style="color:var(--heading);">How to Submit a Takedown</strong><br>Email <a href="mailto:info.603btc@gmail.com" style="color:var(--accent);">info.603btc@gmail.com</a> with:<br>' +
                 '• A description of the copyrighted work<br>' +
@@ -1935,7 +1935,7 @@ window.beatsRenderUpload = function() {
                     '⚠️ Copyright Notice <span style="margin-left:auto;">▸</span>' +
                 '</button>' +
                 '<div id="beatsCopyrightDetails" style="display:none;padding:10px 14px;margin-top:4px;background:rgba(234,179,8,0.05);border:1px solid rgba(234,179,8,0.15);border-radius:0 0 10px 10px;font-size:0.73rem;color:#eab308;line-height:1.5;">' +
-                    'By uploading music, you confirm you own the rights or have permission to share it. Copyrighted material uploaded without authorization will be removed. Bitcoin Education Archive is not responsible for user-uploaded content.' +
+                    'By uploading music, you confirm you own the rights or have permission to share it. Copyrighted material uploaded without authorization will be removed. Bitcoin Quest is not responsible for user-uploaded content.' +
                     '<div style="margin-top:6px;">' +
                         '<a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:#eab308;text-decoration:underline;">Full Terms</a> · ' +
                         '<a href="#" onclick="event.preventDefault();beatsShowDMCA()" style="color:#eab308;text-decoration:underline;">DMCA Policy</a>' +

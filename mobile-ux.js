@@ -1203,9 +1203,9 @@ function walletRouteReady() {
 }
 
 var WALLET_SCRIPT_SRCS = [
-    'lightning.js?v=20261023_v2323',
+    'lightning.js?v=20261127_v2739',
     'lightning-tips.js?v=20261119_v2666',
-    'wallet-router.js?v=20261104_v2482'
+    'wallet-router.js?v=20261127_v2739'
 ];
 var _walletTapQueued = false;
 

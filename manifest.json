@@ -1,6 +1,6 @@
 {
-  "name": "Bitcoin Education Archive",
-  "short_name": "BTC Archive",
+  "name": "Bitcoin Quest",
+  "short_name": "Bitcoin Quest",
   "description": "A curated library of 146 Bitcoin topics with quests and rewards.",
   "start_url": "./",
   "scope": "./",

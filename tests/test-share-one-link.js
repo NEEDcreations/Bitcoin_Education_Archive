@@ -135,7 +135,7 @@ test('certificate, invite, badge celebration, Nacho, channel, beats, and PVP pos
     const nachoOff = app.nachoSharePayload('Blocks are scarce.', '');
     assert.strictEqual(linkCount(nachoOff.text), 1);
     assert.ok(nachoOff.text.endsWith('\nhttps://bitcoineducation.quest'));
-    const channelText = 'Mining — Bitcoin Education Archive';
+    const channelText = 'Mining — Bitcoin Quest';
     const channelOn = tickets.shareDeepUrl('https://bitcoineducation.quest/#mining', 'abc12345');
     assert.strictEqual(linkCount(channelText), 0);
     assert.strictEqual(linkCount(app.shareNote(channelText, channelOn)), 1);
@@ -221,7 +221,7 @@ test('Nacho quotes drop other links, channel shares read the ref at click, and P
     const after = channel.channelShareParts('mining');
     assert.strictEqual(before.url, 'https://bitcoineducation.quest/#mining');
     assert.strictEqual(after.url, 'https://bitcoineducation.quest/?ref=abc12345#mining');
-    assert.strictEqual(before.text, 'Mining — Bitcoin Education Archive');
+    assert.strictEqual(before.text, 'Mining — Bitcoin Quest');
     assert.strictEqual(linkCount(after.text + '\n' + after.url), 1);
     assert.ok(appSrc.includes('window.shareChannel = shareChannel'));
 

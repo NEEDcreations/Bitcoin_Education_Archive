@@ -201,7 +201,7 @@ test('service worker is at or past v2635 and the bundle pin matches the ship ver
     const swVersion = sw.match(/CACHE_NAME = 'btc-archive-v(\d+)'/);
     assert.ok(swVersion && Number(swVersion[1]) >= 2635);
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2682b/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261127_v2739/g) || []).length, 2);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

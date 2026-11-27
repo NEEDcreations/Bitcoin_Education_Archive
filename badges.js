@@ -1,7 +1,7 @@
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
-// Bitcoin Education Archive - Achievement Badges
+// Bitcoin Quest - Achievement Badges
 // =============================================
 
 // Server stats win once prediction_stats has loaded. Until then, the frozen
@@ -192,8 +192,8 @@ const BADGE_DEFS = [
     { id: 'referral_25',  name: 'Conference Speaker', emoji: '🎤', desc: '25 friends you invited reached Maxi rank',    check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralMaxiCount || 0) >= 25,  pts: 150 },
     { id: 'referral_50',  name: 'Conference Host',     emoji: '🏟️', desc: '50 friends you invited reached Maxi rank',       check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralMaxiCount || 0) >= 50,  pts: 500 },
     { id: 'referral_100', name: 'Keynote Legend',       emoji: '🏆', desc: '100 friends you invited reached Maxi rank', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralMaxiCount || 0) >= 100, pts: 2000 },
-    { id: 'referred',     name: 'Referred Friend',    emoji: '🫂', desc: 'Joined Bitcoin Education Archive via a referral link', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.referredBy), pts: 25 },
-    { id: 'first_peer',        name: 'First Peer',       emoji: '🧡', desc: 'Connected with your first peer on the Bitcoin Education Archive', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 1,   pts: 50 },
+    { id: 'referred',     name: 'Referred Friend',    emoji: '🫂', desc: 'Joined Bitcoin Quest via a referral link', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.referredBy), pts: 25 },
+    { id: 'first_peer',        name: 'First Peer',       emoji: '🧡', desc: 'Connected with your first peer on the Bitcoin Quest', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 1,   pts: 50 },
     { id: 'peer_network_10',   name: 'Node Runner',       emoji: '🕸️', desc: 'Built a peer network of 10 people',                                 check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 10,  pts: 200 },
     { id: 'peer_network_50',   name: 'Signal Booster',    emoji: '📡', desc: 'Connected with 50 peers — spreading the signal',                   check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 50,  pts: 500 },
     { id: 'peer_network_100',  name: 'Hub Node',          emoji: '🌐', desc: 'Connected with 100 peers — you are a hub on the network',          check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.peerCount || 0) >= 100, pts: 1000 },

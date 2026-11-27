@@ -91,7 +91,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
 
-    <link rel="preload" href="/bundle.min.js?v=20261119_v2682b" as="script">
+    <link rel="preload" href="/bundle.min.js?v=20261127_v2739" as="script">
 
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image" referrerpolicy="no-referrer">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
@@ -113,7 +113,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="BTC Archive">
+    <meta name="apple-mobile-web-app-title" content="Bitcoin Quest">
 
     <!-- Open Graph / Twitter Cards -->
     <meta property="og:type" content="website">
@@ -1381,15 +1381,15 @@
           "mainEntity": [
             {
               "@type": "Question",
-              "name": "What is the Bitcoin Education Archive?",
+              "name": "What is the Bitcoin Quest?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "The Bitcoin Education Archive is a free, open-source platform with 146 curated channels covering every aspect of Bitcoin — from beginner basics to advanced technical topics. It includes an AI tutor (Nacho), Timechain TV (24/7 streaming of curated Bitcoin videos across 21+ channels), mini-apps (forum, marketplace, music, IRL events, PVP trivia, DMs), quizzes, and real Bitcoin Lightning rewards."
+                "text": "The Bitcoin Quest is a free, open-source platform with 146 curated channels covering every aspect of Bitcoin — from beginner basics to advanced technical topics. It includes an AI tutor (Nacho), Timechain TV (24/7 streaming of curated Bitcoin videos across 21+ channels), mini-apps (forum, marketplace, music, IRL events, PVP trivia, DMs), quizzes, and real Bitcoin Lightning rewards."
               }
             },
             {
               "@type": "Question",
-              "name": "Is the Bitcoin Education Archive free?",
+              "name": "Is the Bitcoin Quest free?",
               "acceptedAnswer": {
                 "@type": "Answer",
                 "text": "Yes, completely free. No account needed, no ads, no paywalls. You can even earn real Bitcoin (sats) by learning and completing quests."
@@ -2225,7 +2225,7 @@
             <div class="tos-scroll">
                 <button type="button" id="tosCloseBtn" class="tos-close" aria-label="Close" onclick="if(window._dismissTos)window._dismissTos()">×</button>
                 <h2 id="tosModalTitle">📜 Updated Terms & Privacy</h2>
-                <p class="tos-subtitle">We've updated our Terms of Service and Privacy Policy. Please review and accept to continue using Bitcoin Education Archive.</p>
+                <p class="tos-subtitle">We've updated our Terms of Service and Privacy Policy. Please review and accept to continue using Bitcoin Quest.</p>
                 <div class="tos-links">
                     <a href="/terms.html" target="_blank" rel="noopener">📄 Terms of Service <span style="margin-left:auto;font-size:0.7rem;opacity:0.6;">opens in new tab ↗</span></a>
                     <a href="/privacy.html" target="_blank" rel="noopener">🔒 Privacy Policy <span style="margin-left:auto;font-size:0.7rem;opacity:0.6;">opens in new tab ↗</span></a>
@@ -2436,8 +2436,8 @@
     <script src="/popup-stack.js?v=20261119_v2681" defer></script>
 
     <script src="/kill-switch.js?v=20261111_v2551" defer></script>
-    <script src="/ranking.js?v=20261119_v2683" defer></script>    <!-- Critical: needed for initial page render -->
-    <script src="/bundle.min.js?v=20261119_v2682b" defer fetchpriority="high"></script>
+    <script src="/ranking.js?v=20261127_v2739" defer></script>    <!-- Critical: needed for initial page render -->
+    <script src="/bundle.min.js?v=20261127_v2739" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="/features.registry.js?v=20261119_v2681" defer></script>
@@ -2453,7 +2453,7 @@
     
     <script src="/miniapp-share.js?v=20261107_v2526" defer></script>
     <script src="/pvp-lobby-alert.js?v=20261118_v2605" defer></script>
-    <script src="/patches.js?v=20261026_v2385" defer></script>
+    <script src="/patches.js?v=20261127_v2739" defer></script>
     <script src="/onboarding.js?v=20261119_v2683" defer></script>
     <script src="/learning-quests.js?v=20261026_v2377" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
@@ -2471,17 +2471,17 @@
         var _lazyScripts = [
             'quests.js?v=20261120_v2686',
             'hot-topics.js?v=20261114_citadelwire3',
-            'pvp.js?v=20261118_v2605','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261105_v2506',
-            'scholar.js?v=20261105_v2490','beats.js?v=20261119_v2666',
-            'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261119_v2666',
-            'notifications.js?v=20261106_v2512','gifting.js?v=20261106_v2522','guide.js?v=20261104_v2482','modules.js?v=20261106_v2512',
-            'first-purchase.js?v=20260411','shareable-certs.js?v=20261028_v2410',
-            'sats-vs-bits.js?v=20261030_v2440','tips-integrations.js?v=20260307','wallet-router.js?v=20261104_v2482',
+            'pvp.js?v=20261118_v2605','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261127_v2739',
+            'scholar.js?v=20261105_v2490','beats.js?v=20261127_v2739',
+            'lightning.js?v=20261127_v2739','lightning-tips.js?v=20261119_v2666',
+            'notifications.js?v=20261106_v2512','gifting.js?v=20261106_v2522','guide.js?v=20261127_v2739','modules.js?v=20261106_v2512',
+            'first-purchase.js?v=20260411','shareable-certs.js?v=20261127_v2739',
+            'sats-vs-bits.js?v=20261030_v2440','tips-integrations.js?v=20260307','wallet-router.js?v=20261127_v2739',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
-            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
-            'timechain-tv.js?v=20261105_v2502',
+            'meetup-builder.js?v=20261127_v2739','meetup-box.js?v=20261127_v2739','bitcoin-buddy.js?v=20261022_v2252',
+            'timechain-tv.js?v=20261127_v2739',
             'learning-quests.js?v=20261026_v2377',
-            'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20261119_v2682'
+            'proof-of-walk.js?v=20261127_v2739','proof-of-play.js?v=20261119_v2682'
         ];
         function _injectScript(src) {
             if (document.querySelector('script[src="' + src + '"]')) return;
@@ -2622,7 +2622,7 @@
             wrap.appendChild(_cEl('div', 'display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:20px;color:#22c55e;font-size:0.8rem;font-weight:700;margin-bottom:16px;', '✅ VERIFIED CERTIFICATE'));
             wrap.appendChild(_cEl('div', 'font-size:4rem;margin:8px 0 12px;', emoji));
             wrap.appendChild(_cEl('h2', 'color:var(--heading,#e2e8f0);font-size:1.4rem;font-weight:900;margin:0 0 4px;', title));
-            wrap.appendChild(_cEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;margin:0 0 20px;', 'Bitcoin Education Archive Certification'));
+            wrap.appendChild(_cEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;margin:0 0 20px;', 'Bitcoin Quest Certification'));
             var card = _cEl('div', 'background:var(--card-bg,#141425);border:2px solid ' + color + ';border-radius:20px;padding:24px;margin:0 auto 20px;text-align:center;max-width:440px;');
             card.appendChild(_cEl('div', 'color:var(--text-faint,#64748b);font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;', 'AWARDED TO'));
             card.appendChild(_cEl('div', 'color:var(--heading,#e2e8f0);font-size:1.5rem;font-weight:900;margin-bottom:16px;word-break:break-word;', String(payload.name || '')));
@@ -2734,23 +2734,23 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2666', 'global-chat.js?v=20261119_v2682'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261119_v2666', 'global-chat.js?v=20261119_v2682'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261127_v2739', 'global-chat.js?v=20261119_v2682'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261127_v2739', 'global-chat.js?v=20261119_v2682'],
             'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261119_v2682'],
             'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261119_v2682'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
-            'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261119_v2666'],
+            'lightning':     ['lightning.js?v=20261127_v2739', 'lightning-tips.js?v=20261119_v2666'],
             'pvp':           ['pvp.js?v=20261118_v2605'],
             'proof-of-play': ['pvp.js?v=20261118_v2605', 'proof-of-play.js?v=20261119_v2682'],
-            'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
+            'proof-of-walk': ['proof-of-walk.js?v=20261127_v2739'],
             'trails':        ['modules.js?v=20261106_v2512'],
             'learning-quests': ['learning-quests.js?v=20261026_v2377'],
             'quests':        ['quests.js?v=20261120_v2686'],
             'questhub':      ['quests.js?v=20261120_v2686'],
             'app':           ['quests.js?v=20261120_v2686'],
-            'timechain-tv':  ['timechain-tv.js?v=20261105_v2502'],
-            'tv':            ['timechain-tv.js?v=20261105_v2502'],
-            'cert':          ['shareable-certs.js?v=20261028_v2410']
+            'timechain-tv':  ['timechain-tv.js?v=20261127_v2739'],
+            'tv':            ['timechain-tv.js?v=20261127_v2739'],
+            'cert':          ['shareable-certs.js?v=20261127_v2739']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {
