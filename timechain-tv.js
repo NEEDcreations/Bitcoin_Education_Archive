@@ -7704,7 +7704,7 @@ window.tctvBlockHeightTick=function(){
  var w=window._blockSurfHeight;w&&window.tctvSetBlockHeight(Math.max(w,window._tctvBlockHeight||0));
  var e=document.getElementById("tctv-block-height-val");e&&window._tctvBlockHeight&&(e.textContent=window.tctvFormatBlockHeight(window._tctvBlockHeight));
  if(busy)return;busy=!0;window._tctvBlockHeightPolls=(window._tctvBlockHeightPolls||0)+1;
- fetch("https://mempool.space/api/blocks/tip/height",{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(t){window.tctvSetBlockHeight(parseInt(t,10))}).catch(function(x){}).then(function(x){busy=!1});
+ var ac=("function"==typeof AbortController)?new AbortController():null,to=setTimeout(function(){try{ac&&ac.abort()}catch(x){}busy=!1},1e4);fetch("https://mempool.space/api/blocks/tip/height",ac?{cache:"no-store",signal:ac.signal}:{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(t){window.tctvSetBlockHeight(parseInt(t,10))}).catch(function(x){}).then(function(x){clearTimeout(to);busy=!1});
 };
 window.TCTV_BLOCK_HEIGHT_POLL_MS=45e3;
 if(!window._tctvBlockHeightTimer){window._tctvBlockHeightTimer=setInterval(window.tctvBlockHeightTick,window.TCTV_BLOCK_HEIGHT_POLL_MS);

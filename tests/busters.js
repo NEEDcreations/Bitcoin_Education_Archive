@@ -52,7 +52,7 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     assert.ok(!html.includes('features.registry.js?v=20261109_v2538'));
 });
 
-test('service worker cache is v2744', () => {
+test('service worker cache is v2745', () => {
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2745'"))
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2719'"))
@@ -1034,7 +1034,7 @@ test('18+ age confirmation script is pinned and identical on 404', () => {
 });
 
 
-test('sat-all-1128 pins (SW v2744; shipped feature files 20261128_v2744)', () => {
+test('sat-all-1128 pins (SW v2745; shipped feature files 20261128_v2744)', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2715'"));

@@ -28,7 +28,7 @@ function idAt(src, id) {
 
 test('index.html and 404.html stay identical, with SW v2744 and the new pin', function () {
     assert.strictEqual(html, notFound);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2744'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2745'"));
     assert.ok(html.includes('hot-topics.js?v=20261128_v2744'));
     assert.ok(!html.includes('hot-topics.js?v=20261114_citadelwire3'));
 });

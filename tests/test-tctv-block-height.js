@@ -37,6 +37,8 @@ function sandbox(opts) {
             addEventListener: function (ev, fn) { listeners[ev] = fn; }
         },
         setInterval: function (fn, ms) { intervals.push(ms); return 1; },
+        setTimeout: function (fn, ms) { return 2; },
+        clearTimeout: function () {},
         fetch: function (url) {
             sb._urls.push(url);
             const r = opts.responses.shift();
