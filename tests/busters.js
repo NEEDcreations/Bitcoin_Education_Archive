@@ -244,7 +244,6 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261126_v2723/g) || []).length, 2);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2682b/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2619/g) || []).length, 0);
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2682b/g) || []).length, 2);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2656/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2666/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261119_v2657/g) || []).length, 0);
