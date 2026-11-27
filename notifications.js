@@ -1920,8 +1920,25 @@ setInterval(_installClientAwardNotices, 2000);
             + '.push-settings .push-tip{min-height:28px;font-size:1rem;}'
             + '.push-tip-text{display:block;margin-top:6px;padding:8px 10px;background:var(--bg,rgba(0,0,0,.2));border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;line-height:1.4;}'
             + '.push-tip-text[hidden]{display:none;}'
-            + '#homePushHelp{margin:8px 0 0;font-size:0.88rem;line-height:1.4;color:var(--text-muted);}';
+            + '#homePushHelp{margin:8px 0 0;font-size:0.88rem;line-height:1.4;color:var(--text-muted);}'
+            + '#homePushCompact{display:none;align-items:center;gap:6px;margin:0 0 8px;padding:6px 10px;min-height:36px;border-radius:999px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer;touch-action:manipulation;}'
+            + '#homePush.is-compact #homePushCompact{display:inline-flex;}'
+            + '#homePush.is-compact:not(.is-open) .home-push-bar,#homePush.is-compact:not(.is-open) #homePushHelp,#homePush.is-compact:not(.is-open) #homePushPanel{display:none!important;}'
+            + '#homePush.is-compact{margin:8px auto 8px;}'
+            + '@media (max-width:900px){#homePush.is-compact{margin-top:8px;padding:0 4px;}}';
         document.head.appendChild(st);
+    }
+
+    function hasPushDecision(state) {
+        if (state === 'on') return true;
+        try {
+            if (localStorage.getItem('btc_home_push_decided') === '1') return true;
+        } catch (e) {}
+        return false;
+    }
+
+    function markPushDecision() {
+        try { localStorage.setItem('btc_home_push_decided', '1'); } catch (e) {}
     }
 
     function homeState(map) {
@@ -1942,10 +1959,31 @@ setInterval(_installClientAwardNotices, 2000);
         ensureHomeStyles();
         var state = homeState(map);
         var panelOpen = !!(document.getElementById('homePushPanel') && !document.getElementById('homePushPanel').hidden);
+        var compactOpen = root.classList.contains('is-open');
         root.textContent = '';
         if (state === 'blocked' || state === 'unsupported' || state === 'install') panelOpen = false;
-        if (state === 'guest') { root.hidden = true; return; }
+        if (state === 'guest') { root.hidden = true; root.classList.remove('is-compact', 'is-open'); return; }
         root.hidden = false;
+        var compact = hasPushDecision(state);
+        if (compact) root.classList.add('is-compact');
+        else root.classList.remove('is-compact');
+        if (!compact) root.classList.remove('is-open');
+        else if (compactOpen) root.classList.add('is-open');
+        var compactBtn = el('button', '', '');
+        compactBtn.type = 'button';
+        compactBtn.id = 'homePushCompact';
+        compactBtn.setAttribute('aria-expanded', compact && compactOpen ? 'true' : 'false');
+        compactBtn.setAttribute('aria-controls', 'homePushPanel');
+        var compactCopy = homeCopy(state);
+        compactBtn.appendChild(el('span', '', compactCopy[0]));
+        compactBtn.appendChild(el('span', '', state === 'on' ? 'Notifications' : 'Notifications off'));
+        compactBtn.title = compactCopy[1] + '. ' + compactCopy[2];
+        compactBtn.setAttribute('aria-label', compactCopy[1] + '. Tap to open notification settings.');
+        compactBtn.addEventListener('click', function() {
+            root.classList.toggle('is-open');
+            compactBtn.setAttribute('aria-expanded', root.classList.contains('is-open') ? 'true' : 'false');
+        });
+        root.appendChild(compactBtn);
         var bar = el('div', 'home-push-bar');
         var copy = homeCopy(state);
         var tog = el('button', state === 'on' ? 'on' : '');
@@ -1982,10 +2020,12 @@ setInterval(_installClientAwardNotices, 2000);
             if (window._pushPreview) {
                 window._pushPreviewPrefs = window._pushPreviewPrefs || {};
                 window._pushPreviewPrefs.master = !(window._pushPreviewPrefs.master === true);
+                markPushDecision();
                 window.renderHomePush();
                 return;
             }
             tog.disabled = true;
+            markPushDecision();
             var job = state === 'on' ? disableThisDevice() : window.enablePushFromTap();
             Promise.resolve(job).catch(function() {}).then(function() {
                 if (state === 'on') toast('Notifications off for this device');
@@ -2042,6 +2082,7 @@ setInterval(_installClientAwardNotices, 2000);
         panel.appendChild(box);
         root.appendChild(panel);
         choose.addEventListener('click', function() {
+            markPushDecision();
             panel.hidden = !panel.hidden;
             choose.textContent = panel.hidden ? 'Choose' : 'Done';
             choose.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
