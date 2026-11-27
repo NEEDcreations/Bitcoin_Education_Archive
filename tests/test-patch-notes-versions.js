@@ -221,7 +221,7 @@ function loadPage(opts) {
 const current = cacheName();
 
 test('the hero shows the current CACHE_NAME at the top of Patch Notes', function () {
-    assert.strictEqual(current, 'v2730');
+    assert.strictEqual(current, 'v2743');
     assert.ok(html.includes('id="pnAppVersion"'));
     assert.ok(html.includes('id="pnAppVersionNum"'));
     assert.ok(html.includes('data-sw-cache="' + current + '"'));

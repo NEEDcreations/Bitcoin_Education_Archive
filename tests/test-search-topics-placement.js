@@ -26,10 +26,10 @@ function idAt(src, id) {
     return src.indexOf('id="' + id + '"');
 }
 
-test('index.html and 404.html stay identical, with SW v2732 and the new pin', function () {
+test('index.html and 404.html stay identical, with SW v2743 and the new pin', function () {
     assert.strictEqual(html, notFound);
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2732'"));
-    assert.ok(html.includes('hot-topics.js?v=20261126_v2732'));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2743'"));
+    assert.ok(html.includes('hot-topics.js?v=20261127_v2743'));
     assert.ok(!html.includes('hot-topics.js?v=20261114_citadelwire3'));
 });
 

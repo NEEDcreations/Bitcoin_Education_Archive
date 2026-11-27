@@ -281,7 +281,8 @@ function loadPvpRow(username) {
     };
     sandbox.window = sandbox;
     vm.createContext(sandbox);
-    const code = H.sliceFunction(RANK, 'function _renderPvpSnapshot(') + '\nthis._renderPvpSnapshot = _renderPvpSnapshot;\n';
+    const sorts = RANK.slice(RANK.indexOf('/* LB_SORTS_START */'), RANK.indexOf('/* LB_SORTS_END */') + '/* LB_SORTS_END */'.length);
+    const code = sorts + H.sliceFunction(RANK, 'function _renderPvpSnapshot(') + '\nthis._renderPvpSnapshot = _renderPvpSnapshot;\n';
     vm.runInContext(code, sandbox, { filename: 'ranking.js' });
     const container = { innerHTML: '' };
     sandbox._renderPvpSnapshot(container, { rows: [{ uid: 'u1', username: username, rank: 1, wins: 2, losses: 1 }] });

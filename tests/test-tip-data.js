@@ -271,7 +271,8 @@ function pvpRow(username, addr) {
     const sandbox = lbSandbox();
     sandbox.window = sandbox;
     vm.createContext(sandbox);
-    vm.runInContext(H.sliceFunction(RANK, 'function _renderPvpSnapshot(') + '\nthis._renderPvpSnapshot = _renderPvpSnapshot;\n', sandbox, { filename: 'ranking.js' });
+    var sorts = RANK.slice(RANK.indexOf('/* LB_SORTS_START */'), RANK.indexOf('/* LB_SORTS_END */') + '/* LB_SORTS_END */'.length);
+    vm.runInContext(sorts + H.sliceFunction(RANK, 'function _renderPvpSnapshot(') + '\nthis._renderPvpSnapshot = _renderPvpSnapshot;\n', sandbox, { filename: 'ranking.js' });
     const c = { innerHTML: '' };
     sandbox._renderPvpSnapshot(c, { rows: [{ uid: 'u1', username: username, rank: 1, wins: 2, losses: 1, lightningAddress: addr }] });
     return c.innerHTML;
@@ -367,6 +368,8 @@ LT.forEach(function(row) {
         assert.strictEqual(t.win._tipOpts.bolt11, GOOD_INV);
         assert.strictEqual(t.win._tipOpts.fixedAmount, true);
         assert.strictEqual(typeof t.win._tipOpts.onSuccess, 'function');
+        await t.win.executeTip();
+        assert.deepStrictEqual(t.sent, []);
         await t.win.executeTip();
         assert.deepStrictEqual(t.sent, [GOOD_INV]);
     });

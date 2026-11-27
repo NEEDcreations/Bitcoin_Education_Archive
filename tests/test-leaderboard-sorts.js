@@ -41,10 +41,10 @@ function loadSorts() {
     return sandbox;
 }
 
-test('service worker is v2734 and ranking.js is pinned with index == 404', function() {
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2734'"));
+test('service worker is v2743 and ranking.js is pinned with index == 404', function() {
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2743'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2690'"));
-    assert.ok(html.includes('ranking.js?v=20261126_v2734'));
+    assert.ok(html.includes('ranking.js?v=20261127_v2743'));
     assert.strictEqual(html, html404);
 });
 
