@@ -118,6 +118,7 @@ const MESSAGES = Object.freeze({
     not_winner: 'Only the player who found this block can claim it.',
     amount_invalid: 'This block needs a manual check before it can be paid.',
     account_blocked: 'This account cannot claim sats right now.',
+    unavailable: 'Try again later.',
     step_up_required: 'Confirm it is you to claim this block.',
     manual_review: 'This block is set aside for a manual check. Your sats are safe.',
     already_paid: 'This block was already paid.',
@@ -608,7 +609,10 @@ function createBlockClaimService(deps) {
             }
 
             const gate = await deps.accountGate(uid, context);
-            if (!gate || !gate.ok) refuse('account_blocked', { gate: gate && gate.code });
+            if (!gate || !gate.ok) {
+                if (gate && gate.code === 'unavailable') refuse('unavailable');
+                refuse('account_blocked', { gate: gate && gate.code });
+            }
 
             // Fresh 2FA when the account has 2FA on (no-op otherwise).
             try { await deps.stepUp(context, data); }

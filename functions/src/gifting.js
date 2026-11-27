@@ -1253,6 +1253,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, enforceAppChec
         throw httpsError('failed-precondition', 'Try again later.');
     }
     const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true);
+    if (payoutGate && payoutGate.unavailable) throw httpsError('unavailable', payoutGate.error || 'Try again later.');
     if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
     // Claims age-gate hardening: later of Auth creation and users.realAccountAt.
     const realAge = payoutGate.age || { ageKnown: false, ageDays: 0 };
@@ -1824,6 +1825,7 @@ const claimCipherSats = functionsV1.runWith({
         throw httpsError('failed-precondition', 'Try again later.');
     }
     const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true);
+    if (payoutGate && payoutGate.unavailable) throw httpsError('unavailable', payoutGate.error || 'Try again later.');
     if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
     const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
     if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {

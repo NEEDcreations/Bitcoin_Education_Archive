@@ -124,6 +124,7 @@ function factory(functionsV1, deps) {
         if (!accountTombstone.secretReady()) return { ok: false, code: 'paused' };
         const token = (context.auth && context.auth.token) || {};
         const gate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), token, true);
+        if (gate && gate.unavailable) return { ok: false, code: 'unavailable' };
         if (!gate.ok) return { ok: false, code: 'hold' };
         const tomb = gate.tomb || { summary: {} };
         const s = tomb.summary || {};

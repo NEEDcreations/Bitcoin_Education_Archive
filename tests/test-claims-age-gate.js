@@ -15,6 +15,8 @@ const emailChange = require(path.join(root, 'functions', 'src', 'emailChange'));
 const tomb = require(path.join(root, 'functions', 'src', 'accountTombstone'));
 const { assessCipherClaim } = require(path.join(root, 'functions', 'src', 'cipherClaim'));
 const backfill = require(path.join(root, 'functions', 'scripts', 'backfill-real-account-at'));
+const ageGateHeld = require(path.join(root, 'functions', 'src', 'ageGateHeld'));
+const seedHeld = require(path.join(root, 'scripts', 'seed-age-gate-held'));
 
 const DAY = 86400000;
 const MIN = 60000;
@@ -101,6 +103,63 @@ function gateFor(age) {
     return assessCipherClaim({ email: 'x@example.com', emailVerified: true, ageKnown: age.ageKnown, ageDays: age.ageDays, ageSource: age.ageSource });
 }
 
+const CUTOFF = realAccountAge.REAL_ACCOUNT_CUTOFF_MS;
+
+function emptyHeld() {
+    return { ok: true, uids: new Set(), groups: {} };
+}
+
+function heldOf() {
+    const uids = Array.prototype.slice.call(arguments);
+    return { ok: true, uids: new Set(uids), groups: { test: uids.slice() } };
+}
+
+function withHeld(initial, held) {
+    const docs = Object.assign({}, initial || {});
+    if (!Object.prototype.hasOwnProperty.call(docs, 'config/ageGateHeld')) {
+        if (Array.isArray(held)) docs['config/ageGateHeld'] = { uids: held };
+        else if (held && Array.isArray(held.uids) && held.groups) docs['config/ageGateHeld'] = held;
+        else if (held && Array.isArray(held.uids)) docs['config/ageGateHeld'] = { uids: held.uids };
+        else if (held && held.groups) docs['config/ageGateHeld'] = { groups: held.groups };
+        else if (held && typeof held === 'object') docs['config/ageGateHeld'] = { groups: held };
+        else docs['config/ageGateHeld'] = { uids: [], groups: {} };
+    }
+    ageGateHeld.resetCache();
+    return createDb(docs);
+}
+
+function guestAuth(uid, createdMs, extra) {
+    return authUser(uid, createdMs, Object.assign({
+        email: String(uid).replace(/[^a-z0-9]/gi, 'x') + '@example.com',
+        emailVerified: true,
+        providerData: [],
+    }, extra || {}));
+}
+
+const savedEnv = {
+    GCLOUD_PROJECT: process.env.GCLOUD_PROJECT,
+    GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT,
+    FIREBASE_CONFIG: process.env.FIREBASE_CONFIG,
+    AGE_GATE_CUTOFF_MS: process.env.AGE_GATE_CUTOFF_MS,
+    AGE_GATE_HELD_EXTRA: process.env.AGE_GATE_HELD_EXTRA,
+};
+
+function setProject(id) {
+    if (id) process.env.GCLOUD_PROJECT = id;
+    else delete process.env.GCLOUD_PROJECT;
+    delete process.env.GOOGLE_CLOUD_PROJECT;
+    delete process.env.FIREBASE_CONFIG;
+    ageGateHeld.resetCache();
+}
+
+function restoreEnv() {
+    Object.keys(savedEnv).forEach(function (k) {
+        if (savedEnv[k] == null) delete process.env[k];
+        else process.env[k] = savedEnv[k];
+    });
+    ageGateHeld.resetCache();
+}
+
 let passed = 0;
 let failed = 0;
 async function test(name, fn) {
@@ -109,6 +168,8 @@ async function test(name, fn) {
 }
 
 (async function () {
+    setProject('');
+    try {
     await test('boundary: 6d23h59m is refused, 7d00h passes (mocked creationTime)', async function () {
         const synced = { emailHash: 'h' };
         const young = realAccountAge.ageFrom(authUser('a', NOW - (7 * DAY - MIN)), synced, NOW);
@@ -168,7 +229,7 @@ async function test(name, fn) {
         assert.ok(ids.length > 0);
         const seed = { 'users/fresh1': { emailHash: tomb.emailHmac(a.email), email: a.email } };
         ids.forEach(function (id) { seed['deleted_accounts/' + id] = { ageDays: 400, deletions: 1 }; });
-        const db = createDb(seed);
+        const db = withHeld(seed);
         const r = await emailChange.beginPayout(db, authApiFor({ fresh1: a }), 'fresh1', a, NOW, {}, true);
         assert.strictEqual(r.ok, true);
         assert.ok(r.tomb && r.tomb.summary.ageDays >= 400, 'tombstone still read (bans/caps)');
@@ -176,9 +237,9 @@ async function test(name, fn) {
         assert.strictEqual(gateFor(r.age).ok, false);
     });
 
-    await test('pre-aged guest: 7-day-old account whose first verified email lands now is refused', async function () {
+    await test('post-cutoff pre-aged guest: 7-day-old account whose first verified email lands now is refused', async function () {
         const a = authUser('guest1', NOW - 7 * DAY - 3600000);
-        const db = createDb({ 'users/guest1': { points: 50 } });
+        const db = withHeld({ 'users/guest1': { points: 50 } });
         const r = await emailChange.beginPayout(db, authApiFor({ guest1: a }), 'guest1', a, NOW, {}, true);
         assert.strictEqual(r.ok, true);
         assert.strictEqual(db.docs.get('users/guest1').realAccountAt, NOW, 'stamped at first real identity');
@@ -193,20 +254,20 @@ async function test(name, fn) {
         assert.strictEqual(db.docs.get('users/guest1').realAccountAt, NOW, 'never re-stamped');
     });
 
-    await test('pre-aged guest linking Google (first provider) is stamped too', async function () {
+    await test('post-cutoff pre-aged guest linking Google (first provider) is stamped now', async function () {
         const a = authUser('guest2', NOW - 30 * DAY, {
             email: 'g2@gmail.com',
             providerData: [{ providerId: 'google.com', uid: 'google-sub-2' }],
         });
-        const db = createDb({ 'users/guest2': {} });
+        const db = withHeld({ 'users/guest2': {} });
         const r = await emailChange.beginPayout(db, authApiFor({ guest2: a }), 'guest2', a, NOW, {}, true);
         assert.strictEqual(db.docs.get('users/guest2').realAccountAt, NOW);
         assert.strictEqual(gateFor(r.age).ok, false);
     });
 
-    await test('Lightning/Nostr account that adds its first email after 7 days waits 7 days from the email', async function () {
+    await test('post-cutoff Lightning/Nostr account that adds its first email after 7 days waits 7 days from the email', async function () {
         const a = authUser('ln:abc', NOW - 20 * DAY, { providerData: [] });
-        const db = createDb({
+        const db = withHeld({
             'users/ln:abc': {},
             ['email_link_claims/' + tomb.emailHmac(a.email)]: { uid: 'ln:abc', expireAt: NOW + 3600000 },
         });
@@ -219,7 +280,7 @@ async function test(name, fn) {
     await test('normal new signup is not delayed: realAccountAt = creationTime', async function () {
         const created = NOW - 2 * 3600000;
         const a = authUser('new1', created);
-        const db = createDb({});
+        const db = withHeld({});
         await emailChange.reconcileEmail(db, authApiFor({ new1: a }), 'new1', a, NOW, {}, true);
         assert.strictEqual(db.docs.get('users/new1').realAccountAt, created);
         const later = await emailChange.beginPayout(db, authApiFor({ new1: a }), 'new1', a, created + 7 * DAY, {}, true);
@@ -228,7 +289,7 @@ async function test(name, fn) {
 
     await test('existing synced player without realAccountAt keeps creationTime (no lockout, no stamp)', async function () {
         const a = authUser('old1', NOW - 200 * DAY);
-        const db = createDb({ 'users/old1': { emailHash: tomb.emailHmac(a.email), email: a.email, points: 9000, satsWithdrawn: 300 } });
+        const db = withHeld({ 'users/old1': { emailHash: tomb.emailHmac(a.email), email: a.email, points: 9000, satsWithdrawn: 300 } });
         const r = await emailChange.beginPayout(db, authApiFor({ old1: a }), 'old1', a, NOW, {}, true);
         assert.strictEqual(r.ok, true);
         assert.deepStrictEqual(r.age, { ageKnown: true, ageDays: 200, ageSource: 'created' });
@@ -241,7 +302,7 @@ async function test(name, fn) {
 
     await test('an email change on a stamped account keeps the original realAccountAt', async function () {
         const a = authUser('chg1', NOW - 40 * DAY, { email: 'new-chg1@example.com' });
-        const db = createDb({ 'users/chg1': { emailHash: tomb.emailHmac('chg1@example.com'), realAccountAt: NOW - 30 * DAY } });
+        const db = withHeld({ 'users/chg1': { emailHash: tomb.emailHmac('chg1@example.com'), realAccountAt: NOW - 30 * DAY } });
         await emailChange.reconcileEmail(db, authApiFor({ chg1: a }), 'chg1', a, NOW, {}, true);
         const u = db.docs.get('users/chg1');
         assert.strictEqual(u.realAccountAt, NOW - 30 * DAY);
@@ -249,19 +310,31 @@ async function test(name, fn) {
     });
 
     await test('never-synced profile is not eligible until reconcile stamps it; unknown creation is refused', async function () {
-        assert.deepStrictEqual(realAccountAge.ageFrom(authUser('x', NOW - 50 * DAY), {}, NOW), { ageKnown: true, ageDays: 0, ageSource: 'linked' });
+        // NOW-10d is after the cutoff, so unsynced still waits for a stamp.
+        assert.deepStrictEqual(realAccountAge.ageFrom(authUser('x', NOW - 10 * DAY), {}, NOW), { ageKnown: true, ageDays: 0, ageSource: 'linked' });
         assert.strictEqual(realAccountAge.ageFrom({ metadata: {} }, { emailHash: 'h' }, NOW).ageKnown, false);
         assert.strictEqual(gateFor(realAccountAge.ageFrom({ metadata: {} }, { emailHash: 'h' }, NOW)).ok, false);
     });
 
-    await test('backfill plan: only unsynced real accounts get realAccountAt = creationTime', async function () {
-        const created = NOW - 100 * DAY;
+    await test('backfill plan: pre-cutoff non-held accounts get creationTime; held and post-cutoff are skipped', async function () {
+        const created = CUTOFF - 100 * DAY;
+        const noneHeld = emptyHeld();
         const real = authUser('b1', created);
-        assert.deepStrictEqual(backfill.planFor(real, {}), { action: 'set', realAccountAt: created });
-        assert.strictEqual(backfill.planFor(real, { emailHash: 'h' }).reason, 'synced_uses_creation');
-        assert.strictEqual(backfill.planFor(real, { realAccountAt: 5 }).reason, 'already_set');
-        assert.strictEqual(backfill.planFor(real, null).reason, 'no_profile');
-        assert.strictEqual(backfill.planFor({ uid: 'anon', providerData: [], metadata: { creationTime: new Date(created).toUTCString() } }, {}).reason, 'no_real_identity');
+        assert.deepStrictEqual(backfill.planFor(real, {}, noneHeld), { action: 'set', realAccountAt: created });
+        assert.deepStrictEqual(backfill.planFor(real, { emailHash: 'h' }, noneHeld), { action: 'set', realAccountAt: created }, 'already-synced pre-cutoff still set');
+        assert.strictEqual(backfill.planFor(real, { realAccountAt: 5 }, noneHeld).reason, 'already_set');
+        assert.strictEqual(backfill.planFor(real, null, noneHeld).reason, 'no_profile');
+        const guest = { uid: 'anon', providerData: [], metadata: { creationTime: new Date(created).toUTCString() } };
+        assert.deepStrictEqual(backfill.planFor(guest, {}, noneHeld), { action: 'set', realAccountAt: created }, 'pre-cutoff guest is set');
+        const post = authUser('newp', CUTOFF + 2 * DAY);
+        assert.strictEqual(backfill.planFor(post, {}, noneHeld).reason, 'post_cutoff');
+        const unknown = { uid: 'n', providerData: [], metadata: {} };
+        assert.strictEqual(backfill.planFor(unknown, {}, noneHeld).reason, 'no_creation_time');
+        const heldUser = authUser('held-test-aaa', created);
+        const skip = backfill.planFor(heldUser, {}, heldOf('held-test-aaa'));
+        assert.strictEqual(skip.reason, 'held');
+        assert.strictEqual(skip.group, 'test');
+        assert.strictEqual(backfill.planFor(real, {}, { ok: false, reason: 'missing' }).reason, 'held_list_unavailable');
         assert.deepStrictEqual(backfill.parseArgs(['--apply']), { apply: false, applyRequested: true, confirm: false, project: '' });
         assert.strictEqual(backfill.parseArgs(['--project=bitcoin-quest-staging']).project, 'bitcoin-quest-staging');
         assert.strictEqual(backfill.parseArgs(['--project=../x']).project, '');
@@ -270,6 +343,8 @@ async function test(name, fn) {
     await test('backfill script refuses to run without --project (no default to live)', async function () {
         const src = fs.readFileSync(path.join(root, 'functions', 'scripts', 'backfill-real-account-at.js'), 'utf8');
         assert.ok(!src.includes("'bitcoin-education-archive'"), 'no hard-coded live project');
+        assert.ok(src.includes('counts.held'), 'dry run counts per held group');
+        assert.ok(!src.includes('sample'), 'dry run is counts only');
         const r = require('child_process').spawnSync(process.execPath, [path.join(root, 'functions', 'scripts', 'backfill-real-account-at.js')], { encoding: 'utf8' });
         assert.strictEqual(r.status, 2);
         assert.ok(/--project/.test(r.stderr));
@@ -290,15 +365,243 @@ async function test(name, fn) {
         const created = NOW - 100 * DAY;
         const a = authUser('b2', created);
         const fresh = txDb({ points: 5 });
-        assert.deepStrictEqual(await backfill.applyOne(fresh, a), { written: true });
+        assert.deepStrictEqual(await backfill.applyOne(fresh, a, emptyHeld()), { written: true });
         assert.strictEqual(fresh.store.doc.realAccountAt, created);
         assert.strictEqual(fresh.store.doc.points, 5);
         const already = txDb({ realAccountAt: NOW });
-        assert.deepStrictEqual(await backfill.applyOne(already, a), { written: false, reason: 'already_set' });
+        assert.deepStrictEqual(await backfill.applyOne(already, a, emptyHeld()), { written: false, reason: 'already_set' });
         assert.strictEqual(already.store.doc.realAccountAt, NOW, 'never overwritten');
         const synced = txDb({ emailHash: 'h' });
-        assert.deepStrictEqual(await backfill.applyOne(synced, a), { written: false, reason: 'synced_uses_creation' });
-        assert.strictEqual(synced.store.doc.realAccountAt, undefined);
+        assert.deepStrictEqual(await backfill.applyOne(synced, a, emptyHeld()), { written: true }, 'pre-cutoff synced is written');
+        assert.strictEqual(synced.store.doc.realAccountAt, created);
+        assert.strictEqual(synced.store.doc.emailHash, 'h');
+    });
+
+
+    await test('old-guest: pre-cutoff guest first email is credited from creationTime and may claim after 7 days', async function () {
+        const created = CUTOFF - 7 * DAY;
+        const a = guestAuth('guestOld', created);
+        const db = withHeld({ 'users/guestOld': { points: 50 } });
+        const r = await emailChange.beginPayout(db, authApiFor({ guestOld: a }), 'guestOld', a, NOW, {}, true);
+        assert.strictEqual(r.ok, true);
+        assert.strictEqual(db.docs.get('users/guestOld').realAccountAt, created);
+        assert.deepStrictEqual(r.age, { ageKnown: true, ageDays: Math.floor((NOW - created) / DAY), ageSource: 'created' });
+        assert.strictEqual(gateFor(r.age).ok, true);
+        const later = await emailChange.beginPayout(db, authApiFor({ guestOld: a }), 'guestOld', a, NOW + DAY, {}, true);
+        assert.strictEqual(db.docs.get('users/guestOld').realAccountAt, created, 'never re-stamped');
+        assert.strictEqual(gateFor(later.age).ok, true);
+    });
+
+    await test('old-LN: pre-cutoff Lightning account first email is credited from creationTime', async function () {
+        const created = CUTOFF - 20 * DAY;
+        const a = guestAuth('ln:oldabc', created);
+        const db = withHeld({
+            'users/ln:oldabc': {},
+            ['email_link_claims/' + tomb.emailHmac(a.email)]: { uid: 'ln:oldabc', expireAt: NOW + 3600000 },
+        });
+        const r = await emailChange.beginPayout(db, authApiFor({ 'ln:oldabc': a }), 'ln:oldabc', a, NOW, {}, true);
+        assert.strictEqual(r.ok, true);
+        assert.strictEqual(db.docs.get('users/ln:oldabc').realAccountAt, created);
+        assert.strictEqual(r.age.ageSource, 'created');
+        assert.strictEqual(r.age.ageDays, Math.floor((NOW - created) / DAY));
+        assert.strictEqual(gateFor(r.age).ok, true);
+    });
+
+    await test('old-email: pre-cutoff synced account uses creationTime and backfill will set the field; later change does not re-stamp', async function () {
+        const created = CUTOFF - 200 * DAY;
+        const a = authUser('oldEmail', created);
+        const profile = { emailHash: tomb.emailHmac(a.email), email: a.email, points: 9000 };
+        const age = realAccountAge.ageFrom(a, profile, NOW);
+        assert.deepStrictEqual(age, { ageKnown: true, ageDays: Math.floor((NOW - created) / DAY), ageSource: 'created' });
+        assert.strictEqual(gateFor(age).ok, true);
+        assert.deepStrictEqual(backfill.planFor(a, profile, emptyHeld()), { action: 'set', realAccountAt: created });
+        const db = withHeld({ 'users/oldEmail': Object.assign({ realAccountAt: created }, profile) });
+        const changed = authUser('oldEmail', created, { email: 'new-oldemail@example.com' });
+        await emailChange.reconcileEmail(db, authApiFor({ oldEmail: changed }), 'oldEmail', changed, NOW, {}, true);
+        const u = db.docs.get('users/oldEmail');
+        assert.strictEqual(u.realAccountAt, created, 'never re-stamped');
+        assert.ok(u.satsHold > NOW, 'change still holds sats 72h');
+    });
+
+    await test('held-skip: listed uid stays unset in backfill, stamps now on first identity, and has no legacySynced fallback', async function () {
+        const created = CUTOFF - 100 * DAY;
+        const uid = 'held-test-aaa';
+        const a = authUser(uid, created);
+        const held = heldOf(uid);
+        const plan = backfill.planFor(a, { emailHash: 'h' }, held);
+        assert.strictEqual(plan.action, 'skip');
+        assert.strictEqual(plan.reason, 'held');
+        const unsyncedAge = realAccountAge.ageFrom(a, { emailHash: 'h' }, NOW, held);
+        assert.deepStrictEqual(unsyncedAge, { ageKnown: true, ageDays: 0, ageSource: 'linked' }, 'no creationTime fallback');
+        assert.strictEqual(gateFor(unsyncedAge).ok, false);
+        const db = withHeld({ ['users/' + uid]: {} }, [uid]);
+        const r = await emailChange.beginPayout(db, authApiFor({ [uid]: a }), uid, a, NOW, {}, true);
+        assert.strictEqual(db.docs.get('users/' + uid).realAccountAt, NOW);
+        assert.deepStrictEqual(r.age, { ageKnown: true, ageDays: 0, ageSource: 'linked' });
+        assert.strictEqual(gateFor(r.age).ok, false);
+        const again = await emailChange.beginPayout(db, authApiFor({ [uid]: a }), uid, a, NOW + 7 * DAY, {}, true);
+        assert.strictEqual(db.docs.get('users/' + uid).realAccountAt, NOW, 'never re-stamped');
+        assert.strictEqual(gateFor(again.age).ok, true);
+    });
+
+    await test('held-skip: a second listed uid (watch-group stand-in) is skipped too', async function () {
+        const created = CUTOFF - 50 * DAY;
+        const uid = 'held-test-watch';
+        const a = authUser(uid, created);
+        const held = heldOf(uid);
+        const plan = backfill.planFor(a, {}, held);
+        assert.strictEqual(plan.reason, 'held');
+        assert.strictEqual(realAccountAge.stampFor({}, a, NOW, held), NOW);
+        assert.deepStrictEqual(realAccountAge.ageFrom(a, { emailHash: 'h' }, NOW, held), { ageKnown: true, ageDays: 0, ageSource: 'linked' });
+    });
+
+    await test('held guest that links email or a provider stays held (same uid)', async function () {
+        const created = CUTOFF - 40 * DAY;
+        const uid = 'held-guest-1';
+        const a = guestAuth(uid, created);
+        const db = withHeld({ ['users/' + uid]: { points: 10 } }, [uid]);
+        const r = await emailChange.beginPayout(db, authApiFor({ [uid]: a }), uid, a, NOW, {}, true);
+        assert.strictEqual(r.ok, true);
+        assert.strictEqual(db.docs.get('users/' + uid).realAccountAt, NOW);
+        assert.strictEqual(r.age.ageSource, 'linked');
+        assert.strictEqual(gateFor(r.age).ok, false);
+        // Same uid with a provider added later stays held: no creationTime fallback,
+        // and the existing stamp is not rewritten.
+        const linked = guestAuth(uid, created, {
+            providerData: [{ providerId: 'google.com', uid: 'google-sub-held' }],
+        });
+        const held = heldOf(uid);
+        const profile = db.docs.get('users/' + uid);
+        assert.strictEqual(realAccountAge.stampFor(profile, linked, NOW + DAY, held), null);
+        const age = realAccountAge.ageFrom(linked, profile, NOW + DAY, held);
+        assert.strictEqual(age.ageSource, 'linked');
+        assert.strictEqual(gateFor(age).ok, false);
+        assert.strictEqual(backfill.planFor(linked, profile, held).reason, 'held');
+    });
+
+    await test('released held account still stamps now, with no creationTime fallback', async function () {
+        const created = CUTOFF - 80 * DAY;
+        const uid = 'held-released-1';
+        const a = authUser(uid, created);
+        const profile = { emailHash: tomb.emailHmac(a.email), email: a.email };
+        const held = heldOf(uid);
+        assert.strictEqual(realAccountAge.stampFor(profile, a, NOW, held), NOW);
+        assert.deepStrictEqual(realAccountAge.ageFrom(a, profile, NOW, held), { ageKnown: true, ageDays: 0, ageSource: 'linked' });
+        assert.strictEqual(backfill.planFor(a, profile, held).reason, 'held');
+    });
+
+    await test('post-cutoff-new: under 24h stamps creationTime; over 24h stamps now', async function () {
+        const freshCreated = CUTOFF + 2 * 3600000;
+        const freshNow = freshCreated + 3 * 3600000;
+        const fresh = authUser('postFresh', freshCreated);
+        const db = withHeld({});
+        await emailChange.reconcileEmail(db, authApiFor({ postFresh: fresh }), 'postFresh', fresh, freshNow, {}, true);
+        assert.strictEqual(db.docs.get('users/postFresh').realAccountAt, freshCreated);
+        const later = await emailChange.beginPayout(db, authApiFor({ postFresh: fresh }), 'postFresh', fresh, freshCreated + 7 * DAY, {}, true);
+        assert.strictEqual(gateFor(later.age).ok, true);
+
+        const oldCreated = CUTOFF + 2 * DAY;
+        const oldNow = oldCreated + 2 * DAY;
+        const aged = guestAuth('postAged', oldCreated);
+        const db2 = withHeld({ 'users/postAged': { points: 1 } });
+        const r = await emailChange.beginPayout(db2, authApiFor({ postAged: aged }), 'postAged', aged, oldNow, {}, true);
+        assert.strictEqual(db2.docs.get('users/postAged').realAccountAt, oldNow);
+        assert.deepStrictEqual(r.age, { ageKnown: true, ageDays: 0, ageSource: 'linked' });
+        assert.strictEqual(gateFor(r.age).ok, false);
+        assert.strictEqual(backfill.planFor(aged, { points: 1 }, emptyHeld()).reason, 'post_cutoff');
+    });
+
+
+    await test('fail-closed: a missing config/ageGateHeld doc refuses claims with unavailable', async function () {
+        ageGateHeld.resetCache();
+        const a = authUser('open1', CUTOFF - 20 * DAY);
+        const db = createDb({ 'users/open1': { emailHash: tomb.emailHmac(a.email), email: a.email } });
+        const r = await emailChange.beginPayout(db, authApiFor({ open1: a }), 'open1', a, NOW, {}, true);
+        assert.strictEqual(r.ok, false);
+        assert.strictEqual(r.unavailable, true);
+        assert.strictEqual(r.reason, 'missing');
+        assert.ok(r.error);
+    });
+
+    await test('fail-closed: an unreadable config/ageGateHeld doc refuses claims with unavailable', async function () {
+        ageGateHeld.resetCache();
+        const a = authUser('open2', CUTOFF - 20 * DAY);
+        const db = createDb({
+            'users/open2': { emailHash: tomb.emailHmac(a.email), email: a.email },
+            'config/ageGateHeld': { uids: 'not-an-array' },
+        });
+        const r = await emailChange.beginPayout(db, authApiFor({ open2: a }), 'open2', a, NOW, {}, true);
+        assert.strictEqual(r.ok, false);
+        assert.strictEqual(r.unavailable, true);
+        assert.strictEqual(r.reason, 'unreadable');
+    });
+
+    await test('fail-closed: a thrown read of config/ageGateHeld is unreadable, not an empty list', async function () {
+        ageGateHeld.resetCache();
+        const db = {
+            collection: function () {
+                return {
+                    doc: function () {
+                        return { get: async function () { throw new Error('unavailable'); } };
+                    },
+                };
+            },
+        };
+        const held = await ageGateHeld.loadHeld(db);
+        assert.strictEqual(held.ok, false);
+        assert.strictEqual(held.reason, 'unreadable');
+        assert.ok(!held.uids, 'must not look like an empty successful list');
+    });
+
+    await test('staging overrides are honored only on bitcoin-quest-staging and ignored on live', async function () {
+        try {
+            const qaCutoff = CUTOFF + 10 * DAY;
+            const extra = 'qaTestPrefix';
+            process.env.AGE_GATE_CUTOFF_MS = String(qaCutoff);
+            process.env.AGE_GATE_HELD_EXTRA = extra;
+
+            setProject(ageGateHeld.LIVE_PROJECT);
+            assert.strictEqual(ageGateHeld.cutoffMs(), CUTOFF);
+            assert.strictEqual(ageGateHeld.isHeldUid(extra + 'FakeUid', emptyHeld()), false);
+
+            setProject(ageGateHeld.STAGING_PROJECT);
+            assert.strictEqual(ageGateHeld.cutoffMs(), qaCutoff);
+            assert.strictEqual(ageGateHeld.isHeldUid(extra + 'FakeUid', emptyHeld()), true, 'extra prefix is added on staging');
+            assert.strictEqual(ageGateHeld.isHeldUid('held-test-aaa', heldOf('held-test-aaa')), true, 'existing list is not removed');
+            const createdBeforeOverride = CUTOFF + 5 * DAY;
+            assert.strictEqual(realAccountAge.isPreCutoff(createdBeforeOverride), true, 'staging cutoff moves the pre-cutoff line');
+        } finally {
+            delete process.env.AGE_GATE_CUTOFF_MS;
+            delete process.env.AGE_GATE_HELD_EXTRA;
+            setProject('');
+            restoreEnv();
+        }
+    });
+
+    await test('seed-age-gate-held: private file path, counts only, confirm required, no default project', async function () {
+        const src = fs.readFileSync(path.join(root, 'scripts', 'seed-age-gate-held.js'), 'utf8');
+        assert.ok(!src.includes("'bitcoin-education-archive'"), 'no hard-coded live project');
+        assert.ok(src.includes('--confirm=AGEGATEHELD'));
+        assert.ok(!/console\.log\([^)]*uid/i.test(src), 'no uid logging');
+        assert.deepStrictEqual(seedHeld.parseArgs(['--apply']), { apply: false, applyRequested: true, confirm: false, project: '', file: '' });
+        assert.strictEqual(seedHeld.parseArgs(['--project=bitcoin-quest-staging', '--file=/tmp/x.json']).project, 'bitcoin-quest-staging');
+        const tmp = path.join('/tmp', 'minirufus-l1b-seed-fake.json');
+        fs.writeFileSync(tmp, JSON.stringify({ groups: { test: ['fake-uid-one', 'fake-uid-two'], other: ['fake-uid-three'] } }));
+        const parsed = seedHeld.parseListFile(tmp);
+        assert.strictEqual(parsed.ok, true);
+        assert.deepStrictEqual(seedHeld.countsOf(parsed.groups, parsed.uids), { total: 3, groups: { test: 2, other: 1 } });
+        fs.unlinkSync(tmp);
+        const r = require('child_process').spawnSync(process.execPath, [path.join(root, 'scripts', 'seed-age-gate-held.js')], { encoding: 'utf8' });
+        assert.strictEqual(r.status, 2);
+        assert.ok(/--project/.test(r.stderr));
+        const r2 = require('child_process').spawnSync(process.execPath, [path.join(root, 'scripts', 'seed-age-gate-held.js'), '--project=bitcoin-quest-staging', '--file=/tmp/missing-held.json', '--apply'], { encoding: 'utf8' });
+        assert.strictEqual(r2.status, 2);
+    });
+
+    await test('rules sha256 is unchanged at 998d7570', async function () {
+        const crypto = require('crypto');
+        const sha = crypto.createHash('sha256').update(fs.readFileSync(path.join(root, 'firestore.rules'))).digest('hex');
+        assert.strictEqual(sha, '998d757031fa9215f28e586bca2f31ada99b162e845788a3370cae88c9675fb8');
     });
 
     await test('refusal text: linked accounts are told the 7 days count from the link; others keep the old text', async function () {
@@ -332,6 +635,9 @@ async function test(name, fn) {
         assert.ok(list.includes('claimCipherWin: 1'));
     });
 
+    } finally {
+        restoreEnv();
+    }
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);
 })();

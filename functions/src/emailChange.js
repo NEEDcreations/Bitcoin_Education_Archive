@@ -11,6 +11,7 @@ const { runtimeSa } = require('./runtimeServiceAccounts');
 
 const accountTombstone = require('./accountTombstone');
 const realAccountAge = require('./realAccountAge');
+const ageGateHeld = require('./ageGateHeld');
 
 const PREP_TTL_MS = 60 * 60 * 1000;
 const SATS_HOLD_MS = 72 * 60 * 60 * 1000;
@@ -308,6 +309,11 @@ async function releaseEmailClaim(db, uid, hash) {
 }
 
 async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, providersKnown) {
+    const held = await ageGateHeld.loadHeld(db);
+    if (!held.ok) {
+        return { ok: false, unavailable: true, error: TRY_LATER, reason: held.reason || 'unreadable' };
+    }
+
     const clock = Number(nowMs) || Date.now();
     if (!uid || !accountTombstone.secretReady()) return { ok: true, skipped: true, changed: false, hold: false, tomb: null };
     const knowProviders = providersKnown === true && !!(authUser && Array.isArray(authUser.providerData));
@@ -385,7 +391,7 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
     // stamps users.realAccountAt once (see realAccountAge.js).
     const firstIdentity = (!prevHash && !!nextHash)
         || (knowProviders && !prevProvidersHash && !!nextProvidersHash);
-    const realStamp = firstIdentity ? realAccountAge.stampFor(user, authUser, clock) : null;
+    const realStamp = firstIdentity ? realAccountAge.stampFor(user, authUser, clock, held) : null;
 
     if (!emailChanged && !seedMismatch && !providerChanged) {
         const seed = {};
@@ -487,7 +493,14 @@ async function beginPayout(db, authApi, uid, authUser, nowMs, token, providersKn
         return { ok: false, paused: true, error: PAUSED_CLAIMS, tomb: null };
     }
     const clock = Number(nowMs) || Date.now();
+    const held = await ageGateHeld.loadHeld(db);
+    if (!held.ok) {
+        return { ok: false, unavailable: true, error: TRY_LATER, reason: held.reason || 'unreadable' };
+    }
     const reconciled = await reconcileEmail(db, authApi, uid, authUser, clock, token, providersKnown);
+    if (reconciled && reconciled.unavailable) {
+        return { ok: false, unavailable: true, error: reconciled.error || TRY_LATER, reason: reconciled.reason, tomb: reconciled.tomb || null };
+    }
     if (reconciled && reconciled.conflict) {
         return { ok: false, conflict: true, error: CANT_USE, tomb: reconciled.tomb || null };
     }
@@ -505,7 +518,7 @@ async function beginPayout(db, authApi, uid, authUser, nowMs, token, providersKn
     if ((reconciled && reconciled.hold) || holdUntil > clock) {
         return { ok: false, hold: true, error: HOLD_ERROR, holdUntil: holdUntil, tomb: tomb };
     }
-    const age = profile ? realAccountAge.ageFrom(authUser, profile, clock) : { ageKnown: false, ageDays: 0 };
+    const age = profile ? realAccountAge.ageFrom(authUser, profile, clock, held) : { ageKnown: false, ageDays: 0 };
     return { ok: true, reconciled: reconciled, holdUntil: holdUntil, tomb: tomb, profile: profile, age: age };
 }
 
@@ -644,7 +657,11 @@ function createEmailChangeHandlers(options) {
             if (!authUser || authUser.emailVerified !== true || !accountTombstone.normalizeEmail(authUser.email)) {
                 return { ok: true, skipped: true };
             }
-            return reconcileEmail(db, authApi, uid, authUser, clock, token, providersKnown);
+            const synced = await reconcileEmail(db, authApi, uid, authUser, clock, token, providersKnown);
+            if (synced && synced.unavailable) {
+                throw httpsError(HttpsError, 'unavailable', synced.error || TRY_LATER);
+            }
+            return synced;
         },
 
         async confirmAccountLink(data, context) {

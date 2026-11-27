@@ -1781,6 +1781,9 @@ exports.claimSats = functionsV1.runWith({
         userRecord = await admin.auth().getUser(uid);
         const emailChange = require('./src/emailChange');
         const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, userRecord, Date.now(), context.auth.token || {}, true);
+        if (payoutGate && payoutGate.unavailable) {
+            throw new functionsV1.https.HttpsError('unavailable', payoutGate.error || 'Try again later.');
+        }
         if (!payoutGate.ok) return { success: false, error: payoutGate.error };
         const creationDate = new Date(userRecord.metadata.creationTime);
         const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
@@ -1811,6 +1814,7 @@ exports.claimSats = functionsV1.runWith({
             return { success: false, error: claimReqs.missingError(earlyMissing) };
         }
     } catch (e) {
+        if (e && e instanceof functionsV1.https.HttpsError) throw e;
         console.error('[FAUCET] Could not verify account age:', e.message);
         return { success: false, error: 'Could not verify account age. Try again later.' };
     }
