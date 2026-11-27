@@ -50,6 +50,10 @@
     function goOpen(id) {
         return function () { if (typeof win.go === 'function') win.go(id); };
     }
+    function openHelpPage(path) {
+        if (path) win.location.href = path;
+    }
+    win.openHelpPage = openHelpPage;
 
     // kind -> opener. Each function body names a real app function so tests can see the call.
     function makeOpen(f) {
@@ -177,11 +181,94 @@
             if (typeof win.startTctvDailyWatch === 'function') win.startTctvDailyWatch();
             else if (typeof win.go === 'function') win.go('timechain-tv');
         };
+        if (k === 'page') return function () { if (typeof win.openHelpPage === 'function') win.openHelpPage(f.arg); else if (f.arg) win.location.href = f.arg; };
+        if (k === 'faq-item') return function () {
+            if (typeof win.showFAQ === 'function') win.showFAQ(f.arg || f.id);
+            else if (typeof win.showGuide === 'function') win.showGuide();
+        };
         return goOpen(f.arg || f.id);
     }
 
     // id, title, group, keywords, desc, how, follow, hash, aliases, kind, arg, arg2, priority, term, settingsPages, questTab, aux
     function R(p) { return p; }
+
+    // In-app FAQ: single source for the FAQ sheet and in-app search.
+    // Live features only. Do not add unshipped launches here.
+    var BQ_FAQ = [
+        { id: 'getting-started', title: 'Getting Started', items: [
+            { id: 'what-is-bq', q: 'What is Bitcoin Quest?', a: 'Bitcoin Quest (also called the Bitcoin Education Archive) is a free app with 145+ education topics about Bitcoin. You can read, play, watch Timechain TV, listen to Bitcoin Beats, and earn real sats (bitcoin) by learning. Nacho the deer is your built-in guide, with 1,300+ knowledge base answers. Built for everyone, from total beginners to hardcore Bitcoiners.' },
+            { id: 'need-signup', q: 'Do I need to sign up?', a: 'No. You can start reading and earning XP right away without an account. A free account lets you save your progress, appear on the leaderboard, receive Lightning tips, and claim earned sats to your wallet.' },
+            { id: 'where-start', q: 'Where do I start?', a: 'Tap any channel in the sidebar to start reading. Beginners: try One Stop Shop or Why Bitcoin? first. You can also replay the welcome tour, open Your Quest Begins for a walkthrough, or let Nacho (the deer in the corner) guide you.' },
+            { id: 'is-free', q: 'Is this app free?', a: 'Yes. Bitcoin Quest is free to use, and the education topics are not behind a paywall. You can start without an account. The sats you earn are real bitcoin. The app runs on community support.' },
+            { id: 'what-is-nacho', q: 'What is Nacho?', a: 'Nacho is your AI Bitcoin guide, a friendly deer in the corner of the app. Tap Nacho to ask a Bitcoin question in plain English. Nacho has 1,300+ curated knowledge base answers, plus Quiz Me, ELI5, Nacho Mode, and guided trails. Nacho explains Bitcoin; it is not financial, legal, or tax advice.' },
+            { id: 'support-project', q: 'How can I support the project?', a: 'We are an independent project built by Bitcoiners, for Bitcoiners, and funded by the community. You can send a Lightning tip with the donate button at the top of the home screen (spontaneousleopard54@zeuspay.com), send on-chain bitcoin from the donate page, use the fiat options listed there, or support the Geyser campaign at geyser.fund/project/bitcoineducationarchive. Every satoshi counts. Thank you for being part of the archive.' }
+        ]},
+        { id: 'account', title: 'Account & Security', items: [
+            { id: 'sign-in', q: 'How do I sign in or create an account?', a: 'Open Sign in from the home page or Settings. You can use email, a social sign-in, Lightning, or Nostr. If you started as a guest, you can add an email later from Settings → Account so your progress is saved.' },
+            { id: 'two-fa', q: 'How do I turn on two-factor authentication?', a: 'Open Settings → Security and turn on 2FA with an authenticator app or the phone option. After you add an authenticator, you can remember this device for 30 days. The Security page also covers your password and blocking. Account deletion and linked sign-ins are on the Account tab.' },
+            { id: 'change-email', q: 'How do I change my email or add one to a guest account?', a: 'Open Settings → Account. From there you can add an email to a guest or Lightning sign-in, or change an email sign-in.' },
+            { id: 'export-delete', q: 'How do I export my data or delete my account?', a: 'Open Settings → Account. Export my data downloads a copy of what the app stores for you. Delete account permanently removes the account. Only you can start that, and it cannot be undone.' },
+            { id: 'data-safe', q: 'Is my data safe?', a: 'Your progress is stored in Firebase (Google Cloud). We do not sell your data. Your Lightning wallet details leave your device only to process a tip or claim you start. See the full Privacy Policy and Terms in Settings or in the home footer.' }
+        ]},
+        { id: 'xp', title: 'XP & Levels', items: [
+            { id: 'earn-xp', q: 'How do I earn XP?', a: '', earnXp: true },
+            { id: 'xp-cap', q: 'What is the daily XP cap?', a: 'There is one daily cap, from 5:00 UTC: full XP through 500, half through 900, then a quarter until 1,000. Extra XP is not saved. Each tier rounds down. Scholar and Protocol exams are not limited by this cap. Guest XP you already earned, up to 500, does not count against it. The Today card shows the day\'s progress.' },
+            { id: 'ranks', q: 'What are ranks and how do I level up?', a: 'Your rank is a title based on your total XP. It starts at Normie and climbs through Curious, Pleb, Stacker, Maxi, Papa John, Full Node, Whale, Sovereign, and Cypherpunk, up to Satoshi. The title and its emoji show on your profile and the leaderboard.' },
+            { id: 'scholar', q: 'What is the Scholar Certification?', a: 'Scholar Certification is a timed exam covering Bitcoin fundamentals such as mining, wallets, Lightning, and security. Pass with 20 of 25 correct to earn your certificate and 2,100 XP, not limited by the daily cap. The Protocol exam pays the same 2,100 XP, once, and is also not limited by the daily cap. Open it from Quest Hub once you have reached a sufficient rank.' },
+            { id: 'badges', q: 'What are badges?', a: 'Badges mark things you have done, from chat and quests to hidden goals. Open the leaderboard to see badge progress, and the Nacho section of Settings for what you have equipped.' }
+        ]},
+        { id: 'sats', title: 'Sats & Rewards', items: [
+            { id: 'claim-sats', q: 'How do I claim sats?', a: 'Open Settings → Sats to claim when you are eligible. Your account needs to be at least 7 days old, and other checks apply so rewards stay fair for real learners. There is a lifetime cap of 15,000 sats per player. Claims can pause if that month\'s rewards have already been paid out. Try again later if that happens. The claim screen shows the details and any fee before you confirm. This is an app reward, not financial advice.' },
+            { id: 'withdraw-ln', q: 'How do I withdraw, and what is a Lightning address?', a: 'A Lightning address looks like an email (for example you@walletofsatoshi.com) and is how sats are sent to you. Add one in Settings → Account. Claims and tips pay that address. Popular wallets include Wallet of Satoshi, Phoenix, Alby, and Zeus. A flat 10 sat network fee comes out of each claim, so a 100 sat claim sends 90, and the claim screen shows the fee before you confirm. You can also connect a wallet on the Lightning page with WebLN or NWC.' },
+            { id: 'xp-to-sats', q: 'How does XP convert to sats?', a: 'XP converts to sats at 1,000 XP = 100 sats, which you can claim to your Lightning wallet when you are eligible. Open Settings → Sats for the How to Earn XP list and your balance.' }
+        ]},
+        { id: 'shop', title: 'Orange Tickets & Shop', items: [
+            { id: 'orange-tix', q: 'What are Orange Tickets?', a: 'Orange Tickets are the shop currency in Bitcoin Quest. You earn them from the daily spin, activity, referrals, and watching 10 minutes of Timechain TV. Spend them in Nacho\'s Nook (inside Quest Hub) on items such as Double XP, hint tokens, streak freezes, hash boosters, and raffle entries. Your balance is in Settings → Account. Orange Tickets are not money and have no cash value.' },
+            { id: 'nook', q: 'What is Nacho\'s Nook?', a: 'Nacho\'s Nook is the shop inside Quest Hub. Open Quest Hub, then the Nook, to spend Orange Tickets. Inventory is the side that holds what you already own.' },
+            { id: 'daily-spin', q: 'What is the Daily Spin?', a: 'The daily spin wheel gives one free spin a day for tickets, XP, or a gift. Open it from the home row and take today\'s spin. A gift you land can be opened next. Odds and schedules are listed on the Resets, Timelines & Odds page.' },
+            { id: 'raffle', q: 'How does the raffle work?', a: 'The raffle takes Orange Ticket entries bought in the Nook. A winner is drawn on the 1st of the month. More entries improve the odds; this is a game inside the app, not an investment. Official Rules, including odds and how prizes are paid, are at /raffle-rules.html.' }
+        ]},
+        { id: 'favor', title: 'Satoshi\'s Favor', items: [
+            { id: 'what-is-favor', q: 'What is Satoshi\'s Favor?', a: 'Satoshi\'s Favor is the community mining game in Quest Hub. You contribute points, then hash during a round (called an epoch) for a chance to win 21,000 sats, paid to your Lightning address. It is a way to feel how Bitcoin proof-of-work mining works, with a real shot at a prize. This describes a game in the app, not financial advice.' },
+            { id: 'favor-rounds', q: 'How do Favor rounds and difficulty work?', a: 'A Favor round (epoch) ends when 5 blocks are found. Difficulty then adjusts so rounds stay on a steady pace. Open Quest Hub → Favor, or open the miner, to hash during the current round. A hash booster from the Nook gives you more hashes. Your all-time Favor total shows on that panel.' }
+        ]},
+        { id: 'games', title: 'Games', items: [
+            { id: 'pvp', q: 'What is PvP Battle?', a: 'PvP lets you challenge another player to a live Bitcoin trivia duel. Both of you answer the same questions at the same time — fastest and most accurate wins. A win pays 50 XP. A draw pays 5 XP. A loss pays 25 XP if you scored. Win badges pay extra. Open the PvP lobby from search, Nacho, or the Join lobby alert.' },
+            { id: 'arcade', q: 'What is Proof of Play / Timechain Arcade?', a: 'Proof of Play is Timechain Arcade: 21 Bitcoin games, plus a PvP corner. Open it from the menu or the Proof of Play page. A New badge marks the newest games, including titles such as HODL Cycle, Lightning Pinball, RoboBTC 2140, Fiat Fighters, and Consensus Clash.' },
+            { id: 'walk', q: 'What is Proof of Walk?', a: 'Proof of Walk connects Strava so a walk can earn XP. Open Proof of Walk and connect Strava. If the feature is paused, the page says so.' },
+            { id: 'raid', q: 'What is Raid Boss?', a: 'The raid boss is a community fight in Quest Hub. You deal damage by earning badges and doing activities. Open Quest Hub → Raid to see the boss, your damage, and the prize.' },
+            { id: 'ciphers', q: 'What are locked ciphers and keys?', a: 'A locked cipher opens when you use a key with the same label. You can send up to 3 keys a day to each accepted peer. If a peer opens a cipher with your key, you both win the same prize and you see a reveal of what they won. Open Inventory (the Nook) for keys and ciphers. Smaller sats wins are added to your cipher sats balance, which you can claim from Inventory or Settings.' },
+            { id: 'predict', q: 'What is the price prediction game?', a: 'Price prediction is a 24-hour up-or-down game on the Bitcoin price. Open it from the menu or search. It is a game, not financial advice and not a forecast.' }
+        ]},
+        { id: 'media', title: 'Timechain TV & Beats', items: [
+            { id: 'tctv', q: 'What is Timechain TV?', a: 'Timechain TV plays curated Bitcoin videos around the clock across 21 channels. Open Timechain TV and pick a channel. Watching 10 minutes in a day can earn 100 XP and 1 Orange Ticket. Tap Watch TV next to the daily spin to start that daily watch.' },
+            { id: 'beats', q: 'What is Bitcoin Beats?', a: 'Bitcoin Beats is the music corner: listen to Bitcoin-themed tracks, upload your own, use DJ mode, and try Nacho Radio. Open Bitcoin Beats from the menu. Use the upload tab for tracks and the livestream tab for DJ mode.' },
+            { id: 'hot-topics', q: 'What are Hot Topics?', a: 'Hot Topics is the weekly list in the sidebar on the home page. It includes a Citadel Wire panel for more high-signal Bitcoin news, which you can collapse when you want the space. The Signal newsletter is a longer weekly read.' }
+        ]},
+        { id: 'social', title: 'Chat, DMs, Forum & Factions', items: [
+            { id: 'chat', q: 'What is Global Chat?', a: 'Global chat is the live room in the app, with a bridge to the public Telegram group. Open the chat button and stay on the Global tab. Keep it civil, and never share a seed phrase or wallet password there.' },
+            { id: 'dms', q: 'How do direct messages work?', a: 'Direct messages are private chats. Open the inbox, or the DMs tab in the chat hub. New accounts need a little XP and time before sending, to slow down scammers. Official support will never ask for your seed phrase or password in a DM.' },
+            { id: 'forum', q: 'What is PlebTalk?', a: 'PlebTalk is the community forum. Articles are the long-form tab inside it. A new top-level post can show up in Global Chat. Open PlebTalk to read or start a discussion.' },
+            { id: 'factions', q: 'What are factions?', a: 'Your faction is Honey Badgers or Cyber Hornets, and the choice is permanent. It shows on the leaderboard and on the Charity screen. Open Settings → Account and pick one once.' },
+            { id: 'buddy', q: 'What is Bitcoin Buddy?', a: 'Bitcoin Buddy helps you find someone in the community to connect with. Open Find a Buddy from the chat hub or search.' },
+            { id: 'meetup', q: 'What is IRL Sync?', a: 'IRL Sync lists Bitcoin meetups, and Meetup Builder helps you organize one. Open IRL Sync from the menu to find a meetup near you.' }
+        ]},
+        { id: 'referrals', title: 'Referrals & Tips', items: [
+            { id: 'referral', q: 'How do referrals work?', a: 'Share your referral link from the home page or Invite friends. When a friend who signs up with your link reaches 2,140 points (Scholar exam points do not count), you both get 50 Orange Tickets automatically.' },
+            { id: 'tips', q: 'How do I tip someone?', a: 'You can tip another user with Lightning sats if they have a Lightning address saved. Open a profile and use Tip. That is a tip to a person, not a donation to the site. To receive tips, save your own Lightning address in Settings → Account.' },
+            { id: 'donate', q: 'How do I donate to the archive?', a: 'Tap the donate button at the top of the home screen, or open Donate from search. You can send Lightning, on-chain bitcoin, or use the fiat options listed on that page. This supports the project, and is separate from tipping another player.' }
+        ]},
+        { id: 'troubleshooting', title: 'Troubleshooting', items: [
+            { id: 'patch-notes', q: 'Where are Patch Notes and the odds page?', a: 'Patch Notes lists what changed, one week at a time, at /patch-notes.html. Resets, Timelines & Odds lists claim and game schedules, daily spin odds, Favor, gifts, locked ciphers, the raffle, and the BIP Breakthrough schedule, at /resets.html. You can also search for Patch Notes or Resets in the app.' },
+            { id: 'notifications', q: 'How do I control notifications?', a: 'Open Settings → Notifications. Push notifications stay off until you turn them on. You can set per-category controls there. Devices that were already registered stay on unless you had turned them off.' },
+            { id: 'apps-list', q: 'What mini-apps are in the app?', a: '', appsList: true }
+        ]},
+        { id: 'safety', title: 'Safety & Scams', items: [
+            { id: 'no-advice', q: 'Is Nacho or this app financial advice?', a: 'No. Bitcoin Quest is an education and games app. Nacho explains how Bitcoin works in plain language. Nothing here is financial, legal, or tax advice, and nothing is a promise of profit. Do your own research before you move real bitcoin.' },
+            { id: 'scams', q: 'How do I stay safe from scams?', a: 'Never share your seed phrase, recovery words, or wallet password with anyone, including people who message you in DMs or chat and claim to be support. Official help will not ask for those, and will not ask you to install remote-control software. Double-check profile tips and Lightning invoices before you pay. If a message rushes you, pause. When in doubt, close the chat and use a channel you looked up yourself.' }
+        ]}
+    ];
+
 
     var RAW = [
         R({ id: 'home', title: 'Home page', group: 'Core', term: 'home', priority: 40,
@@ -315,9 +402,9 @@
             follow: 'Want the Community Challenge after Flex?',
             hash: 'app/flex', aliases: ['flex', 'qh-flex'], kind: 'quest', arg: 'flex', questTab: 'flex' }),
         R({ id: 'favor', title: "Satoshi's Favor", group: 'Quests', term: "satoshi's favor", priority: 70,
-            kw: "satoshi's favor satoshis favor mining game hash mine",
-            desc: "Satoshi's Favor is the community mining game. You contribute points, then hash during a window.",
-            how: "Open Quest Hub → Favor, or open the miner. Hash during the window for a chance at the prize.",
+            kw: "satoshi's favor satoshis favor mining game hash mine epoch round difficulty",
+            desc: "Satoshi's Favor is the community mining game. You contribute points, then hash during a round (an epoch) for a chance at 21,000 sats.",
+            how: "Open Quest Hub → Favor, or open the miner. A round ends when 5 blocks are found, then difficulty adjusts so rounds stay on a steady pace. Wins pay to your Lightning address.",
             follow: 'Want a hash booster from the Nook for more hashes?',
             hash: 'favor', aliases: ['favor', 'sf', 'satoshi-favor'], kind: 'favor', questTab: 'favor',
             openFns: ['openSatoshiFavorMiner', 'showQuestHub'] }),
@@ -386,7 +473,7 @@
         R({ id: 'raffle', title: 'Orange ticket raffle', group: 'Shop & items', term: 'raffle', priority: 65,
             kw: 'raffle entries lottery',
             desc: 'The raffle takes Orange Ticket entries from the Nook. A winner is drawn on the 1st.',
-            how: 'Open the Nook and buy raffle entries. More entries, better odds.',
+            how: 'Open the Nook and buy raffle entries. More entries, better odds. Official Rules are at /raffle-rules.html.',
             follow: 'Want to know how to earn the Orange Tickets you spend?',
             hash: 'app/raffle', aliases: ['raffle'], kind: 'quest', arg: 'nook' }),
         R({ id: 'gift-bag', title: 'Gift bag', group: 'Shop & items', term: 'gift bag', priority: 75,
@@ -494,9 +581,9 @@
             follow: 'Want the Proof of Play arcade as well?',
             hash: 'pvp', aliases: ['pvp', 'pvp-lobby'], kind: 'pvp', openFns: ['enterPVPMode'] }),
         R({ id: 'proof-of-play', title: 'Proof of Play arcade', group: 'Games', term: 'arcade', priority: 70,
-            kw: 'arcade proof of play games play',
-            desc: 'Proof of Play is the arcade of Bitcoin games, plus a PvP corner.',
-            how: 'Open the arcade from the menu or the Proof of Play page.',
+            kw: 'arcade proof of play games play timechain arcade',
+            desc: 'Proof of Play is Timechain Arcade: 21 Bitcoin games, plus a PvP corner.',
+            how: 'Open the arcade from the menu or the Proof of Play page. A New badge marks the newest games.',
             follow: 'Want a PvP trivia battle instead of the arcade?',
             hash: 'proof-of-play', aliases: ['proof-of-play', 'proof-of-play-pvp', 'arcade'], kind: 'pop',
             openFns: ['enterProofOfPlay'] }),
@@ -594,9 +681,9 @@
             hash: 'app/tctv-watch', aliases: ['tctv-watch'], kind: 'tctvwatch',
             openFns: ['startTctvDailyWatch', 'go'] }),
         R({ id: 'tv', title: 'Timechain TV', group: 'Media', term: 'tv', priority: 60,
-            kw: 'tv timechain television watch video',
-            desc: 'Timechain TV plays Bitcoin videos around the clock.',
-            how: 'Open Timechain TV and pick a channel.',
+            kw: 'tv timechain television watch video 21 channels',
+            desc: 'Timechain TV plays curated Bitcoin videos around the clock across 21 channels.',
+            how: 'Open Timechain TV and pick a channel. Watching 10 minutes in a day can earn 100 XP and 1 orange ticket.',
             follow: 'Want Bitcoin Beats if you would rather listen to music?',
             hash: 'timechain-tv', aliases: ['timechain-tv', 'tv'], kind: 'tv', openFns: ['showTCTV', 'go'] }),
         R({ id: 'beats', title: 'Bitcoin Beats', group: 'Media', term: 'music', priority: 55,
@@ -607,9 +694,9 @@
             hash: 'bitcoin-beats', aliases: ['bitcoin-beats', 'beats'], kind: 'go', arg: 'bitcoin-beats',
             openFns: ['go', 'beatsTab'] }),
         R({ id: 'hot-topics', title: 'Hot Topics', group: 'Media', term: 'hot topics', priority: 80,
-            kw: 'hot topics weekly sidebar',
-            desc: 'Hot Topics is the weekly list in the sidebar.',
-            how: 'Go home and scroll the sidebar to the Hot Topics section.',
+            kw: 'hot topics weekly sidebar citadel wire news',
+            desc: 'Hot Topics is the weekly list in the sidebar, including a Citadel Wire panel for more high-signal news.',
+            how: 'Go home and scroll the sidebar to the Hot Topics section. You can collapse the Citadel Wire panel when you want the space.',
             follow: 'Want The Signal newsletter for a longer weekly read?',
             hash: 'app/hot-topics', aliases: ['hot-topics', 'hottopics'], kind: 'hot' }),
         R({ id: 'dashboard', title: 'Bitcoin dashboard', group: 'Media', term: 'mempool', priority: 60,
@@ -687,6 +774,18 @@
             follow: 'Want the FAQ instead?',
             hash: 'app/welcome-tour', aliases: ['welcome-tour', 'onboarding-intro'], kind: 'onboarding',
             openFns: ['showOnboardingIntro'] }),
+        R({ id: 'patch-notes', title: 'Patch Notes', group: 'Help', term: 'patch notes', priority: 68,
+            kw: 'patch notes changelog whats new what changed updates',
+            desc: 'Patch Notes lists what changed in the app, one week at a time.',
+            how: 'Open Patch Notes from search or at /patch-notes.html. Newest week first.',
+            follow: 'Want Resets, Timelines & Odds for schedules and prize odds?',
+            hash: 'app/patch-notes', aliases: ['patch-notes', 'patchnotes', 'changelog'], kind: 'page', arg: '/patch-notes.html', openFns: ['openHelpPage'] }),
+        R({ id: 'resets', title: 'Resets, Timelines & Odds', group: 'Help', term: 'resets', priority: 68,
+            kw: 'resets timelines odds schedule spin favor raffle payout when',
+            desc: 'Resets, Timelines & Odds lists claim and game schedules, daily spin odds, Favor, gifts, locked ciphers, the raffle, and the BIP Breakthrough schedule.',
+            how: 'Open it from the home link, search, or at /resets.html.',
+            follow: 'Want Patch Notes for what changed this week?',
+            hash: 'app/resets', aliases: ['resets', 'timelines', 'odds'], kind: 'page', arg: '/resets.html', openFns: ['openHelpPage'] }),
         R({ id: 'faq', title: 'FAQ and guide', group: 'Help', term: 'faq', priority: 70,
             kw: 'faq guide help questions frequently asked',
             desc: 'The FAQ and the guide answer common questions about the app.',
@@ -895,6 +994,44 @@
         return rows;
     }
 
+    function allFaqItems() {
+        var out = [];
+        for (var s = 0; s < BQ_FAQ.length; s++) {
+            var sec = BQ_FAQ[s];
+            for (var i = 0; i < sec.items.length; i++) {
+                out.push({ section: sec, item: sec.items[i] });
+            }
+        }
+        return out;
+    }
+
+    function scoreFaq(row, qTokens, phrase) {
+        var hay = norm(row.item.q + ' ' + (row.item.a || '') + ' ' + row.section.title);
+        var hayT = tokens(row.item.q + ' ' + (row.item.a || '') + ' ' + row.section.title);
+        var score = 0;
+        for (var i = 0; i < qTokens.length; i++) {
+            score += bestSim(qTokens[i], hayT) * 12;
+        }
+        if (phrase && hay.indexOf(phrase) !== -1) score += 20;
+        if (phrase && norm(row.item.q).indexOf(phrase) !== -1) score += 16;
+        return score;
+    }
+
+    function searchFaq(query) {
+        var phrase = norm(query);
+        var qTokens = tokens(query);
+        if (!phrase || phrase.length < 2) return [];
+        if (!qTokens.length) qTokens = phrase.split(' ').map(stem);
+        var rows = [];
+        var list = allFaqItems();
+        for (var i = 0; i < list.length; i++) {
+            var s = scoreFaq(list[i], qTokens, phrase);
+            if (s >= 8) rows.push({ section: list[i].section, item: list[i].item, score: s });
+        }
+        rows.sort(function (a, b) { return b.score - a.score; });
+        return rows;
+    }
+
     // Ordered, specific-first. First hit wins. null means "let the Bitcoin KB answer".
     function resolveId(raw) {
         var s = norm(raw);
@@ -949,6 +1086,8 @@
         if (/quest hub|\bquesthub\b/.test(s)) return 'quest-hub';
 
         if (/hot topics?/.test(s)) return 'hot-topics';
+        if (/patch notes|what.?s new|changelog|what changed/.test(s)) return 'patch-notes';
+        if (/resets, timelines|timelines (and|&) odds|odds page|reset times|where are the resets|when do (the )?resets/.test(s)) return 'resets';
         if (/where is the faq|\bfaq\b|the guide|show me the guide/.test(s)) return 'faq';
         if (/sats vs bits|sats or bits/.test(s)) return 'sats-vs-bits';
         if (/meetup builder/.test(s)) return 'meetup-builder';
@@ -1055,6 +1194,22 @@
     }
 
     function bqRouteHash(hash, attempt) {
+        var rawHash = String(hash || '').replace(/^#/, '').split('?')[0];
+        if (rawHash === 'faq' || rawHash.indexOf('faq/') === 0) {
+            var faqId = rawHash.indexOf('faq/') === 0 ? rawHash.slice(4) : '';
+            if (typeof win.showFAQ === 'function') {
+                win.showFAQ(faqId || undefined);
+                return true;
+            }
+            if (typeof win._loadDeferred === 'function') {
+                try { win._loadDeferred(); } catch (eFaq) {}
+            }
+            var nFaq = (attempt || 0) + 1;
+            if (nFaq * 300 <= 10000) {
+                setTimeout(function () { bqRouteHash(rawHash, nFaq); }, 300);
+                return true;
+            }
+        }
         var f = featureByHash(hash);
         if (!f) return false;
         // Already opening a feature. Swallow only this feature hash so a channel
@@ -1346,19 +1501,44 @@
             html += '</div></div>';
             return html;
         }
+        function faqBlock(q) {
+            var hits = searchFaq(q).slice(0, 8);
+            if (!hits.length) return '';
+            var html = '<div data-bq-faq-block="1"><div style="padding:8px 16px 4px;font-size:0.7rem;color:var(--text-faint);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">' +
+                hits.length + ' FAQ answer' + (hits.length === 1 ? '' : 's') + '</div><div>';
+            hits.forEach(function (row) {
+                var item = row.item;
+                var blurb = String(item.a || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                if (item.earnXp) blurb = 'How to earn XP, the daily cap, and how XP converts to sats.';
+                if (item.appsList) blurb = 'Explore Apps lists the mini-apps in Bitcoin Quest.';
+                if (blurb.length > 160) blurb = blurb.slice(0, 157) + '...';
+                html += '<div class="sr-item" data-bq-faq="' + esc(item.id) + '" style="border-left:3px solid rgba(247,147,26,0.7);cursor:pointer;" onclick="window.showFAQ&&window.showFAQ(\'' + esc(item.id) + '\');window.bqCloseSearch&&window.bqCloseSearch();">' +
+                    '<div class="sr-cat">FAQ · ' + esc(row.section.title) + '</div>' +
+                    '<div>' + esc(item.q) + '</div>' +
+                    '<div class="sr-match">' + esc(blurb) + '</div>' +
+                    '<button type="button" onclick="event.stopPropagation();event.preventDefault();window.showFAQ&&window.showFAQ(\'' + esc(item.id) + '\');window.bqCloseSearch&&window.bqCloseSearch();" style="margin-top:6px;padding:6px 12px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Open FAQ</button>' +
+                    '</div>';
+            });
+            html += '</div></div>';
+            return html;
+        }
         function prependFeatures(q) {
             var sr = resultsEl();
             if (!sr) return;
             var old = sr.querySelector('[data-bq-feature-block]');
             if (old && old.parentNode) old.parentNode.removeChild(old);
+            var oldFaq = sr.querySelector('[data-bq-faq-block]');
+            if (oldFaq && oldFaq.parentNode) oldFaq.parentNode.removeChild(oldFaq);
             var block = featureBlock(q);
+            var faqs = faqBlock(q);
             win._bqSearchQuery = q;
-            if (!block) return;
+            if (!block && !faqs) return;
             var cl = document.getElementById('channelList');
             if (cl) cl.style.display = 'none';
             sr.classList.add('active');
             if (!sr.querySelector('.sr-item') && /No results/i.test(sr.textContent || '')) sr.innerHTML = '';
-            sr.insertAdjacentHTML('afterbegin', block);
+            if (faqs) sr.insertAdjacentHTML('afterbegin', faqs);
+            if (block) sr.insertAdjacentHTML('afterbegin', block);
             dropDuplicateAppRows(sr);
         }
         var wrapped = function (q) {
@@ -2462,6 +2642,8 @@
         bqFillHomeModeBar: bqFillHomeModeBar,
         bqGuideCards: bqGuideCards,
         bqApplyExperienceSurfaces: bqApplyExperienceSurfaces,
+        BQ_FAQ: BQ_FAQ,
+        searchFaq: searchFaq,
         searchFeatures: searchFeatures,
         resolveNachoFeature: resolveNachoFeature,
         featureByHash: featureByHash,
@@ -2479,6 +2661,8 @@
     };
 
     win.FEATURE_REGISTRY = FEATURES;
+    win.BQ_FAQ = BQ_FAQ;
+    win.bqSearchFaq = searchFaq;
     win.bqSearchFeatures = searchFeatures;
     win.resolveNachoFeature = resolveNachoFeature;
     win.bqOpenFeature = bqOpenFeature;

@@ -948,6 +948,11 @@ const CASES = [
         if (ban && ban.test(entry.answer)) kbFail.push('banned ' + id);
     }
     wording('app-ln-withdraw', /15,000/, /21,000|7 days|10 topics|1,000 unclaimed/);
+    wording('app-sats-claim', /7 days/, /budget|100,?000/);
+    wording('app-favor-exact', /epoch/, /budget/);
+    wording('app-favor-rounds', /21,000/, /budget/);
+    wording('app-safety-inapp', /seed phrase[\s\S]*financial, legal, or tax advice/, null);
+    wording('app-tctv-what', /21 channels/, null);
     wording('app-audio-what', /random meme/i, /press M/);
     wording('app-double-xp-what', /60 minutes/, /after you use it/i);
     wording('app-hash-booster-what', /100 instant hashes[\s\S]*not cosmetic[\s\S]*separate hash limit/i, /bigger/);
@@ -995,7 +1000,7 @@ const CASES = [
             if (/^What is .+ in Bitcoin Quest\?$/.test(phrase)) kbFail.push('generic what-is ' + phrase);
         });
     });
-    if ((byCat.app || 0) !== 190) kbFail.push('app count ' + byCat.app);
+    if ((byCat.app || 0) !== 197) kbFail.push('app count ' + byCat.app);
     if (logic.kbEntries().length < 1000) kbFail.push('count ' + logic.kbEntries().length);
     if ((byCat['crypto-steer'] || 0) < 50) kbFail.push('steer ' + byCat['crypto-steer']);
     if (kbFail.length) {

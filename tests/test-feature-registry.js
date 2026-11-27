@@ -78,6 +78,8 @@ test('common phrasings, typos, and sentence queries', function () {
         ['what are the hot topics this week', 'hot-topics'],
         ['what is the citadel', 'citadel'],
         ['where is the faq', 'faq'],
+        ['where are the patch notes', 'patch-notes'],
+        ['where are the reset times and odds', 'resets'],
         ['how does price prediction work', 'predictions'],
         ['predictions', 'predictions'],
         ['how do i claim sats', 'sats'],
@@ -94,6 +96,24 @@ test('common phrasings, typos, and sentence queries', function () {
     const keyAt = keys.indexOf('keys');
     const shortAt = keys.indexOf('shortcuts');
     assert.ok(keyAt === 0 && (shortAt === -1 || keyAt < shortAt), 'keys before shortcuts: ' + keys.slice(0, 4).join(','));
+});
+
+test('search indexes FAQ questions and opens the FAQ', function () {
+    assert.ok(Array.isArray(reg.BQ_FAQ) && reg.BQ_FAQ.length >= 8, 'BQ_FAQ sections');
+    const ids = [];
+    reg.BQ_FAQ.forEach(function (sec) {
+        assert.ok(sec.id && sec.title && sec.items && sec.items.length, sec.id);
+        sec.items.forEach(function (item) { ids.push(item.id); });
+    });
+    assert.ok(ids.indexOf('claim-sats') !== -1 && ids.indexOf('what-is-favor') !== -1);
+    const hits = reg.searchFaq('orange tickets');
+    assert.ok(hits.length, 'expected FAQ hits for orange tickets');
+    assert.ok(hits.some(function (h) { return /orange ticket/i.test(h.item.q + ' ' + (h.item.a || '')); }));
+    const age = reg.searchFaq('7 days old to claim sats');
+    assert.ok(age.length && /7 days/i.test(age[0].item.a), '7-day claim FAQ');
+    const favor = reg.searchFaq("satoshi's favor epoch");
+    assert.ok(favor.length && /epoch/i.test(favor[0].item.q + ' ' + favor[0].item.a), 'favor epoch FAQ');
+    assert.ok(typeof reg.searchFaq === 'function');
 });
 
 test('sats answers do not publish faucet limits', function () {

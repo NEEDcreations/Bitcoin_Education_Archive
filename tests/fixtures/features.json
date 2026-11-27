@@ -75,5 +75,7 @@
 {"id":"signin","name":"Sign in (email, social, Nostr)","group":"Account","open":"showUsernamePrompt()","deep":null,"term":"sign in","q":"how do i sign in","page":"_signin","w":["sign"]},
 {"id":"donate","name":"Donate to the archive","group":"Account","open":"showDonateModal()","deep":null,"term":"donate","q":"how do i donate","page":"_donate","w":["donat"]},
 {"id":"faq","name":"FAQ & Guide","group":"Help","open":"showFAQ() / showGuide()","deep":"#faq","term":"faq","q":"where is the faq","page":null,"w":["faq","question"]},
-{"id":"shortcuts","name":"Keyboard shortcuts","group":"Help","open":"showKeyboardHelp()","deep":null,"term":"shortcuts","q":"what are the keyboard shortcuts","page":"_keyboard","w":["shortcut","keyboard"]}
+{"id":"shortcuts","name":"Keyboard shortcuts","group":"Help","open":"showKeyboardHelp()","deep":null,"term":"shortcuts","q":"what are the keyboard shortcuts","page":"_keyboard","w":["shortcut","keyboard"]},
+{"id":"patch-notes","name":"Patch Notes","group":"Help","open":"location /patch-notes.html","deep":"/patch-notes.html","term":"patch notes","q":"where are the patch notes","page":null,"w":["patch"]},
+{"id":"resets","name":"Resets, Timelines & Odds","group":"Help","open":"location /resets.html","deep":"/resets.html","term":"resets","q":"where are the reset times and odds","page":null,"w":["odds","reset"]}
 ]
