@@ -477,7 +477,12 @@ async function registerReferral(data, context) {
         if (referrals.writesReferredBy(status)) {
             t.update(userRef, { referredBy: code, referralVerified: false });
         }
-        if (referrerRef && referrals.writesReferredBy(status)) {
+        // Count every created referral doc, including late signups that used
+        // the code after the new-account window. Display prefers a live
+        // referrals query; this keeps users.referralInvited in sync once
+        // functions are deployed. A one-time backfill still needs Phil's card
+        // and must not be run against production from this branch.
+        if (referrerRef) {
             t.update(referrerRef, {
                 referralInvited: admin.firestore.FieldValue.increment(1),
             });

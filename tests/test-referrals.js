@@ -282,6 +282,10 @@ test('the signup window uses the earliest server clock, never a client one', () 
     assert.ok(tx.indexOf('writesReferredBy(status)') !== -1);
     assert.ok(tx.indexOf('writesReferredBy(status)') < tx.indexOf('referredBy: code'));
     assert.strictEqual(tx.indexOf('referredBy: code, referralVerified: false };'), -1);
+    assert.ok(tx.indexOf('if (referrerRef && referrals.writesReferredBy(status))') === -1);
+    assert.ok(tx.indexOf('if (referrerRef)') !== -1);
+    assert.ok(tx.indexOf('referralInvited') !== -1);
+    assert.ok(tx.indexOf('if (referrerRef)') !== -1 && tx.indexOf('if (referrerRef)') < tx.indexOf('referralInvited: admin.firestore.FieldValue.increment(1)'));
     const lnUid = 'ln:' + 'ab'.repeat(16);
     assert.strictEqual(referrals.fairUpgradeWindow({
         nowMs: now,
@@ -1120,10 +1124,14 @@ test('milestoneCopy names the unlock date', () => {
 
 test('invite count line shows reached and rewarded', () => {
     const tickets = fs.readFileSync(path.join(__dirname, '..', 'tickets.js'), 'utf8');
-    assert.ok(tickets.includes('reached 2,140 XP'));
-    assert.ok(tickets.includes('rewarded'));
+    const tiersSrc = fs.readFileSync(path.join(__dirname, '..', 'referral-tiers.js'), 'utf8');
+    assert.ok(tickets.includes('summarizeReferralInviteDocs'));
+    assert.ok(tickets.includes('public_profiles'));
+    assert.ok(tickets.includes('inviteCountLine'));
     assert.ok(tickets.includes('7 days'));
-    assert.ok(tickets.includes('maxiReachedAt'));
+    assert.ok(tiersSrc.includes("' 2,140 XP'") || tiersSrc.includes('2,140 XP'));
+    assert.ok(tiersSrc.includes('joined before using your code'));
+    assert.ok(tiersSrc.includes('maxiReachedAt'));
 });
 
 test('clientCreatePayload auto-fills signupSource and Nostr attaches referral', () => {
