@@ -227,7 +227,7 @@ test('the hero shows the current CACHE_NAME at the top of Patch Notes', function
     assert.ok(html.includes('data-sw-cache="' + current + '"'));
     assert.ok(html.includes('App version <span id="pnAppVersionNum">' + current + '</span>'));
     const heroAt = html.indexOf('id="pnAppVersion"');
-    const firstWeek = html.indexOf('id="week-2026-11-20"');
+    const firstWeek = html.indexOf('id="week-2026-11-28"');
     const h1 = html.indexOf('<h1>Patch Notes</h1>');
     assert.ok(heroAt > h1 && heroAt < firstWeek, 'version sits in the hero, above the weeks');
     assert.ok(html.includes("/CACHE_NAME\\s*=\\s*'btc-archive-(v\\d+)'/"));
@@ -236,26 +236,26 @@ test('the hero shows the current CACHE_NAME at the top of Patch Notes', function
 
 test('past weeks have no invented version numbers', function () {
     const weeks = html.match(/<details class="patch"[^>]*>/g) || [];
-    assert.strictEqual(weeks.length, 18);
+    assert.strictEqual(weeks.length, 19);
     weeks.forEach(function (tag) {
         assert.ok(!/\sdata-version="v\d+"/.test(tag), 'recorded version should be absent until known: ' + tag);
     });
     assert.strictEqual((html.match(/class="patch-version"/g) || []).length, 0);
-    assert.strictEqual((html.match(/<h2 class="patch-title"/g) || []).length, 18);
+    assert.strictEqual((html.match(/<h2 class="patch-title"/g) || []).length, 19);
 });
 
 test('Coming soon sits under Latest, starts empty, and has a data hook', function () {
-    const latestEnd = html.indexOf('</details>', html.indexOf('id="week-2026-11-20"'));
+    const latestEnd = html.indexOf('</details>', html.indexOf('id="week-2026-11-28"'));
     const hookAt = html.indexOf('id="pnUpcomingList"');
     const soonAt = html.indexOf('id="comingSoonPatch"');
-    const nextWeek = html.indexOf('id="week-2026-11-19"');
+    const nextWeek = html.indexOf('id="week-2026-11-20"');
     assert.ok(latestEnd > 0 && hookAt > latestEnd && soonAt > hookAt && soonAt < nextWeek);
     const hook = html.match(/<script type="application\/json" id="pnUpcomingList">([\s\S]*?)<\/script>/);
     assert.ok(hook);
     assert.deepStrictEqual(JSON.parse(hook[1]), []);
     assert.ok(/id="comingSoonPatch"[^>]*hidden/.test(html) || html.includes('id="comingSoonPatch" hidden'));
     assert.ok(html.includes('class="coming-soon-title">Coming soon</h2>'));
-    assert.strictEqual((html.match(/<h2 class="patch-title"/g) || []).length, 18);
+    assert.strictEqual((html.match(/<h2 class="patch-title"/g) || []).length, 19);
     assert.ok(!html.includes('Latest:'));
 });
 
