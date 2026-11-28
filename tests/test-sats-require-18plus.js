@@ -109,6 +109,7 @@ test('claimCipherWin: refused inside the transaction before the win flips to pay
     assert.ok(at > 0);
     assert.ok(body.includes('throw age18Sats.errorFor(functionsV1.https.HttpsError, age18);'));
     assert.ok(at < body.indexOf("status: 'paying'"));
+    assert.ok(body.indexOf('age18Precheck(uid)') > 0 && body.indexOf('age18Precheck(uid)') < body.indexOf('if (!nwcUrl())'), 'asked before the wallet check');
     assert.ok(at < body.indexOf('payInvoice'));
 });
 
@@ -119,6 +120,7 @@ test('claimCipherSats: refused before the attempt counter, reservation or wallet
     const at = body.indexOf('age18Sats.assess(user)');
     assert.ok(at > 0);
     assert.ok(at < body.indexOf('t.set(rateRef'));
+    assert.ok(body.indexOf('age18Precheck(uid)') > 0 && body.indexOf('age18Precheck(uid)') < body.indexOf('if (!nwcUrl())'), 'asked before the wallet check');
     assert.ok(at < body.indexOf("phase: 'reserved'"));
     assert.ok(body.includes('if (age18Denial) return age18Sats.responseFor(age18Denial);'));
     assert.ok(body.indexOf('if (age18Denial)') < body.indexOf('payInvoice') || body.indexOf('payInvoice') === -1);

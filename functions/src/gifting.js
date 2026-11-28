@@ -1212,12 +1212,22 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
     return bolt;
 }
 
+// Sats need a confirmed 18+ answer. Read first, ahead of the wallet and other
+// checks, so an unconfirmed player is sent to the age prompt. The claim
+// transaction checks again and is the authoritative gate.
+async function age18Precheck(uid) {
+    const snap = await db.collection('users').doc(uid).get();
+    return age18Sats.assess(snap.exists ? snap.data() : null);
+}
+
 const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, enforceAppCheck: true, secrets: [deletionHmacSecret, nwcUrlSecret], serviceAccount: runtimeSa('claimCipherWin') }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
+    const preAge18 = await age18Precheck(uid);
+    if (!preAge18.ok) throw age18Sats.errorFor(functionsV1.https.HttpsError, preAge18);
     if (!nwcUrl()) throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
@@ -1802,6 +1812,8 @@ const claimCipherSats = functionsV1.runWith({
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
+    const preAge18 = await age18Precheck(uid);
+    if (!preAge18.ok) return age18Sats.responseFor(preAge18);
     if (!nwcUrl()) throw httpsError('failed-precondition', 'Prize wallet is not configured yet.');
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
