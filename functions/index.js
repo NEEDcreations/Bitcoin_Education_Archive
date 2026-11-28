@@ -1726,6 +1726,14 @@ exports.claimSats = functionsV1.runWith({
         return { success: false, error: 'Verified email required. Link and verify your email in Account settings.' };
     }
 
+    // Sats need a confirmed 18+ answer (fields set by confirmAge18). Asked first,
+    // before the security check, so an unconfirmed player is sent to the age
+    // prompt without a wasted Turnstile solve. Checked again inside the claim
+    // transaction below, which is the authoritative check.
+    const ageSnap = await db.collection('users').doc(uid).get();
+    const preAge18 = age18Sats.assess(ageSnap.exists ? ageSnap.data() : null);
+    if (!preAge18.ok) return age18Sats.responseFor(preAge18);
+
     const tsToken = data.turnstileToken || '';
     const tsValid = await verifyTurnstile(tsToken, null);
     if (!tsValid) {
@@ -1746,11 +1754,6 @@ exports.claimSats = functionsV1.runWith({
         ledgerPreSnap.exists ? ledgerPreSnap.data() : {}
     );
     if (!preBan.ok) return { success: false, error: preBan.error };
-
-    // Sats need a confirmed 18+ answer (fields set by confirmAge18). Checked
-    // again inside the claim transaction below.
-    const preAge18 = age18Sats.assess(userPreSnap.exists ? userPreSnap.data() : null);
-    if (!preAge18.ok) return age18Sats.responseFor(preAge18);
 
     const accountTombstone = require('./src/accountTombstone');
     if (!accountTombstone.secretReady()) {

@@ -89,7 +89,8 @@ test('claimSats: early check and in-transaction check, both before the wallet', 
     const start = src.indexOf('exports.claimSats = ');
     const end = src.indexOf('exports.', start + 20);
     const body = src.slice(start, end);
-    assert.ok(body.includes('age18Sats.assess(userPreSnap.exists ? userPreSnap.data() : null)'));
+    assert.ok(body.includes('age18Sats.assess(ageSnap.exists ? ageSnap.data() : null)'));
+    assert.ok(body.indexOf('preAge18') < body.indexOf('verifyTurnstile'), 'asked before the Turnstile check');
     assert.ok(body.includes('return age18Sats.responseFor(preAge18);'));
     assert.ok(body.includes('const age18 = age18Sats.assess(user);'));
     assert.ok(body.includes('if (e && e.age18) return age18Sats.responseFor(e.age18);'));
@@ -516,6 +517,8 @@ test('service worker is v2746 and the changed files carry the new cache buster',
     assert.ok(html.includes('src="/ranking.js?v=20261128_v2746"'));
     assert.ok(html.includes("'quests.js?v=20261128_v2746'"));
     assert.ok(html.includes("'gifting.js?v=20261128_v2746'"));
+    assert.ok(html.includes("'global-chat.js?v=20261128_v2746'"));
+    assert.ok(read('global-chat.js').includes("s.src = 'quests.js?v=20261128_v2746'"));
     assert.ok(read('patch-notes.html').includes('data-sw-cache="v2746"'));
 });
 

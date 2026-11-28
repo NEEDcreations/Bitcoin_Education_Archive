@@ -498,7 +498,7 @@ test('cache name is current (v2692 or later) and the TV script cache-buster move
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2261'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2252'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2246'));
-    assert.ok(html.includes('global-chat.js?v=20261128_v2744'));
+    assert.ok(html.includes('global-chat.js?v=20261128_v2746'));
     assert.ok(!html.includes('global-chat.js?v=20261030_v2436'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2432'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2379'));

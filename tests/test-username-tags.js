@@ -91,7 +91,7 @@ test('service worker cache is v2744 and html pins match', function() {
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2746'"));
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2690'"));
     assert.ok(html.includes('bundle.min.js?v=20261128_v2744'));
-    assert.ok(html.includes('global-chat.js?v=20261128_v2744'));
+    assert.ok(html.includes('global-chat.js?v=20261128_v2746'));
     assert.strictEqual(html, html404);
 });
 

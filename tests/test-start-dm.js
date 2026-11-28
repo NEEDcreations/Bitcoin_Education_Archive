@@ -108,7 +108,7 @@ queue.push(test('index.html and 404.html match, and pins are v2744', function() 
     assert.strictEqual(html, html404);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2746'"));
     assert.ok(html.includes('bundle.min.js?v=20261128_v2744'));
-    assert.ok(html.includes('global-chat.js?v=20261128_v2744'));
+    assert.ok(html.includes('global-chat.js?v=20261128_v2746'));
     assert.ok(!html.includes('bundle.min.js?v=20261119_v2682b'));
 }));
 

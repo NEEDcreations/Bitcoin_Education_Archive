@@ -504,7 +504,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('modules.js?v=20261024_v2370'));
     assert.ok(!html.includes('modules.js?v=20261023_v2324'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261128_v2744'));
+    assert.ok(html.includes('global-chat.js?v=20261128_v2746'));
     assert.ok(!html.includes('global-chat.js?v=20261106_v2509'));
     assert.ok(!html.includes('global-chat.js?v=20261104_v2482'));
     assert.ok(!html.includes('global-chat.js?v=20261104_v2475'));
@@ -516,7 +516,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('global-chat.js?v=20261029_v2432'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
     assert.ok(!html.includes('global-chat.js?v=20261028_v2431'));
-    assert.strictEqual((html.match(/global-chat\.js\?v=20261128_v2744/g) || []).length, 5);
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261128_v2746/g) || []).length, 5);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261119_v2682/g) || []).length, 0);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261119_v2665/g) || []).length, 0);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261030_v2436/g) || []).length, 0);
@@ -761,7 +761,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2745');
+    assert.ok(swVersion && swVersion[1] === 'v2746');
     assert.notStrictEqual(swVersion[1], 'v2719');
     assert.notStrictEqual(swVersion[1], 'v2718');
     assert.notStrictEqual(swVersion[1], 'v2717');
