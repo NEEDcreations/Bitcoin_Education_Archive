@@ -572,7 +572,8 @@ pending.push(test('index.html and 404.html have the footer link, the hash handof
     assert.ok(html.indexOf('href="#privacy-choices"') !== -1);
     assert.ok(html.indexOf("btc_open_privacy_choices") !== -1);
     assert.ok(html.indexOf('id="bqSitePrivacyFooter"') !== -1);
-    assert.ok(html.indexOf('src="/ads.js?v=20261128_v2744"') !== -1);
+    assert.ok(html.indexOf('src="/ads.js?v=20261128_v2748"') !== -1);
+    assert.ok(html.indexOf('.bq-ad-slot-home.bq-ad-reserved:not([hidden]) { min-height: 120px;') !== -1);
     assert.ok(html.indexOf('src="/ranking.js?v=20261128_v2746"') !== -1);
     const settings = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
     assert.ok(settings.indexOf('id="bqPrivacyChoices"') !== -1);
@@ -603,10 +604,10 @@ pending.push(test('the callable name is setPrivacyShareOptOut and the default EE
     const src = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     assert.ok(src.indexOf('exports.setPrivacyShareOptOut') !== -1);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.indexOf("const CACHE_NAME = 'btc-archive-v2746'") !== -1);
+    assert.ok(sw.indexOf("const CACHE_NAME = 'btc-archive-v2748'") !== -1);
 }));
 
-pending.push(test('opt-out does not put AdSense on home, including when the claim modal is open', async function () {
+pending.push(test('opt-out falls back to NPA AdSense on home, and still hides ads when the claim modal is open', async function () {
     const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
     const ads = env.api;
     const document = env.document;
@@ -614,14 +615,24 @@ pending.push(test('opt-out does not put AdSense on home, including when the clai
     const user = await withEligibleDoc(env, 'f1home');
     ads.setShareOptOut(true);
     const home = document.createElement('div');
-    home.className = 'bq-ad-slot';
+    home.id = 'bqAadsHome';
+    home.className = 'bq-ad-slot bq-ad-slot-home';
     document.body.appendChild(home);
     const d = ads.decide({ user: user, surface: 'home', country: 'US', gpc: false });
     assert.strictEqual(d.show, true);
     assert.strictEqual(d.skipAads, true);
     ads.fillSlot(home, d, { user: user, surface: 'home', country: 'US', gpc: false }, false);
-    assert.ok(home.hidden || !home.innerHTML || home.innerHTML.indexOf('adsbygoogle') === -1);
-    assert.strictEqual(adsenseScripts(document).length, 0);
+    assert.strictEqual(home.hidden, false);
+    assert.ok(home.innerHTML.indexOf('adsbygoogle') !== -1);
+    assert.ok(home.innerHTML.indexOf('acceptable.a-ads.com') === -1);
+    const npaScripts = adsenseScripts(document);
+    assert.ok(npaScripts.length >= 1);
+    npaScripts.forEach(function (el) {
+        assert.ok((el.src || '').indexOf('npa=1') !== -1, el.src);
+    });
+    assert.ok(home.classList.contains('bq-ad-reserved'));
+    // Homepage without an opt-out still does not prefer AdSense.
+    assert.strictEqual(ads.adsenseAllowed(d, { user: user, surface: 'home', country: 'US', gpc: false }), false);
 
     ads.setShareOptOut(false);
     const claim = document.createElement('div');
@@ -635,7 +646,6 @@ pending.push(test('opt-out does not put AdSense on home, including when the clai
     assert.strictEqual(d2.show, true);
     ads.fillSlot(learn, d2, { user: user, surface: 'learning-quests', country: 'US', gpc: false }, true);
     assert.ok(learn.hidden || !learn.innerHTML || learn.innerHTML.indexOf('adsbygoogle') === -1);
-    assert.strictEqual(adsenseScripts(document).length, 0);
     assert.strictEqual(ads.adsenseAllowed(d2, { user: user, surface: 'learning-quests', country: 'US' }), false);
 }));
 
@@ -954,6 +964,182 @@ pending.push(test('opting back in while the claim modal is open clears the defer
     ads.watchPrivacySignals();
     ads.sync({ surface: 'learning-quests' });
     assert.strictEqual(reloads.length, 0);
+}));
+
+
+pending.push(test('GPC and the localStorage opt-out flag fill NPA AdSense on home instead of clearing the slot', async function () {
+    async function run(opts, prefix) {
+        const env = loadAdsDom(opts);
+        const ads = env.api;
+        const document = env.document;
+        ads.rememberCountry('US');
+        const user = await withEligibleDoc(env, prefix);
+        const home = document.createElement('div');
+        home.id = 'bqAadsHome';
+        home.className = 'bq-ad-slot bq-ad-slot-home';
+        document.body.appendChild(home);
+        const input = { user: user, surface: 'home', country: 'US' };
+        const d = ads.decide(input);
+        assert.strictEqual(d.show, true);
+        assert.strictEqual(d.skipAads, true);
+        ads.fillSlot(home, d, input, false);
+        assert.strictEqual(home.hidden, false);
+        assert.ok(home.innerHTML.indexOf('adsbygoogle') !== -1);
+        assert.ok(home.innerHTML.indexOf('acceptable.a-ads.com') === -1);
+        const scripts = adsenseScripts(document);
+        assert.ok(scripts.length >= 1);
+        scripts.forEach(function (el) {
+            assert.ok((el.src || '').indexOf('npa=1') !== -1, el.src);
+        });
+        assert.ok(home.classList.contains('bq-ad-reserved'));
+    }
+    await run({ navigator: { globalPrivacyControl: true } }, 'ghome');
+    const store = Object.create(null);
+    store.bq_privacy_share_opt_out = '1';
+    await run({ navigator: { globalPrivacyControl: false }, store: store }, 'lshome');
+}));
+
+pending.push(test('home without a privacy signal still loads A-ADS, not AdSense', async function () {
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const user = await withEligibleDoc(env, 'aadsok');
+    const home = document.createElement('div');
+    home.id = 'bqAadsHome';
+    home.className = 'bq-ad-slot bq-ad-slot-home';
+    document.body.appendChild(home);
+    const input = { user: user, surface: 'home', country: 'US' };
+    const d = ads.decide(input);
+    assert.strictEqual(d.show, true);
+    assert.strictEqual(d.skipAads, false);
+    ads.fillSlot(home, d, input, false);
+    assert.strictEqual(home.hidden, false);
+    assert.ok(home.innerHTML.indexOf('acceptable.a-ads.com') !== -1);
+    assert.ok(home.innerHTML.indexOf('adsbygoogle') === -1);
+    assert.strictEqual(adsenseScripts(document).length, 0);
+    assert.ok(home.classList.contains('bq-ad-reserved'));
+    assert.strictEqual(ads.adsenseAllowed(d, input), false);
+}));
+
+pending.push(test('a late GPC flip switches home A-ADS to NPA AdSense instead of leaving the slot blank', async function () {
+    const nav = { globalPrivacyControl: false };
+    const env = loadAdsDom({ navigator: nav });
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const user = await withEligibleDoc(env, 'lategpc');
+    const home = document.createElement('div');
+    home.id = 'bqAadsHome';
+    home.className = 'bq-ad-slot bq-ad-slot-home';
+    document.body.appendChild(home);
+    const hero = document.createElement('div');
+    hero.id = 'homeHero';
+    hero.appendChild(home);
+    document.body.appendChild(hero);
+    const d = ads.decide({ user: user, surface: 'home', country: 'US' });
+    ads.fillSlot(home, d, { user: user, surface: 'home', country: 'US' }, false);
+    assert.ok(home.innerHTML.indexOf('acceptable.a-ads.com') !== -1);
+    nav.globalPrivacyControl = true;
+    ads.watchPrivacySignals();
+    const after = document.getElementById('bqAadsHome') || home;
+    assert.strictEqual(after.hidden, false);
+    assert.ok(after.innerHTML.indexOf('adsbygoogle') !== -1);
+    assert.ok(after.innerHTML.indexOf('acceptable.a-ads.com') === -1);
+    const scripts = adsenseScripts(document);
+    assert.ok(scripts.length >= 1);
+    scripts.forEach(function (el) {
+        assert.ok((el.src || '').indexOf('npa=1') !== -1, el.src);
+    });
+}));
+
+pending.push(test('under-18 users and guests still get no home ad, and the reserved height is dropped', async function () {
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: true } });
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const home = document.createElement('div');
+    home.id = 'bqAadsHome';
+    home.className = 'bq-ad-slot bq-ad-slot-home';
+    document.body.appendChild(home);
+
+    const under = { uid: 'kid1', over18: false, ageUnder18: true };
+    const dUnder = ads.decide({ user: under, surface: 'home', country: 'US' });
+    assert.strictEqual(dUnder.show, false);
+    ads.fillSlot(home, dUnder, { user: under, surface: 'home', country: 'US' }, false);
+    assert.ok(home.hidden);
+    assert.ok(!home.innerHTML || home.innerHTML.indexOf('adsbygoogle') === -1);
+    assert.ok(!home.classList.contains('bq-ad-reserved'));
+
+    const guest = ads.decide({ user: null, surface: 'home', country: 'US' });
+    assert.strictEqual(guest.show, false);
+    ads.fillSlot(home, guest, { user: null, surface: 'home', country: 'US' }, false);
+    assert.ok(home.hidden);
+    assert.ok(!home.classList.contains('bq-ad-reserved'));
+    assert.strictEqual(adsenseScripts(document).length, 0);
+}));
+
+pending.push(test('an auth event does not hide home ads when a valid user doc is already loaded', async function () {
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const user = await withEligibleDoc(env, 'authkeep');
+    const home = document.createElement('div');
+    home.id = 'bqAadsHome';
+    home.className = 'bq-ad-slot bq-ad-slot-home';
+    document.body.appendChild(home);
+    const hero = document.createElement('div');
+    hero.id = 'homeHero';
+    const sub = document.createElement('p');
+    sub.className = 'home-subtitle';
+    hero.appendChild(sub);
+    hero.appendChild(home);
+    document.body.appendChild(hero);
+    ads.sync({ user: user, surface: 'home', country: 'US' });
+    const filled = document.getElementById('bqAadsHome') || home;
+    assert.strictEqual(filled.hidden, false);
+    assert.ok(filled.innerHTML.indexOf('acceptable.a-ads.com') !== -1);
+
+    const listeners = [];
+    env.authState.onAuthStateChanged = function (cb) { listeners.push(cb); };
+    env.addEventListener = function () {};
+    env.MutationObserver = function () { this.observe = function () {}; };
+    ads.hookNavigation();
+    assert.ok(listeners.length >= 1);
+    listeners[0]({ uid: user.uid, isAnonymous: false });
+    const after = document.getElementById('bqAadsHome') || filled;
+    assert.strictEqual(after.hidden, false);
+    assert.ok(after.innerHTML.indexOf('acceptable.a-ads.com') !== -1);
+    assert.ok(after.classList.contains('bq-ad-reserved'));
+}));
+
+pending.push(test('the home slot is moved out of #homeHero so signed-in Home can show it', async function () {
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const user = await withEligibleDoc(env, 'heromove');
+    const hero = document.createElement('div');
+    hero.id = 'homeHero';
+    const sub = document.createElement('p');
+    sub.className = 'home-subtitle';
+    hero.appendChild(sub);
+    const home = document.createElement('div');
+    home.id = 'bqAadsHome';
+    home.className = 'bq-ad-slot bq-ad-slot-home';
+    hero.appendChild(home);
+    document.body.appendChild(hero);
+    ads.sync({ user: user, surface: 'home', country: 'US' });
+    const slot = document.getElementById('bqAadsHome');
+    assert.ok(slot, 'slot still exists');
+    var walk = slot && slot.parentNode; var inside = false;
+    while (walk) { if (walk === hero) { inside = true; break; } walk = walk.parentNode; }
+    assert.ok(!inside, 'slot must not stay inside #homeHero');
+    assert.strictEqual(slot.parentNode, hero.parentNode);
+    assert.strictEqual(slot.hidden, false);
+    assert.ok(slot.innerHTML.indexOf('acceptable.a-ads.com') !== -1);
+    assert.ok(slot.classList.contains('bq-ad-reserved'));
 }));
 
 pending.reduce(function (chain, run) {

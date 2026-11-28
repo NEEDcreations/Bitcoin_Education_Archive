@@ -514,7 +514,7 @@ test('client wiring: all four sats entry points check first and handle the serve
 test('service worker is v2746 and the changed files carry the new cache buster', function () {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2746'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2748'"));
     assert.ok(html.includes('src="/age-confirm.js?v=20261128_v2746"'));
     assert.ok(html.includes('src="/ranking.js?v=20261128_v2746"'));
     assert.ok(html.includes("'quests.js?v=20261128_v2746'"));

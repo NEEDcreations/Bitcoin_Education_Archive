@@ -297,9 +297,17 @@ test('index.html and 404.html include ads.js, the homepage slot, and the AdSense
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const html404 = fs.readFileSync(path.join(root, '404.html'), 'utf8');
     assert.strictEqual(html, html404, '404.html must match index.html');
-    assert.ok(html.includes('src="/ads.js?v=20261128_v2744"'));
+    assert.ok(html.includes('src="/ads.js?v=20261128_v2748"'));
     assert.ok(html.includes('defer') && html.includes('ads.js'));
     assert.ok(html.includes('id="bqAadsHome"'));
+    const heroStart = html.indexOf('id="homeHero"');
+    const heroEnd = html.indexOf('id="patchNotesBanner"');
+    const slotAt = html.indexOf('id="bqAadsHome"');
+    assert.ok(heroStart !== -1 && heroEnd !== -1 && slotAt !== -1, 'home hero/slot markers');
+    assert.ok(slotAt > heroEnd || (slotAt > heroStart && slotAt > html.indexOf('</div>', html.indexOf('id="homeTopicCount"'))), 'home ad slot must sit outside #homeHero');
+    const afterHero = html.slice(html.indexOf('id="homeTopicCount"'));
+    const heroCloseThenSlot = afterHero.indexOf('id="bqAadsHome"') !== -1 && afterHero.indexOf('</div>') < afterHero.indexOf('id="bqAadsHome"');
+    assert.ok(heroCloseThenSlot, 'bqAadsHome must come after #homeHero closes (signed-in Home hides the hero)');
     assert.ok(html.includes('name="google-adsense-account"'));
     assert.ok(html.includes('ca-pub-7244515226002177'));
     assert.ok(!html.includes('z-index: 99998'));

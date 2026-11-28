@@ -792,6 +792,7 @@
         .home-subtitle { font-size: 1.2rem; color: var(--text-secondary, #94a3b8); margin-bottom: 40px; line-height: 1.6; }
         .bq-ad-slot { position: relative; z-index: 0; width: 100%; max-width: 728px; margin: 0 auto 24px; }
         .bq-ad-slot[hidden] { display: none !important; }
+        .bq-ad-slot-home.bq-ad-reserved:not([hidden]) { min-height: 120px; box-sizing: border-box; }
         .bq-ad-slot iframe, .bq-ad-slot ins.adsbygoogle { border: 0; padding: 0; width: 100%; max-width: 100%; display: block; position: relative; z-index: 0; overflow: hidden; }
         .bq-ad-label { font-size: 0.65rem; color: var(--text-faint, #64748b); letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 6px; text-align: center; }
         /* Expanded invite card stays top-right. Nacho is bottom-left; the FABs are bottom-right. */
@@ -1893,9 +1894,9 @@
                 </script>
                 </div>
                 <p class="home-subtitle">Play, Learn, and Earn real bitcoin!</p>
-                <div id="bqAadsHome" class="bq-ad-slot bq-ad-slot-home" hidden aria-label="Advertisement"></div>
                 <span id="homeTopicCount" hidden>145 topics</span>
                 </div>
+                <div id="bqAadsHome" class="bq-ad-slot bq-ad-slot-home" hidden aria-label="Advertisement"></div>
                 <div id="patchNotesBanner" class="pn-banner" role="region" aria-label="What's new" hidden>
                     <div class="pn-row" id="pnBannerRow">
                         <span class="pn-new" aria-hidden="true">New</span>
@@ -2573,7 +2574,7 @@
     <script src="/patches.js?v=20261128_v2744" defer></script>
     <script src="/onboarding.js?v=20261128_v2744" defer></script>
     <script src="/learning-quests.js?v=20261026_v2377" defer></script>
-    <script src="/ads.js?v=20261128_v2744" defer></script>
+    <script src="/ads.js?v=20261128_v2748" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
     <script src="/beats-censor.js?v=20261022_v2322"></script>

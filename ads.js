@@ -236,12 +236,15 @@
         if (opted) {
             // Inspect the page before hideAllSlots() strips the tags.
             var mustReload = personalizedAdsLive || pendingPrivacyReload || personalizedArtifactsLive();
-            hideAllSlots();
-            // Keep a deferred reload armed if one is already waiting, so a
-            // later apply() during claim/withdraw cannot fall through to sync()
-            // and refill slots.
-            personalizedAdsLive = false;
+            // Personalized AdSense must be dropped (and usually reloaded) so
+            // the next inject is npa=1. For A-ADS-only Home, skip the hide
+            // and let sync() switch the slot to NPA AdSense instead.
             if (mustReload) {
+                hideAllSlots();
+                // Keep a deferred reload armed if one is already waiting, so a
+                // later apply() during claim/withdraw cannot fall through to
+                // sync() and refill slots.
+                personalizedAdsLive = false;
                 if (sensitiveUiOpen()) {
                     pendingPrivacyReload = true;
                     try { updatePrivacyChoicesUi(); } catch (e) {}
@@ -252,6 +255,8 @@
                     try { updatePrivacyChoicesUi(); } catch (e2) {}
                     return { reloaded: true, optedOut: true };
                 }
+            } else {
+                personalizedAdsLive = false;
             }
         }
         var decision = sync(input);
@@ -942,20 +947,61 @@
         return true;
     }
 
+    // Home is not an AdSense surface by default (it stays A-ADS). When A-ADS
+    // is skipped because of GPC or a privacy opt-out, allow the same NPA
+    // AdSense fallback Learn and the arcade already use.
+    function npaFallbackAllowed(decision, input) {
+        if (!decision || decision.show !== true) return false;
+        if (isSensitiveSurface(input) || sensitiveUiOpen()) return false;
+        input = input || {};
+        var user = userForAge(input);
+        if (!hasKnownAdultAge(user)) return false;
+        if (ADSENSE_SURFACES[decision.surface]) return true;
+        return decision.surface === 'home';
+    }
+
+    function placeHomeSlot(slot) {
+        if (typeof document === 'undefined' || !slot) return slot;
+        var hero = document.getElementById('homeHero');
+        var parent = hero && hero.parentNode;
+        if (!parent) return slot;
+        // Signed-in Home hides #homeHero (html.home-signed-in { display:none }),
+        // so the slot must be a sibling after the hero, not a child of it.
+        var insideHero = false;
+        if (typeof hero.contains === 'function') {
+            try { insideHero = !!hero.contains(slot); } catch (eC) { insideHero = false; }
+        }
+        if (!insideHero) {
+            var walk = slot.parentNode;
+            while (walk) {
+                if (walk === hero) { insideHero = true; break; }
+                walk = walk.parentNode;
+            }
+        }
+        if (insideHero || slot.parentNode !== parent || slot.previousElementSibling !== hero) {
+            if (hero.nextSibling) parent.insertBefore(slot, hero.nextSibling);
+            else parent.appendChild(slot);
+        }
+        return slot;
+    }
+
     function ensureHomeSlot() {
         var slot = typeof document !== 'undefined' ? document.getElementById('bqAadsHome') : null;
-        if (slot) return slot;
+        if (slot) return placeHomeSlot(slot);
         if (typeof document === 'undefined') return null;
-        var after = document.querySelector('#homeHero .home-subtitle') || document.getElementById('homeHero');
+        var hero = document.getElementById('homeHero');
+        var after = hero || document.querySelector('#home .home-inner') || (document.body || null);
         if (!after) return null;
         slot = document.createElement('div');
         slot.id = 'bqAadsHome';
         slot.className = 'bq-ad-slot bq-ad-slot-home';
         slot.hidden = true;
         slot.setAttribute('aria-label', 'Advertisement');
-        if (after.parentNode) {
-            if (after.nextSibling) after.parentNode.insertBefore(slot, after.nextSibling);
-            else after.parentNode.appendChild(slot);
+        if (hero && hero.parentNode) {
+            if (hero.nextSibling) hero.parentNode.insertBefore(slot, hero.nextSibling);
+            else hero.parentNode.appendChild(slot);
+        } else if (after.appendChild) {
+            after.appendChild(slot);
         }
         return slot;
     }
@@ -975,8 +1021,34 @@
         return slot;
     }
 
+    var HOME_RESERVED_CLASS = 'bq-ad-reserved';
+
+    function isHomeSlot(slot) {
+        if (!slot) return false;
+        if (slot.id === 'bqAadsHome') return true;
+        try {
+            return !!(slot.classList && slot.classList.contains('bq-ad-slot-home'));
+        } catch (e) {
+            return (' ' + (slot.className || '') + ' ').indexOf(' bq-ad-slot-home ') !== -1;
+        }
+    }
+
+    // Reserve #bqAadsHome height up front for signed-in adults so the
+    // creative cannot shift the page (CLS). clearSlot drops the class so
+    // signed-out visitors stay at zero size via [hidden].
+    function reserveHomeSlot(slot, on) {
+        if (!isHomeSlot(slot)) return;
+        try {
+            if (slot.classList) {
+                if (on) slot.classList.add(HOME_RESERVED_CLASS);
+                else slot.classList.remove(HOME_RESERVED_CLASS);
+            }
+        } catch (e) {}
+    }
+
     function clearSlot(slot) {
         if (!slot) return;
+        reserveHomeSlot(slot, false);
         slot.hidden = true;
         slot.innerHTML = '';
     }
@@ -993,6 +1065,7 @@
             clearSlot(slot);
             return;
         }
+        reserveHomeSlot(slot, true);
         slot.innerHTML = '<p class="bq-ad-label">Ad</p>' + aadsIframeHtml();
         slot.hidden = false;
     }
@@ -1070,6 +1143,7 @@
         var npa = isPrivacyShareOptedOut(input);
         if (!npa) personalizedAdsLive = true;
         injectAdsenseScript(npa);
+        reserveHomeSlot(slot, true);
         slot.innerHTML = '<p class="bq-ad-label">Ad</p>' +
             '<ins class="adsbygoogle" style="display:block;position:relative;z-index:0;"' +
             ' data-ad-client="' + ADSENSE_CLIENT + '"' +
@@ -1093,7 +1167,7 @@
         }
         var useAdsense = !!preferAdsense && adsenseAllowed(decision, input);
         if (decision.skipAads) {
-            if (useAdsense) fillAdsense(slot, input);
+            if (npaFallbackAllowed(decision, input)) fillAdsense(slot, input);
             else clearSlot(slot);
             return;
         }
@@ -1295,11 +1369,16 @@
                 return;
             }
             var uid = String(signed.uid || '');
-            if (root) {
-                root._bqAdsAuthReady = true;
-                root._bqAdsUserUnknown = true;
+            if (root) root._bqAdsAuthReady = true;
+            // A later auth event must not blank a slot that was already
+            // filled from a valid user doc for this same account.
+            if (userDocLooksLoaded(freshUserDoc, uid)) {
+                if (root) root._bqAdsUserUnknown = false;
+                sync();
+            } else {
+                if (root) root._bqAdsUserUnknown = true;
+                sync({ userUnknown: true });
             }
-            sync({ userUnknown: true });
             fetchFreshUserDoc(uid).then(function (doc) {
                 if (signedInUid() !== uid) return;
                 if (doc) markUserKnown();
