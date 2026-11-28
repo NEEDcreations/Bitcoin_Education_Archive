@@ -1538,9 +1538,11 @@ test('claimFavorBlock account gate: 6d23h59m old is refused, 7d passes; client a
         const now = Date.now();
         const young = favorAuthUser('fyoung', now - (7 * 86400000 - 60000));
         const old = favorAuthUser('fold', now - 7 * 86400000 - 5000);
+        require(path.join(root, 'functions/src/ageGateHeld.js')).resetCache();
         const h = favorGateHarness({ fyoung: young, fold: old }, {
-            'users/fyoung': { emailHash: tomb.emailHmac(young.email), ageDays: 999, created: now - 999 * 86400000 },
-            'users/fold': { emailHash: tomb.emailHmac(old.email) },
+            'users/fyoung': { emailHash: tomb.emailHmac(young.email), ageDays: 999, created: now - 999 * 86400000, over18: true, ageConfirmed18: true },
+            'users/fold': { emailHash: tomb.emailHmac(old.email), over18: true, ageConfirmed18: true },
+            'config/ageGateHeld': { uids: [], groups: {} },
         });
         const ctxOf = function (uid) { return { auth: { uid: uid, token: { email: uid + '@example.com', email_verified: true } } }; };
         const r1 = await h.gate('fyoung', ctxOf('fyoung'));
@@ -1556,7 +1558,7 @@ test('claimFavorBlock account gate: a pre-aged guest whose first email lands now
     await withHmacSecret(async function () {
         const now = Date.now();
         const guest = favorAuthUser('fguest', now - 30 * 86400000);
-        const h = favorGateHarness({ fguest: guest }, { 'users/fguest': { points: 10 } });
+        const h = favorGateHarness({ fguest: guest }, { 'users/fguest': { points: 10, over18: true, ageConfirmed18: true } });
         const r = await h.gate('fguest', { auth: { uid: 'fguest', token: {} } });
         assert.strictEqual(r.ok, false);
         assert.strictEqual(r.code, 'claim_rules');

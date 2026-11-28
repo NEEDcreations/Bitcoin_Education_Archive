@@ -174,6 +174,7 @@ async function verifyTurnstile(token, remoteip) {
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
+const age18Sats = require('./src/age18Sats');
 const sitewideCaps = require('./src/sitewideCaps');
 const payFailGuard = require('./src/payFailGuard');
 const rewardNotify = require('./src/rewardNotify');
@@ -1746,6 +1747,11 @@ exports.claimSats = functionsV1.runWith({
     );
     if (!preBan.ok) return { success: false, error: preBan.error };
 
+    // Sats need a confirmed 18+ answer (fields set by confirmAge18). Checked
+    // again inside the claim transaction below.
+    const preAge18 = age18Sats.assess(userPreSnap.exists ? userPreSnap.data() : null);
+    if (!preAge18.ok) return age18Sats.responseFor(preAge18);
+
     const accountTombstone = require('./src/accountTombstone');
     if (!accountTombstone.secretReady()) {
         return { success: false, error: 'Sats claims are paused. Try again later.' };
@@ -1972,6 +1978,12 @@ exports.claimSats = functionsV1.runWith({
 
             const ban = faucetGuard.assessBan(user, ledger);
             if (!ban.ok) deny(ban.error);
+            const age18 = age18Sats.assess(user);
+            if (!age18.ok) {
+                const age18Err = new Error('FAUCET_USER:' + age18.error);
+                age18Err.age18 = age18;
+                throw age18Err;
+            }
             const holdInTx = Number(user.satsHold) || 0;
             if (holdInTx > Date.now()) deny('Sats withdrawals are paused on this account. Try again later.');
 
@@ -2259,6 +2271,7 @@ exports.claimSats = functionsV1.runWith({
         const marker = 'FAUCET_USER:';
         const at = raw.indexOf(marker);
         if (at !== -1) {
+            if (e && e.age18) return age18Sats.responseFor(e.age18);
             const extra = (e && e.faucetExtra) || txFlag;
             if (extra) await _flagFaucetAdmin(extra);
             var capMsg = raw.slice(at + marker.length);

@@ -3585,6 +3585,8 @@ function _loadPoolEpoch() {
     }
     function _sfDoClaim(winId, epochNum, btn, blockNum) {
         if (!winId || typeof firebase === 'undefined' || !firebase.functions) return;
+        // Sats need a confirmed 18+ answer. Re-shows the age prompt when it is not.
+        if (typeof window.bqSatsAge18Check === 'function' && !window.bqSatsAge18Check((typeof currentUser !== 'undefined' ? currentUser : null))) return;
         if (btn) { btn.disabled = true; btn.textContent = 'Paying\u2026'; }
         // Only { epoch, block } go to the server. It decides who won from its own records.
         var payload = { epoch: epochNum, block: blockNum };
@@ -3615,7 +3617,8 @@ function _loadPoolEpoch() {
                 }
                 _sfClaimByEpoch[epochNum] = list;
             }
-            if (typeof showToast === 'function') showToast(d.success ? '\u26a1 Favor sats sent!' : (d.error || 'Claim failed. Your block is saved.'));
+            var _ageAsked = !d.success && typeof window.bqSatsAge18Handle === 'function' && window.bqSatsAge18Handle(d, (typeof currentUser !== 'undefined' ? currentUser : null));
+            if (!_ageAsked && typeof showToast === 'function') showToast(d.success ? '\u26a1 Favor sats sent!' : (d.error || 'Claim failed. Your block is saved.'));
             if (!d.success && btn) { btn.disabled = false; btn.textContent = '\u26a1 Claim'; }
             var inner = document.getElementById('sfPoolEpochInner');
             if (inner && inner._sfRepaint) inner._sfRepaint();

@@ -24,3 +24,8 @@ deployed from this branch.
 - [ ] **`firebase.json` hosting CSP publish** — needs Phil's OK. Same
   Funding Choices host as the worker, so staging / Firebase Hosting CSP
   matches. Publish together with the worker, not ahead of it.
+
+## Sats require 18+ (`feat/sats-require-18plus`)
+
+- [ ] **Functions `claimSats`, `claimFavorBlock`, `claimCipherWin`, `claimCipherSats`** — needs Phil's go-live OK. Existing functions, so this is a redeploy of those four by name. Refuses sats unless the player has confirmed 18+ (`age_18_required`). At the time this branch was cut only 1 of 1,977 live accounts had confirmed 18+, so almost every player is blocked from sats until they answer the age prompt. Deploy the site (SW v2746) together with the functions so the prompt appears.
+

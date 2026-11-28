@@ -6,6 +6,14 @@
 // field over18 (PR #401 hasKnownAdultAge). window._bqAgeConfirmed18 is a
 // same-tab helper and stays false when the user is under 18 or dismisses.
 // Dismissing asks again on the next visit; a saved under-18 answer does not.
+//
+// Sats need a confirmed 18+ answer (server-enforced; feat/sats-require-18plus).
+// bqSatsAge18Check(user) runs before a sats action and re-shows this prompt
+// when the age is unconfirmed. bqSatsAge18Handle(responseOrError) does the same
+// when a payout callable answers with code age_18_required.
+// The guardian step cannot be skipped: no Not now, no close button, no
+// Escape, and a tab-session dismiss is ignored for a saved under-18 answer
+// that still lacks the guardian checkbox.
 (function (root) {
     'use strict';
 
@@ -17,8 +25,13 @@
         guardian: 'My parent or guardian says it\'s OK for me to play Bitcoin Quest.',
         continueLabel: 'Continue',
         back: 'Back',
-        notNow: 'Not now'
+        notNow: 'Not now',
+        satsRequired: "Confirm you're 18+ to earn sats.",
+        satsUnder18: 'Sats are for players 18 and older.',
+        satsBlocked: 'Your age confirmation needs a review. Contact support to earn sats.',
+        satsThanks: "Thanks! You're confirmed. Try that again."
     };
+    var SATS_CODE = 'age_18_required';
 
     var BUTTON_STYLE = 'min-height:44px;width:100%;padding:10px 16px;background:#334155;color:#f1f5f9;border:1px solid #64748b;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;';
 
@@ -29,6 +42,8 @@
     var OVERLAY_ID = 'ageConfirmOverlay';
     var waiting = false;
     var watchTimer = null;
+    var satsUserRef = null;
+    var satsPromptOpen = false;
 
     var KIDS_BOOL_FLAGS = ['isMinor', 'under13', 'kids', 'isKids', 'kidsMode'];
     var KIDS_AGE_BANDS = ['under13', 'minor', 'child', 'kids', 'kid'];
@@ -270,14 +285,19 @@
         var document = root.document;
         if (!document || !document.body) return;
         if (document.getElementById(OVERLAY_ID)) return;
+        var fromSats = !!(opts && opts.fromSats);
         if (otherModalOpen()) {
             if (watchTimer) return;
             watchTimer = root.setTimeout(function () {
                 watchTimer = null;
-                showModal();
+                showModal(opts);
             }, 300);
             return;
         }
+        satsPromptOpen = fromSats;
+        // Opened from a sats action: closing it just closes it. Nothing is
+        // recorded as dismissed and the onboarding queue is not touched.
+        var closeFn = fromSats ? closeOverlay : dismiss;
 
         var overlay = document.createElement('div');
         overlay.id = OVERLAY_ID;
@@ -285,6 +305,10 @@
         overlay.setAttribute('aria-modal', 'true');
         overlay.setAttribute('aria-labelledby', 'ageConfirmTitle');
         overlay.style.cssText = 'position:fixed;inset:0;z-index:100040;background:rgba(15,23,42,0.72);display:flex;align-items:center;justify-content:center;padding:20px;';
+        // Sats screens (claim modal, Settings) sit above 100040. Stack over them.
+        if (fromSats && typeof root._bqAboveModalsZ === 'function') {
+            try { overlay.style.zIndex = String(root._bqAboveModalsZ(100040)); } catch (eZ) {}
+        }
 
         var card = document.createElement('div');
         card.style.cssText = 'position:relative;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:28px 24px 22px;max-width:360px;width:100%;text-align:center;color:#e2e8f0;font-family:inherit;box-shadow:0 16px 40px rgba(15,23,42,0.45);';
@@ -294,7 +318,7 @@
         closeBtn.setAttribute('aria-label', 'Close');
         closeBtn.textContent = '×';
         closeBtn.style.cssText = 'position:absolute;top:10px;right:12px;background:none;border:none;color:#94a3b8;font-size:1.4rem;line-height:1;cursor:pointer;padding:4px 8px;font-family:inherit;';
-        closeBtn.addEventListener('click', dismiss);
+        closeBtn.addEventListener('click', closeFn);
 
         var iconWrap = document.createElement('div');
         iconWrap.style.cssText = 'width:48px;height:48px;border-radius:50%;background:#334155;color:#cbd5e1;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;';
@@ -322,9 +346,14 @@
         bindChoice(overBtn, COPY.over18, 'confirmAge18', function () {
             setHelper(true);
             patchProfileCache({ over18: true, ageConfirmed18: true });
+            if (satsUserRef) {
+                try { satsUserRef.over18 = true; satsUserRef.ageConfirmed18 = true; } catch (eU) {}
+            }
             fireAgeEvent('bq-age-confirmed', { over18: true });
+            var wasSats = satsPromptOpen;
             closeOverlay();
             finishQueue('done');
+            if (wasSats && typeof root.showToast === 'function') root.showToast(COPY.satsThanks);
         });
         underBtn.addEventListener('click', function () {
             showGuardianStep(overlay, card, { allowBack: true });
@@ -333,7 +362,7 @@
         actions.appendChild(overBtn);
         actions.appendChild(underBtn);
 
-        overlay.addEventListener('click', function (e) { if (e.target === overlay && overlay.getAttribute('data-age-step') !== 'guardian-required') dismiss(); });
+        overlay.addEventListener('click', function (e) { if (e.target === overlay && !overlay.getAttribute('data-age-step')) closeFn(); });
         card.appendChild(closeBtn);
         card.appendChild(iconWrap);
         card.appendChild(title);
@@ -342,7 +371,7 @@
         overlay.appendChild(card);
         document.body.appendChild(overlay);
         if (root.btcSheet && root.btcSheet.setCloser) {
-            try { root.btcSheet.setCloser(overlay, dismiss); } catch (e) {}
+            try { root.btcSheet.setCloser(overlay, closeFn); } catch (e) {}
         }
         if (root.btcSheet && root.btcSheet.sync) {
             try { root.btcSheet.sync(); } catch (e) {}
@@ -368,7 +397,8 @@
                 break;
             }
         }
-        if (closeBtn) closeBtn.style.display = allowBack ? '' : 'none';
+        // The guardian step has no close button. Back (when offered) is the only way out.
+        if (closeBtn) closeBtn.style.display = 'none';
 
         var actions = document.getElementById('ageConfirmActions');
         if (!actions) {
@@ -450,7 +480,7 @@
                     syncContinue();
                     if (label) label.textContent = COPY.continueLabel;
                     if (typeof root.showToast === 'function') root.showToast(result.error);
-                    allowGuardianDismiss(result.error);
+                    showGuardianError(result.error);
                 }
             });
         });
@@ -460,13 +490,17 @@
         if (allowBack) {
             var backBtn = makeChoiceButton(document, 'ageGuardianBack', COPY.back);
             backBtn.addEventListener('click', function () {
+                var again = satsPromptOpen;
                 closeOverlay();
-                showModal();
+                showModal(again ? { fromSats: true } : undefined);
             });
             actions.appendChild(backBtn);
         }
 
-        function allowGuardianDismiss(msg) {
+        // A save error shows the message and keeps the step open. There is no
+        // Not now: the checkbox is how the player continues, and a dismiss is
+        // never treated as consent or as a skip.
+        function showGuardianError(msg) {
             var err = document.getElementById('ageGuardianError');
             if (!err) {
                 err = document.createElement('p');
@@ -476,20 +510,16 @@
                 actions.appendChild(err);
             }
             err.textContent = msg || MSG.generic;
-            if (closeBtn) closeBtn.style.display = '';
-            overlay.setAttribute('data-age-step', 'guardian');
-            if (!document.getElementById('ageGuardianNotNow')) {
-                var notNow = makeChoiceButton(document, 'ageGuardianNotNow', COPY.notNow);
-                notNow.addEventListener('click', dismiss);
-                actions.appendChild(notNow);
-            }
-            if (root.btcSheet && root.btcSheet.setCloser) {
-                try { root.btcSheet.setCloser(overlay, dismiss); } catch (e) {}
-            }
         }
 
         if (root.btcSheet && root.btcSheet.setCloser) {
-            try { root.btcSheet.setCloser(overlay, allowBack ? function () { closeOverlay(); showModal(); } : function () {}); } catch (e) {}
+            try {
+                root.btcSheet.setCloser(overlay, allowBack ? function () {
+                    var again = satsPromptOpen;
+                    closeOverlay();
+                    showModal(again ? { fromSats: true } : undefined);
+                } : function () {});
+            } catch (e) {}
         }
         try { box.focus(); } catch (e) {}
     }
@@ -526,15 +556,11 @@
         }
         setHelper(false);
         // A saved under-18 answer still needs the guardian checkbox before
-        // the player can continue on a regular account. A session dismiss
-        // ('Not now' or Close, offered after a save error) IS honored for
-        // this tab; the step asks again on the next visit. A dismiss writes
-        // nothing and never counts as consent.
+        // the player can continue on a regular account. Nothing can dismiss
+        // it: no Not now, no Close, no Escape, and a stale session dismiss is
+        // ignored. A dismiss writes nothing and never counts as consent.
         if (isUnder18(user) && !hasGuardianOk(user)) {
-            if (sessionDismissed()) {
-                finishQueue('skip');
-                return;
-            }
+            // A session dismiss never skips this step (no Not now, no Escape).
             var showGuardian = function () { showModal({ needGuardian: true }); };
             var qg = queue();
             if (qg && typeof qg.ready === 'function') qg.ready('age', showGuardian);
@@ -651,10 +677,91 @@
         }, 250);
     }
 
+    // ---- Sats need a confirmed 18+ answer ----------------------------------
+    // The server is the real gate. These helpers only turn its answer (or a
+    // stale local profile) into the right prompt, so nobody has to guess why a
+    // sats action did nothing.
+
+    function toast(msg) {
+        if (typeof root.showToast === 'function') {
+            try { root.showToast(msg); } catch (e) {}
+        }
+    }
+
+    // null when the user may go ahead, else { reason, canConfirm, needGuardian, message }.
+    function satsBlock(user) {
+        if (!user) return null;
+        if (isBlocked(user)) return { reason: 'blocked', canConfirm: false, needGuardian: false, message: COPY.satsBlocked };
+        if (isKidsAccount(user)) return { reason: 'kids', canConfirm: false, needGuardian: false, message: COPY.satsUnder18 };
+        if (isUnder18(user)) return { reason: 'under18', canConfirm: false, needGuardian: !hasGuardianOk(user), message: COPY.satsUnder18 };
+        if (!isConfirmed(user)) return { reason: 'unconfirmed', canConfirm: true, needGuardian: false, message: COPY.satsRequired };
+        return null;
+    }
+
+    function blockForReason(reason) {
+        if (reason === 'blocked') return { reason: reason, canConfirm: false, needGuardian: false, message: COPY.satsBlocked };
+        if (reason === 'under18' || reason === 'kids') return { reason: reason, canConfirm: false, needGuardian: false, message: COPY.satsUnder18 };
+        return { reason: 'unconfirmed', canConfirm: true, needGuardian: false, message: COPY.satsRequired };
+    }
+
+    function promptForSats(block, user) {
+        satsUserRef = user || null;
+        toast(block.message);
+        if (block.canConfirm) {
+            clearDismissed();
+            showModal({ fromSats: true });
+        } else if (block.needGuardian) {
+            showModal({ fromSats: true, needGuardian: true });
+        }
+    }
+
+    // Call before a sats action with the signed-in user's profile. Returns true
+    // when the action may continue. Returns false after toasting the reason and
+    // re-showing the age prompt. No profile means the server decides (true).
+    function satsAge18Check(user) {
+        var block = satsBlock(user);
+        if (!block) return true;
+        promptForSats(block, user);
+        return false;
+    }
+
+    // The age_18_required code from a payout callable: either a returned
+    // { success: false, code } body or a thrown HttpsError with details.code.
+    function ageCodeInfo(x) {
+        if (!x || typeof x !== 'object') return null;
+        if (x.code === SATS_CODE) return { reason: x.reason || '' };
+        var d = x.details;
+        if (d && typeof d === 'object' && d.code === SATS_CODE) return { reason: d.reason || '' };
+        if (x.data && typeof x.data === 'object' && x.data.code === SATS_CODE) return { reason: x.data.reason || '' };
+        return null;
+    }
+
+    function isAge18Required(x) {
+        return !!ageCodeInfo(x);
+    }
+
+    // Returns true when x was an age_18_required answer (and it has been
+    // handled), so the caller can skip its generic error toast.
+    function satsAge18Handle(x, user) {
+        var info = ageCodeInfo(x);
+        if (!info) return false;
+        var block = blockForReason(info.reason);
+        // An unconfirmed answer from the server wins over a stale local profile.
+        if (user && block.reason !== 'unconfirmed') {
+            var local = satsBlock(user);
+            if (local && local.needGuardian && block.reason === 'under18') block.needGuardian = true;
+        }
+        promptForSats(block, user);
+        return true;
+    }
+
     setHelper(false);
     root.bqAgeConfirmCopy = COPY;
     root.bqAgeConfirmed18FromUser = isConfirmed;
     root.bqAgeUnder18FromUser = isUnder18;
+    root.bqSatsAge18Check = satsAge18Check;
+    root.bqSatsAge18Handle = satsAge18Handle;
+    root.bqIsAge18Required = isAge18Required;
     root.showAgeConfirmPrompt = showModal;
     root.bqAgeConfirmRecheck = recheck;
     root._bqDismissAgeConfirm = dismiss;

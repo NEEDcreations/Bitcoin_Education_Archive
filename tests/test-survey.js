@@ -491,7 +491,7 @@ async function rejects(p, code) {
             assert.ok(a !== -1 && b !== -1 && a < b, f);
             // Pins on kill-switch.js and ranking.js stay at the gh-pages values; do not re-pin here.
             assert.ok(html.includes('kill-switch.js?v=20261128_v2744'), f);
-            assert.ok(html.includes('ranking.js?v=20261128_v2744'), f);
+            assert.ok(html.includes('ranking.js?v=20261128_v2746'), f);
             assert.ok(!html.includes('kill-switch.js?v=20261114_v2570'), f);
             assert.ok(!html.includes('ranking.js?v=20261114_v2570'), f);
         });

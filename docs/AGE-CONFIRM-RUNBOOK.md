@@ -10,6 +10,19 @@ There is no admin screen. An admin undoes an 18+ confirmation with the `adminUnc
 
 To clear a saved under-18 or guardian-OK answer, or to undo a block so the player can be asked again, use the `adminResetAge18` callable (admin claim, App Check, and a fresh step-up). That clears the same age fields and deletes `ageConfirmBlocked`. The player sees the prompt on a later visit and can answer themselves. They still cannot flip a saved answer from the client.
 
+## Sats require a confirmed 18+ answer
+
+Updated 28 November 2026 (`feat/sats-require-18plus`, not live until Phil okays the ship).
+
+Every payout path refuses unless the user doc has `over18` or `ageConfirmed18` set to `true` (the fields `confirmAge18` sets): `claimSats`, `claimFavorBlock`, `claimCipherWin`, and `claimCipherSats`. The check is `functions/src/age18Sats.js`. It runs before any reservation, counter write, or wallet call, so a refused claim leaves nothing behind.
+
+- Refusal code: `age_18_required` (`claimSats`, `claimFavorBlock` and `claimCipherSats` return `{ success: false, code, reason, error }`; `claimCipherWin` throws `failed-precondition` with `details.code`). The client turns it into "Confirm you're 18+ to earn sats." and re-shows the age prompt.
+- `reason` is `unconfirmed` (the player can answer the prompt), `under18`, `blocked` (admin un-confirm), or `kids`. Only `unconfirmed` shows the 18+ button. The others get a plain message.
+- **Under 18 with guardian OK does not earn sats.** This runbook does not say they should, so the rule fails closed. The guardian OK only lets them keep playing. Changing that is a product decision, then a one-line change in `age18Sats.assess`.
+- Earned balances are never removed. `cipherSatsBalance` and claimable XP keep accruing for an unconfirmed player; only the withdrawal is refused. Confirming 18+ unblocks the next claim.
+- The guardian step cannot be skipped: no Not now, no close button, no Escape, and a session dismiss is ignored for a saved under-18 answer that still lacks the checkbox. Reaching it from "I'm under 18" shows Back, which returns to the two-button prompt.
+- Admin-paid prizes (`adminMarkCipherWinPaid`, `adminResolveCipherSatsClaim`) record a payment an admin made by hand. They do not send sats and are not gated.
+
 ## Undo a mistaken un-confirm
 
 Prefer `adminResetAge18` when the player should be asked again. If you must do this in the Firebase console, not from a client (clients cannot write these fields):

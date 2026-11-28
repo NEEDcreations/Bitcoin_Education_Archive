@@ -118,6 +118,7 @@ const MESSAGES = Object.freeze({
     not_winner: 'Only the player who found this block can claim it.',
     amount_invalid: 'This block needs a manual check before it can be paid.',
     account_blocked: 'This account cannot claim sats right now.',
+    age_18_required: "Confirm you're 18+ to earn sats.",
     unavailable: 'Try again later.',
     step_up_required: 'Confirm it is you to claim this block.',
     manual_review: 'This block is set aside for a manual check. Your sats are safe.',
@@ -611,6 +612,8 @@ function createBlockClaimService(deps) {
             const gate = await deps.accountGate(uid, context);
             if (!gate || !gate.ok) {
                 if (gate && gate.code === 'unavailable') refuse('unavailable');
+                // Sats need a confirmed 18+ answer. The block stays saved; nothing is reserved.
+                if (gate && gate.code === 'age_18_required') refuse('age_18_required', { reason: gate.reason || '', userMessage: gate.error || '' });
                 refuse('account_blocked', { gate: gate && gate.code });
             }
 
@@ -897,7 +900,12 @@ function createBlockClaimService(deps) {
             }
             const quiet = NO_AUDIT_CODES.indexOf(code) !== -1 || (code === 'rate_limited' && e && e.extra && e.extra.quiet);
             if (!quiet) await audit(Object.assign({}, base, { type: 'refused', code: code, detail: (e && e.extra) || {}, ms: now() - t0 }));
-            return { success: false, code: code, error: MESSAGES[code] || MESSAGES.pay_failed };
+            const out = { success: false, code: code, error: MESSAGES[code] || MESSAGES.pay_failed };
+            if (code === 'age_18_required') {
+                out.reason = (e && e.extra && e.extra.reason) || 'unconfirmed';
+                if (e && e.extra && e.extra.userMessage) out.error = e.extra.userMessage;
+            }
+            return out;
         }
     }
 
