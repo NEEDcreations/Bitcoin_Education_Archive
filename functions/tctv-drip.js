@@ -13,11 +13,19 @@ const crypto = require('crypto');
 const logic = require('./src/tctvDripLogic');
 const tctvPresence = require('./tctv-presence-lib');
 const { offsetDateKey } = require('./src/offsetDay');
+const originals = require('./src/tctvOriginals');
+const killSwitch = require('./src/killSwitch');
 
 const db = admin.firestore();
 const POT_REF = () => db.collection('tctv_drip_pot').doc('current');
 const CFG_REF = () => db.collection('tctv_drip_config').doc('settings');
 const STAGING = process.env.GCLOUD_PROJECT === 'bitcoin-quest-staging';
+
+// Legal / Phil (Nov 25): TCTV watch time must not pay sats. This flag
+// hard-disables distribute() and the tick payout path even if the
+// config switch is on. Existing pot docs and user balances are left
+// untouched. No sats are moved.
+const DRIP_SATS_PAYOUTS_DISABLED = true;
 
 function HttpsError(code, msg) { return new functionsV1.https.HttpsError(code, msg); }
 
@@ -32,10 +40,16 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
     if (!context.auth) throw HttpsError('unauthenticated', 'Must be signed in');
     const provider = (context.auth.token && context.auth.token.firebase) ? context.auth.token.firebase.sign_in_provider : '';
     if (provider === 'anonymous') throw HttpsError('permission-denied', 'Sign in required');
+    if (await killSwitch.isOffline(db)) throw HttpsError('unavailable', killSwitch.OFFLINE_MESSAGE);
     const uid = context.auth.uid;
     const body = data || {};
     if (!logic.validDeviceId(body.deviceId)) throw HttpsError('invalid-argument', 'Bad request');
     const deviceKey = crypto.createHash('sha256').update(String(body.deviceId)).digest('hex').slice(0, 32);
+    const videoId = typeof body.videoId === 'string' ? body.videoId.slice(0, 80) : '';
+    const rate = Number(body.playbackRate);
+    const originalOk = originals.taskEnabled() && originals.isOriginal(videoId)
+        && body.muted !== true && body.paused !== true
+        && Number.isFinite(rate) && rate > 0 && rate <= 1;
     const playing = body.playing === true && body.visible === true;
     const promptAnswer = typeof body.promptToken === 'string' ? body.promptToken.slice(0, 64) : '';
 
@@ -75,7 +89,7 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
         const pres = prSnap.exists ? prSnap.data() : null;
         const dev = dSnap.exists ? (dSnap.data() || {}) : {};
         const plan = logic.planCheckin(prev, {
-            uid, nowMs, cfg, playing, promptAnswer,
+            uid, nowMs, cfg, playing, promptAnswer, originalOk,
             presenceFresh: !!pres && tctvPresence.isFreshPresence(pres, nowMs) && tctvPresence.isTctvStation(pres.station),
             deviceOwner: dev.uid || '', deviceLastMs: dev.lastMs || 0,
             newToken: crypto.randomBytes(12).toString('hex'),
@@ -137,6 +151,10 @@ async function loadEntries(potId, cfg) {
 // The share plan is frozen in tctv_drip_history before any credit, so a
 // retried tick pays exactly the same shares. Ledger docs stay one per user per pot.
 async function distribute(pot, cfg) {
+    if (DRIP_SATS_PAYOUTS_DISABLED) {
+        console.warn('[tctvDrip] distribute hard-disabled; no sats paid for watch time');
+        return { wait: false, paid: 0, rollover: 0, shares: [], disabled: true, reason: 'hard-disabled' };
+    }
     const potId = pot.potId;
     const histRef = db.collection('tctv_drip_history').doc(potId);
     let hist = (await histRef.get()).data() || null;
@@ -211,6 +229,16 @@ async function refreshProjections(potId, cfg) {
 async function runTick() {
     const { cfg, raw } = await loadConfig();
     const nowMs = Date.now();
+    if (await killSwitch.isOffline(db)) {
+        console.warn('[tctvDrip] tick skipped: kill switch on');
+        return;
+    }
+    // Leave existing pot docs and balances untouched. Do not accrue, reserve,
+    // distribute, or open a next pot while sats payouts are hard-disabled.
+    if (DRIP_SATS_PAYOUTS_DISABLED) {
+        console.warn('[tctvDrip] tick: sats payouts hard-disabled; pot left as-is');
+        return;
+    }
     const potRef = POT_REF();
     let pot = (await potRef.get()).data() || null;
     if (!pot || !pot.potId) {
@@ -304,4 +332,4 @@ const tctvDripTick = onSchedule({ schedule: 'every 1 minutes', timeZone: 'UTC', 
     try { await runTick(); } catch (e) { console.error('[tctvDrip] tick', e && e.message); }
 });
 
-module.exports = { tctvDripCheckin, tctvDripTick, _runTick: runTick };
+module.exports = { tctvDripCheckin, tctvDripTick, _runTick: runTick, DRIP_SATS_PAYOUTS_DISABLED: DRIP_SATS_PAYOUTS_DISABLED, _distribute: distribute };

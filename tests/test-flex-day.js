@@ -70,7 +70,8 @@ test('flex_all badges require that many full days, and the day bonus is 50 XP on
 test('awardPoints uses the same goal for the counter, the day bonus, and flex_all badges', function () {
     const src = read('functions/index.js');
     const start = src.indexOf('exports.awardPoints = functionsV1.https.onCall');
-    const end = src.indexOf('exports.getFaucetStats = functionsV1.https.onCall');
+    const end = src.indexOf('exports.getFaucetStats = ', start);
+    assert.ok(start > 0 && end > start);
     const body = src.slice(start, end);
     assert.ok(body.indexOf('nextFlexFullDays') > 0);
     assert.ok(body.indexOf('flexFullDays') > 0);
@@ -102,18 +103,20 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(html.indexOf('>Flex</span>') > 0);
     assert.ok(html.indexOf('id="todayFlexSub"') > 0);
     assert.ok(html.indexOf('>0/5</span>') > 0);
-    assert.ok(html.indexOf('today-card.js?v=20261031_v2448') > 0);
-    assert.ok(html.indexOf('today-card.js?v=20261030_v2432') === -1);
-    assert.ok(html.indexOf('today-card.js?v=20261026_v2371') === -1);
-    assert.ok(html.indexOf('today-card.js?v=20261026_v2375') === -1);
-    assert.ok(html.indexOf('today-card.js?v=20261026_v2365') === -1);
-    assert.ok(html.indexOf('today-card.js?v=20261024_v2368') === -1);
-    assert.ok(html.indexOf('today-card.js?v=20261024_v2351') === -1);
-    assert.ok(html.indexOf('today-card.js?v=20261023_v2349') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261128_v2744') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261128_v2744') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261128_v2744') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261128_v2744') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261128_v2744') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261128_v2744') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261128_v2744') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261128_v2744') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261128_v2744') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261128_v2744') === -1);
     assert.ok(card.indexOf("meter.setAttribute('aria-label', label)") > 0);
     assert.ok(card.indexOf("used.toLocaleString() + '/1000 XP today'") > 0);
     assert.ok(card.indexOf('Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap') > 0);
-    assert.ok(html.indexOf('today-card.js?v=20261023_v2330') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261128_v2744') === -1);
     const quests = read('quests.js');
     assert.ok(quests.indexOf("actionKey: 'flex_day_complete'") > 0);
     assert.ok(quests.indexOf('data.flexFullDays') > 0);
@@ -121,7 +124,7 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(quests.indexOf('FLEX_ACTIONS.every') === -1);
     assert.ok(quests.indexOf('_flexDayGoal') > 0);
     assert.ok(quests.indexOf('5 * 3600000') > 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261102_v2467/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261126_v2696/g) || []).length, 4);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261030_v2435/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261028_v2415/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2381/g) || []).length, 0);

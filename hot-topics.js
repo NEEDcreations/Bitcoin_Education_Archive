@@ -136,13 +136,27 @@
     // ── Inject sidebar HTML + CSS ─────────────────────────────────────────────
     function injectSidebarSection() {
         var channelList = document.getElementById('channelList');
-        if (!channelList) return;
+        var searchInput = document.getElementById('searchInput');
+        var searchBox = null;
+        if (searchInput) {
+            var n = searchInput.parentNode;
+            while (n && n !== document && n.nodeType === 1) {
+                var cls = (n.className && n.className.baseVal != null) ? n.className.baseVal : String(n.className || '');
+                if ((' ' + cls + ' ').indexOf(' search-box ') !== -1) { searchBox = n; break; }
+                n = n.parentNode;
+            }
+            if (!searchBox) searchBox = searchInput.parentNode;
+        }
+        if (!searchBox && !channelList) return;
 
-        // Don't double-inject
-        if (document.getElementById(HT_CONTAINER_ID + 'Wrapper')) return;
+        // Don't double-inject once the section itself exists.
+        // An empty #hotTopicsSectionWrapper may already be in the HTML to reserve height.
+        if (document.getElementById(HT_CONTAINER_ID)) return;
 
         // CSS
+        if (!document.getElementById('hotTopicsStyles')) {
         var style = document.createElement('style');
+        style.id = 'hotTopicsStyles';
         style.textContent = `
             #hotTopicsSectionWrapper {
                 border-bottom: 1px solid var(--border);
@@ -386,10 +400,15 @@
             }
         `;
         document.head.appendChild(style);
+        }
 
-        // HTML wrapper — injected before channelList content
-        var wrapper = document.createElement('div');
-        wrapper.id = HT_CONTAINER_ID + 'Wrapper';
+        // HTML wrapper — use the reserved slot when present.
+        // Otherwise sit below the LIVE ticker and above Search all topics.
+        var wrapper = document.getElementById(HT_CONTAINER_ID + 'Wrapper');
+        if (!wrapper) {
+            wrapper = document.createElement('div');
+            wrapper.id = HT_CONTAINER_ID + 'Wrapper';
+        }
         wrapper.innerHTML =
             '<div class="ht-header-bar" onclick="window._htSectionToggle(this)">' +
                 '<div class="ht-header-title">' +
@@ -400,7 +419,15 @@
             '</div>' +
             '<div id="' + HT_CONTAINER_ID + '"></div>';
 
-        channelList.insertBefore(wrapper, channelList.firstChild);
+        if (!wrapper.parentNode) {
+            if (searchBox && searchBox.parentNode) {
+                searchBox.parentNode.insertBefore(wrapper, searchBox);
+            } else if (channelList) {
+                channelList.insertBefore(wrapper, channelList.firstChild);
+            } else {
+                return;
+            }
+        }
         injectCitadelWirePanel(wrapper);
     }
 

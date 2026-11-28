@@ -29,12 +29,26 @@ function read(rel) {
 
 const T0 = Date.parse('2026-10-22T15:00:00.000Z');
 
+function eligible(extra) {
+    return Object.assign({
+        uid: 'user_1',
+        presenceFresh: true,
+        toastSeen: false,
+        taskEnabled: true,
+        originalOk: true,
+        visible: true,
+        muted: false,
+        paused: false,
+        playbackRate: 1
+    }, extra || {});
+}
+
 function fresh(extra) {
-    return Object.assign({ uid: 'user_1', presenceFresh: true, toastSeen: false }, extra || {});
+    return eligible(extra);
 }
 
 function step(prev, now) {
-    const result = watch.applyWatchHeartbeat(Object.assign({ uid: 'user_1', presenceFresh: true }, prev), now);
+    const result = watch.applyWatchHeartbeat(Object.assign(eligible(), prev), now);
     const next = result.write && result.state ? Object.assign({ uid: 'user_1' }, result.state) : Object.assign({}, prev);
     return { result: result, state: next };
 }
@@ -228,11 +242,19 @@ test('presence must be fresh and on a real station', () => {
     assert.strictEqual(watch.presenceIsWatching({ station: 'news', ts: { toMillis: function () { return now - 1000; } } }, now), true);
 });
 
-test('the offset day flips at 05:00 UTC', () => {
-    const before = Date.parse('2026-10-22T04:59:59.000Z');
-    const after = Date.parse('2026-10-22T05:00:00.000Z');
-    assert.strictEqual(watch.offsetDateKey(before), '2026-10-21');
-    assert.strictEqual(watch.offsetDateKey(after), '2026-10-22');
+test('the task day flips at midnight America/New_York', () => {
+    // EDT (UTC-4): midnight Oct 22 is 04:00 UTC
+    const before = Date.parse('2026-10-22T03:59:59.000Z');
+    const after = Date.parse('2026-10-22T04:00:00.000Z');
+    assert.strictEqual(watch.nyDateKey(before), '2026-10-21');
+    assert.strictEqual(watch.nyDateKey(after), '2026-10-22');
+    // EST (UTC-5): midnight Nov 25 is 05:00 UTC
+    const beforeEst = Date.parse('2026-11-25T04:59:59.000Z');
+    const afterEst = Date.parse('2026-11-25T05:00:00.000Z');
+    assert.strictEqual(watch.nyDateKey(beforeEst), '2026-11-24');
+    assert.strictEqual(watch.nyDateKey(afterEst), '2026-11-25');
+    assert.strictEqual(watch.offsetDateKey(beforeEst), '2026-11-24');
+    assert.strictEqual(watch.offsetDateKey(afterEst), '2026-11-25');
     const yesterday = fresh({
         day: '2026-10-21',
         seconds: 600,
@@ -297,7 +319,7 @@ test('rate limit allows four calls a minute and rejects the fifth', () => {
     assert.strictEqual(later.count, 1);
 });
 
-test('callable ignores the client body and writes the notice server-side', () => {
+test('callable reads playback flags but ignores elapsed time, day, and prizes', () => {
     const src = read('functions/tctv-watch-callable.js');
     assert.ok(src.includes('enforceAppCheck: true'));
     assert.ok(src.includes("collection('tctv_watch')"));
@@ -319,6 +341,16 @@ test('callable ignores the client body and writes the notice server-side', () =>
     assert.ok(logic.includes('rewardNotify.plan'));
     assert.ok(logic.includes('planXpGrant'));
     assert.ok(logic.includes('offsetDateKey'));
+    assert.ok(logic.includes('nyDateKey'));
+    assert.ok(src.includes("require('./src/tctvOriginals')"));
+    assert.ok(src.includes('nyDateKey(nowMs)'));
+    assert.ok(src.includes('originalOk'));
+    assert.ok(src.includes('body.videoId'));
+    assert.ok(src.includes('killSwitch.isOffline(db)'));
+    assert.ok(src.includes('nyDateKey(nowMs)'));
+    assert.ok(src.includes('offsetDateKey(nowMs)'));
+    assert.ok(src.includes('daily_points') && src.includes('xpDay'));
+    assert.ok(src.includes('The XP cap'));
     assert.ok(src.includes('runTransaction'));
     assert.ok(src.includes('orangeTickets'));
     assert.ok(src.includes('REWARD_TICKETS'));
@@ -359,7 +391,7 @@ test('rules block client writes to the watch ledger and economy fields', () => {
 test('the page heartbeats only while playing and visible, and does not write the ledger', () => {
     const client = read('tctv-watch.js');
     assert.ok(client.includes('document.visibilityState'));
-    assert.ok(client.includes('PlayerState.PLAYING'));
+    assert.ok(client.includes('isEligiblePlayback'));
     assert.ok(client.includes("httpsCallable('tctvWatchHeartbeat')"));
     assert.ok(client.includes('60000'));
     assert.ok(client.includes('function startTctvDailyWatch'));
@@ -376,7 +408,12 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(html.includes('startTctvDailyWatch()'));
     assert.ok(html.includes('#em-quick-actions { display:grid; gap:8px; grid-template-columns: repeat(6, minmax(0, 1fr)); }'));
     assert.strictEqual(html.includes('.em-quick-actions {'), false);
-    assert.ok(html.includes('tctv-watch.js?v=20261102_v2464'));
+    assert.ok(html.includes('tctv-watch.js?v=20261128_v2744'));
+    assert.ok(html.includes('tctv-originals.js?v=20261128_v2744'));
+    assert.ok(html.includes('tctv-originals-player.js?v=20261128_v2744'));
+    assert.ok(html.includes('tctv-chrome.js?v=20261128_v2744'));
+    assert.ok(html.includes('tctv-drip.js?v=20261128_v2744'));
+    assert.ok(!html.includes('tctv-watch.js?v=20261102_v2464'));
     assert.ok(!html.includes('tctv-watch.js?v=20261023_v2338'));
     assert.ok(!html.includes('tctv-watch.js?v=20261022_v2301'));
     assert.ok(html.includes('id="tctvWatchSub"'));
@@ -389,11 +426,13 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(watchTag.includes('color:var(--text-faint)'));
     assert.strictEqual(client.includes('borderColor'), false);
     assert.strictEqual(client.includes('style.color'), false);
-    assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
+    assert.ok(html.includes('timechain-tv.js?v=20261128_v2745'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261105_v2502'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261104_v2482'));
+    assert.ok(html.includes('features.registry.js?v=20261128_v2744'));
+    assert.ok(!html.includes('features.registry.js?v=20261104_v2482'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
@@ -402,11 +441,13 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2339'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
-    assert.ok(client.includes('getDailyKey'));
+    assert.ok(client.includes('America/New_York'));
     assert.ok(client.includes('IntersectionObserver'));
     assert.ok(client.includes('function displayWatchSeconds'));
     assert.ok(client.includes('setInterval(monitor, 1000)'));
-    assert.ok(client.includes('call({})'));
+    assert.ok(client.includes("httpsCallable('tctvWatchHeartbeat')"));
+    assert.ok(client.includes('videoId: flags.videoId'));
+    assert.strictEqual(client.includes("httpsCallable('tctvWatchHeartbeat')({})"), false);
     assert.strictEqual(client.includes('call({ seconds'), false);
     assert.ok(html.includes('.tctv-watch-chip.is-done'));
     assert.strictEqual(client.includes('600000'), false);
@@ -419,7 +460,10 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2692'"));
+    assert.ok(!sw.includes('btc-archive-v2691'));
+    assert.ok(!sw.includes('btc-archive-v2690'));
+    assert.ok(!sw.includes('btc-archive-v2455'));
     assert.ok(!sw.includes('btc-archive-v2438'));
     assert.ok(!sw.includes('btc-archive-v2437'));
     assert.ok(!sw.includes('btc-archive-v2436'));
@@ -524,7 +568,8 @@ function makeEl(id, owner) {
         parent: null,
         owner: owner,
         setAttribute: function (k, v) { this.attrs[k] = String(v); },
-        getAttribute: function (k) { return this.attrs[k] || null; },
+        getAttribute: function (k) { return Object.prototype.hasOwnProperty.call(this.attrs, k) ? this.attrs[k] : null; },
+        removeAttribute: function (k) { delete this.attrs[k]; },
         remove: function () {
             if (this.parent) this.parent.children = this.parent.children.filter(function (c) { return c !== this; }, this);
             if (this.id && this.owner && this.owner[this.id] === this) delete this.owner[this.id];
@@ -533,8 +578,19 @@ function makeEl(id, owner) {
         appendChild: function (child) {
             child.remove();
             child.parent = this;
+            child.parentNode = this;
             child.owner = this.owner;
             this.children.push(child);
+            if (child.id) this.owner[child.id] = child;
+        },
+        insertBefore: function (child, ref) {
+            child.remove();
+            child.parent = this;
+            child.parentNode = this;
+            child.owner = this.owner;
+            var idx = this.children.indexOf(ref);
+            if (idx < 0) this.children.push(child);
+            else this.children.splice(idx, 0, child);
             if (child.id) this.owner[child.id] = child;
         },
         querySelector: function (sel) {
@@ -577,10 +633,14 @@ function bootWatch(opts) {
     el('tctvWatchEmoji');
     el('tctvWatchLabel');
     el('tctvWatchSub');
-    el('tctv-video-container');
+    const wrap = el('tctv-video-wrap');
+    wrap.className = 'tctv-video-wrap';
+    const host = el('tctv-video-container');
+    wrap.appendChild(host);
     const timers = [];
     const calls = [];
     const toasts = [];
+    const warnings = [];
     let painted = 0;
     let now = opts.now;
     let playerState = opts.playerState == null ? 1 : opts.playerState;
@@ -589,18 +649,40 @@ function bootWatch(opts) {
         readyState: 'complete',
         visibilityState: opts.visibility || 'visible',
         getElementById: function (id) { return ids[id] || null; },
+        querySelector: function (sel) {
+            if (sel === '.tctv-video-wrap') return ids['tctv-video-wrap'] || null;
+            if (sel && sel.charAt(0) === '#') return ids[sel.slice(1)] || null;
+            return null;
+        },
         createElement: function () { return makeEl('', ids); },
         addEventListener: function (name, fn) { document.listeners[name] = fn; },
         listeners: {}
     };
+    const RealDate = Date;
+    function FakeDate() {
+        if (!(this instanceof FakeDate)) {
+            if (arguments.length === 0) return RealDate(now);
+            return RealDate.apply(null, arguments);
+        }
+        var inst;
+        if (arguments.length === 0) inst = new RealDate(now);
+        else if (arguments.length === 1) inst = new RealDate(arguments[0]);
+        else inst = new RealDate(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6]);
+        Object.setPrototypeOf(inst, FakeDate.prototype);
+        return inst;
+    }
+    FakeDate.now = function () { return now; };
+    FakeDate.parse = RealDate.parse;
+    FakeDate.UTC = RealDate.UTC;
+    FakeDate.prototype = RealDate.prototype;
     const sandbox = {
-        console: console,
-        document: document,
-        Date: {
-            now: function () { return now; },
-            parse: Date.parse,
-            UTC: Date.UTC
+        console: {
+            log: function () {},
+            warn: function () { warnings.push(Array.prototype.slice.call(arguments)); }
         },
+        document: document,
+        Intl: Intl,
+        Date: FakeDate,
         setInterval: function (fn, ms) {
             const id = timers.length + 1;
             timers.push({ id: id, fn: fn, ms: ms, cleared: false });
@@ -614,14 +696,33 @@ function bootWatch(opts) {
         clearTimeout: function () {}
     };
     sandbox.window = sandbox;
-    sandbox.window.getDailyKey = function () { return opts.day || '2026-10-23'; };
+    sandbox.window.getDailyKey = function () { return opts.day || '2026-10-22'; };
     sandbox.window._tctvActive = opts.active !== false;
     sandbox.window._tctvYtPlayer = {
         getPlayerState: function () { return playerState; }
     };
     sandbox.window.YT = { PlayerState: { PLAYING: 1, PAUSED: 2, BUFFERING: 3, ENDED: 0 } };
+    var videoId = opts.videoId || 'orig-test-1';
+    sandbox.window._tctvOriginals = opts.originals || {
+        taskEnabled: function () { return opts.taskEnabled !== false; },
+        isOriginal: function (id) { return id === videoId; },
+        count: function () { return opts.taskEnabled === false ? 0 : 1; },
+        TASK_CARD: 'Watch 10 minutes of Bitcoin Quest Originals today to earn 100 XP and 1 OrangeTix. Only Bitcoin Quest Original videos count; other videos on Timechain TV are just for watching.'
+    };
+    var stream = opts.stream === null ? null : (opts.stream || {
+        paused: playerState !== 1,
+        muted: opts.muted === true,
+        volume: opts.muted === true ? 0 : 1,
+        playbackRate: opts.playbackRate != null ? opts.playbackRate : 1
+    });
+    sandbox.window._tctvCurrentSource = opts.source || (stream ? 'stream' : 'youtube');
+    sandbox.window._tctvCurrentVideoId = videoId;
+    sandbox.window._tctvStreamPlayer = stream;
     sandbox.window.showToast = function (text) { toasts.push(text); };
     sandbox.window._paintTodayCard = function () { painted += 1; };
+    if (opts.appCheck !== undefined) {
+        sandbox.window._btcAppCheckForClaim = opts.appCheck;
+    }
     sandbox.firebase = {
         auth: function () {
             return {
@@ -669,8 +770,9 @@ function bootWatch(opts) {
         timers: timers,
         display: sandbox.displayWatchSeconds,
         setNow: function (value) { now = value; },
-        setState: function (value) { playerState = value; },
+        setState: function (value) { playerState = value; if (stream) stream.paused = value !== 1; },
         painted: function () { return painted; },
+        warnings: warnings,
         run: function (ms) {
             timers.filter(function (t) { return !t.cleared && t.ms === ms; }).forEach(function (t) { t.fn(); });
         },
@@ -704,7 +806,7 @@ test('display seconds stay inside the next server credit', () => {
 test('the chip and the button tick while playing, then pause', () => {
     const page = bootReady({
         now: T0,
-        snap: { data: { day: '2026-10-23', seconds: 120, lastCreditMs: T0, awardedDay: '' } }
+        snap: { data: { day: '2026-10-22', seconds: 120, lastCreditMs: T0, awardedDay: '' } }
     });
     assert.strictEqual(page.ids.tctvWatchSub.textContent, '2/10 min');
     assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-text').textContent, '📺 2/10 min');
@@ -747,7 +849,7 @@ test('the chip and the button tick while playing, then pause', () => {
 test('a heartbeat snaps the label back to the server total', () => {
     const page = bootReady({
         now: T0,
-        snap: { data: { day: '2026-10-23', seconds: 0, lastCreditMs: T0, awardedDay: '' } },
+        snap: { data: { day: '2026-10-22', seconds: 0, lastCreditMs: T0, awardedDay: '' } },
         heartbeat: { seconds: 60, minutes: 1, done: false, reason: 'credited' }
     });
     page.setNow(T0 + 50000);
@@ -757,7 +859,10 @@ test('a heartbeat snaps the label back to the server total', () => {
     page.run(60000);
     assert.strictEqual(page.calls.length, 1);
     assert.strictEqual(page.calls[0].name, 'tctvWatchHeartbeat');
-    assert.strictEqual(JSON.stringify(page.calls[0].payload), '{}');
+    assert.deepStrictEqual(Object.keys(page.calls[0].payload).sort(), ['muted', 'paused', 'playbackRate', 'videoId', 'visible']);
+    assert.strictEqual(page.calls[0].payload.videoId, 'orig-test-1');
+    assert.strictEqual(page.calls[0].payload.visible, true);
+    assert.strictEqual('seconds' in page.calls[0].payload, false);
     assert.strictEqual(page.ids.tctvWatchSub.textContent, '1/10 min');
     assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width, '10%');
 });
@@ -765,7 +870,7 @@ test('a heartbeat snaps the label back to the server total', () => {
 test('reaching the server goal shows done and keeps the chip', () => {
     const page = bootReady({
         now: T0,
-        snap: { data: { day: '2026-10-23', seconds: 600, lastCreditMs: T0, awardedDay: '2026-10-23' } },
+        snap: { data: { day: '2026-10-22', seconds: 600, lastCreditMs: T0, awardedDay: '2026-10-22' } },
         heartbeat: {
             seconds: 600,
             done: true,
@@ -784,7 +889,7 @@ test('reaching the server goal shows done and keeps the chip', () => {
     page.setNow(T0 + 20000);
     page.run(1000);
     assert.strictEqual(page.ids.tctvWatchSub.textContent, 'Done ✓');
-    assert.strictEqual(page.ids.tctvWatchBtn.getAttribute('aria-label'), 'Watch Timechain TV, completed');
+    assert.strictEqual(page.ids.tctvWatchBtn.getAttribute('aria-label'), 'Watch Bitcoin Quest Originals, completed');
     // 5-tier badges: lifetime watch time keeps counting after the daily goal,
     // so the page stops heartbeating only once the server says lifeCapped.
     const src = read('tctv-watch.js');
@@ -795,7 +900,7 @@ test('a signed-out viewer does not get a ticking chip', () => {
     const page = bootReady({
         now: T0,
         user: null,
-        snap: { data: { day: '2026-10-23', seconds: 120, lastCreditMs: T0 } }
+        snap: { data: { day: '2026-10-22', seconds: 120, lastCreditMs: T0 } }
     });
     assert.strictEqual(page.ids.tctvWatchChip, undefined);
     assert.strictEqual(page.ids.tctvWatchSub.textContent, '0/10 min');
@@ -805,11 +910,14 @@ test('a signed-out viewer does not get a ticking chip', () => {
 test('playback with no server clock asks the server to start it and does not invent minutes', () => {
     const page = bootReady({
         now: T0,
-        snap: { data: { day: '2026-10-23', seconds: 40, awardedDay: '' } },
+        snap: { data: { day: '2026-10-22', seconds: 40, awardedDay: '' } },
         heartbeat: { seconds: 40, done: false, reason: 'clock' }
     });
     assert.strictEqual(page.calls.length, 1);
-    assert.strictEqual(JSON.stringify(page.calls[0].payload), '{}');
+    assert.deepStrictEqual(Object.keys(page.calls[0].payload).sort(), ['muted', 'paused', 'playbackRate', 'videoId', 'visible']);
+    assert.strictEqual(page.calls[0].payload.videoId, 'orig-test-1');
+    assert.strictEqual(page.calls[0].payload.visible, true);
+    assert.strictEqual('seconds' in page.calls[0].payload, false);
     assert.strictEqual(page.ids.tctvWatchSub.textContent, '0/10 min');
     page.setNow(T0 + 5000);
     page.run(1000);
@@ -824,6 +932,58 @@ test('playback with no server clock asks the server to start it and does not inv
     assert.strictEqual(page.calls.length, sent);
     assert.strictEqual(page.ids.tctvWatchChip.querySelector('.tctv-watch-chip-fill').style.width, width);
     assert.strictEqual(width, '8%');
+});
+
+
+test('a missing App Check helper still sends the heartbeat', () => {
+    const page = bootReady({
+        now: T0,
+        snap: { data: { day: '2026-10-22', seconds: 40, awardedDay: '' } },
+        heartbeat: { seconds: 40, done: false, reason: 'clock' }
+    });
+    assert.strictEqual(page.calls.length, 1);
+    assert.strictEqual(page.calls[0].name, 'tctvWatchHeartbeat');
+    assert.strictEqual(page.ids['tctv-reward-note'], undefined);
+});
+
+test('an empty App Check token pauses rewards and skips the heartbeat', () => {
+    const page = bootReady({
+        now: T0,
+        snap: { data: { day: '2026-10-22', seconds: 40, awardedDay: '' } },
+        heartbeat: { seconds: 40, done: false, reason: 'clock' },
+        appCheck: function () { return syncThen(''); }
+    });
+    assert.strictEqual(page.calls.length, 0);
+    const note = page.ids['tctv-reward-note'];
+    assert.ok(note, 'below-player note should appear');
+    assert.strictEqual(note.textContent, "Can't verify this browser, rewards paused");
+    assert.ok(note.parent === page.ids['tctv-video-wrap'], 'note sits under the player wrap, not in the player');
+    assert.notStrictEqual(note.parent, page.ids['tctv-video-container']);
+    assert.ok(page.warnings.some(function (args) {
+        return String(args[0]).indexOf('tctvWatchHeartbeat failed') !== -1 && String(args[1]).indexOf('app-check') !== -1;
+    }));
+});
+
+test('a successful App Check token sends the heartbeat and hides the note', () => {
+    const page = bootReady({
+        now: T0,
+        snap: { data: { day: '2026-10-22', seconds: 40, awardedDay: '' } },
+        heartbeat: { seconds: 40, done: false, reason: 'clock' },
+        appCheck: function () { return syncThen('tok-ok'); }
+    });
+    assert.strictEqual(page.calls.length, 1);
+    assert.strictEqual(page.ids['tctv-reward-note'], undefined);
+});
+
+test('the watch script waits on _btcAppCheckForClaim and does not swallow errors', () => {
+    const src = read('tctv-watch.js');
+    assert.ok(src.includes('window._btcAppCheckForClaim(8000)'));
+    assert.ok(src.includes("Can't verify this browser, rewards paused"));
+    assert.ok(src.includes("console.warn('[TCTV] tctvWatchHeartbeat failed'"));
+    assert.ok(src.includes('function fail(err)'));
+    assert.ok(!src.includes('.catch(function () {}).then(function () {\n                inflight = false;'));
+    assert.ok(src.includes("host.parentNode.insertBefore(el, host.nextSibling)"));
+    assert.ok(src.includes('tctv-reward-note'));
 });
 
 test('patch notes keep one Latest line for shared cipher rewards', () => {
@@ -929,6 +1089,93 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     assert.ok(!notes.includes('Latest: The TCTV'));
     assert.ok(!notes.includes('Latest: Daily XP'));
 });
+
+
+test('YouTube playback is not credited and does not start the clock', () => {
+    const hit = watch.applyWatchHeartbeat(fresh({ originalOk: false, lastCreditMs: null }), T0);
+    assert.strictEqual(hit.reason, 'not-original');
+    assert.strictEqual(hit.creditSeconds, 0);
+    assert.strictEqual(hit.write, false);
+    const life = watch.applyLifetimeCredit(fresh({ originalOk: false, lastCreditMs: null }), T0);
+    assert.strictEqual(life.reason, 'not-original');
+    assert.strictEqual(life.credit, 0);
+    assert.strictEqual(life.write, false);
+});
+
+test('hidden, muted, paused, or sped-up playback is not credited', () => {
+    const base = { lastCreditMs: T0 };
+    assert.strictEqual(watch.applyWatchHeartbeat(fresh(Object.assign({}, base, { visible: false })), T0 + 60000).reason, 'hidden');
+    assert.strictEqual(watch.applyWatchHeartbeat(fresh(Object.assign({}, base, { muted: true })), T0 + 60000).reason, 'muted');
+    assert.strictEqual(watch.applyWatchHeartbeat(fresh(Object.assign({}, base, { paused: true })), T0 + 60000).reason, 'paused');
+    assert.strictEqual(watch.applyWatchHeartbeat(fresh(Object.assign({}, base, { playbackRate: 1.5 })), T0 + 60000).reason, 'too-fast-rate');
+    const ok = watch.applyWatchHeartbeat(fresh(base), T0 + 60000);
+    assert.strictEqual(ok.reason, 'credited');
+    assert.strictEqual(ok.creditSeconds, 60);
+});
+
+test('a disabled Originals library is not credited', () => {
+    const hit = watch.applyWatchHeartbeat(fresh({ taskEnabled: false, lastCreditMs: T0 }), T0 + 60000);
+    assert.strictEqual(hit.reason, 'disabled');
+    assert.strictEqual(hit.write, false);
+    assert.strictEqual(hit.creditSeconds, 0);
+});
+
+test('credit never exceeds wall-clock time', () => {
+    const clock = step(fresh(), T0);
+    const hit = step(clock.state, T0 + 20000);
+    assert.strictEqual(hit.result.reason, 'too-fast');
+    const later = step(clock.state, T0 + 70000);
+    assert.strictEqual(later.result.reason, 'credited');
+    assert.strictEqual(later.result.creditSeconds, 60);
+    assert.ok(later.result.creditSeconds <= 70);
+});
+
+test('YouTube does not tick the chip or send a heartbeat', () => {
+    const page = bootReady({
+        now: T0,
+        source: 'youtube',
+        stream: null,
+        snap: { data: { day: '2026-10-22', seconds: 120, lastCreditMs: T0, awardedDay: '' } }
+    });
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '2/10 min');
+    page.setNow(T0 + 60000);
+    page.run(1000);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '2/10 min');
+    assert.strictEqual(page.calls.length, 0);
+});
+
+test('the daily task hides when there are too few Originals', () => {
+    const page = bootReady({
+        now: T0,
+        taskEnabled: false,
+        snap: { data: { day: '2026-10-22', seconds: 120, lastCreditMs: T0, awardedDay: '' } }
+    });
+    assert.strictEqual(page.ids.tctvWatchChip, undefined);
+    assert.ok(page.ids.tctvWatchBtn.hidden === true || page.ids.tctvWatchBtn.getAttribute('hidden') === '');
+    assert.strictEqual(page.calls.length, 0);
+});
+
+test('muted or hidden Originals playback does not tick the bar', () => {
+    const page = bootReady({
+        now: T0,
+        muted: true,
+        snap: { data: { day: '2026-10-22', seconds: 120, lastCreditMs: T0, awardedDay: '' } }
+    });
+    page.setNow(T0 + 60000);
+    page.run(1000);
+    assert.strictEqual(page.ids.tctvWatchSub.textContent, '2/10 min');
+    assert.strictEqual(page.calls.length, 0);
+    const hidden = bootReady({
+        now: T0,
+        visibility: 'hidden',
+        snap: { data: { day: '2026-10-22', seconds: 120, lastCreditMs: T0, awardedDay: '' } }
+    });
+    hidden.setNow(T0 + 60000);
+    hidden.run(1000);
+    assert.strictEqual(hidden.ids.tctvWatchSub.textContent, '2/10 min');
+    assert.strictEqual(hidden.calls.length, 0);
+});
+
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);

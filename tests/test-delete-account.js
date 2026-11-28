@@ -310,6 +310,9 @@ function world() {
         'public_profiles/u2': { username: 'Bob' },
         'username_migrations/u1': { uid: 'u1', from: 'Alice Smith', to: 'Alice', atMs: 1 },
         'username_migrations/u2': { uid: 'u2', from: 'Bob Two', to: 'Bob', atMs: 1 },
+        'survey_responses/u1': { uid: 'u1', answers: { q3: 'I am Alice from Ohio' } },
+        'survey_responses/u2': { uid: 'u2', answers: { q3: 'keep me' } },
+        'survey_audit/a1': { uid: 'u1', uidMasked: '***', action: 'survey_reward_granted', tickets: 25 },
         'usernames/alice': { uid: 'u1' },
         'usernames/u1': { uid: 'u1' },
         'usernames/bob': { uid: 'u2' },
@@ -389,6 +392,8 @@ function world() {
         'satoshiFavor/current/cooldowns/u1_rig1': { uid: 'u1', last: 99 },
         'satoshiFavor/personalBests/users/u1': { username: 'Alice', best: 9 },
         'global_chat_meta/live_dj/dj_queue/u1': { uid: 'u1', name: 'Alice' },
+        'age_confirm_throttle/u1': { uid: 'u1', lastAtMs: 1, expireAt: new Date(2) },
+        'age_confirm_throttle/u2': { uid: 'u2', lastAtMs: 1, expireAt: new Date(2) },
         'totp_secrets/u1': { secret: 'should-go' },
         'totp_sessions/u1': { verified: true, verifiedAt: 1 },
         'trusted_devices/devu1': { uid: 'u1', tokenHash: 'abc', label: 'Chrome on macOS' },
@@ -731,6 +736,9 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('public_profiles/u2'));
         assert.strictEqual(db.docs.has('username_migrations/u1'), false);
         assert.strictEqual(db.docs.get('username_migrations/u2').from, 'Bob Two');
+        assert.strictEqual(db.docs.has('survey_responses/u1'), false);
+        assert.strictEqual(db.docs.get('survey_responses/u2').answers.q3, 'keep me');
+        assert.strictEqual(db.docs.get('survey_audit/a1').tickets, 25);
         assert.strictEqual(db.docs.has('users/u1'), false);
 
         assert.strictEqual(db.docs.has('forum_posts/p1'), false);
@@ -761,6 +769,8 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('tctv_presence/u2'));
         assert.strictEqual(db.docs.has('tctv_view_days/20261022_u1_main'), false);
         assert.strictEqual(db.docs.has('certs/cert1'), false);
+        assert.strictEqual(db.docs.has('age_confirm_throttle/u1'), false);
+        assert.ok(db.docs.has('age_confirm_throttle/u2'));
         assert.strictEqual(db.docs.has('totp_secrets/u1'), false);
         assert.strictEqual(db.docs.has('totp_sessions/u1'), false);
         assert.strictEqual(db.docs.has('trusted_devices/devu1'), false);
@@ -1994,6 +2004,28 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.get('award_doc_claims/beats_tracks__t9').uid, 'u2');
         assert.strictEqual(db.docs.has('users/u1/cert_bonuses/prop'), false);
         assert.strictEqual(db.docs.has('users/u1/xp_ledger/cert_bonus_prop'), false);
+    });
+
+    await testAsync('deleteAccount removes the age_confirm_throttle doc for that uid', async function() {
+        const db = createFakeDb({
+            'users/u1': { username: 'Ada' },
+            'age_confirm_throttle/u1': { uid: 'u1', lastAtMs: 9, expireAt: new Date(10) },
+            'age_confirm_throttle/u2': { uid: 'u2', lastAtMs: 9, expireAt: new Date(10) },
+        });
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-age-throttle',
+        });
+        await handlers.deleteAccount({}, { auth: auth('u1'), rawRequest: { headers: {} } });
+        assert.strictEqual(db.docs.has('age_confirm_throttle/u1'), false);
+        assert.ok(db.docs.has('age_confirm_throttle/u2'));
+        assert.strictEqual(db.docs.has('users/u1'), false);
     });
 
     await testAsync('the hash limit names the sign-in, and the delete overlay scrolls', async function() {

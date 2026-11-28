@@ -222,7 +222,7 @@ service cloud.firestore {
         'purpleTickets', 'blueTickets', 'pollDays',
         'chatCount', 'dmCount', 'beatsUploads', 'articlesPublished',
         'pvpPlayed', 'ciphersSolved', 'sfHashes', 'sfBlockSolver', 'sfContributions',
-        'questDays', 'plebTalkSessions', 'tctvWatchDays', 'tctvLifetimeSeconds', 'giftsSent', 'onboardingComplete',
+        'questDays', 'plebTalkSessions', 'tctvWatchDays', 'tctvLifetimeSeconds', 'sparkCitizenCount', 'giftsSent', 'onboardingComplete',
         'lastShoutoutAt', 'predCorrect', 'predTotal', 'predLastResult',
         'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay',
         'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare',
@@ -241,7 +241,7 @@ service cloud.firestore {
         'examSlotId_prop', 'examSlotId_tech', 'certId_prop', 'certId_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
         'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
-        'providersHash', 'providerHashes',
+        'providersHash', 'providerHashes', 'realAccountAt',
         'claimReq',
         // BIP Breakthrough (server-only; dailySpin awards)
         'bipBreakthroughLastDay', 'bipBreakthroughWeekKey', 'bipBreakthroughStreak',
@@ -249,7 +249,10 @@ service cloud.firestore {
         'bipBreakthroughClaimedBipId', 'bipBadges',
         'coreContributorUntil', 'coreContributorTitle',
         // Faction race end prizes (server-only; onFactionTotalsWritten awards)
-        'factionRaceBadges', 'factionChampionUntil', 'factionChampionFlair'
+        'factionRaceBadges', 'factionChampionUntil', 'factionChampionFlair',
+        // Age confirmation. confirmAge18 / confirmAgeUnder18 callables only.
+        'over18', 'over18ConfirmedAt', 'ageConfirmed18', 'ageConfirmed18At',
+        'ageConfirmBlocked', 'ageUnder18', 'ageUnder18At', 'guardianOk', 'guardianOkAt'
       ];
     }
 
@@ -386,6 +389,9 @@ service cloud.firestore {
                         'anonBadgesMerged',
                         // Premium — must never be client-writable (self-grant exploit)
                         'premium',
+                        // Age confirmation. confirmAge18 / confirmAgeUnder18 callables only.
+                        'over18', 'over18ConfirmedAt', 'ageConfirmed18', 'ageConfirmed18At',
+                        'ageConfirmBlocked', 'ageUnder18', 'ageUnder18At', 'guardianOk', 'guardianOkAt',
                         // Daily quest gating (CF)
                         'dailyAllThreeDate', 'dailyQuizDone', 'dailyTriviaDone', 'dailyPollDone',
                         // Admin / anti-fraud fields — NEVER writable by clients
@@ -498,6 +504,18 @@ service cloud.firestore {
             || request.resource.data.experienceMode == 'beginner'
             || request.resource.data.experienceMode == 'intermediate'
             || request.resource.data.experienceMode == 'advanced')
+          // PvP lobby prefs: booleans, and a 0..9 shard. Delete is allowed.
+          && (!changed.hasAny(['pvpAlertsMuted'])
+            || !('pvpAlertsMuted' in request.resource.data)
+            || request.resource.data.pvpAlertsMuted is bool)
+          && (!changed.hasAny(['pvpPushEnabled'])
+            || !('pvpPushEnabled' in request.resource.data)
+            || request.resource.data.pvpPushEnabled is bool)
+          && (!changed.hasAny(['pvpPushShard'])
+            || !('pvpPushShard' in request.resource.data)
+            || (request.resource.data.pvpPushShard is int
+                && request.resource.data.pvpPushShard >= 0
+                && request.resource.data.pvpPushShard <= 9))
           // Favorite apps. Owner may only store a list of up to 2 whitelisted Explore App ids.
           && (!changed.hasAny(['favoriteApps'])
             || !('favoriteApps' in request.resource.data)
@@ -712,6 +730,57 @@ service cloud.firestore {
     // recordNachoAnalytics writes them. Clients cannot read or write them.
     match /analytics/{docId} {
       allow read, write: if false;
+    }
+
+    // UTC calendar day as YYYY-MM-DD. Timestamp parts are UTC.
+    function adsHoldoutUtcYmd(ts) {
+      return string(ts.year())
+        + '-' + (ts.month() < 10 ? '0' : '') + string(ts.month())
+        + '-' + (ts.day() < 10 ? '0' : '') + string(ts.day());
+    }
+
+    // Client keys are America/New_York days. ET is UTC-5/-4, so "today or
+    // yesterday" in ET can fall on UTC today, yesterday, or two days ago.
+    // Writes for any other day (further past or future) are denied.
+    function adsHoldoutDayOk(day) {
+      return day is string
+        && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && (
+          day == adsHoldoutUtcYmd(request.time)
+          || day == adsHoldoutUtcYmd(request.time - duration.value(1, 'd'))
+          || day == adsHoldoutUtcYmd(request.time - duration.value(2, 'd'))
+        );
+    }
+
+    // Ad holdout vs ads experiment (RLDA-40). Aggregate daily-active and
+    // next-day-return counts only. Clients may increment exactly one of
+    // holdoutDau, adsDau, holdoutReturned, adsReturned by +1. No user or
+    // device ids are stored. Cosmetic/directional metrics; no sats or access.
+    // Day must be today or yesterday (ET), enforced via a UTC 3-day window.
+    match /ads_holdout_stats/{day} {
+      allow read: if request.auth != null;
+      allow create: if clientWritesOk()
+                    && adsHoldoutDayOk(day)
+                    && request.resource.data.keys().hasOnly(['holdoutDau','adsDau','holdoutReturned','adsReturned'])
+                    && request.resource.data.keys().size() == 1
+                    && request.resource.data.values()[0] is int
+                    && request.resource.data.values()[0] == 1;
+      allow update: if clientWritesOk()
+                    && adsHoldoutDayOk(day)
+                    && request.resource.data.diff(resource.data).affectedKeys().size() == 1
+                    && (
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['holdoutDau'])
+                        && request.resource.data.holdoutDau == resource.data.get('holdoutDau', 0) + 1)
+                      ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adsDau'])
+                        && request.resource.data.adsDau == resource.data.get('adsDau', 0) + 1)
+                      ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['holdoutReturned'])
+                        && request.resource.data.holdoutReturned == resource.data.get('holdoutReturned', 0) + 1)
+                      ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adsReturned'])
+                        && request.resource.data.adsReturned == resource.data.get('adsReturned', 0) + 1)
+                    );
     }
 
     // Active predictions (for server-side resolution)
@@ -1576,6 +1645,25 @@ service cloud.firestore {
         || v4vSplitsListOk(data.v4vSplits);
     }
 
+    // Like and unlike must move likes and likedBy together, by exactly one.
+    function beatsLikeOk() {
+      return request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+        && resource.data.get('likes', 0) is int
+        && request.resource.data.likes == resource.data.get('likes', 0) + 1
+        && !(request.auth.uid in resource.data.get('likedBy', []))
+        && request.resource.data.likedBy == resource.data.get('likedBy', []).concat([request.auth.uid]);
+    }
+    function beatsUnlikeOk() {
+      return request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+        && resource.data.get('likes', 0) is int
+        && resource.data.get('likes', 0) > 0
+        && request.auth.uid in resource.data.get('likedBy', [])
+        && request.resource.data.likes == resource.data.get('likes', 0) - 1
+        && request.resource.data.likedBy == resource.data.get('likedBy', []).removeAll([request.auth.uid]);
+    }
+
     // =============================================
     // BITCOIN BEATS — TRACKS
     // =============================================
@@ -1609,6 +1697,7 @@ service cloud.firestore {
                             && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
                     && (!('plays' in request.resource.data) || request.resource.data.plays == 0)
                     && (!('likes' in request.resource.data) || request.resource.data.likes == 0)
+                    && (!('likedBy' in request.resource.data) || request.resource.data.likedBy == [])
                     && v4vSplitsFieldOk(request.resource.data));
       allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
@@ -1616,6 +1705,7 @@ service cloud.firestore {
                       // Author can update their own track (with coverUrl + XSS validation)
                       (resource.data.authorId == request.auth.uid
                         && serverCountersUnchanged()
+                        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['likes', 'likedBy'])
                         && v4vSplitsFieldOk(request.resource.data)
                         && (!('coverUrl' in request.resource.data)
                             || request.resource.data.coverUrl == ''
@@ -1631,15 +1721,10 @@ service cloud.firestore {
                             || request.resource.data.releaseDate == ''
                             || (request.resource.data.releaseDate is string
                                 && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))))
-                      // Social interactions: plays/likes only
-                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
-                          && request.resource.data.likes <= resource.data.get('likes', 0) + 1
-                          && (!request.resource.data.keys().hasAny(['likedBy']) || (
-                              request.resource.data.likedBy is list
-                              && request.resource.data.likedBy.size() <= resource.data.get('likedBy', []).size() + 1
-                              && request.resource.data.likedBy.hasAll(resource.data.get('likedBy', []))
-                              && !(resource.data.get('likedBy', []).hasAny([request.auth.uid]))
-                          )))
+                      // Like: +1 and the caller's uid appended.
+                      // Unlike: -1 and only the caller's uid removed.
+                      || beatsLikeOk()
+                      || beatsUnlikeOk()
                     )
                     // Moderated tracks stay hidden. A partial update (plays, likes,
                     // title) still sees the existing flag. A rewrite that drops it,
@@ -2885,6 +2970,11 @@ service cloud.firestore {
       allow read, write: if false; // Cloud Function (Admin SDK) only
     }
 
+    // Per-uid 18+ confirm throttle. Server only.
+    match /age_confirm_throttle/{uid} {
+      allow read, write: if false;
+    }
+
     // One-time withdrawal-address reset. Server only, including the marker.
     match /ln_resets/{uid} {
       allow read, write: if false;
@@ -3014,6 +3104,12 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /spark_citizen/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
     // Live topic comments. Public read so guests can follow a thread.
     // Every create, hide, delete, and report goes through a callable.
     match /topic_discussions/{channelId} {
@@ -3093,8 +3189,21 @@ service cloud.firestore {
     // before sign-in. Only the Admin SDK (adminSetKillSwitch) may write.
     // Public flag: only enabled, mode, message, since, autoReenableAt.
     // Reason, actor and snapshot live on killSwitchAdmin (admins only).
+    // In-app survey. submitSurvey (Admin SDK) is the only writer. Answers
+    // and the grant audit are admin-only reads; players never read them,
+    // not even their own. config/survey holds only { openedAt, closed }.
+    match /survey_responses/{uid} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+    match /survey_audit/{docId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
     match /config/{docId} {
       allow read: if docId == 'killSwitch';
+      allow read: if docId == 'survey';
       allow read: if docId == 'killSwitchAdmin' && isAdmin();
       allow write: if false;
     }

@@ -1,0 +1,34 @@
+{
+  "packageId": "quest.bitcoineducation.app",
+  "host": "bitcoineducation.quest",
+  "name": "Bitcoin Quest",
+  "launcherName": "Bitcoin Quest",
+  "display": "standalone",
+  "orientation": "any",
+  "themeColor": "#f7931a",
+  "navigationColor": "#0f0f1c",
+  "backgroundColor": "#0f0f1c",
+  "enableNotifications": false,
+  "startUrl": "/?client=android-twa",
+  "iconUrl": "https://bitcoineducation.quest/icons/icon-512x512.png",
+  "maskableIconUrl": "https://bitcoineducation.quest/icons/icon-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "PLACEHOLDER_DO_NOT_COMMIT_KEYSTORE",
+    "alias": "upload"
+  },
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "minSdkVersion": 24,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap",
+  "webManifestUrl": "https://bitcoineducation.quest/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "isChromeOSOnly": false,
+  "additionalTrustedOrigins": [],
+  "fingerprints": []
+}

@@ -98,7 +98,11 @@ var PII_PATTERNS = [
 
 // "Friends in distress" scam warning popup
 window.showFriendsInDistressWarning = function() {
-    var html = '<div id="distressWarning" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:10005;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+    // Sit above the DM window (500000), Global chat (250000), and the forum
+    // overlay (topicsBrowser 2100000 / rules 2100005). The shared helper
+    // already uses a 2100010 floor, which clears all three.
+    var z = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    var html = '<div id="distressWarning" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:' + z + ';display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #ef4444;border-radius:16px;padding:24px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(239,68,68,0.3);">' +
             '<div style="font-size:2rem;text-align:center;margin-bottom:8px;">🚨</div>' +
             '<div style="font-size:1.1rem;font-weight:800;color:#ef4444;text-align:center;margin-bottom:12px;">"Friends in Distress" Scam</div>' +
@@ -285,6 +289,17 @@ window.blockUser = function(uid, username) {
     closeDM();
 };
 
+// Ids used by DM controls; names stay in memory and never ride in markup handlers.
+var DM_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+function dmIdOk(v) { return typeof v === 'string' && DM_ID_RE.test(v); }
+window._dmIdOk = dmIdOk;
+function dmActionTarget(ev, root) {
+    var t = ev && ev.target;
+    var el = t && t.closest ? t.closest('[data-dm-action]') : null;
+    if (!el || (root && root.contains && !root.contains(el))) return null;
+    return el;
+}
+
 window.unblockUser = function(uid, username) {
     if (!uid) return;
     var blocked = getBlockedUsers();
@@ -305,20 +320,31 @@ window.reportUser = function(uid, username, reason) {
 
     // Show report dialog if no reason provided
     if (!reason) {
+        if (!dmIdOk(String(uid))) return;
         var html = '<div id="reportModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500001;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
             '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:340px;width:100%;">' +
             '<div style="font-size:1rem;font-weight:800;color:var(--heading);margin-bottom:12px;">🚩 Report ' + escapeHtml(username || 'User') + '</div>' +
             '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:12px;">Why are you reporting this user?</div>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'spam\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">📧 Spam / Unwanted messages</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'scam\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎣 Scam / Phishing</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'harassment\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">😡 Harassment / Abuse</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'inappropriate\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🔞 Inappropriate content</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'impersonation\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎭 Impersonation</button>' +
+            '<button data-dm-action="report-reason" data-reason="spam" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">📧 Spam / Unwanted messages</button>' +
+            '<button data-dm-action="report-reason" data-reason="scam" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎣 Scam / Phishing</button>' +
+            '<button data-dm-action="report-reason" data-reason="harassment" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">😡 Harassment / Abuse</button>' +
+            '<button data-dm-action="report-reason" data-reason="inappropriate" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🔞 Inappropriate content</button>' +
+            '<button data-dm-action="report-reason" data-reason="impersonation" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎭 Impersonation</button>' +
             '<button onclick="document.getElementById(\'reportModal\').remove()" style="width:100%;padding:10px;margin-top:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
             '</div></div>';
         var div = document.createElement('div');
         div.innerHTML = html;
-        document.body.appendChild(div.firstChild);
+        var _reportEl = div.firstChild;
+        document.body.appendChild(_reportEl);
+        var _reportUid = String(uid), _reportName = String(username || '');
+        var REPORT_REASONS = { spam: 1, scam: 1, harassment: 1, inappropriate: 1, impersonation: 1 };
+        if (_reportEl && _reportEl.addEventListener) _reportEl.addEventListener('click', function(ev) {
+            var el = dmActionTarget(ev, _reportEl);
+            if (!el || el.getAttribute('data-dm-action') !== 'report-reason') return;
+            var why = el.getAttribute('data-reason') || '';
+            if (!Object.prototype.hasOwnProperty.call(REPORT_REASONS, why)) return;
+            submitReport(_reportUid, _reportName, why);
+        });
         return;
     }
 };
@@ -634,6 +660,7 @@ window.showUserProfile = function(uid) {
             return;
         }
         var u = doc.data();
+        var uName = typeof u.username === 'string' ? u.username : '';
 
         // — Profile explorer badge tracking —
         var _selfUid = auth && auth.currentUser ? auth.currentUser.uid : null;
@@ -711,13 +738,12 @@ window.showUserProfile = function(uid) {
         // Profile picture or rank emoji avatar
         // Also fall back to in-memory currentUser.profilePic for own profile (guards stale Firestore cache)
         var _picUrl = u.profilePic || (auth && auth.currentUser && auth.currentUser.uid === uid && typeof currentUser !== 'undefined' && currentUser ? (currentUser.profilePic || '') : '') || '';
-        var _safePickUrl = _picUrl ? (typeof sanitizeUrl === 'function' ? sanitizeUrl(_picUrl) : _picUrl) : '';
-        var _initials = (u.username || 'B').charAt(0).toUpperCase();
+        var _safePickUrl = (_picUrl && typeof sanitizeUrl === 'function') ? sanitizeUrl(_picUrl) : '';
+        var _initials = (uName || 'B').charAt(0).toUpperCase();
         var _isOwnProfile = auth && auth.currentUser && auth.currentUser.uid === uid;
-        var _isDataImg = _safePickUrl && _safePickUrl.substring(0,11) === 'data:image/';
         var avatarHtml = _safePickUrl
             ? '<div style="position:relative;display:inline-block;margin-bottom:8px;">' +
-                '<img src="' + (_isDataImg ? _safePickUrl : (typeof escapeHtml === 'function' ? escapeHtml(_safePickUrl) : _safePickUrl)) + '" ' +
+                '<img src="' + escapeHtml(_safePickUrl) + '" ' +
                 'style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);' + (_hasProfileFrame ? 'box-shadow:0 0 0 3px #f7931a,0 0 16px rgba(247,147,26,0.4);' : '') + 'display:block;" ' +
                 'onerror="this.style.display=\'none\'">' +
                 '</div>'
@@ -732,7 +758,7 @@ window.showUserProfile = function(uid) {
             // Avatar & name
             '<div style="text-align:center;margin-bottom:16px;">' +
                 avatarHtml +
-                '<div style="color:var(--heading);font-weight:800;font-size:1.2rem;">' + escapeHtml(u.username || 'Bitcoiner') +
+                '<div style="color:var(--heading);font-weight:800;font-size:1.2rem;">' + escapeHtml(uName || 'Bitcoiner') +
                     '<span title="' + status.label + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + status.color + ';margin-left:6px;vertical-align:middle;' + (status.status === 'online' ? 'box-shadow:0 0 8px ' + status.color + ';' : '') + '"></span>' +
                 '</div>' +
                 // Active title pill
@@ -794,7 +820,7 @@ window.showUserProfile = function(uid) {
             // Lightning Address & Tip button — always show for other signed-in users
             ((!_isOwnProfile && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? (function() {
                 // Stash tip data on window to avoid inline-onclick escaping issues
-                window._profileTipData = { recipientName: u.username || 'Bitcoiner', recipientUid: uid, lightningAddress: u.lightningAddress || u.lightning || '', label: 'Tip ' + (u.username || 'Bitcoiner'), context: 'profile' };
+                window._profileTipData = { recipientName: uName || 'Bitcoiner', recipientUid: uid, lightningAddress: u.lightningAddress || u.lightning || '', label: 'Tip ' + (uName || 'Bitcoiner'), context: 'profile' };
                 var _lnAddr = (u.lightningAddress || u.lightning) ? escapeHtml(u.lightningAddress || u.lightning) : '';
                 return '<div style="margin-bottom:12px;">' +
                 (_lnAddr ? '<div style="display:flex;align-items:center;gap:6px;padding:10px 12px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:10px;margin-bottom:8px;">' +
@@ -802,12 +828,12 @@ window.showUserProfile = function(uid) {
                     '<span style="color:#eab308;font-size:0.78rem;font-weight:600;word-break:break-all;">' + _lnAddr + '</span>' +
                     '<button onclick="event.stopPropagation();navigator.clipboard.writeText(window._profileTipData.lightningAddress);if(typeof showToast===\'function\')showToast(\'⚡ Lightning Address copied!\')" style="margin-left:auto;padding:4px 8px;background:none;border:1px solid rgba(234,179,8,0.3);border-radius:6px;color:#eab308;font-size:0.65rem;font-weight:700;cursor:pointer;white-space:nowrap;">Copy</button>' +
                 '</div>' : '') +
-                '<button onclick="event.stopPropagation();window._tipFromProfile()" style="width:100%;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.2)\'" onmouseout="this.style.background=\'rgba(234,179,8,0.1)\'>">⚡ Tip ' + escapeHtml(u.username || 'Bitcoiner') + '</button>' +
+                '<button onclick="event.stopPropagation();window._tipFromProfile()" style="width:100%;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.2)\'" onmouseout="this.style.background=\'rgba(234,179,8,0.1)\'>">⚡ Tip ' + escapeHtml(uName || 'Bitcoiner') + '</button>' +
                 '</div>';
             })() : '') +
             // Message button
             (canMessage && dmEligibility.ok ?
-                '<button onclick="document.getElementById(\'userProfileModal\').remove();openDM(\'' + uid + '\',\'' + escapeHtml(u.username || 'Bitcoiner').replace(/[\\'"]/g, "") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(u.username || 'Bitcoiner') + '</button>'
+                '<button onclick="document.getElementById(\'userProfileModal\').remove();openDM(\'' + uid + '\',\'' + escapeHtml(uName || 'Bitcoiner').replace(/[\\'"]/g, "") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(uName || 'Bitcoiner') + '</button>'
                 : (canMessage && !dmEligibility.ok ?
                     '<div style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;color:var(--text-muted);text-align:center;">' + escapeHtml(dmEligibility.reason) + '</div>'
                 : (!auth || !auth.currentUser || auth.currentUser.isAnonymous ?
@@ -818,9 +844,9 @@ window.showUserProfile = function(uid) {
                 '<div style="display:flex;gap:8px;margin-top:8px;">' +
                     _peerBtn +
                     (isUserBlocked(uid) ?
-                        '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
-                        : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
-                    '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
+                        '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(uName || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
+                        : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(uName || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
+                    '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + uid + '\',\'' + escapeHtml(uName || '').replace(/[\\'"]/g, "") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
                 '</div>' : '') +
             // Own-profile country nudge (only visible to yourself, only if country not set)
             (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
@@ -954,6 +980,8 @@ window.openDM = function(recipientUid, recipientName) {
         return;
     }
 
+    if (!dmIdOk(String(recipientUid || ''))) return;
+
     // Account eligibility check (age + points)
     var eligibility = _canAccountDM(recipientUid);
     if (!eligibility.ok) {
@@ -976,9 +1004,17 @@ window.openDM = function(recipientUid, recipientName) {
             '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin-bottom:20px;">You\'ve blocked <strong>' + _safeRecipName + '</strong>. Unblock them to send and receive messages.</div>' +
             '<div style="display:flex;gap:10px;">' +
             '<button onclick="document.getElementById(\'dmUnblockPrompt\').remove()" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
-            '<button onclick="document.getElementById(\'dmUnblockPrompt\').remove();if(typeof unblockUser===\'function\')unblockUser(\'' + recipientUid + '\',\'' + _safeRecipName + '\');setTimeout(function(){openDM(\'' + recipientUid + '\',\'' + _safeRecipName + '\')},400)" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">✅ Unblock & Chat</button>' +
+            '<button data-dm-action="unblock" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">✅ Unblock & Chat</button>' +
             '</div></div>';
         document.body.appendChild(_promptEl);
+        var _unblockUid = String(recipientUid), _unblockName = String(recipientName || '');
+        _promptEl.addEventListener('click', function(ev) {
+            var el = dmActionTarget(ev, _promptEl);
+            if (!el || el.getAttribute('data-dm-action') !== 'unblock') return;
+            _promptEl.remove();
+            if (typeof unblockUser === 'function') unblockUser(_unblockUid, _unblockName);
+            setTimeout(function() { openDM(_unblockUid, _unblockName); }, 400);
+        });
         return;
     }
 
@@ -995,23 +1031,51 @@ window.openDM = function(recipientUid, recipientName) {
     showDMWindow(convoId, recipientUid, recipientName, myUid, myName);
 };
 
+function dmBindWindow(win, convoId, otherUid, otherName) {
+    if (!win || !win.addEventListener) return;
+    var actions = {
+        profile: function(ev) { ev.stopPropagation(); closeDM(); if (typeof showUserProfile === 'function') showUserProfile(otherUid); },
+        report: function(ev) { ev.stopPropagation(); reportUser(otherUid, otherName); },
+        gif: function() { showDMGifPicker(convoId, otherUid, otherName); },
+        send: function() { window.sendDM(convoId, otherUid, otherName); }
+    };
+    win.addEventListener('click', function(ev) {
+        var el = dmActionTarget(ev, win);
+        if (!el) return;
+        var act = el.getAttribute('data-dm-action') || '';
+        if (Object.prototype.hasOwnProperty.call(actions, act)) actions[act](ev);
+    });
+    var fileInput = win.querySelector ? win.querySelector('#dmImageInput') : null;
+    if (fileInput) fileInput.onchange = function() {
+        if (this.files && this.files[0]) showDMImagePreview(this.files[0], convoId, otherUid, otherName);
+    };
+    win.addEventListener('keydown', function(ev) {
+        var el = dmActionTarget(ev, win);
+        if (!el || el.getAttribute('data-dm-action') !== 'send-key' || ev.key !== 'Enter') return;
+        window.sendDM(convoId, otherUid, otherName);
+    });
+}
+
 // DM chat window
 function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
     // Remove existing
     var old = document.getElementById('dmWindow');
     if (old) old.remove();
     if (window._dmUnsubscribe) { window._dmUnsubscribe(); window._dmUnsubscribe = null; }
+    if (!dmIdOk(String(otherUid || '')) || !dmIdOk(String(convoId || ''))) return;
+    otherName = String(otherName || 'User');
 
     var html = '<div id="dmWindow" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500000;display:flex;align-items:flex-end;justify-content:center;padding:0;" onclick="if(event.target===this)closeDM()">' +
         '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px 20px 0 0;max-width:500px;width:100%;height:80vh;max-height:600px;display:flex;flex-direction:column;overflow:hidden;">' +
         // Header
         '<div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">' +
-            '<div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="event.stopPropagation();closeDM();showUserProfile(\'' + otherUid + '\')">' +
+            '<div data-dm-action="profile" style="display:flex;align-items:center;gap:10px;cursor:pointer;">' +
                 '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">💬 ' + escapeHtml(otherName) + '</div>' +
                 '<div id="dmStatusDot"></div>' +
             '</div>' +
             '<div style="display:flex;gap:6px;align-items:center;">' +
-                '<button onclick="event.stopPropagation();reportUser(\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')" style="background:none;border:1px solid var(--border);color:var(--text-faint);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Report user">🚩</button>' +
+                '<button type="button" onclick="event.stopPropagation();backToDMList()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Back to messages">←</button>' +
+                '<button data-dm-action="report" style="background:none;border:1px solid var(--border);color:var(--text-faint);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Report user">🚩</button>' +
                 '<button onclick="closeDM()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             '</div>' +
         '</div>' +
@@ -1021,17 +1085,19 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         '<div id="dmMessages" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch;"></div>' +
         // Input area
         '<div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
-            '<input type="file" id="dmImageInput" accept="image/*" style="display:none;" onchange="if(this.files[0])showDMImagePreview(this.files[0],\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
+            '<input type="file" id="dmImageInput" accept="image/*" style="display:none;">' +
             '<button onclick="document.getElementById(\'dmImageInput\').click()" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:1rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Send image">📷</button>' +
-            '<button onclick="showDMGifPicker(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'\"]/g, "") + '\')" style="padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.65rem;font-weight:800;cursor:pointer;flex-shrink:0;touch-action:manipulation;letter-spacing:0.5px;" title="Send GIF">GIF</button>' +
-            '<input type="text" id="dmInput" maxlength="' + MSG_CONFIG.maxMsgLength + '" placeholder="Type a message..." style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" onkeydown="if(event.key===\'Enter\')sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
-            '<button onclick="sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')" style="padding:12px 16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;flex-shrink:0;">Send</button>' +
+            '<button data-dm-action="gif" style="padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.65rem;font-weight:800;cursor:pointer;flex-shrink:0;touch-action:manipulation;letter-spacing:0.5px;" title="Send GIF">GIF</button>' +
+            '<input type="text" id="dmInput" maxlength="' + MSG_CONFIG.maxMsgLength + '" placeholder="Type a message..." style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" data-dm-action="send-key">' +
+            '<button data-dm-action="send" style="padding:12px 16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;flex-shrink:0;">Send</button>' +
         '</div>' +
         '</div></div>';
 
     var div = document.createElement('div');
     div.innerHTML = html;
-    document.body.appendChild(div.firstChild);
+    var _dmWin = div.firstChild;
+    document.body.appendChild(_dmWin);
+    dmBindWindow(_dmWin, convoId, otherUid, otherName);
 
     // Focus input + wire up paste-to-send-image on the DM text input
     setTimeout(function() {
@@ -1095,6 +1161,11 @@ window.closeDM = function() {
     if (w) w.remove();
 };
 
+// DM photos and GIFs get a fixed box before they load. Without it each image
+// grew from 0 to its full height and pushed the thread down (layout shift).
+// object-fit:contain keeps the whole image visible inside the box.
+var DM_IMG_BOX = 'display:block;width:240px;max-width:100%;aspect-ratio:6/5;height:auto;object-fit:contain;background:rgba(0,0,0,0.18);border-radius:8px;';
+
 function loadDMMessages(convoId, myUid, otherUid, otherName) {
     var container = document.getElementById('dmMessages');
     if (!container) return;
@@ -1149,7 +1220,8 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 // Image support
                 var imgHtml = '';
                 if (m.imageUrl) {
-                    imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+                    // Fixed 240x200 box so the thread does not jump when the image arrives (CLS).
+                    imgHtml = '<img data-dm-img="1" src="' + escapeHtml(sanitizeUrl(m.imageUrl)) + '" style="' + DM_IMG_BOX + 'margin:' + (m.text ? '6px 0 0' : '0') + ';cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
                 }
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
@@ -1187,13 +1259,17 @@ window.showDMImagePreview = function(file, convoId, recipientUid, recipientName)
             '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;font-weight:600;">Send this image?</div>' +
             '<img src="' + objectUrl + '" style="max-width:100%;max-height:260px;border-radius:10px;display:block;margin:0 auto 14px;">' +
             '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
-                '<button onclick="document.getElementById("dmImagePreview").remove();URL.revokeObjectURL("' + objectUrl + '")" style="padding:8px 18px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:0.85rem;cursor:pointer;">Cancel</button>' +
+                '<button type="button" id="dmImageCancelBtn" style="padding:8px 18px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:0.85rem;cursor:pointer;">Cancel</button>' +
                 '<button id="dmImageConfirmBtn" style="padding:8px 18px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-family:inherit;font-size:0.85rem;font-weight:700;cursor:pointer;">Send</button>' +
             '</div>' +
         '</div>';
 
     document.body.appendChild(overlay);
 
+    document.getElementById('dmImageCancelBtn').addEventListener('click', function() {
+        overlay.remove();
+        URL.revokeObjectURL(objectUrl);
+    });
     document.getElementById('dmImageConfirmBtn').addEventListener('click', function() {
         overlay.remove();
         URL.revokeObjectURL(objectUrl);
@@ -1426,7 +1502,7 @@ window.sendDMGif = function(gifUrl) {
         var nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         container.innerHTML += '<div data-optimistic style="display:flex;justify-content:flex-end;margin-bottom:6px;">' +
             '<div style="max-width:85%;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--accent);color:#fff;">' +
-                '<img src="' + escapeHtml(sanitizeUrl(gifUrl)) + '" style="max-width:100%;max-height:200px;border-radius:8px;display:block;" loading="lazy">' +
+                '<img data-dm-img="1" src="' + escapeHtml(sanitizeUrl(gifUrl)) + '" style="' + DM_IMG_BOX + '" loading="lazy">' +
                 '<div style="font-size:0.6rem;color:rgba(255,255,255,0.6);margin-top:4px;text-align:right;">' + nowStr + '</div>' +
             '</div></div>';
         container.scrollTop = container.scrollHeight;
@@ -1637,130 +1713,292 @@ function markDMRead(convoId, myUid) {
     }).catch(function() {});
 }
 
-// ---- INBOX ----
-window.showInbox = function() {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showToast === 'function') showToast('🔒 Sign in to see messages');
-        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+
+// ---- START DM (username search) ----
+window.searchDMUsernames = function(query) {
+    query = String(query || '').trim().replace(/^@+/, '');
+    if (!query || query.length < 2 || typeof db === 'undefined') {
+        return Promise.resolve([]);
+    }
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
+    var variants = [query];
+    var low = query.toLowerCase();
+    var cap = query.charAt(0).toUpperCase() + query.slice(1).toLowerCase();
+    if (low !== query) variants.push(low);
+    if (cap !== query && cap !== low) variants.push(cap);
+    var seen = {};
+    var users = [];
+    function addSnap(snap) {
+        if (!snap || typeof snap.forEach !== 'function') return;
+        snap.forEach(function(doc) {
+            if (!doc || !doc.id || seen[doc.id] || doc.id === myUid) return;
+            var d = doc.data() ? doc.data() : {};
+            var name = d.username || d.displayName || '';
+            if (!name) return;
+            seen[doc.id] = true;
+            users.push({ uid: doc.id, username: name, points: d.points || 0 });
+        });
+    }
+    var searches = variants.map(function(v) {
+        return db.collection('public_profiles')
+            .where('username', '>=', v)
+            .where('username', '<=', v + '\uf8ff')
+            .limit(8)
+            .get()
+            .then(addSnap)
+            .catch(function() {});
+    });
+    return Promise.all(searches).then(function() {
+        users.sort(function(a, b) { return (b.points || 0) - (a.points || 0); });
+        return users.slice(0, 8);
+    });
+};
+
+window._openInboxDM = function(el) {
+    if (!el) return;
+    var uid = el.getAttribute('data-uid') || '';
+    var name = el.getAttribute('data-name') || 'User';
+    var inbox = document.getElementById('dmInbox');
+    if (inbox) inbox.remove();
+    if (typeof openDM === 'function') openDM(uid, name);
+};
+
+window._inboxRowHtml = function(c, myUid) {
+    var otherUid = (c.participants || []).find(function(p) { return p !== myUid; }) || '';
+    var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
+    var unread = c['unread_' + myUid] || 0;
+    var lastMsg = c.lastMessage || '';
+    if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
+    var lastTime = c.lastMessageTime ? (typeof timeAgo === 'function' ? timeAgo(c.lastMessageTime) : '') : '';
+    var isFromMe = c.lastSenderUid === myUid;
+    var isBuddy = c.isBuddyMatch === true;
+    var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
+    var safeUid = (typeof escapeHtml === 'function' ? escapeHtml(otherUid) : otherUid);
+    var safeName = (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName);
+    return '<div data-uid="' + safeUid + '" data-name="' + safeName + '" onclick="_openInboxDM(this)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';">' +
+        '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
+        '<div style="flex:1;min-width:0;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + safeName + buddyStar + '</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-faint);flex-shrink:0;">' + lastTime + '</div>' +
+            '</div>' +
+            '<div style="font-size:0.8rem;color:' + (unread > 0 ? 'var(--text)' : 'var(--text-muted)') + ';font-weight:' + (unread > 0 ? '600' : '400') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + (typeof escapeHtml === 'function' ? escapeHtml(lastMsg) : lastMsg) + '</div>' +
+        '</div>' +
+        (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
+    '</div>';
+};
+
+window._inboxEmptyHtml = function() {
+    return '<div style="text-align:center;padding:40px 20px;">' +
+        '<div style="font-size:2rem;margin-bottom:8px;">📬</div>' +
+        '<div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div>' +
+        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Use Start DM to message someone by username.</div></div>';
+};
+
+window._loadInboxConversations = function(listEl) {
+    if (!listEl) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || typeof db === 'undefined') {
+        listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.85rem;">Sign in to see messages</div>';
         return;
     }
-
     var myUid = auth.currentUser.uid;
-
-    // Remove existing
-    var old = document.getElementById('dmInbox');
-    if (old) old.remove();
-
-    var html = '<div id="dmInbox" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500000;display:flex;align-items:flex-end;justify-content:center;padding:0;" onclick="if(event.target===this)this.remove()">' +
-        '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px 20px 0 0;max-width:500px;width:100%;height:70vh;max-height:500px;display:flex;flex-direction:column;overflow:hidden;">' +
-        '<div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">' +
-            '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">📬 Messages</div>' +
-            '<button onclick="document.getElementById(\'dmInbox\').remove()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
-        '</div>' +
-        '<div id="dmInboxList" style="flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch;">' +
-            '<div style="text-align:center;color:var(--text-faint);padding:20px;">Loading...</div>' +
-        '</div></div></div>';
-
-    var div = document.createElement('div');
-    div.innerHTML = html;
-    document.body.appendChild(div.firstChild);
-
-    // Load conversations
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:20px;">Loading...</div>';
+    function fill(snap) {
+        var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+        if (!el) return;
+        if (!snap || snap.empty) { el.innerHTML = _inboxEmptyHtml(); return; }
+        var rows = [];
+        snap.forEach(function(doc) { rows.push(_inboxRowHtml(doc.data() || {}, myUid)); });
+        el.innerHTML = rows.join('');
+    }
     db.collection('dm_conversations')
         .where('participants', 'array-contains', myUid)
         .orderBy('lastMessageTime', 'desc')
         .limit(30)
         .get()
-        .then(function(snap) {
-            var list = document.getElementById('dmInboxList');
-            if (!list) return;
-            console.log('Inbox snap size:', snap.size);
-
-            if (snap.empty) {
-                list.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
-                    '<div style="font-size:2rem;margin-bottom:8px;">📬</div>' +
-                    '<div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div>' +
-                    '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Tap a user on the leaderboard to start chatting!</div></div>';
-                return;
-            }
-
-            var _rows = [];
-            snap.forEach(function(doc) {
-                var c = doc.data();
-                var otherUid = c.participants.find(function(p) { return p !== myUid; });
-                var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
-                var unread = c['unread_' + myUid] || 0;
-                var lastMsg = c.lastMessage || '';
-                if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
-                var lastTime = c.lastMessageTime ? timeAgo(c.lastMessageTime) : '';
-                var isFromMe = c.lastSenderUid === myUid;
-                var isBuddy = c.isBuddyMatch === true;
-                var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
-
-                _rows.push('<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + '\'">' +
-                    '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-                            '<div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + escapeHtml(otherName) + buddyStar + '</div>' +
-                            '<div style="font-size:0.65rem;color:var(--text-faint);flex-shrink:0;">' + lastTime + '</div>' +
-                        '</div>' +
-                        '<div style="font-size:0.8rem;color:' + (unread > 0 ? 'var(--text)' : 'var(--text-muted)') + ';font-weight:' + (unread > 0 ? '600' : '400') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + escapeHtml(lastMsg) + '</div>' +
-                    '</div>' +
-                    (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
-                '</div>');
-            });
-            list.innerHTML = _rows.join('');
-        }).catch(function(err) {
-            console.error('Inbox load error:', err);
-            var list = document.getElementById('dmInboxList');
-            if (!list) return;
-            
-            if (err.code === 'failed-precondition') {
-                // Fallback: query without orderBy (no composite index needed)
+        .then(fill)
+        .catch(function(err) {
+            if (err && err.code === 'failed-precondition') {
                 db.collection('dm_conversations')
                     .where('participants', 'array-contains', myUid)
                     .limit(30)
                     .get()
                     .then(function(snap2) {
-                        var list2 = document.getElementById('dmInboxList');
-                        if (!list2) return;
-                        if (snap2.empty) {
-                            list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">📬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
-                            return;
-                        }
-                        list2.innerHTML = '';
+                        var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+                        if (!el) return;
+                        if (!snap2 || snap2.empty) { el.innerHTML = _inboxEmptyHtml(); return; }
                         var convos = [];
-                        snap2.forEach(function(doc) { convos.push({id: doc.id, ...doc.data()}); });
-                        convos.sort(function(a,b) { return (b.lastMessageTime||0) - (a.lastMessageTime||0); });
-                        convos.forEach(function(c) {
-                            var otherUid = c.participants.find(function(p) { return p !== myUid; });
-                            var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
-                            var unread = c['unread_' + myUid] || 0;
-                            var lastMsg = c.lastMessage || '';
-                            if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
-                            var isFromMe = c.lastSenderUid === myUid;
-                            var isBuddy = c.isBuddyMatch === true;
-                            var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
-                            list2.innerHTML += '<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';">' +
-                                '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
-                                '<div style="flex:1;min-width:0;"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + escapeHtml(otherName) + buddyStar + '</div></div>' +
-                                '<div style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + escapeHtml(lastMsg) + '</div></div>' +
-                                (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
-                            '</div>';
-                        });
-                    }).catch(function(e2) {
-                        var list2 = document.getElementById('dmInboxList');
-                        if (list2) list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">💬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
+                        snap2.forEach(function(doc) { convos.push(doc.data() || {}); });
+                        convos.sort(function(a, b) { return (b.lastMessageTime || 0) - (a.lastMessageTime || 0); });
+                        el.innerHTML = convos.map(function(c) { return _inboxRowHtml(c, myUid); }).join('');
+                    })
+                    .catch(function() {
+                        var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+                        if (el) el.innerHTML = _inboxEmptyHtml();
                     });
                 return;
             }
-
-            // Index not ready or no conversations — show empty state
-            list.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
-                '<div style="font-size:2rem;margin-bottom:8px;">💬</div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div>' +
-                '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Tap a user on the leaderboard or in PlebTalk to start chatting!</div></div>';
+            var el = listEl.id ? document.getElementById(listEl.id) : listEl;
+            if (el) el.innerHTML = _inboxEmptyHtml();
         });
+};
+
+// DMs tab in the chat hub renders the inbox inside the tab. It used to open the
+// popup and leave the tab empty. On a fresh /#dms load the route can run before
+// auth restores the session, so wait for the first signed-in auth state.
+window._renderInboxInto = function(container) {
+    if (!container) return;
+    function signedIn() { return !!(auth && auth.currentUser && !auth.currentUser.isAnonymous); }
+    function paint() {
+        if (!container.isConnected) return;
+        container.innerHTML =
+            '<div id="dmInboxShell" style="display:flex;flex-direction:column;height:100%;min-height:0;">' +
+                '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;">' +
+                    '<div style="font-size:1.05rem;font-weight:800;color:var(--heading);">📬 Messages</div>' +
+                    '<button type="button" id="dmStartBtn" onclick="showStartDM({mount:document.getElementById(\'dmInboxList\'),onBack:_showInboxList})" style="padding:8px 12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Start DM</button>' +
+                '</div>' +
+                '<div id="dmInboxList" style="flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch;"></div>' +
+            '</div>';
+        _loadInboxConversations(document.getElementById('dmInboxList'));
+    }
+    function signInPrompt() {
+        if (!container.isConnected) return;
+        container.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">📬</div>' +
+            '<div onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="color:var(--accent);font-size:0.85rem;font-weight:700;cursor:pointer;">🔐 Sign in to see messages</div></div>';
+    }
+    if (signedIn()) { paint(); return; }
+    container.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:20px;">Loading...</div>';
+    if (!auth || typeof auth.onAuthStateChanged !== 'function') { signInPrompt(); return; }
+    var unsub = null;
+    unsub = auth.onAuthStateChanged(function(user) {
+        if (!container.isConnected) { if (unsub) unsub(); return; }
+        if (user && !user.isAnonymous) { if (unsub) unsub(); paint(); return; }
+        signInPrompt();
+    });
+};
+
+window._showInboxList = function() {
+    var tab = document.getElementById('dmTabContainer');
+    var overlay = document.getElementById('overlayDMsBody');
+    var inboxList = document.getElementById('dmInboxList');
+    var startMount = document.getElementById('dmStartMount');
+    if (overlay && startMount && overlay.contains(startMount) && typeof window._switchOverlayTab === 'function') {
+        window._switchOverlayTab('dms');
+        return;
+    }
+    if (tab) {
+        _renderInboxInto(tab);
+        return;
+    }
+    if (inboxList) {
+        _loadInboxConversations(inboxList);
+        return;
+    }
+    if (typeof showInbox === 'function') showInbox();
+};
+
+window.backToDMList = function() {
+    if (typeof closeDM === 'function') closeDM();
+    if (typeof showInbox === 'function') showInbox();
+};
+
+window._pickStartDMUser = function(uid, name) {
+    if (!uid) return;
+    if (typeof openDM === 'function') openDM(uid, name || 'User');
+};
+
+window.showStartDM = function(opts) {
+    opts = opts || {};
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to send messages');
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
+    var mount = opts.mount || document.getElementById('dmInboxList') || document.getElementById('dmTabContainer') || document.getElementById('overlayDMsBody');
+    if (!mount) {
+        if (typeof showInbox === 'function') showInbox();
+        setTimeout(function() {
+            showStartDM({ mount: document.getElementById('dmInboxList') || document.getElementById('dmTabContainer') });
+        }, 0);
+        return;
+    }
+    var onBack = typeof opts.onBack === 'function' ? opts.onBack : _showInboxList;
+    mount.innerHTML =
+        '<div id="dmStartMount" style="display:flex;flex-direction:column;height:100%;min-height:0;">' +
+            '<div style="padding:10px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+                '<button type="button" id="dmStartBackBtn" style="background:none;border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:1rem;font-family:inherit;" title="Back to messages">←</button>' +
+                '<div style="font-weight:800;color:var(--heading);font-size:0.95rem;">Start DM</div>' +
+            '</div>' +
+            '<div style="padding:0 12px 8px;flex-shrink:0;">' +
+                '<input type="text" id="dmStartSearch" placeholder="Search by username" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card-bg);color:var(--text);font-size:0.9rem;font-family:inherit;">' +
+            '</div>' +
+            '<div id="dmStartResults" style="flex:1;overflow-y:auto;padding:0 8px 8px;-webkit-overflow-scrolling:touch;">' +
+                '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Type at least 2 letters to search.</div>' +
+            '</div>' +
+        '</div>';
+    var backBtn = document.getElementById('dmStartBackBtn');
+    if (backBtn) backBtn.onclick = function(e) { if (e) e.preventDefault(); onBack(); };
+    var input = document.getElementById('dmStartSearch');
+    var results = document.getElementById('dmStartResults');
+    var timer = null;
+    function renderRows(users, q) {
+        if (!results) return;
+        if (!users.length) {
+            results.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">No users found' + (q ? ' for "' + (typeof escapeHtml === 'function' ? escapeHtml(q) : q) + '"' : '') + '</div>';
+            return;
+        }
+        results.innerHTML = users.map(function(u) {
+            var safeUid = (typeof escapeHtml === 'function' ? escapeHtml(u.uid) : u.uid);
+            var safeName = (typeof escapeHtml === 'function' ? escapeHtml(u.username) : u.username);
+            return '<div data-uid="' + safeUid + '" data-name="' + safeName + '" onclick="_pickStartDMUser(this.getAttribute(\'data-uid\'), this.getAttribute(\'data-name\'))" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent;">' +
+                '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.95rem;flex-shrink:0;">' + (safeName.charAt(0).toUpperCase() || '?') + '</div>' +
+                '<div style="font-weight:700;color:var(--heading);font-size:0.88rem;">@' + safeName + '</div>' +
+            '</div>';
+        }).join('');
+    }
+    function runSearch() {
+        var q = input ? input.value : '';
+        if (!results) return;
+        if (String(q || '').trim().replace(/^@+/, '').length < 2) {
+            results.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Type at least 2 letters to search.</div>';
+            return;
+        }
+        results.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Searching...</div>';
+        searchDMUsernames(q).then(function(users) { renderRows(users || [], String(q || '').trim().replace(/^@+/, '')); });
+    }
+    if (input) {
+        input.addEventListener('input', function() {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(runSearch, 200);
+        });
+        input.addEventListener('keydown', function(e) {
+            if (e && e.key === 'Enter') { if (timer) clearTimeout(timer); runSearch(); }
+        });
+        setTimeout(function() { if (input) input.focus(); }, 0);
+    }
+};
+
+// ---- INBOX ----
+window.showInbox = function() {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to send messages');
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
+
+    var old = document.getElementById('dmInbox');
+    if (old) old.remove();
+
+    var wrap = document.createElement('div');
+    wrap.id = 'dmInbox';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500000;display:flex;align-items:flex-end;justify-content:center;padding:0;';
+    wrap.onclick = function(e) { if (e.target === wrap) wrap.remove(); };
+    wrap.innerHTML = '<div id="dmInboxInner" style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px 20px 0 0;max-width:500px;width:100%;height:70vh;max-height:500px;display:flex;flex-direction:column;overflow:hidden;position:relative;">' +
+        '<button onclick="document.getElementById(\'dmInbox\').remove()" style="position:absolute;top:12px;right:12px;z-index:2;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
+        '</div>';
+    document.body.appendChild(wrap);
+    var inner = document.getElementById('dmInboxInner');
+    if (inner && typeof _renderInboxInto === 'function') _renderInboxInto(inner);
 };
 
 // ---- UNREAD COUNT BADGE ----

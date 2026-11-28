@@ -15,6 +15,7 @@ assert.ok(keysFn.includes("'emailHistory'"));
 assert.ok(keysFn.includes("'emailHistoryHashes'"));
 assert.ok(keysFn.includes("'providersHash'"));
 assert.ok(keysFn.includes("'providerHashes'"));
+assert.ok(keysFn.includes("'realAccountAt'"), 'realAccountAt is server-only (claims age gate)');
 assert.ok(!keysFn.includes("'referredBy'"), 'referredBy stays out of userProfileServerOnlyKeys');
 assert.ok(!createRule.includes("'email'"), 'create allowlist no longer includes email');
 ['deleted_accounts', 'email_history', 'email_change_pending', 'email_link_claims', 'identity_history'].forEach(function (name) {
@@ -30,7 +31,7 @@ assert.ok(index.includes("defineSecret('DELETION_HMAC_SECRET')"));
 assert.ok(index.includes('exports.prepareEmailChange'));
 assert.ok(index.includes('exports.syncEmailChange'));
 assert.ok(index.includes('exports.confirmAccountLink'));
-assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 13);
+assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 16);
 
 const emailSrc = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'emailChange.js'), 'utf8');
 assert.ok(emailSrc.includes('enforceAppCheck: true'));

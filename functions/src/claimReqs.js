@@ -10,11 +10,19 @@
 // filter accepted. Claim time re-reads that message. tctvAt: the watch
 // meter has recorded one watch-credit block. That block is
 // tctvWatch.CREDIT_SECONDS, because the first heartbeat only starts the
-// clock and the next one is the first credit. (A referral-visit step was
-// dropped on Nov 4; only chat and TCTV are required.)
+// clock and the next one is the first credit. While the Originals library
+// is too thin, the same anti-bot step is met by one server-written lesson
+// or quest pass (questsPassed or lqPassed). lqPassed is an arrayUnion
+// array, so length is what counts. triviaCorrect is the same daily
+// question for everyone and does not satisfy the step on its own.
+// A prior tctvAt stamp also counts, including after Originals go live.
+// claimReq.learnAt has no writer and is ignored. completedQuests is a
+// client field and is ignored. (A referral-visit step was dropped on
+// Nov 4.)
 
 const { classifyChatText } = require('./chatProfanity');
 const tctvWatch = require('./tctvWatch');
+const originals = require('./tctvOriginals');
 const {
     meaningfulLength,
     extractSayHiText,
@@ -37,7 +45,8 @@ const CHAT_MSG_CAP = 5;
 
 const ITEM_LABEL = {
     chat: 'send 1 chat message',
-    tctv: 'watch Timechain TV for ' + MIN_TCTV_SECONDS + ' seconds',
+    tctv: 'watch Bitcoin Quest Originals for ' + MIN_TCTV_SECONDS + ' seconds',
+    learn: 'complete 1 lesson or quiz',
 };
 
 const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/;
@@ -75,12 +84,38 @@ function claimReqOf(user) {
     return req && typeof req === 'object' ? req : {};
 }
 
+// Server-written progress only. Ignore client-owned arrays such as completedQuests.
+// lqPassed is an arrayUnion array; a leftover numeric value still counts.
+function progressCount(value) {
+    if (Array.isArray(value)) return value.length;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function learnQualifies(user) {
+    const row = user || {};
+    const quests = Math.floor(progressCount(row.questsPassed));
+    const lessons = Math.floor(progressCount(row.lqPassed));
+    // triviaCorrect may exist alongside a quest or lesson, but it never
+    // qualifies the account by itself.
+    return quests >= 1 || lessons >= 1;
+}
+
+function antiBotMet(user) {
+    const req = claimReqOf(user);
+    if (stampMillis(req.tctvAt)) return true;
+    return learnQualifies(user);
+}
+
 function missingItems(user, createdMs) {
     if (isExempt(createdMs)) return [];
     const req = claimReqOf(user);
     const missing = [];
     if (!stampMillis(req.chatAt)) missing.push('chat');
-    if (!stampMillis(req.tctvAt)) missing.push('tctv');
+    // Do not drop the anti-bot step while the Originals list is empty.
+    if (!antiBotMet(user)) {
+        missing.push(originals.taskEnabled() ? 'tctv' : 'learn');
+    }
     return missing;
 }
 
@@ -186,6 +221,8 @@ module.exports = {
     isExempt: isExempt,
     missingItems: missingItems,
     missingError: missingError,
+    learnQualifies: learnQualifies,
+    antiBotMet: antiBotMet,
     chatQualifies: chatQualifies,
     normalizeChatMsgId: normalizeChatMsgId,
     chatMsgIdsOf: chatMsgIdsOf,

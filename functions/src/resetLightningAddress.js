@@ -7,6 +7,7 @@ const { runtimeSa } = require('./runtimeServiceAccounts');
 // which clients cannot write.
 
 const faucetGuard = require('./faucetGuard');
+const joinDate = require('./joinDate');
 const { emailOk } = require('./referrals');
 const {
     resolveLnurlInvoice,
@@ -196,7 +197,13 @@ function createResetHandlers(deps) {
 
                 const stamp = admin.firestore.FieldValue.serverTimestamp();
                 if (freshUser.exists) t.set(userRef, { lightning: next, lightningAddress: next }, { merge: true });
-                else t.set(userRef, { lightning: next, lightningAddress: next });
+                else {
+                    // First write on this uid: created cannot be added later
+                    // by the client, so stamp Auth creationTime now.
+                    const createdUser = { lightning: next, lightningAddress: next };
+                    await joinDate.applyMissingJoin(admin, uid, createdUser, freshUser);
+                    t.set(userRef, createdUser);
+                }
                 if (!lockDoc.exists) {
                     t.set(lockRef, { uid: uid, address: next, lockedAt: stamp });
                 }

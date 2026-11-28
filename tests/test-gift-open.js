@@ -507,6 +507,12 @@ async function main() {
         var btn = buttonIn(rowOf(env.document, 'a'));
         assert.ok(btn.style.cssText.indexOf('min-height:44px') !== -1);
         assert.ok(src.indexOf('var GIFT_OPEN_ANIM_MS = 450;') !== -1);
+        assert.ok(css.indexOf('giftBoxShake 0.4s') !== -1);
+        assert.ok(css.indexOf('giftLidPop 0.28s ease-out 0.1s') !== -1);
+        assert.ok(css.indexOf('giftPrizePop 0.25s ease-out 0.16s') !== -1);
+        assert.ok(src.indexOf('opts.deferModal') !== -1);
+        assert.ok(src.indexOf("sub.textContent = 'Open a gift to see what is inside.") !== -1);
+        assert.ok(src.indexOf('pointer-events:none') !== -1);
         assert.strictEqual(/if\s*\(\s*_openAllBusy\s*\|\|\s*Object\.keys\(\s*_giftsOpening\s*\)\.length\s*\)\s*return/.test(src), false);
         var openFn = src.slice(src.indexOf('async function _runGiftOpen'), src.indexOf('window.showPostSpinGiftModal = function'));
         assert.ok(openFn.indexOf('_markGiftRow(giftId, rw, false)') !== -1);

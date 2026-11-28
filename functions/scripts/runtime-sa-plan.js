@@ -57,6 +57,7 @@ const BATCHES = [
     { name: 'admin tools + Telegram webhook (gen1)', fns: ['adminBanUser', 'adminUnbanUser', 'investigateUsers', 'backfillJoinDates', 'refreshBadgeDistributionHttp', 'setTelegramWebhook', 'handleTelegramWebhook'] },
     { name: 'Telegram mirrors (gen2 Firestore triggers + schedule)', fns: ['onGlobalChatTelegram', 'onGlobalChatTelegramUpdated', 'onGlobalChatTelegramDeleted', 'onAnnouncementsTelegram', 'onAnnouncementsTelegramUpdated', 'onAnnouncementsTelegramDeleted', 'onForumShoutoutUpdated', 'onForumShoutoutDeleted', 'onMarketplaceShoutoutUpdated', 'onMarketplaceShoutoutDeleted', 'flushTelegramMirror'] },
     { name: 'admin kill switch (gen1 callable + auto-return tick)', fns: ['adminSetKillSwitch', 'killSwitchAutoReturnTick'] },
+    { name: 'admin sitewide caps (gen1 callable)', fns: ['adminGetSitewideCaps', 'adminSetSitewideCaps'] },
     { name: 'gen2 schedules + referral/X triggers', fns: ['scheduleRaidBoss', 'scheduleRaidBossCatchup', 'refreshHotTopics', 'tweetSatoshisFavor', 'onUserReferral', 'payQualifiedReferrals'] },
     { name: 'gen1 hot topics, Strava, referral callables', fns: ['refreshHotTopicsHttp', 'refreshHotTopicsForce', 'stravaAuth', 'syncStravaWalks', 'verifyReferral', 'registerReferral'] },
     { name: 'account security: TOTP, username, email change, delete', fns: ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStepUp', 'regenerateRecoveryCodes', 'recordKnownPhoneFactor', 'adminResetSecondFactor', 'setUsername', 'prepareEmailChange', 'syncEmailChange', 'confirmAccountLink', 'deleteAccount'] },

@@ -98,28 +98,40 @@ function assertAwardPaysNothing() {
         tickets: 50,
         streakFreezes: 4,
     });
-    assert.strictEqual(result.success, true);
+    // Since d2dfecd36 the shared resolver rejects the dead 'Daily Spin' phrase
+    // (success false, 'Unknown action'). Either way it must pay nothing.
     assert.strictEqual(result.awarded, 0);
     assert.strictEqual(result.tickets, 0);
-    assert.strictEqual(result.id, 'daily_spin');
     assert.strictEqual(mem.users.u.points, 40);
     assert.strictEqual(mem.users.u.orangeTickets, 3);
     assert.strictEqual(mem.daily.u.total, 100);
     assert.strictEqual(Object.keys(mem.claims).length, 0);
     assert.strictEqual(Object.keys(mem.counts).length, 0);
     const again = awardActions.applyAward(mem, 'u', { reason: 'Daily Spin', pts: 200 });
-    assert.strictEqual(again.success, true);
     assert.strictEqual(again.awarded, 0);
     assert.strictEqual(mem.users.u.points, 40);
 }
 
 function unit() {
     const indexSrc = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
-    const award = sliceBetween(indexSrc, 'exports.awardPoints = functionsV1.https.onCall', 'exports.getFaucetStats = functionsV1.https.onCall');
-    const gate = award.indexOf("resolved.id === 'daily_spin'");
+    const award = sliceBetween(indexSrc, 'exports.awardPoints = functionsV1.https.onCall', 'exports.getFaucetStats = ');
+    // The old 'Daily Spin' phrase stops at the resolver reject, before any
+    // write. The separate daily_spin gate was unreachable and is gone.
+    const reject = award.indexOf('if (!resolved.ok)');
     const transaction = award.indexOf('db.runTransaction');
-    assert.ok(gate > 0 && transaction > gate);
-    assert.ok(award.indexOf('return { success: true, awarded: 0, tickets: 0 };') > gate);
+    assert.ok(reject > 0 && transaction > reject);
+    assert.strictEqual(award.indexOf("resolved.id === 'daily_spin'"), -1);
+    const awardActions = require(path.join(root, 'functions/src/awardActions'));
+    ['Daily Spin', '🎫 Daily Spin'].forEach(function (action) {
+        [0, 25, 50, 100, 200].forEach(function (pts) {
+            const resolved = awardActions.resolveAction({ action: action, reason: action, pts: pts });
+            assert.strictEqual(resolved.ok, false, action + ' ' + pts);
+            assert.notStrictEqual(resolved.id, 'daily_spin');
+        });
+    });
+    // No resolver branch can hand back the daily_spin id.
+    const actionsSrc = fs.readFileSync(path.join(root, 'functions/src/awardActions.js'), 'utf8');
+    assert.strictEqual(actionsSrc.indexOf('daily_spin'), -1);
     assertAwardPaysNothing();
     assertSpinTablePays(indexSrc);
     console.log('daily spin unit ok');
@@ -218,7 +230,8 @@ async function main() {
         tickets: 50,
         streakFreezes: 9,
     }, ctx(uid));
-    assert.strictEqual(blocked.success, true);
+    assert.strictEqual(blocked.success, false);
+    assert.strictEqual(blocked.error, 'Unknown action');
     assert.strictEqual(blocked.awarded, 0);
     assert.strictEqual(blocked.tickets, 0);
     let user = (await userRef.get()).data();
@@ -248,7 +261,7 @@ async function main() {
         action: 'Daily Spin',
         reason: 'Daily Spin',
     }, ctx(uid));
-    assert.strictEqual(again.success, true);
+    // Pays nothing; success is false since the resolver rejects the phrase.
     assert.strictEqual(again.awarded, 0);
     assert.strictEqual(again.tickets, 0);
     user = (await userRef.get()).data();

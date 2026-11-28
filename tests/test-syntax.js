@@ -14,7 +14,7 @@ const JS_FILES = [
     'pvp.js', 'pvp-enhance.js', 'pvp-lobby-alert.js',
     'channel_index.js', 'topic-discussions.js', 'quest-defer.js', 'global-chat.js', 'notifications.js', 'gifting.js',
     'achievement-share.js', 'bip-breakthrough.js', 'auth-display.js', 'auth-boot.js', 'app-check-boot.js', 'firebase-config.js', 'bundle-ready.js',
-    'referral-tiers.js'
+    'referral-tiers.js', 'ads.js', 'popup-stack.js', 'age-confirm.js', 'kids-account.js', 'twa-mode.js'
 ];
 
 let passed = 0, failed = 0;

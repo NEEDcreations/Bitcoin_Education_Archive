@@ -31,17 +31,18 @@
     <p>PvP matches, lobby alerts, and push notifications are part of the Service. Those features are also described in the main <a href="/terms.html">Terms of Service</a> and <a href="/privacy.html">Privacy Policy</a>, including how lobby usernames are shown and that a banned player's wins and losses are still recorded with no XP.</p>
 
     <h2>1. Description of the Service</h2>
-    <p>The Service provides a curated, channel-based interface for discovering publicly available video content hosted on YouTube. All video content displayed through the Service is streamed directly from YouTube via YouTube's official embedded player. We do not host, store, copy, transcode, modify, or redistribute any video files. The Service functions as an organizational and discovery layer; YouTube remains the source and host of all video content.</p>
+    <p>The Service provides a curated, channel-based interface for discovering video content. Most channels embed publicly available videos hosted on YouTube, streamed through YouTube's official embedded player. We do not host, store, copy, transcode, modify, or redistribute those YouTube files; YouTube remains their source and host. Bitcoin Quest Originals are videos we host on Cloudflare Stream (from 603BTC/BQ, or with written rights). Those Originals are the only Timechain TV videos that can earn rewards.</p>
     <p>Your use of any video content on the Service is also governed by <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube's Terms of Service</a> and <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>. By using the Service, you acknowledge and agree to YouTube's Terms of Service. We do not send your Bitcoin Education Archive account id to YouTube. YouTube still receives whatever its embedded player normally receives.</p>
     <p>Timechain TV does not sell sponsorships of third-party videos and does not run our own ads against third-party embeds.</p>
 
     <h2>1a. Presence, watch time, and the daily watch challenge</h2>
     <p>While Timechain TV is open, your browser writes a presence heartbeat about every 30 seconds. The record has the channel you are on and a timestamp. Signed-in viewers are keyed by their account id. Other viewers are keyed by a random id stored in this browser as <code>tctv_viewerId</code>. The heartbeat is used for the live viewer count. It expires after a short idle period (about 10 minutes in the client) and a cleanup job deletes stale rows. It does not include your IP address.</p>
-    <p>Minutes watched are counted in this browser for badges. Signed-in viewers also add minutes to a site-wide counter that is not labeled with your name. The first tune of a channel on a given day may be stored as a view record (viewer id, channel, day). The daily watch challenge pays 100 XP and 1 Orange Ticket once per reward day after the server credits 10 minutes from heartbeats, subject to the daily XP cap in our <a href="/terms.html">Terms of Service</a>. The server stores that day's progress.</p>
+    <p>Minutes watched toward rewards and badges are counted only for Bitcoin Quest Originals we host. YouTube and other third-party videos stay available to watch and never earn XP, Orange Tickets, sats, or other rewards, and they do not count toward a progress bar, streak, badge, or pot. The first tune of a channel on a given day may be stored as a view record (viewer id, channel, day). The daily watch challenge pays 100 XP and 1 Orange Ticket once per calendar day in America/New_York after the server credits 10 minutes of Originals playback, subject to the daily XP cap in our <a href="/terms.html">Terms of Service</a>. Rewards are fixed, with no sats and no random or bonus roll, and they require active foreground playback (the timer pauses when the tab is hidden or the video is muted or paused, and credit is capped at 1x speed). The task is hidden when too few Originals are available. The server stores that day's progress.</p>
     <p>What we store is also described in our <a href="/privacy.html">Privacy Policy</a>.</p>
 
     <h2>2. Eligibility</h2>
     <p>You must be at least 13 years old to use the Service. If you are under 18, you represent that you have your parent or legal guardian's permission to use the Service. By using the Service, you represent and warrant that you meet these requirements.</p>
+    <p>Ads on Timechain TV are shown only to users who have confirmed they are 18 or older. Kids and Classroom accounts never see ads.</p>
 
     <h2>3. User Accounts</h2>
     <p>If the Service offers account registration, you agree to: (a) provide accurate and complete information; (b) maintain the security of your login credentials; (c) promptly notify us of any unauthorized access; and (d) accept responsibility for all activities that occur under your account. We reserve the right to suspend or terminate accounts at our discretion, including for violations of these Terms.</p>
@@ -76,6 +77,7 @@
 
     <h2>7. Points, Rewards & Lightning Network</h2>
     <p>Points, tickets, and virtual rewards earned on the Service have no cash value. Sats withdrawals via the Lightning Network are non-refundable, subject to availability, and provided at our discretion. We are not a money transmitter, bank, or financial institution. We are not liable for any loss of cryptocurrency, including Lightning Network payments or tips, whether due to technical error, user error, or third-party failure. We reserve the right to modify or discontinue the rewards program at any time without notice.</p>
+    <p>Timechain TV daily task: earned only by watching Bitcoin Quest Original videos we host. Videos from YouTube or other third-party channels never earn XP, OrangeTix, sats, or other rewards. Rewards are fixed, capped daily, and require active playback.</p>
 
     <h2>8. Disclaimers</h2>
     <p class="caps"><strong>THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE.</strong></p>
@@ -112,7 +114,7 @@
     </p>
 
     <hr class="divider">
-    <p style="color:#666;font-size:0.8rem;text-align:center;">© 2026 603BTC LLC · Bitcoin Education Archive™ · <a href="https://bitcoineducation.quest">bitcoineducation.quest</a></p>
+    <p style="color:#666;font-size:0.8rem;text-align:center;">© 2026 603BTC LLC · Bitcoin Education Archive™ · <a href="https://bitcoineducation.quest">bitcoineducation.quest</a> · <a href="/#privacy-choices" style="color:#666;">Your Privacy Choices</a></p>
 </div>
 </body>
 </html>

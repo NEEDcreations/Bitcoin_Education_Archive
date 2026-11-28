@@ -278,7 +278,7 @@
     }
 
     // Questions come before the mode picker so the picker can recommend a mode.
-    var ORDER = ['gift', 'terms', 'quiz', 'pace', 'quest'];
+    var ORDER = ['gift', 'terms', 'age', 'quiz', 'pace', 'quest'];
     var state = {};
     var shows = {};
     var signedIn = false;
@@ -315,6 +315,7 @@
             if (!signedIn) return;
             if (stepState('gift') === 'pending') state.gift = 'skip';
             if (stepState('terms') === 'pending') state.terms = 'skip';
+            if (stepState('age') === 'pending') state.age = 'skip';
             pump();
         }, 12000);
     }
@@ -323,6 +324,13 @@
         order: ORDER.slice(),
         onSignedIn: function () {
             signedIn = true;
+            // Username sign-ups are anonymous accounts: ask age-confirm to
+            // re-read the new profile and hold the age step until it decides.
+            if (typeof root.bqAgeConfirmRecheck === 'function') {
+                try {
+                    if (root.bqAgeConfirmRecheck() === true && state.age !== 'done' && state.age !== 'showing') state.age = 'pending';
+                } catch (eAge) {}
+            }
             armWait();
             if (typeof root.btcBeginSignedInOnboarding === 'function') {
                 try { root.btcBeginSignedInOnboarding(); } catch (e) {}

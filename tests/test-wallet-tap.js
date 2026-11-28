@@ -224,10 +224,11 @@ test('the mini-app answer follows the same mode filter as the phone sheet', func
     var env = boot();
     env.localStorage.setItem('btc_experience_mode', 'beginner');
     var beginner = env.exploreAppsForMode();
-    assert.strictEqual(beginner.length, 6);
-    assert.strictEqual(Array.prototype.map.call(beginner, function(item) { return item.id; }).join(','), 'nacho,tv,ai,metrics,lb,wallet');
+    // AI Tools, Metrics and Leaderboard left Explore Apps in 0bbd38dd5.
+    assert.strictEqual(beginner.length, 3);
+    assert.strictEqual(Array.prototype.map.call(beginner, function(item) { return item.id; }).join(','), 'nacho,tv,wallet');
     env.localStorage.setItem('btc_experience_mode', 'advanced');
-    assert.strictEqual(env.exploreAppsForMode().length, 12);
+    assert.strictEqual(env.exploreAppsForMode().length, 9);
     assert.ok(guide.includes('window.exploreAppsForMode()'));
     assert.ok(guide.includes('climbs through Curious, Pleb'));
     assert.ok(guide.includes("you\\'ve reached a sufficient rank."));

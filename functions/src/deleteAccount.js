@@ -130,6 +130,9 @@ const RETAINED_COLLECTIONS = [
     'faucet_stats',
     'faucet_config',
     'admin_audit_log',
+    // TODO: After deletion, mask the uid on age18_<kind>_<uid>_<ms>
+    // admin_audit_log rows (same treatment as Citadel purchases). Ride
+    // with the HMAC-uid deletion log due before Jan 3.
     'charity_donations',
     'charity_stats',
     'cipher_wins',
@@ -1262,6 +1265,8 @@ async function wipeCapsAndUserLimits(db, batcher, uid, documentIdField, opts) {
     await deleteReplyBonus(db, batcher, uid, documentIdField);
     await stripPollVoters(db, batcher, uid, documentIdField);
     await deleteExactIfPresent(db, batcher, 'tctv_watch', uid);
+    await deleteExactIfPresent(db, batcher, 'spark_citizen', uid);
+    await deleteExactIfPresent(db, batcher, 'rate_limits', 'sparkcitizen_' + uid);
     if (!options.light) await deleteWeeklyContribs(db, batcher, uid, documentIdField, options.weeks);
 }
 
@@ -1374,6 +1379,11 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['referral_signals', uid, []],
         ['email_change_pending', uid, []],
         ['email_history', uid, []],
+        ['age_confirm_throttle', uid, []],
+        // Survey answers include free text about the player. The grant
+        // marker (survey_responses/{uid}) is deleted along with the profile.
+        // The masked survey_audit row is kept so the reward stays one-time.
+        ['survey_responses', uid, []],
     ];
     for (let i = 0; i < direct.length; i++) {
         await deleteDocTree(batcher, db.collection(direct[i][0]).doc(direct[i][1]), direct[i][2], documentIdField, false);

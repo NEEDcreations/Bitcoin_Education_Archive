@@ -224,6 +224,7 @@ const FAMILY = {
     predTopMonths: ['predict_top_month'],
     questDays: ['quest_days_7', 'quest_days_30', 'quest_days_100'],
     tctvLifetimeSeconds: require('./badgeTiers').familyForField('tctvLifetimeSeconds').concat(Object.keys(require('./badgeTiers').COLLECTIONS)),
+    sparkCitizenCount: require('./badgeTiers').familyForField('sparkCitizenCount').concat(Object.keys(require('./badgeTiers').COLLECTIONS)),
     tctvWatchDays: ['tctv_daily_1', 'tctv_daily_7', 'tctv_daily_30', 'tctv_daily_100'],
     onboardingComplete: ['onboarding_complete'],
     pushEnabled: ['push_enabled'],

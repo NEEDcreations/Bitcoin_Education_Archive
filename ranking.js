@@ -17,10 +17,12 @@ function spendableXp(user) {
     return (Number(u.points) || 0) - (Number(u.pointsClaimed) || 0) - (Number(u.pointsDonated) || 0) - (Number(u.pointsExchanged) || 0) - unclaimable;
 }
 
-function escapeHtml(str) {
-    return String(str == null ? '' : str).replace(/[&<>"']/g, function (ch) {
-        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
-    });
+if (typeof escapeHtml !== 'function') {
+    var escapeHtml = function (str) {
+        return String(str == null ? '' : str).replace(/[&<>"']/g, function (ch) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+        });
+    };
 }
 
 function safeJSON(key, fallback) {
@@ -286,11 +288,18 @@ function tosBlocking() {
 }
 window.tosBlocking = tosBlocking;
 
+// True only while the sign-up / sign-in form is on screen. Settings reuses
+// #usernameModal but replaces the form, so it must not hold toasts back.
+function signupFormOpen() {
+    var signup = document.getElementById('usernameModal');
+    if (!signup || !signup.classList.contains('open')) return false;
+    return !!signup.querySelector('#signupStartBtn, #usernameInput');
+}
+window.signupFormOpen = signupFormOpen;
+
 function chromeBlocksToasts() {
     if (tosBlocking()) return true;
-    var signup = document.getElementById('usernameModal');
-    if (signup && signup.classList.contains('open')) return true;
-    return false;
+    return signupFormOpen();
 }
 
 window._deferUntilTos = window._deferUntilTos || [];
@@ -416,21 +425,28 @@ var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
     adminFreezeFavorEpoch: 1,
+    adminGetSitewideCaps: 1,
     adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
     adminResolveFavorReview: 1,
     adminSetFavorClaims: 1,
     adminSetKillSwitch: 1,
+    adminResetAge18: 1,
+    adminSetSitewideCaps: 1,
+    adminUnconfirmAge18: 1,
     answerTrivia: 1,
     armSayHi: 1,
     chooseFaction: 1,
     claimCipherSats: 1,
+    claimCipherWin: 1,
     claimFavorBlock: 1,
     claimOnboardingQuestStep: 1,
     claimReplyBonus: 1,
     claimSats: 1,
     claimSayHi: 1,
     confirmAccountLink: 1,
+    confirmAge18: 1,
+    confirmAgeUnder18: 1,
     deleteAccount: 1,
     deleteTopicComment: 1,
     gradeQuest: 1,
@@ -453,8 +469,11 @@ var APP_CHECK_CALLABLES = {
     recordNachoAnalytics: 1,
     reportTopicComment: 1,
     resetLightningAddressOnce: 1,
+    setPrivacyShareOptOut: 1,
+    sparkCitizenTeaser: 1,
     startQuest: 1,
     startScholarExam: 1,
+    submitSurvey: 1,
     syncEmailChange: 1,
     syncUserFactionPoints: 1,
     tctvDripCheckin: 1,
@@ -976,9 +995,9 @@ function initRanking() {
                 var _redirName = localStorage.getItem('btc_pending_username') || '';
                 if (_redirName) {
                     try { await applyServerUsername(_redirName); }
-                    catch (nameErr) { if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 400); }
-                } else if (typeof showUsernamePrompt === 'function') {
-                    setTimeout(showUsernamePrompt, 400);
+                    catch (nameErr) { setTimeout(showNewAccountNamePrompt, 400); }
+                } else {
+                    setTimeout(showNewAccountNamePrompt, 400);
                 }
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
                 if (typeof attachReferral === 'function') attachReferral(user.uid);
@@ -1635,6 +1654,12 @@ function accountEmailAction(user) {
     if (oauthOwnsEmail(user)) return 'provider';
     if (!user.email) return 'add';
     return 'change';
+}
+
+// Sats hold end time for the settings banner. The year is always shown so a
+// hold that runs into next year does not read as already over.
+function formatSatsHoldUntil(ms, locale) {
+    return new Date(Number(ms) || 0).toLocaleString(locale, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 async function syncAccountEmailFromAuth() {
@@ -2376,13 +2401,6 @@ async function finishEmailSignIn(email, _signInUrl) {
             }
             try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
             if (typeof attachReferral === 'function') attachReferral(emailUid);
-            if (pendingUsername) {
-                try { await applyServerUsername(pendingUsername); }
-                catch (nameErr) {
-                    showToast(nameErr.message || 'Pick a different username.');
-                    if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
-                }
-            }
         }
         var guestHold = false;
         if (typeof tryLinkGuest === 'function') {
@@ -2392,6 +2410,29 @@ async function finishEmailSignIn(email, _signInUrl) {
         // Keep the guest profile when the merge is waiting on the 2FA gate.
         if (anonUid && anonUid !== emailUid && !guestHold) {
             try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
+        }
+
+        // New email-link accounts (and existing docs with no name) must get
+        // the username step. Wait until after tryLinkGuest, then read the
+        // merged account from the server — never the guest's in-memory
+        // profile. showUsernamePrompt opens Settings for a signed-in user,
+        // so use showNewAccountNamePrompt. The prompt re-checks the server
+        // name again before it opens (and after Terms / the age step).
+        var existingName = '';
+        try {
+            var afterLink = await db.collection('users').doc(emailUid).get();
+            if (afterLink && afterLink.exists && afterLink.data()) existingName = afterLink.data().username || '';
+        } catch (eName) {}
+        if (!String(existingName).trim()) {
+            if (pendingUsername) {
+                try { await applyServerUsername(pendingUsername); }
+                catch (nameErr) {
+                    showToast(nameErr.message || 'Pick a different username.');
+                    showNewAccountNamePrompt();
+                }
+            } else {
+                showNewAccountNamePrompt();
+            }
         }
 
         // Clean URL
@@ -3232,10 +3273,10 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
             try { await applyServerUsername(_nameTry); }
             catch (nameErr) {
                 showToast(nameErr.message || 'Pick a different username.');
-                if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+                showNewAccountNamePrompt();
             }
-        } else if (typeof showUsernamePrompt === 'function') {
-            showUsernamePrompt();
+        } else {
+            showNewAccountNamePrompt();
         }
     } else {
         // Returning user - apply fields they typed only if not already set
@@ -4294,7 +4335,7 @@ async function loadUser(uid, prefetchedDoc) {
         if (user && !user.isAnonymous) {
             const newData = clientCreatePayload({});
             await db.collection('users').doc(uid).set(newData);
-            if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 400);
+            setTimeout(showNewAccountNamePrompt, 400);
             currentUser = { uid, ...newData };
             rankingReady = true;
             window._badgesReady = true;
@@ -4399,6 +4440,8 @@ function invitedReferralCount(user) {
 var _homeInvitedCount = 0;
 var _homeMaxiCount = 0;
 var _homeReachedCount = 0;
+var _homeQualifiesCount = 0;
+var _homeJoinedBeforeCount = 0;
 
 function serverReachedReferralCount(user) {
     var raw = user && user.referralMaxiReachedCount;
@@ -4408,7 +4451,7 @@ function serverReachedReferralCount(user) {
 }
 window.serverReachedReferralCount = serverReachedReferralCount;
 
-function paintInviteTier(count, invited, reached) {
+function paintInviteTier(count, invited, reached, qualifies, joinedBefore) {
     var api = referralTierApi();
     var n = (api && typeof api.normalizeCount === 'function') ? api.normalizeCount(count) : (Number(count) || 0);
     var progress = (api && typeof api.tierProgress === 'function') ? api.tierProgress(n) : {
@@ -4422,9 +4465,15 @@ function paintInviteTier(count, invited, reached) {
     if (!isFinite(inv) || inv < 0) inv = 0;
     var reachedN = (typeof reached === 'number') ? Math.floor(reached) : serverReachedReferralCount(user);
     if (!isFinite(reachedN) || reachedN < 0) reachedN = n;
+    var qualifiesN = (typeof qualifies === 'number') ? Math.floor(qualifies) : reachedN;
+    if (!isFinite(qualifiesN) || qualifiesN < 0) qualifiesN = reachedN;
+    var joinedN = (typeof joinedBefore === 'number') ? Math.floor(joinedBefore) : 0;
+    if (!isFinite(joinedN) || joinedN < 0) joinedN = 0;
     _homeInvitedCount = inv;
     _homeMaxiCount = n;
     _homeReachedCount = reachedN;
+    _homeQualifiesCount = qualifiesN;
+    _homeJoinedBeforeCount = joinedN;
     var tierEl = document.getElementById('homeInvitesTier');
     var noteEl = document.getElementById('homeInvitesNote');
     var progEl = document.getElementById('homeInvitesProgress');
@@ -4432,11 +4481,11 @@ function paintInviteTier(count, invited, reached) {
     var openBtn = document.getElementById('homeInvitesOpen') || tile;
     if (tierEl) tierEl.textContent = progress.tierLabel;
     var noteText = (api && typeof api.reachedRewardLabel === 'function')
-        ? api.reachedRewardLabel(reachedN, n)
-        : (String(reachedN) + ' reached · ' + String(n) + ' rewarded');
+        ? api.reachedRewardLabel(reachedN, qualifiesN, joinedN)
+        : (String(reachedN) + ' reached, ' + String(qualifiesN) + (qualifiesN === 1 ? ' qualifies' : ' qualify'));
     if (noteEl) noteEl.textContent = noteText;
     var helpEl = document.getElementById('homeInvitesInfoText');
-    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, reachedN, n);
+    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, reachedN, qualifiesN, joinedN);
     if (progEl) progEl.textContent = progress.progressText;
     if (tile) tile.setAttribute('data-referral-tier', String(progress.level));
     if (openBtn) {
@@ -4507,7 +4556,9 @@ window.refreshHomeStrip = function() {
         getReferralStats().then(function (stats) {
             if (!stats || stats.failed || typeof stats.invited !== 'number') return;
             var reached = typeof stats.reached === 'number' ? stats.reached : 0;
-            paintInviteTier(serverMaxiReferralCount(user), stats.invited, reached);
+            var qualifies = typeof stats.qualifies === 'number' ? stats.qualifies : reached;
+            var joinedBefore = typeof stats.joinedBefore === 'number' ? stats.joinedBefore : 0;
+            paintInviteTier(serverMaxiReferralCount(user), stats.invited, reached, qualifies, joinedBefore);
         }).catch(function () {});
     }
     if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
@@ -4652,7 +4703,7 @@ function bindReferralTierLadder() {
         help.addEventListener('mouseleave', hoverClose);
     }
     var api = referralTierApi();
-    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount);
+    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeQualifiesCount, _homeJoinedBeforeCount);
 }
 bindReferralTierLadder();
 
@@ -4662,7 +4713,7 @@ function setMaxiInfoOpen(open) {
     if (!tip) return;
     if (tip.parentElement !== document.body) document.body.appendChild(tip);
     var api = referralTierApi();
-    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount);
+    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeQualifiesCount, _homeJoinedBeforeCount);
     tip.classList.toggle('is-open', !!open);
     if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (!open) return;
@@ -4977,7 +5028,7 @@ function ensureUsernameRepickStyle() {
     if (document.getElementById('usernameRepickStyle')) return;
     var style = document.createElement('style');
     style.id = 'usernameRepickStyle';
-    style.textContent = '#usernameRepick{position:fixed;inset:0;z-index:2100010;background:var(--overlay,rgba(0,0,0,.72));overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;}' +
+    style.textContent = '#usernameRepick{position:fixed;inset:0;z-index:2100013;background:var(--overlay,rgba(0,0,0,.72));overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;}' +
         '#usernameRepick .username-box{width:min(400px,100%);max-width:400px;margin:24px auto;box-sizing:border-box;}' +
         '#usernameRepick h2{font-size:1.2rem;line-height:1.35;overflow-wrap:anywhere;}' +
         '#usernameRepick input{font-size:16px;box-sizing:border-box;}' +
@@ -5004,11 +5055,131 @@ function usernameRepickFailure(e) {
     return msg;
 }
 
-function showUsernameRepickPrompt() {
-    if (tosBlocking()) {
-        window.runAfterTos(function() { showUsernameRepickPrompt(); });
+function ageOverlayOpen() {
+    try {
+        return !!(typeof document !== 'undefined' && document.getElementById && document.getElementById('ageConfirmOverlay'));
+    } catch (eAgeEl) { return false; }
+}
+
+// True only when the age overlay is on screen or age-confirm has started
+// a decision for the current user and has not finished it yet. A leftover
+// queue state from a prior guest session (often 'skip') is not "done" and
+// is not used here — that gap is how the name sheet opened on top of age.
+function ageDecisionPending() {
+    if (ageOverlayOpen()) return true;
+    try {
+        if (typeof window !== 'undefined' && window._bqAgeDecision === 'pending') return true;
+    } catch (eDec) {}
+    return false;
+}
+
+function ageConfirmBlocking() {
+    return ageDecisionPending();
+}
+
+function runAfterAge(fn) {
+    if (typeof fn !== 'function') return;
+    if (!ageDecisionPending()) { fn(); return; }
+    if (typeof window === 'undefined') { fn(); return; }
+    window._deferUntilAge = window._deferUntilAge || [];
+    window._deferUntilAge.push(fn);
+}
+
+function flushAfterAge() {
+    if (typeof window !== 'undefined') {
+        window._bqAgeDecision = 'done';
+        var queued = window._deferUntilAge || [];
+        window._deferUntilAge = [];
+        queued.forEach(function(fn) { try { fn(); } catch (e) {} });
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.runAfterAge = runAfterAge;
+    window.flushAfterAge = flushAfterAge;
+}
+
+function signedInEmailUid() {
+    try {
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            return auth.currentUser.uid || '';
+        }
+    } catch (eUid) {}
+    return '';
+}
+
+function readServerUsername(uid, cb) {
+    if (typeof cb !== 'function') return;
+    if (!uid || typeof db === 'undefined' || !db || typeof db.collection !== 'function') {
+        cb('');
         return;
     }
+    db.collection('users').doc(uid).get().then(function (snap) {
+        var name = '';
+        try {
+            if (snap && snap.exists && typeof snap.data === 'function') {
+                name = String((snap.data() || {}).username || '').trim();
+            }
+        } catch (eName) {}
+        cb(name);
+    }).catch(function () { cb(''); });
+}
+
+function copyUsernamePromptOpts(opts) {
+    var next = {};
+    if (!opts) return next;
+    for (var k in opts) {
+        if (Object.prototype.hasOwnProperty.call(opts, k)) next[k] = opts[k];
+    }
+    return next;
+}
+
+function showUsernameRepickPrompt(opts) {
+    opts = opts || {};
+    if (tosBlocking()) {
+        window.runAfterTos(function() { showUsernameRepickPrompt(opts); });
+        return;
+    }
+    // Fresh sign-up: re-read the signed-in account from the server before
+    // opening, so a guest name merged by tryLinkGuest is not missed. The
+    // in-memory guest profile is never used as the source of truth.
+    if (opts.fresh && !opts._nameChecked) {
+        var uid = signedInEmailUid();
+        if (uid && typeof db !== 'undefined' && db && typeof db.collection === 'function') {
+            readServerUsername(uid, function (name) {
+                if (name) return;
+                var checked = copyUsernamePromptOpts(opts);
+                checked._nameChecked = true;
+                showUsernameRepickPrompt(checked);
+            });
+            return;
+        }
+    }
+    // New accounts: Terms, then the age step, then the username step.
+    // Hook to the age queue's done/confirm (flushAfterAge), not a polled
+    // queue-state check. Keep the 100-try cap as a fallback, but never
+    // open while the age overlay is visible.
+    if (opts.fresh && ageDecisionPending()) {
+        var waitTries = opts._ageWaitTries || 0;
+        if (waitTries < 100) {
+            if (!opts._ageHooked) {
+                var hooked = copyUsernamePromptOpts(opts);
+                hooked._nameChecked = false;
+                hooked._ageHooked = true;
+                runAfterAge(function () { showUsernameRepickPrompt(hooked); });
+            }
+            var nextOpts = copyUsernamePromptOpts(opts);
+            nextOpts._ageWaitTries = waitTries + 1;
+            nextOpts._ageHooked = true;
+            // Keep _nameChecked so a 300ms tick does not re-read users/{uid}.
+            setTimeout(function () { showUsernameRepickPrompt(nextOpts); }, 300);
+            return;
+        }
+        // Cap hit: stop quietly if the overlay is still up. If it is gone,
+        // fall through so the Friday prompt is not lost.
+        if (ageOverlayOpen()) return;
+    }
+    if (opts.fresh && ageOverlayOpen()) return;
     if (document.getElementById('usernameRepick')) return;
     ensureUsernameRepickStyle();
     var signup = document.getElementById('usernameModal');
@@ -5028,7 +5199,7 @@ function showUsernameRepickPrompt() {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', 'usernameRepickTitle');
-    var _neverNamed = typeof window.usernameNeverPicked === 'function' && typeof currentUser !== 'undefined' && window.usernameNeverPicked(currentUser);
+    var _neverNamed = !!(opts && opts.fresh) || typeof window.usernameNeverPicked === 'function' && typeof currentUser !== 'undefined' && window.usernameNeverPicked(currentUser);
     overlay.innerHTML = '<div class="username-box glass-dark">' +
         '<h2 id="usernameRepickTitle">' + (_neverNamed ? 'Pick a username so you show up on the leaderboard' : 'Your username needs updating. Please pick a new one') + '</h2>' +
         '<p>This stays open until the new name is saved.</p>' +
@@ -5069,6 +5240,12 @@ function showUsernameRepickPrompt() {
     }
 }
 window.showUsernameRepickPrompt = showUsernameRepickPrompt;
+
+// A new signed-in account has no name yet. showUsernamePrompt opens Settings
+// for any signed-in user, so go straight to the username step instead.
+function showNewAccountNamePrompt() {
+    showUsernameRepickPrompt({ fresh: true });
+}
 
 function maybeShowUsernameRepick() {
     var needed = window.usernameRepickNeeded;
@@ -7655,16 +7832,17 @@ function _lbXpRowHtml(d, period, index) {
     if (d.earnedHidden && d.earnedHidden.indexOf('cert_scholar') !== -1) certIcons += ' 🎓';
     if (d.earnedHidden && d.earnedHidden.indexOf('cert_tech') !== -1) certIcons += ' 🛠️';
     var safeId = String(d.id || '').replace(/[^A-Za-z0-9_-]/g, '');
-    var _lbTipData = JSON.stringify({ recipientName: d.username || 'Anon', recipientUid: safeId, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+    var _lbName = (typeof d.username === 'string' ? d.username : '') || 'Anon';
+    var _lbTipData = JSON.stringify({ recipientName: _lbName, recipientUid: safeId, lightningAddress: typeof d.lightningAddress === 'string' && d.lightningAddress ? d.lightningAddress : (typeof d.lightning === 'string' ? d.lightning : ''), context: 'leaderboard', label: 'Tip ' + _lbName }).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     var _lbNameStyle = d.faction && typeof window._factionNameStyle === 'function' ? window._factionNameStyle(d.faction) : '';
     var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
     var score = period === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : period === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP';
     return '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
         '<span class="lb-rank">' + medal + '</span>' +
         '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-        '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + (d._you ? ' (you)' : '') + statusDot + certIcons + '</span>' +
+        '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(_lbName) + (d._you ? ' (you)' : '') + statusDot + certIcons + '</span>' +
         '<span class="lb-score">' + score + '</span>' +
-        '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
+        '<span data-lb-tip="1" onclick="event.stopPropagation();if(window._tipFromEl)_tipFromEl(this)" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(_lbName) + '">⚡</span>' +
         '</div>';
 }
 
@@ -8012,6 +8190,106 @@ function _predLbFillProgress(period, data) {
     else el.textContent = '';
 }
 
+
+/* LB_SORTS_START */
+// Client-only sort toggles for Quests, PvP, and Predictions.
+// Defaults stay total (quests completed, wins, correct predictions).
+// Percent sorts use LB_PCT_MIN_ATTEMPTS when the row has a count.
+var LB_PCT_MIN_ATTEMPTS = 10;
+var LB_SORT_STORAGE = { quest: 'btc_lb_sort_quest', pvp: 'btc_lb_sort_pvp', predict: 'btc_lb_sort_predict' };
+
+function _lbSortMode(board) {
+    try {
+        var raw = localStorage.getItem(LB_SORT_STORAGE[board] || '');
+        if (raw === 'pct') return 'pct';
+    } catch (e) {}
+    return 'total';
+}
+
+function _lbSetSortMode(board, mode) {
+    var next = mode === 'pct' ? 'pct' : 'total';
+    try { localStorage.setItem(LB_SORT_STORAGE[board], next); } catch (e) {}
+    if (board === 'quest' && typeof _renderQuestBoard === 'function') _renderQuestBoard();
+    else if (board === 'predict' && typeof _renderPredictorBoard === 'function') _renderPredictorBoard();
+    else if (board === 'pvp') {
+        var el = document.getElementById('pvpLeaderboardList');
+        if (el && typeof _renderPvpSnapshot === 'function') _renderPvpSnapshot(el, window._pvpLbDoc || { rows: [] });
+    }
+}
+window._lbSetSortMode = _lbSetSortMode;
+
+function _lbPctValue(numer, denom) {
+    var n = Number(numer) || 0;
+    var d = Number(denom) || 0;
+    if (d <= 0) return 0;
+    return Math.round((n / d) * 100);
+}
+
+function _lbSortRows(rows, opts) {
+    opts = opts || {};
+    var mode = opts.mode === 'pct' ? 'pct' : 'total';
+    var min = opts.min != null ? opts.min : LB_PCT_MIN_ATTEMPTS;
+    var list = (rows || []).map(function(row) {
+        var copy = {};
+        if (row) {
+            for (var k in row) {
+                if (Object.prototype.hasOwnProperty.call(row, k)) copy[k] = row[k];
+            }
+        }
+        return copy;
+    });
+    function totalOf(row) { return Number(opts.totalOf ? opts.totalOf(row) : (row[opts.totalKey] || 0)) || 0; }
+    function denomOf(row) { return Number(opts.denomOf ? opts.denomOf(row) : (row[opts.denomKey] || 0)) || 0; }
+    function pctOf(row) {
+        if (typeof opts.pctOf === 'function') return opts.pctOf(row);
+        if (row.pct != null && row.pct !== '' && isFinite(Number(row.pct))) return Number(row.pct);
+        return _lbPctValue(row[opts.numerKey], denomOf(row));
+    }
+    if (mode === 'pct' && opts.applyMin) {
+        list = list.filter(function(row) { return denomOf(row) >= min; });
+    }
+    list.sort(function(a, b) {
+        if (mode === 'pct') {
+            var ap = pctOf(a);
+            var bp = pctOf(b);
+            if (bp !== ap) return bp - ap;
+        }
+        var at = totalOf(a);
+        var bt = totalOf(b);
+        if (bt !== at) return bt - at;
+        if (mode !== 'pct') {
+            var ap2 = pctOf(a);
+            var bp2 = pctOf(b);
+            if (bp2 !== ap2) return bp2 - ap2;
+        }
+        var an = String((a && a.username) || '').toLowerCase();
+        var bn = String((b && b.username) || '').toLowerCase();
+        if (an !== bn) return an < bn ? -1 : 1;
+        return String((a && a.uid) || '').localeCompare(String((b && b.uid) || ''));
+    });
+    list.forEach(function(row, i) { row.rank = i + 1; });
+    return list;
+}
+
+function _lbSortToggleHtml(board, totalLabel, pctLabel) {
+    var mode = _lbSortMode(board);
+    function btn(value, label) {
+        var on = mode === value;
+        return '<button type="button" onclick="event.stopPropagation();_lbSetSortMode(\'' + board + '\',\'' + value + '\')" style="flex:1;min-width:0;padding:5px 4px;border:1px solid ' + (on ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (on ? 'var(--accent)' : 'none') + ';color:' + (on ? '#fff' : 'var(--text-muted)') + ';font-size:0.7rem;font-weight:' + (on ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + label + '</button>';
+    }
+    return '<div class="lb-sort-toggles" data-lb-sort="' + board + '" style="display:flex;gap:4px;padding:0 0 10px;">' +
+        btn('total', totalLabel) +
+        btn('pct', pctLabel) +
+        '</div>';
+}
+
+function _lbPctFilterNote(board, mode, count, skipped) {
+    if (mode !== 'pct' || !skipped) return '';
+    var noun = board === 'pvp' ? 'matches' : (board === 'predict' ? 'predictions' : 'attempts');
+    return '<div class="lb-sort-note" style="font-size:0.72rem;color:var(--text-muted);margin:0 0 8px;">Showing people with at least ' + LB_PCT_MIN_ATTEMPTS + ' ' + noun + '.</div>';
+}
+/* LB_SORTS_END */
+
 function _renderPredictorBoard() {
     var root = document.getElementById('predictorBoard');
     if (!root) return;
@@ -8028,12 +8306,22 @@ function _renderPredictorBoard() {
         var active = period === p[0];
         html += '<button type="button" onclick="_predLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
     });
-    html += '</div>' + _lbRankBox('predict') + '<div id="predictorLeaderboardList">';
-    if (!rows.length) {
-        html += '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No Questers have qualified yet.</div>';
+    html += '</div>' + _lbSortToggleHtml('predict', 'Correct predictions', 'Correct %') + _lbRankBox('predict') + '<div id="predictorLeaderboardList">';
+    var predMode = _lbSortMode('predict');
+    var predSorted = _lbSortRows(rows, {
+        mode: predMode,
+        applyMin: true,
+        totalKey: 'correct',
+        numerKey: 'correct',
+        denomKey: 'total'
+    });
+    var predSkipped = Math.max(0, rows.length - predSorted.length);
+    if (predMode === 'pct') html += _lbPctFilterNote('predict', predMode, predSorted.length, predSkipped);
+    if (!predSorted.length) {
+        html += '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">' + (predSkipped ? 'Nobody has ' + LB_PCT_MIN_ATTEMPTS + ' or more predictions yet.' : 'No Questers have qualified yet.') + '</div>';
     } else {
         var myUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : '';
-        var predSplit = _lbSplitRows(rows, function (entry) {
+        var predSplit = _lbSplitRows(predSorted, function (entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var correctN = Number(entry.correct) || 0;
@@ -8239,12 +8527,21 @@ function _renderQuestBoard() {
         var active = period === p[0];
         html += '<button type="button" onclick="_questLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
     });
-    html += '</div>' + _lbRankBox('quest') + '<div id="questLeaderboardList">';
-    if (!rows.length) {
+    html += '</div>' + _lbSortToggleHtml('quest', 'Quests completed', 'Correct %') + _lbRankBox('quest') + '<div id="questLeaderboardList">';
+    var questMode = _lbSortMode('quest');
+    // Quest snapshot rows have passes and pct only, not attempts, so the
+    // percent sort cannot apply LB_PCT_MIN_ATTEMPTS here.
+    var questSorted = _lbSortRows(rows, {
+        mode: questMode,
+        applyMin: false,
+        totalKey: 'passes',
+        numerKey: 'passes'
+    });
+    if (!questSorted.length) {
         html += '<div class="quest-lb-empty">Nobody has qualified yet.</div>';
     } else {
         var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
-        var questSplit = _lbSplitRows(rows, function (entry) {
+        var questSplit = _lbSplitRows(questSorted, function (entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var rawName = entry.username || '';
@@ -8311,35 +8608,49 @@ async function _loadQuestLeaderboard() {
 // PVP leaderboard. One snapshot doc, already ordered by win rate. Wins and losses are on each row.
 function _renderPvpSnapshot(container, doc) {
     if (!container) return;
+    if (doc) window._pvpLbDoc = doc;
     var rows = (doc && doc.rows) || [];
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    if (!rows.length && !(currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0)) {
-        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
+    var pvpMode = _lbSortMode('pvp');
+    var pvpSorted = _lbSortRows(rows, {
+        mode: pvpMode,
+        applyMin: true,
+        totalOf: function(row) { return Number(row.wins) || 0; },
+        denomOf: function(row) { return (Number(row.wins) || 0) + (Number(row.losses) || 0); },
+        pctOf: function(row) { return _lbPctValue(row.wins, (Number(row.wins) || 0) + (Number(row.losses) || 0)); }
+    });
+    var pvpSkipped = Math.max(0, rows.length - pvpSorted.length);
+    if (!pvpSorted.length && !(currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0)) {
+        container.innerHTML = _lbSortToggleHtml('pvp', 'Wins', 'Win %') +
+            (pvpSkipped ? '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">Nobody has ' + LB_PCT_MIN_ATTEMPTS + ' or more matches yet.</div>' :
+            '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>');
         return;
     }
     var seenMe = false;
-    var pvpSplit = _lbSplitRows(rows, function (p) {
+    var pvpHead = _lbSortToggleHtml('pvp', 'Wins', 'Win %') + _lbPctFilterNote('pvp', pvpMode, pvpSorted.length, pvpSkipped);
+    var pvpSplit = _lbSplitRows(pvpSorted, function (p) {
         var rank = p.rank || 0;
         var wins = p.wins || 0;
         var losses = p.losses || 0;
         var safeId = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
         var isMe = !!(myUid && safeId === myUid);
         if (isMe) seenMe = true;
-        var name = escapeHtml(p.username || 'Anon');
+        var _pvpName = (typeof p.username === 'string' ? p.username : '') || 'Anon';
+        var name = escapeHtml(_pvpName);
         var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
         var pvpIcon = wins >= 100 ? '👑' : wins >= 50 ? '🏆' : wins >= 25 ? '🏟️' : wins >= 5 ? '🥊' : '⚔️';
         var record = LbPrefix.pvpRecordText(wins, losses);
-        var _pvpTipData = JSON.stringify({ recipientName: p.username || 'Anon', recipientUid: safeId, lightningAddress: p.lightningAddress || '', context: 'pvp', label: 'Tip ' + (p.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+        var _pvpTipData = JSON.stringify({ recipientName: _pvpName, recipientUid: safeId, lightningAddress: typeof p.lightningAddress === 'string' ? p.lightningAddress : '', context: 'pvp', label: 'Tip ' + _pvpName }).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         var peerTag = (window._myPeers && window._myPeers.has(safeId)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
         return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
             '<span class="lb-rank">' + medal + '</span>' +
             '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
             '<span class="lb-name">' + peerTag + name + '</span>' +
             '<span class="lb-score">' + record + '</span>' +
-            '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + name + '">⚡</span>' +
+            '<span data-lb-tip="1" onclick="event.stopPropagation();if(window._tipFromEl)_tipFromEl(this)" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + name + '">⚡</span>' +
             '</div>';
     });
-    var pvpHtml = pvpSplit.html;
+    var pvpHtml = pvpHead + pvpSplit.html;
     if (pvpSplit.rest) pvpHtml += _lbMoreButton(_lbStashMore(pvpSplit.rest), pvpSplit.total, 'players');
     if (!seenMe && currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0) {
         var mine = LbPrefix.pvpRecordText(currentUser.pvpWins, currentUser.pvpLosses);
@@ -8397,12 +8708,21 @@ window._showToastNow = function _showToastNow(msg, duration) {
     requestAnimationFrame(() => t.classList.add('show'));
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, ms);
 }
-// Flush queued toasts when Nacho is no longer busy
-setInterval(function() {
-    if (!window._nachoBusy && !chromeBlocksToasts() && _toastQueue.length > 0) {
-        _showToastNow(_toastQueue.shift());
-    }
-}, 2000);
+// Flush queued toasts as soon as Nacho, Terms and sign-up stop blocking.
+// Checked every 250ms so the first queued toast shows right away, then the
+// rest follow 1.2s apart instead of waiting up to 2s each.
+var TOAST_QUEUE_TICK_MS = 250;
+var TOAST_QUEUE_GAP_MS = 1200;
+var _toastQueueLastShow = 0;
+function _flushToastQueueTick(now) {
+    if (!_toastQueue.length || window._nachoBusy || chromeBlocksToasts()) return false;
+    now = now || Date.now();
+    if (now - _toastQueueLastShow < TOAST_QUEUE_GAP_MS) return false;
+    _toastQueueLastShow = now;
+    _showToastNow(_toastQueue.shift());
+    return true;
+}
+setInterval(function() { _flushToastQueueTick(); }, TOAST_QUEUE_TICK_MS);
 
 // Capture all sign-up form fields to localStorage before any auth provider fires.
 // This ensures username, LN address, faction, and country survive popup/redirect auth.
@@ -9134,7 +9454,7 @@ function showSettingsPage(tab) {
         var settingsEmoji = getUserDisplayEmoji(lvl);
         var _pfpUrl = currentUser ? currentUser.profilePic || '' : '';
         var _pfpHtml = _pfpUrl
-            ? ('<img src="' + (_pfpUrl && /^data:image\//i.test(_pfpUrl) ? _pfpUrl : escapeHtml(sanitizeUrl(_pfpUrl))) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Click to change photo">')
+            ? ('<img src="' + escapeHtml(sanitizeUrl(_pfpUrl)) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Click to change photo">')
             : '<div style="font-size:2.5rem;margin-bottom:0;">' + settingsEmoji + '</div>';
         // Build title pill for own profile
         var _activeTitleId = currentUser ? currentUser.activeTitle || '' : '';
@@ -9205,7 +9525,7 @@ function showSettingsPage(tab) {
             '<div style="text-align:center;">' +
                 (_pfpUrl
                     ? ('<div style="position:relative;display:inline-block;margin-bottom:12px;cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Click to change photo">' +
-                        '<img src="' + (_pfpUrl && /^data:image\//i.test(_pfpUrl) ? _pfpUrl : escapeHtml(sanitizeUrl(_pfpUrl))) + '" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 16px rgba(247,147,26,0.3);display:block;" onerror="this.style.display=\'none\'">' +
+                        '<img src="' + escapeHtml(sanitizeUrl(_pfpUrl)) + '" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 16px rgba(247,147,26,0.3);display:block;" onerror="this.style.display=\'none\'">' +
                         '<div style="position:absolute;bottom:2px;right:2px;background:var(--accent);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;border:2px solid var(--bg-side);">✏️</div>' +
                        '</div>')
                     : '<div style="width:96px;height:96px;border-radius:50%;background:var(--bg);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:2.5rem;margin:0 auto 12px;">👤</div>') +
@@ -9863,6 +10183,15 @@ function accountDeleteRowHtml(user) {
         var claimReqMap = (currentUser && currentUser.claimReq && typeof currentUser.claimReq === 'object') ? currentUser.claimReq : {};
         var chatReqMet = claimStampMs(claimReqMap.chatAt) > 0;
         var tctvReqMet = claimStampMs(claimReqMap.tctvAt) > 0;
+        function progressCount(value) {
+            if (Array.isArray(value)) return value.length;
+            var n = Number(value);
+            return isFinite(n) ? n : 0;
+        }
+        var learnReqMet = Math.floor(progressCount(currentUser && currentUser.questsPassed)) >= 1
+            || Math.floor(progressCount(currentUser && currentUser.lqPassed)) >= 1;
+        var antiBotMet = tctvReqMet || learnReqMet;
+        var originalsOn = !!(window._tctvOriginals && typeof window._tctvOriginals.taskEnabled === 'function' && window._tctvOriginals.taskEnabled());
         var holdRaw = currentUser ? currentUser.satsHold : 0;
         var holdUntil = 0;
         if (holdRaw && typeof holdRaw.seconds === 'number') holdUntil = holdRaw.seconds * 1000;
@@ -9872,7 +10201,7 @@ function accountDeleteRowHtml(user) {
         var satsHeld = holdUntil > now;
 
         // Eligibility checks. New accounts also need the chat and TCTV server stamps.
-        var newReqsMet = claimExempt || (chatReqMet && tctvReqMet);
+        var newReqsMet = claimExempt || (chatReqMet && antiBotMet);
         var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10 && newReqsMet;
         var meetsMin = satsBalance >= 100;
 
@@ -9883,7 +10212,7 @@ function accountDeleteRowHtml(user) {
         html += '</div>';
 
         if (satsHeld) {
-            var holdWhen = new Date(holdUntil).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+            var holdWhen = formatSatsHoldUntil(holdUntil);
             html += '<div id="satsHoldNotice" style="background:rgba(239,68,68,0.12);border:1px solid #ef4444;border-radius:12px;padding:12px;margin-bottom:16px;color:#ef4444;font-size:0.9rem;font-weight:700;line-height:1.45;">Sats withdrawals are paused until ' + holdWhen + '</div>';
         }
 
@@ -9972,10 +10301,14 @@ function accountDeleteRowHtml(user) {
         var CLAIM_TCTV_SECONDS = 60;
         if (claimExempt) {
             checks.push({ na: true, met: true, label: 'Send 1 message in Chat', detail: 'N/A · account before Nov 5' });
-            checks.push({ na: true, met: true, label: 'Watch Timechain TV', detail: 'N/A · account before Nov 5' });
+            checks.push({ na: true, met: true, label: originalsOn ? 'Watch Bitcoin Quest Originals' : 'Complete 1 lesson or quiz', detail: 'N/A · account before Nov 5' });
         } else {
             checks.push({ met: chatReqMet, label: 'Send 1 message in Chat', detail: chatReqMet ? '✓ Message sent' : 'Send a short real message in Chat', go: 'openClaimChat()' });
-            checks.push({ met: tctvReqMet, label: 'Watch Timechain TV', detail: tctvReqMet ? ('✓ ' + CLAIM_TCTV_SECONDS + ' seconds watched') : ('Watch at least ' + CLAIM_TCTV_SECONDS + ' seconds of a video'), go: 'openClaimTv()' });
+            if (originalsOn) {
+                checks.push({ met: antiBotMet, label: 'Watch Bitcoin Quest Originals', detail: antiBotMet ? (tctvReqMet ? ('✓ ' + CLAIM_TCTV_SECONDS + ' seconds watched') : '✓ Lesson or quiz completed') : ('Watch at least ' + CLAIM_TCTV_SECONDS + ' seconds of a Bitcoin Quest Original'), go: 'openClaimTv()' });
+            } else {
+                checks.push({ met: antiBotMet, label: 'Complete 1 lesson or quiz', detail: antiBotMet ? '✓ Lesson or quest completed' : 'Pass one learning quest or lesson', go: 'openClaimLearn()' });
+            }
         }
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
@@ -9996,12 +10329,15 @@ function accountDeleteRowHtml(user) {
             db.collection('users').doc(user.uid).get().then(function(snap) {
                 window._claimReqPull = false;
                 if (!snap.exists || typeof currentUser === 'undefined' || !currentUser) return;
-                var nextReq = snap.data().claimReq || null;
-                var prevKey = claimStampMs(claimReqMap.chatAt) + ':' + claimStampMs(claimReqMap.tctvAt);
+                var nextData = snap.data() || {};
+                var nextReq = nextData.claimReq || null;
+                var prevKey = claimStampMs(claimReqMap.chatAt) + ':' + claimStampMs(claimReqMap.tctvAt) + ':' + progressCount(currentUser && currentUser.questsPassed) + ':' + progressCount(currentUser && currentUser.lqPassed);
                 var nextMap = (nextReq && typeof nextReq === 'object') ? nextReq : {};
-                var nextKey = claimStampMs(nextMap.chatAt) + ':' + claimStampMs(nextMap.tctvAt);
+                var nextKey = claimStampMs(nextMap.chatAt) + ':' + claimStampMs(nextMap.tctvAt) + ':' + progressCount(nextData.questsPassed) + ':' + progressCount(nextData.lqPassed);
                 if (prevKey === nextKey) return;
                 currentUser.claimReq = nextReq;
+                if (nextData.questsPassed != null) currentUser.questsPassed = nextData.questsPassed;
+                if (nextData.lqPassed != null) currentUser.lqPassed = nextData.lqPassed;
                 if (settingsTab === 'sats' && window._satsSubTab !== 'donate') showSettingsPage('sats');
             }).catch(function() { window._claimReqPull = false; });
         }
@@ -10157,6 +10493,17 @@ function accountDeleteRowHtml(user) {
             '<div style="color:var(--text-muted);font-size:14px;margin-bottom:12px;line-height:1.5;">Choose how much you see. Open What\'s included before you pick. Your XP stays either way.</div>' +
             '<div id="experienceModePicker"></div>' +
             '<button type="button" onclick="if(window.showOnboardingIntro)window.showOnboardingIntro({force:true})" style="width:100%;margin-top:8px;padding:12px;min-height:44px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--heading);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;">Replay welcome tour</button>' +
+            '</div>';
+
+        var _privOpted = (window.bqAds && typeof window.bqAds.isPrivacyShareOptedOut === 'function') ? window.bqAds.isPrivacyShareOptedOut() : false;
+        var _privGpc = (window.bqAds && typeof window.bqAds.hasGpc === 'function') ? window.bqAds.hasGpc() : false;
+        html += '<div id="bqPrivacyChoices" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Your Privacy Choices</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;line-height:1.5;">Opt out of sharing cookie and device identifiers for personalized ads. Eligible users still see non-personalized ads. We also honor Global Privacy Control (GPC) from your browser.</div>' +
+            '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:0.9rem;">' +
+            '<input type="checkbox" id="bqPrivacyShareOptOut"' + (_privOpted ? ' checked' : '') + ' onchange="if(window.bqAds)window.bqAds.setShareOptOut(this.checked)">' +
+            '<span>Do not sell or share my personal information</span></label>' +
+            '<div id="bqPrivacyChoicesGpcNote" style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);"' + (_privGpc ? '' : ' hidden') + '>Your browser sent a Global Privacy Control signal, so personalized ads are already off.</div>' +
             '</div>';
 
         // Appearance (Theme + Font Size combined)
@@ -10896,6 +11243,23 @@ function accountDeleteRowHtml(user) {
     }
     if (fillSettingsPred) fillSettingsPred();
 
+    if (settingsTab === 'prefs') {
+        setTimeout(function () {
+            var open = false;
+            try {
+                if (sessionStorage.getItem('btc_open_privacy_choices') === '1') {
+                    sessionStorage.removeItem('btc_open_privacy_choices');
+                    open = true;
+                }
+            } catch (e) {}
+            var sec = document.getElementById('bqPrivacyChoices');
+            if (open && sec) {
+                try { sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e2) { try { sec.scrollIntoView(true); } catch (e3) {} }
+            }
+            if (window.bqAds && typeof window.bqAds.updatePrivacyChoicesUi === 'function') window.bqAds.updatePrivacyChoicesUi();
+        }, 0);
+    }
+
     // Auto-focus key inputs after render
     setTimeout(function() {
         if (settingsTab === 'account') {
@@ -11533,8 +11897,9 @@ async function saveProfile() {
         // Update local currentUser object
         Object.assign(currentUser, updateData);
 
-        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Profile saved!</span>';
-        if (typeof showToast === 'function') showToast('✅ Profile saved successfully!');
+        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Saved</span>';
+        // Settings stays open, so this toast shows over it right away.
+        if (typeof showToast === 'function') showToast('✅ Saved');
         if (_profileFreshLn) openWithdrawalAddress({ mode: 'reset', address: _profileFreshLn, start: 'confirm' });
 
         // Small delay then close or refresh settings view
@@ -11954,10 +12319,30 @@ window._acceptTos = async function() {
     if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
     try {
         if (currentUser && auth.currentUser && !auth.currentUser.isAnonymous) {
-            await db.collection('users').doc(auth.currentUser.uid).set({
+            var tosUid = auth.currentUser.uid;
+            var tosRef = db.collection('users').doc(tosUid);
+            var tosDoc = await tosRef.get();
+            // Hardening only: _showTosModal runs after loadUser sees an
+            // existing doc, so this create branch is almost never reached.
+            // created can only be set on create. A TOS-only merge would open
+            // a doc without it, and a later client write cannot add it.
+            var tosMerge = {
                 tosVersion: TOS_CURRENT_VERSION,
                 tosAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            };
+            if (!tosDoc.exists) {
+                try {
+                    await tosRef.set(clientCreatePayload(tosMerge));
+                } catch (tosCreateErr) {
+                    if (!tosCreateErr || tosCreateErr.code !== 'permission-denied') throw tosCreateErr;
+                    await tosRef.set({
+                        tosVersion: TOS_CURRENT_VERSION,
+                        tosAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                }
+            } else {
+                await tosRef.set(tosMerge, { merge: true });
+            }
             currentUser.tosVersion = TOS_CURRENT_VERSION;
             // Update local cache
             try {
@@ -13942,6 +14327,11 @@ window.openClaimTv = function() {
     if (typeof go === 'function') go('timechain-tv');
 };
 
+window.openClaimLearn = function() {
+    if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
+    if (typeof go === 'function') go('quests');
+};
+
 // Device fingerprint for multi-account detection (Fix #3)
 function _generateDeviceFingerprint() {
     try {
@@ -14110,6 +14500,9 @@ window.submitSatsClaim = async function() {
             setTimeout(function() { showSettingsPage('sats'); }, 500);
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
+            if (typeof isSitewideCapError === 'function' && isSitewideCapError(null, result.data)) {
+                if (typeof showSitewideCapCard === 'function') showSitewideCapCard();
+            }
             if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
             if (result.data && (result.data.code === 'address_unresolved' || String(errMsg).indexOf('Could not resolve Lightning Address') !== -1)) {
                 try { sessionStorage.setItem('btc_ln_needs_reset', '1'); } catch (flagErr) {}
@@ -14123,6 +14516,9 @@ window.submitSatsClaim = async function() {
     } catch(e) {
         console.error('Sats claim error:', e);
         var errMsg = e.message || 'Claim failed - try again';
+        if (typeof isSitewideCapError === 'function' && isSitewideCapError(e)) {
+            if (typeof showSitewideCapCard === 'function') showSitewideCapCard();
+        }
         if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
         window._satsClaimInProgress = false;
         btn.disabled = false;

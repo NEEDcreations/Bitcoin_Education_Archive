@@ -50,6 +50,8 @@ const APP_QUESTIONS = {
     "quest-hub": ["What does the Quest Hub contain?", "How do I open the Quest Hub?"],
     "onboarding-intro": ["What is the welcome tour?", "How do I start the welcome tour?"],
     faq: ["What is the FAQ and guide?", "How do I open the FAQ?"],
+    "patch-notes": ["Where are the Patch Notes?", "How do I open Patch Notes?"],
+    resets: ["What is the Resets, Timelines & Odds page?", "How do I open Resets, Timelines & Odds?"],
     shortcuts: ["What are the keyboard shortcuts?", "How do I see the keyboard shortcuts?"],
     "ln-address": ["What is a Lightning address in the app?", "How do I set a Lightning address?"],
     predictions: ["What is the price prediction game?", "How do I play the price prediction game?"],
@@ -310,7 +312,7 @@ async function main() {
         const merged = [];
         const local = new Set();
         function addAlt(phrase) {
-            if (merged.length >= 6) return;
+            if (merged.length >= (entry.maxAlts || 6)) return;
             const fitted = fitQuestion(phrase);
             if (!fitted) return;
             const key = foldKey(fitted);

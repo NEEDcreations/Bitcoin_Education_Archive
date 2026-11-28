@@ -4786,6 +4786,10 @@ function _renderNookHistory() {
 
 // ── CITADEL TAB ──
 function _renderCitadelTab(body) {
+    // Citadel Spark launch view (citadel-spark.js); time-gated to Sat Nov 28, 2026, 12:00 AM ET.
+    if (window.CitadelSpark && typeof window.CitadelSpark.renderTab === 'function') {
+        try { if (window.CitadelSpark.renderTab(body)) return; } catch (e) { console.warn('[CitadelSpark]', e); }
+    }
     body.innerHTML =
         '<div style="text-align:center;padding:32px 16px;">' +
         '<div style="font-size:3rem;margin-bottom:16px;">🏰</div>' +

@@ -113,6 +113,7 @@ const GATED = Object.freeze({
         'pvpTimeoutOpponent',
         'resetLightningAddressOnce',
         'tctvWatchHeartbeat',
+        'sparkCitizenTeaser',
         'syncStravaWalks',
         'activateHashBooster',
         'useHintToken',
@@ -123,6 +124,7 @@ const GATED = Object.freeze({
         'chooseFaction',
         'managePeer',
         'decryptCipher',
+        'submitSurvey',
     ]),
     // Scheduled jobs that should skip (not fail) while offline. Queued work
     // stays in place and is flushed after the switch is off.

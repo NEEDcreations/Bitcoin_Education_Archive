@@ -50,6 +50,7 @@ const {
     adminClaimFlag,
 } = require('./cipherClaim');
 const { planShoutout, applyShoutoutCap, shoutoutDocId } = require('./shoutout');
+const sitewideCaps = require('./sitewideCaps');
 const { publishShoutoutOnce } = require('./shoutoutPublish');
 const { mirrorShoutoutOnce } = require('./telegramBridge');
 
@@ -762,15 +763,23 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
 
     let applied = null;
     let cipherPointsBefore = 0;
+    let sitewideAlert = null;
 
     await db.runTransaction(async (t) => {
         const cipherDay = getOffsetDateKey();
+        const etDay = sitewideCaps.etDayKey(Date.now());
         const dailyRef = userRef.collection('daily_points').doc(cipherDay);
+        const capsSettingsRef = sitewideCaps.settingsRef(db);
+        const capsDailyRef = sitewideCaps.dailyRef(db, etDay);
+        // Missing cap config -> 30/10 defaults. A get() error aborts
+        // the transaction, so the unlock fails closed.
         const cipherDoc = await t.get(cipherRef);
         const keyDoc = await t.get(keyRef);
         const userDoc = await t.get(userRef);
         const ledgerDoc = await t.get(ledgerRef);
         const dailyDoc = await t.get(dailyRef);
+        const capsSettingsDoc = await t.get(capsSettingsRef);
+        const capsDailyDoc = await t.get(capsDailyRef);
         let openerCreditRef = null;
         let openerCreditSnap = null;
         const openerCreditId = satsMode === 'balance' ? creditDocId(cipherId, 'opener') : '';
@@ -805,6 +814,19 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         const decToday = decDate === today ? (user.ciphersDecryptedToday || 0) : 0;
         if (decToday >= CIPHER_OPENS_PER_DAY) {
             throw httpsError('resource-exhausted', 'Daily cipher limit reached (21 per day). Come back tomorrow!');
+        }
+        const capSettings = sitewideCaps.settingsFromDoc(capsSettingsDoc.exists ? capsSettingsDoc.data() : null);
+        const capDay = sitewideCaps.dayFromSnap(capsDailyDoc);
+        const unlockPlan = sitewideCaps.planUnlock(capDay.unlocks, capSettings.unlockCap);
+        if (!unlockPlan.ok) {
+            throw new functionsV1.https.HttpsError('resource-exhausted', sitewideCaps.CAP_HIT_MESSAGE, {
+                code: sitewideCaps.CAP_CARD.code,
+                title: sitewideCaps.CAP_CARD.title,
+                body: sitewideCaps.CAP_CARD.body,
+                secondary: sitewideCaps.CAP_CARD.secondary,
+                button: sitewideCaps.CAP_CARD.button,
+                capCard: true,
+            });
         }
 
         const userUpdate = {
@@ -1022,6 +1044,8 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         t.update(cipherRef, { status: 'opened', openedAt: now, openedBy: uid });
         t.update(keyRef, { status: 'consumed', consumedAt: now });
         t.update(userRef, userUpdate);
+        t.set(capsDailyRef, { unlocks: unlockPlan.usedAfter, day: etDay }, { merge: true });
+        sitewideAlert = sitewideCaps.unlockAlert(unlockPlan, etDay);
 
         cipherPointsBefore = user.points || 0;
         applied = {
@@ -1041,6 +1065,13 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             } : null,
         };
     });
+
+    if (sitewideAlert) {
+        try {
+            const payoutAlerts = require('./payoutAlerts');
+            await payoutAlerts.emit({ db: db, admin: admin }, sitewideAlert);
+        } catch (e) { console.warn('[decryptCipher] sitewide cap alert', e.message); }
+    }
 
     if (applied && applied.keySentBy && applied.keySentBy !== uid) {
         try {
@@ -1180,7 +1211,7 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
     return bolt;
 }
 
-const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret, nwcUrlSecret], serviceAccount: runtimeSa('claimCipherWin') }).https.onCall(async (data, context) => {
+const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, enforceAppCheck: true, secrets: [deletionHmacSecret, nwcUrlSecret], serviceAccount: runtimeSa('claimCipherWin') }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
@@ -1222,7 +1253,13 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         throw httpsError('failed-precondition', 'Try again later.');
     }
     const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true);
+    if (payoutGate && payoutGate.unavailable) throw httpsError('unavailable', payoutGate.error || 'Try again later.');
     if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
+    // Claims age-gate hardening: later of Auth creation and users.realAccountAt.
+    const realAge = payoutGate.age || { ageKnown: false, ageDays: 0 };
+    ageKnown = ageKnown && realAge.ageKnown;
+    ageDays = realAge.ageKnown ? Math.min(ageDays, realAge.ageDays) : 0;
+    const ageSource = realAge.ageSource;
     const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
     if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
         await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
@@ -1260,6 +1297,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             emailVerified: verifiedAuthEmail || verifiedTokenEmail === true,
             ageKnown: ageKnown,
             ageDays: ageDays,
+            ageSource: ageSource,
             satsDisabled: userRow.satsDisabled === true || tombSatsDisabled,
             ledgerBanned: (ledgerDoc.exists && ledgerDoc.data().banned === true) || tombLedgerBanned,
         });
@@ -1776,7 +1814,7 @@ const claimCipherSats = functionsV1.runWith({
         authUser = await admin.auth().getUser(uid);
         const created = new Date(authUser.metadata.creationTime).getTime();
         if (Number.isFinite(created)) {
-            ageDays = accountTombstone.effectiveAgeDays(Math.floor((Date.now() - created) / 86400000), null);
+            ageDays = Math.floor((Date.now() - created) / 86400000);
             ageKnown = true;
         }
     } catch (e) {
@@ -1787,14 +1825,18 @@ const claimCipherSats = functionsV1.runWith({
         throw httpsError('failed-precondition', 'Try again later.');
     }
     const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true);
+    if (payoutGate && payoutGate.unavailable) throw httpsError('unavailable', payoutGate.error || 'Try again later.');
     if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
     const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
     if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
         await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
     }
-    if (looked.summary && Number.isFinite(Number(looked.summary.ageDays))) {
-        ageDays = accountTombstone.effectiveAgeDays(ageDays, looked.summary);
-    }
+    // Claims age-gate hardening: raw Auth age, or less when users.realAccountAt
+    // is later. Deleted-account (tombstone) age is no longer credited.
+    const realAge = payoutGate.age || { ageKnown: false, ageDays: 0 };
+    ageKnown = ageKnown && realAge.ageKnown;
+    ageDays = realAge.ageKnown ? Math.min(ageDays, realAge.ageDays) : 0;
+    const ageSource = realAge.ageSource;
     tombSatsDisabled = !!(looked.summary && looked.summary.satsDisabled);
     tombLedgerBanned = !!(looked.summary && looked.summary.ledgerBanned);
 
@@ -1855,6 +1897,7 @@ const claimCipherSats = functionsV1.runWith({
             emailVerified: verifiedAuthEmail || verifiedTokenEmail === true,
             ageKnown: ageKnown,
             ageDays: ageDays,
+            ageSource: ageSource,
             satsDisabled: user.satsDisabled === true || tombSatsDisabled,
             ledgerBanned: (ledgerSnap.exists && ledgerSnap.data().banned === true) || tombLedgerBanned,
             profileBanned: user.banned === true || !!user.ban_reason,

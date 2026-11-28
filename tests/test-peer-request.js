@@ -365,8 +365,18 @@ queue.push(test('preferRest is enabled once before any Firestore use', function(
     // first ./src module.
     const shim = "require('./src/firebaseAdmin.js')";
     assert.ok(src.indexOf(shim) < 0 || src.indexOf(shim) < src.indexOf(call));
-    const firstSrc = src.replace(shim, '').indexOf("require('./src/");
-    assert.ok(src.replace(shim, '').indexOf(call) < firstSrc);
+    // Config-only modules (secret params and the service-account map) may load
+    // before preferRest because they never touch Firestore; each is checked.
+    const configOnly = ['nwcSecret', 'sensitiveSecrets', 'runtimeServiceAccounts'];
+    configOnly.forEach(function(name) {
+        const mod = read('functions/src/' + name + '.js');
+        assert.ok(!/firestore|firebase-admin|firebaseAdmin/.test(mod), name + ' must stay config-only');
+    });
+    let stripped = src.replace(shim, '');
+    configOnly.forEach(function(name) { stripped = stripped.split("require('./src/" + name + "')").join(''); });
+    const firstSrc = stripped.indexOf("require('./src/");
+    assert.ok(firstSrc > 0);
+    assert.ok(stripped.indexOf(call) < firstSrc);
     assert.ok(src.includes('__btcFirestorePreferRest'));
 }));
 
@@ -405,7 +415,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261102_v2466'));
+    assert.ok(html.includes('ranking.js?v=20261128_v2744'));
     assert.ok(!html.includes('ranking.js?v=20261029_v2431'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -430,7 +440,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('ranking.js?v=20261023_v2333'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2269'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
-    assert.ok(html.includes('gifting.js?v=20261102_v2465'));
+    assert.ok(html.includes('gifting.js?v=20261128_v2744'));
     assert.ok(!html.includes('gifting.js?v=20261029_v2429'));
     assert.ok(!html.includes('gifting.js?v=20261026_v2400'));
     assert.ok(!html.includes('gifting.js?v=20261026_v2399'));
@@ -438,7 +448,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.ok(!html.includes('gifting.js?v=20261024_v2358'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2357'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2254'));
-    assert.ok(html.includes('notifications.js?v=20261105_v2497'));
+    assert.ok(html.includes('notifications.js?v=20261106_v2512'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2355'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2354'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2352'));
@@ -447,7 +457,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('gifting.js?v=20261022_lightfix'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
     assert.strictEqual(html.includes('gifting.js?v=20261022_v2251'), false);
-    assert.ok(html.includes('bundle.min.js?v=20261101_v2455'));
+    assert.ok(html.includes('bundle.min.js?v=20261128_v2744'));
     assert.ok(!html.includes('bundle.min.js?v=20261029_v2429'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2391'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2386'));
@@ -485,7 +495,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2279'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2271'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2268'), false);
-    assert.ok(html.includes('global-chat.js?v=20261102_v2467'));
+    assert.ok(html.includes('global-chat.js?v=20261128_v2744'));
     assert.ok(!html.includes('global-chat.js?v=20261030_v2436'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2432'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2379'));
@@ -522,7 +532,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2263'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2261'), false);
     assert.strictEqual(html.includes('global-chat.js?v=20261022_v2252'), false);
-    assert.ok(html.includes('features.registry.js?v=20261104_v2482'));
+    assert.ok(html.includes('features.registry.js?v=20261128_v2744'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
@@ -532,11 +542,11 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
     assert.strictEqual(html.includes('features.registry.js?v=20261022_v2266'), false);
     assert.strictEqual(html.includes('features.registry.js?v=20261022_v2265'), false);
-    assert.ok(html.includes('satoshi-favor.js?v=20261102_v2467'));
+    assert.ok(html.includes('satoshi-favor.js?v=20261128_v2744'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261024_v2351'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2323'));
     assert.strictEqual(html.includes('satoshi-favor.js?v=20261022_v2250'), false);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261102_v2465/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261126_v2696/g) || []).length, 4);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261030_v2435/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261028_v2415/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2381/g) || []).length, 0);
@@ -554,7 +564,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.ok(!html.includes('learning-quests.js?v=20261023_v2324'));
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2279/g) || []).length, 0);
     assert.strictEqual((html.match(/quests\.js\?v=20261022_v2263/g) || []).length, 0);
-    assert.ok(html.includes('lightning-tips.js?v=20261119_v2666'));
+    assert.ok(html.includes('lightning-tips.js?v=20261128_v2744'));
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2250'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2246'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2245'), false);
@@ -566,7 +576,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2745'"));
     assert.ok(!sw.includes('btc-archive-v2438'));
     assert.ok(!sw.includes('btc-archive-v2437'));
     assert.ok(!sw.includes('btc-archive-v2436'));

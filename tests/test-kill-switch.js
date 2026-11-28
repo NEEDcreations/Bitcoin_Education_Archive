@@ -377,7 +377,7 @@ async function run() {
         const names = ks.gatedNames();
         ['claimSats', 'tctvDripTick', 'payWeeklyQuestLB', 'monthlyRaffleDraw', 'payQualifiedReferrals', 'adminApproveFactionPayout',
          'resetWeeklyXP', 'resetMonthlyXP', 'verifyReferral', 'registerReferral', 'pvpSubmitAnswer', 'pvpTimeoutOpponent',
-         'tctvWatchHeartbeat', 'syncStravaWalks', 'creditMatureTopicComments', 'spendTickets', 'spendTicketsForFreeze', 'activateDoubleXP',
+         'tctvWatchHeartbeat', 'sparkCitizenTeaser', 'syncStravaWalks', 'creditMatureTopicComments', 'spendTickets', 'spendTicketsForFreeze', 'activateDoubleXP',
          'activateHashBooster', 'useHintToken', 'resetLightningAddressOnce', 'flushBadgeGgBursts', 'mergeAnonBadges', 'incrementWeeklyChallenge',
          'dailyPollVote', 'pollVote', 'chooseFaction', 'reconcileDailyProofs', 'scheduleRaidForumCredit',
          'managePeer', 'decryptCipher'].forEach(function (n) {
@@ -974,6 +974,57 @@ async function run() {
         assert.strictEqual(pub.data().snapshot, undefined);
     });
 
+    await test('totpStepUp accepts tool killSwitch wherever the l1 kill switch exists', async function () {
+        const toolsPath = path.join(root, 'functions/src/adminToolSession.js');
+        const ksSrc = fs.readFileSync(path.join(root, 'functions/src/killSwitch.js'), 'utf8');
+        const sfSrc = fs.readFileSync(path.join(root, 'functions/src/secondFactor.js'), 'utf8');
+        let l1 = false;
+        if (fs.existsSync(toolsPath)) {
+            const toolsSrc = fs.readFileSync(toolsPath, 'utf8');
+            l1 = /adminSetKillSwitch\s*:\s*['"]killSwitch['"]/.test(toolsSrc)
+                || /\bkillSwitch\s*:\s*['"]Kill switch['"]/.test(toolsSrc);
+        }
+        if (!l1 && /adminToolSession/.test(ksSrc) && /require(?:Admin)?ToolSession|adminToolSession/.test(ksSrc)) {
+            l1 = true;
+        }
+        if (!l1) {
+            assert.ok(!/require(?:Admin)?ToolSession/.test(ksSrc),
+                'killSwitch.js requires a tool session, but this build has no l1 totpStepUp tool path');
+            return;
+        }
+        assert.ok(/adminToolStepUp/.test(sfSrc) || /data\.tool/.test(sfSrc),
+            'l1 kill switch is present, but totpStepUp has no tool-session path');
+        function FakeHttpsError(code, message) {
+            const err = new Error(message);
+            err.code = code;
+            return err;
+        }
+        const api = secondFactor.initSecondFactor({
+            db: makeDb(),
+            admin: {
+                auth: function () { return { getUser: async function () { return { uid: 'admin1', customClaims: { admin: true }, multiFactor: { enrolledFactors: [] } }; } }; },
+                firestore: { FieldValue: { serverTimestamp: function () { return new Date(); } } }
+            },
+            HttpsError: FakeHttpsError,
+            authenticator: { generateSecret: function () { return 'x'; }, keyuri: function () { return 'otpauth'; }, checkDelta: function () { return null; }, options: {} },
+            QRCode: { toDataURL: async function () { return ''; } }
+        });
+        const ctx = {
+            auth: { uid: 'admin1', token: { admin: true, auth_time: Math.floor(Date.now() / 1000) - 60, firebase: {} } },
+            rawRequest: { headers: {}, ip: '127.0.0.1' }
+        };
+        var err = null;
+        try {
+            const fn = api.totpStepUp;
+            if (!fn || typeof fn.run !== 'function') throw new Error('totpStepUp.run is missing');
+            await fn.run({ tool: 'killSwitch' }, ctx);
+        } catch (e) {
+            err = e;
+        }
+        const msg = err ? String(err.message || err) : '';
+        assert.ok(!/Unknown action/.test(msg), 'totpStepUp treated tool killSwitch as Unknown action');
+        assert.ok(!/Unknown admin tool/.test(msg), 'totpStepUp does not accept tool killSwitch');
+    });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);

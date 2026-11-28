@@ -1160,6 +1160,11 @@
         // Questions run first, so their answer picks the starting highlight.
         var rec = quizRecommended();
         var picked = readPace() || rec || 'beginner';
+        // The player picks a mode right here, so the "New: choose how much
+        // you see" home card must not appear behind this step. Inserting it
+        // (about 700px on a phone) pushed #homeGuestActions and #todayCard
+        // down: CLS 0.455 on phone, 0.143 on desktop (Speed v2715 run).
+        dismissModeCard();
         window.setExperienceMode(picked);
         var overlay = introShell();
         document.body.appendChild(overlay);

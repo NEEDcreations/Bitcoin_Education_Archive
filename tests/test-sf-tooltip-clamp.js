@@ -32,10 +32,10 @@ test('clamp shifts a bubble that would open off the left edge', () => {
     ctx.clampSfTip(wrap);
     assert.strictEqual(style.transform, 'translateX(calc(-50% + -168px))');
 });
-test('index.html and 404.html pin satoshi-favor.js at 20261119_v2682b', () => {
+test('index.html and 404.html pin satoshi-favor.js at 20261126_v2717', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
     assert.strictEqual(html, fs.readFileSync(path.join(__dirname, '..', '404.html'), 'utf8'));
-    assert.strictEqual((html.match(/satoshi-favor\.js\?v=20261119_v2682b/g) || []).length, 1);
+    assert.strictEqual((html.match(/satoshi-favor\.js\?v=20261128_v2744/g) || []).length, 1);
 });
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

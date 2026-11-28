@@ -242,6 +242,7 @@ queue.push(test('a broken address can be replaced once and the marker stores the
     assert.strictEqual(out.address, 'fresh@blink.sv');
     assert.strictEqual(mem.store['users/user1'].lightningAddress, 'fresh@blink.sv');
     assert.strictEqual(mem.store['users/user1'].lightning, 'fresh@blink.sv');
+    assert.strictEqual(mem.store['users/user1'].created, undefined);
     assert.strictEqual(mem.store['ln_resets/user1'].domain, 'blink.sv');
     assert.strictEqual(mem.store['ln_resets/user1'].ln_reset_used.ts, 1);
     assert.ok(JSON.stringify(mem.store['ln_resets/user1']).indexOf('fresh@') === -1);
@@ -251,6 +252,41 @@ queue.push(test('a broken address can be replaced once and the marker stores the
         turnstileToken: 'ok',
     }, signedIn('user1'));
     assert.strictEqual(again.code, 'already_used');
+}));
+
+queue.push(test('a first write of a missing user doc stamps created from Auth time', async function () {
+    const mem = memDb({});
+    const april = Date.parse('2026-04-02T15:00:00.000Z');
+    const richAdmin = {
+        firestore: {
+            FieldValue: { serverTimestamp: function () { return { ts: 1 }; } },
+            Timestamp: { fromMillis: function (ms) { return { _ms: ms }; } },
+        },
+        auth: function () {
+            return {
+                getUser: async function () {
+                    return { metadata: { creationTime: '2026-04-02T15:00:00.000Z' } };
+                },
+            };
+        },
+    };
+    const api = createResetHandlers({
+        db: mem.db,
+        admin: richAdmin,
+        verifyTurnstile: async function () { return true; },
+        requireSecondFactor: async function () {},
+        resolveLnurlInvoice: async function (opts) {
+            return { pr: 'lnbc', domain: opts.address.split('@')[1] };
+        },
+    }).resetLightningAddressOnce;
+    const out = await api({
+        lightningAddress: 'fresh@blink.sv',
+        turnstileToken: 'ok',
+    }, signedIn('user1'));
+    assert.strictEqual(out.ok, true);
+    assert.strictEqual(mem.store['users/user1'].lightningAddress, 'fresh@blink.sv');
+    assert.strictEqual(mem.store['users/user1'].lightning, 'fresh@blink.sv');
+    assert.strictEqual(mem.store['users/user1'].created._ms, april);
 }));
 
 queue.push(test('rules deny client address edits once one is saved, and the reset doc is server-only', function () {
@@ -264,7 +300,7 @@ queue.push(test('rules deny client address edits once one is saved, and the rese
     const resetRule = rules.slice(rules.indexOf('match /ln_resets/{uid}'));
     assert.ok(resetRule.indexOf('allow read, write: if false;') === resetRule.indexOf('allow'));
     assert.ok(rules.indexOf("'flexFullDays', 'flexFullDay'") > 0);
-    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 13);
+    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 16);
     assert.ok(resetSrc.indexOf('enforceAppCheck: true') > 0);
     assert.ok(index.indexOf('bindResetLightningAddress') > 0);
     assert.ok(index.indexOf('exports.resetLightningAddressOnce') > 0);

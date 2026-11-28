@@ -91,7 +91,14 @@ async function main() {
     ['reportTopicComment', 'moderateTopicPost', 'deleteTopicComment'].forEach(function (name) {
         assert.ok(scanned.indexOf(name) !== -1, name + ' enforces App Check');
     });
-    assert.strictEqual(scanned.length, 54, 'protected callable count');
+    // claimCipherWin joined Nov 27 2026 (claims age-gate hardening).
+    assert.ok(scanned.indexOf('claimCipherWin') !== -1, 'claimCipherWin enforces App Check');
+    assert.ok(scanned.indexOf('setPrivacyShareOptOut') !== -1, 'setPrivacyShareOptOut enforces App Check');
+    ['confirmAge18', 'confirmAgeUnder18', 'adminUnconfirmAge18', 'adminResetAge18',
+     'adminGetSitewideCaps', 'adminSetSitewideCaps', 'submitSurvey', 'sparkCitizenTeaser'].forEach(function (name) {
+        assert.ok(scanned.indexOf(name) !== -1, name + ' enforces App Check');
+    });
+    assert.strictEqual(scanned.length, 64, 'protected callable count');
     ['setUsername', 'nostrAuth', 'lnAuthChallenge', 'lnAuthVerify', 'totpCheck', 'totpStatus', 'totpSetup', 'totpVerify', 'issueRecoveryCodes', 'recordDailyVisit', 'dailySpin', 'contributeRaid', 'contributeFavor', 'hashForFavor', 'searchUsers', 'pollVote'].forEach(function (name) {
         assert.strictEqual(scanned.indexOf(name), -1, name + ' is not an App Check callable');
     });

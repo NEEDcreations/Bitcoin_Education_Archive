@@ -31,10 +31,11 @@ assert.strictEqual(Math.ceil(5000 / Math.min(1000, 1 * 1440)), 5);
 let d = { sats: 0 }; for (let i = 0; i < 1440; i++) d = Object.assign({}, d, L.planAccrual(d, 50, L.readConfig({}), 'd1'));
 assert.strictEqual(d.dayAccrued, 1000); assert.strictEqual(d.sats, 1000);
 // check-ins
-const ctx = (o) => Object.assign({ uid: 'u', nowMs: 1e9, cfg, playing: true, presenceFresh: true, newToken: 't', rand: 0.5 }, o);
+const ctx = (o) => Object.assign({ uid: 'u', nowMs: 1e9, cfg, playing: true, originalOk: true, presenceFresh: true, newToken: 't', rand: 0.5 }, o);
 let c = L.planCheckin({}, ctx()); assert.strictEqual(c.credit, 60);
 c = L.planCheckin({ lastCheckMs: 1e9 - 10000 }, ctx()); assert.ok(c.reject);
 c = L.planCheckin({}, ctx({ playing: false })); assert.strictEqual(c.credit, 0);
+c = L.planCheckin({}, ctx({ originalOk: false })); assert.strictEqual(c.credit, 0); assert.strictEqual(c.reason, 'not-original');
 c = L.planCheckin({}, ctx({ deviceOwner: 'x', deviceLastMs: 1e9 - 1000 })); assert.ok(c.reject);
 c = L.planCheckin({ seconds: cfg.perAccountLimitSeconds, promptDueMs: 2e9 }, ctx()); assert.strictEqual(c.reason, 'limit');
 c = L.planCheckin({ promptDueMs: 1 }, ctx()); assert.ok(c.prompt); assert.strictEqual(c.credit, 0);
@@ -177,6 +178,11 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(src.includes('td-bubble-share'), 'share visible when minimized');
     assert.ok(src.includes('more min to qualify') && src.includes('qualifySeconds'), 'Your Share says how long until it qualifies');
     assert.ok(/if \(inflight && answer\) \{ answerQueued = true; return; \}/.test(src), 'a Still watching? tap is never dropped by an in-flight check-in');
+    assert.ok(src.includes('window._btcAppCheckForClaim(8000)'), 'check-in waits for App Check like claimSats');
+    assert.ok(src.includes("Can't verify this browser, rewards paused"));
+    assert.ok(src.includes("console.warn('[TCTV] tctvDripCheckin failed'"));
+    assert.ok(!src.includes('}).catch(function () {}).then(function () {\n                inflight = false;'), 'check-in no longer swallows errors');
+
     assert.ok(!/addDoc|\.set\(|\.update\(/.test(src.replace(/localStorage\.setItem/g, '')), 'client never writes pot data');
     const D = L.readConfig({});
     assert.strictEqual(D.promptMinMinutes, 15); assert.strictEqual(D.promptMaxMinutes, 40); assert.strictEqual(D.promptAnswerSeconds, 120);
@@ -247,3 +253,11 @@ console.log('tctv-drip client prompt: ok');
     assert.ok(rules.indexOf('match /tctv_drip_backfill_audit/{docId}') !== -1 && /allow read, write: if false/.test(auditBlock), 'deny-all rules for backfill audit');
 }
 console.log('tctv pot backfill planner: ok');
+
+const dripSrc = require('fs').readFileSync(require('path').join(__dirname, '..', 'functions/tctv-drip.js'), 'utf8');
+assert.ok(dripSrc.includes('const DRIP_SATS_PAYOUTS_DISABLED = true'));
+assert.ok(dripSrc.includes("reason: 'hard-disabled'"));
+assert.ok(dripSrc.indexOf('DRIP_SATS_PAYOUTS_DISABLED') < dripSrc.indexOf('cipherSatsBalance'));
+assert.ok(dripSrc.includes('killSwitch.isOffline(db)'));
+assert.ok(dripSrc.includes("tick: sats payouts hard-disabled; pot left as-is"));
+console.log('tctv-drip sats payout hard-disable: ok');

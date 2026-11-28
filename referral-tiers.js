@@ -90,26 +90,141 @@
         return activityPoints(user) >= MAXI_RANK_POINTS;
     }
 
-    function maxiCountHelp(invited, reached, rewarded) {
+    function lateReferralStatus(status) {
+        return String(status || '') === 'late';
+    }
+
+    function referralDocRewarded(data) {
+        var row = data || {};
+        return row.verified === true || row.status === 'paid' || row.ticketsAwarded === true;
+    }
+
+    function referralDocStampedReached(data) {
+        var row = data || {};
+        return !!(row.maxiReachedAt || referralDocRewarded(row));
+    }
+
+    function pointsReachMaxi(points) {
+        var n = Math.floor(Number(points));
+        return isFinite(n) && n >= MAXI_RANK_POINTS;
+    }
+
+    function inviteDocUid(doc) {
+        if (!doc) return '';
+        var data = doc.data || doc;
+        return referredUidOf({
+            id: doc.id,
+            referredUid: data && data.referredUid,
+            referredUserUid: data && data.referredUserUid,
+            referredUser: data && data.referredUser
+        });
+    }
+
+    // Late referrals never get maxiReachedAt (assessMaxiMilestone skips them).
+    // The Invites card still counts a late friend who reached Maxi if their
+    // public_profiles.points (activity XP) is at least 2,140.
+    function inviteDocsNeedingProfilePoints(docs) {
+        var list = docs || [];
+        var out = [];
+        var seen = {};
+        var i;
+        for (i = 0; i < list.length; i++) {
+            var doc = list[i] || {};
+            var data = doc.data || doc;
+            if (!lateReferralStatus(data.status)) continue;
+            if (referralDocStampedReached(data)) continue;
+            var uid = inviteDocUid(doc);
+            if (!uid || seen[uid]) continue;
+            seen[uid] = true;
+            out.push(uid);
+        }
+        return out;
+    }
+
+    // invited is the live referrals snapshot size, not users.referralInvited.
+    // qualifies = pending/paid docs stamped at Maxi (or already rewarded).
+    // joinedBefore = late docs that still reached 2,140 activity XP.
+    // reached = qualifies + joinedBefore.
+    function summarizeReferralInviteDocs(docs, profilePointsByUid) {
+        var list = docs || [];
+        var points = profilePointsByUid || {};
+        var invited = 0;
+        var rewarded = 0;
+        var pending = 0;
+        var qualifies = 0;
+        var joinedBefore = 0;
+        var seen = {};
+        var i;
+        for (i = 0; i < list.length; i++) {
+            var doc = list[i] || {};
+            var data = doc.data || doc;
+            var uid = inviteDocUid(doc);
+            if (uid) {
+                if (seen[uid]) continue;
+                seen[uid] = true;
+            }
+            invited += 1;
+            var rewardedDoc = referralDocRewarded(data);
+            if (rewardedDoc) rewarded += 1;
+            else pending += 1;
+            var late = lateReferralStatus(data.status);
+            var stamped = referralDocStampedReached(data);
+            var profileHit = uid ? pointsReachMaxi(points[uid]) : false;
+            if (late) {
+                if (stamped || profileHit) joinedBefore += 1;
+            } else if (stamped) {
+                qualifies += 1;
+            }
+        }
+        return {
+            total: invited,
+            verified: rewarded,
+            pending: pending,
+            invited: invited,
+            maxi: rewarded,
+            rewarded: rewarded,
+            qualifies: qualifies,
+            joinedBefore: joinedBefore,
+            reached: qualifies + joinedBefore,
+            maxiReached: qualifies + joinedBefore
+        };
+    }
+
+    function maxiCountHelp(invited, reached, qualifies, joinedBefore) {
         var points = String(MAXI_RANK_POINTS).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         var inv = Math.floor(Number(invited));
         if (!isFinite(inv) || inv < 0) inv = 0;
-        var got = Math.floor(Number(reached));
-        if (!isFinite(got) || got < 0) got = 0;
-        var paid = Math.floor(Number(rewarded));
-        if (!isFinite(paid) || paid < 0) paid = got;
         var people = inv === 1 ? "You've invited 1 person." : "You've invited " + inv + " people.";
-        var rank = (got === 1 ? '1 reached' : got + ' reached') + ' ' + points + " XP (Scholar exam points don't count).";
-        var reward = (paid === 1 ? '1 rewarded' : paid + ' rewarded') + '.';
-        return people + ' ' + rank + ' ' + reward + ' Tickets unlock after the account is 7 days old and passes checks. Tier badges use rewarded referrals.';
+        var line = reachedRewardLabel(reached, qualifies, joinedBefore).replace('2,140 XP', points + ' XP');
+        return people + ' ' + line + ". Scholar exam points don't count. Tickets unlock after the account is 7 days old and passes checks. Tier badges use rewarded referrals.";
     }
 
-    function reachedRewardLabel(reached, rewarded) {
+    function reachedRewardLabel(reached, qualifies, joinedBefore) {
         var got = Math.floor(Number(reached));
         if (!isFinite(got) || got < 0) got = 0;
-        var paid = Math.floor(Number(rewarded));
-        if (!isFinite(paid) || paid < 0) paid = 0;
-        return got + ' reached 2,140 XP · ' + paid + ' rewarded';
+        var ok = Math.floor(Number(qualifies));
+        if (!isFinite(ok) || ok < 0) ok = 0;
+        var late = Math.floor(Number(joinedBefore));
+        if (!isFinite(late) || late < 0) late = 0;
+        var reachedText = (got === 1 ? '1 reached' : got + ' reached') + ' 2,140 XP';
+        var qualifyText = ok === 1 ? '1 qualifies' : ok + ' qualify';
+        var line = reachedText + ', ' + qualifyText;
+        if (late > 0) {
+            var lateText = late === 1 ? '1 joined before using your code' : late + ' joined before using your code';
+            line += ' (' + lateText + ')';
+        }
+        return line;
+    }
+
+    function inviteCountLine(stats) {
+        var invited = stats && typeof stats.invited === 'number' ? stats.invited : 0;
+        var reached = stats && typeof stats.reached === 'number' ? stats.reached
+            : (stats && typeof stats.maxiReached === 'number' ? stats.maxiReached : 0);
+        var qualifies = stats && typeof stats.qualifies === 'number' ? stats.qualifies : 0;
+        var joinedBefore = stats && typeof stats.joinedBefore === 'number' ? stats.joinedBefore : 0;
+        if (!invited && !reached && !qualifies && !joinedBefore) return 'No invites yet.';
+        var invitedLabel = invited === 1 ? '1 friend invited' : invited + ' friends invited';
+        return invitedLabel + ' · ' + reachedRewardLabel(reached, qualifies, joinedBefore);
     }
 
     function badgeTiers() {
@@ -320,6 +435,75 @@
         };
     }
 
+    // Dry-run planner. Count live referrals docs per referrer and compare
+    // to users.referralInvited. That counter only increments for pending
+    // or flagged signups today, so late docs can drift the stored number.
+    // Writes are the docs whose stored count would change. Summary has
+    // counts only: no user ids.
+    function planInvitedCountWrites(input) {
+        var src = input || {};
+        var users = src.users || [];
+        var referrals = src.referrals || [];
+        var byReferrer = {};
+        var byUid = {};
+        var i;
+        for (i = 0; i < referrals.length; i++) {
+            var row = referrals[i] || {};
+            var rid = String(row.referrerUid || '');
+            if (!rid) continue;
+            byReferrer[rid] = (byReferrer[rid] || 0) + 1;
+        }
+        for (i = 0; i < users.length; i++) {
+            var user = users[i] || {};
+            if (user.uid) byUid[user.uid] = user;
+        }
+        var writes = [];
+        var missingUser = 0;
+        var referrerIds = Object.keys(byReferrer);
+        for (i = 0; i < referrerIds.length; i++) {
+            var id = referrerIds[i];
+            var count = byReferrer[id];
+            var storedUser = byUid[id];
+            if (!storedUser) {
+                missingUser += 1;
+                continue;
+            }
+            var hasField = Object.prototype.hasOwnProperty.call(storedUser, 'referralInvited');
+            var stored = hasField ? storedUser.referralInvited : null;
+            var storedN = stored == null || stored === '' ? null : Math.floor(Number(stored));
+            if (storedN != null && !isFinite(storedN)) storedN = null;
+            if (storedN === count) continue;
+            if ((stored === undefined || stored === null) && count === 0) continue;
+            writes.push({
+                uid: id,
+                from: storedN,
+                to: count
+            });
+        }
+        for (i = 0; i < users.length; i++) {
+            var leftover = users[i] || {};
+            if (!leftover || !leftover.uid || byReferrer[leftover.uid]) continue;
+            if (!Object.prototype.hasOwnProperty.call(leftover, 'referralInvited')) continue;
+            if (leftover.referralInvited == null) continue;
+            var leftoverN = Math.floor(Number(leftover.referralInvited));
+            if (!isFinite(leftoverN) || leftoverN === 0) continue;
+            writes.push({
+                uid: leftover.uid,
+                from: leftoverN,
+                to: 0
+            });
+        }
+        return {
+            writes: writes,
+            summary: {
+                referralDocs: referrals.length,
+                referrers: referrerIds.length,
+                missingUser: missingUser,
+                writes: writes.length
+            }
+        };
+    }
+
     return {
         MAXI_RANK_POINTS: MAXI_RANK_POINTS,
         TIERS: TIERS,
@@ -341,6 +525,13 @@
         refereeBlocked: refereeBlocked,
         countsForLevel: countsForLevel,
         countCreditedMaxi: countCreditedMaxi,
-        planMaxiCountWrites: planMaxiCountWrites
+        planMaxiCountWrites: planMaxiCountWrites,
+        lateReferralStatus: lateReferralStatus,
+        referralDocRewarded: referralDocRewarded,
+        referralDocStampedReached: referralDocStampedReached,
+        inviteDocsNeedingProfilePoints: inviteDocsNeedingProfilePoints,
+        summarizeReferralInviteDocs: summarizeReferralInviteDocs,
+        inviteCountLine: inviteCountLine,
+        planInvitedCountWrites: planInvitedCountWrites
     };
 });

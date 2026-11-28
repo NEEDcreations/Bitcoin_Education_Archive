@@ -174,6 +174,7 @@ async function verifyTurnstile(token, remoteip) {
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
+const sitewideCaps = require('./src/sitewideCaps');
 const payFailGuard = require('./src/payFailGuard');
 const rewardNotify = require('./src/rewardNotify');
 const rankReached = require('./src/rankReached');
@@ -1780,9 +1781,11 @@ exports.claimSats = functionsV1.runWith({
         userRecord = await admin.auth().getUser(uid);
         const emailChange = require('./src/emailChange');
         const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, userRecord, Date.now(), context.auth.token || {}, true);
+        if (payoutGate && payoutGate.unavailable) {
+            throw new functionsV1.https.HttpsError('unavailable', payoutGate.error || 'Try again later.');
+        }
         if (!payoutGate.ok) return { success: false, error: payoutGate.error };
         const creationDate = new Date(userRecord.metadata.creationTime);
-        const authAgeDays = Math.floor((Date.now() - creationDate.getTime()) / 86400000);
         const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
         tombSummary = looked.summary;
         if (looked.configured && (tombSummary.banned || tombSummary.satsDisabled || tombSummary.ledgerBanned)) {
@@ -1792,9 +1795,13 @@ exports.claimSats = functionsV1.runWith({
             const again = faucetGuard.assessBan(flaggedUser, flaggedLedger);
             if (!again.ok) return { success: false, error: again.error };
         }
-        const ageDays = accountTombstone.effectiveAgeDays(authAgeDays, tombSummary);
+        // Claims age-gate hardening: Auth creation time or users.realAccountAt,
+        // whichever is later. Deleted-account age is not credited.
+        const ageGate = payoutGate.age || { ageKnown: false, ageDays: 0 };
+        if (!ageGate.ageKnown) throw new Error('age unknown');
+        const ageDays = ageGate.ageDays;
         if (ageDays < FAUCET.MIN_ACCOUNT_AGE_DAYS) {
-            return { success: false, error: 'Account must be at least ' + FAUCET.MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + ageDays + ' days.' };
+            return { success: false, error: require('./src/realAccountAge').tooYoungMessage(FAUCET.MIN_ACCOUNT_AGE_DAYS, ageDays, ageGate.ageSource) };
         }
         const authCreatedMs = creationDate.getTime();
         const earlyUser = userPreSnap.exists ? userPreSnap.data() : {};
@@ -1807,6 +1814,7 @@ exports.claimSats = functionsV1.runWith({
             return { success: false, error: claimReqs.missingError(earlyMissing) };
         }
     } catch (e) {
+        if (e && e instanceof functionsV1.https.HttpsError) throw e;
         console.error('[FAUCET] Could not verify account age:', e.message);
         return { success: false, error: 'Could not verify account age. Try again later.' };
     }
@@ -1928,6 +1936,7 @@ exports.claimSats = functionsV1.runWith({
 
     let txFlag = null;
     let displayName = 'Bitcoiner';
+    let faucetEtDay = '';
     try {
         await db.runTransaction(async (t) => {
             txFlag = null;
@@ -1943,6 +1952,12 @@ exports.claimSats = functionsV1.runWith({
             const ledgerDoc = await t.get(ledgerRef);
             const dailyDoc = await t.get(dailyRef);
             const globalDoc = await t.get(globalRef);
+            const capsEtDay = sitewideCaps.etDayKey(Date.now());
+            faucetEtDay = capsEtDay;
+            // Missing cap config -> 30/10 defaults. A get() error aborts
+            // the transaction, so the reserve fails closed.
+            const capsSettingsDoc = await t.get(sitewideCaps.settingsRef(db));
+            const capsDailyDoc = await t.get(sitewideCaps.dailyRef(db, capsEtDay));
             const lockDoc = await t.get(lockRef);
             const fpDoc = await t.get(fpRef);
             const ipDoc = await t.get(ipRef);
@@ -2052,6 +2067,12 @@ exports.claimSats = functionsV1.runWith({
             const globalUsed = globalDoc.exists ? (globalDoc.data().totalPaid || 0) : 0;
             if (globalUsed + amount > FAUCET.GLOBAL_DAILY_MAX_SATS) {
                 deny('Daily faucet limit reached. Try again tomorrow.');
+            }
+            const capSettings = sitewideCaps.settingsFromDoc(capsSettingsDoc.exists ? capsSettingsDoc.data() : null);
+            const capDay = sitewideCaps.dayFromSnap(capsDailyDoc);
+            const reservePlan = sitewideCaps.planFaucetReserve(capDay.paid, capDay.reserved, capDay.held, capSettings.faucetCap);
+            if (!reservePlan.ok) {
+                deny(sitewideCaps.CAP_HIT_MESSAGE);
             }
 
             const saved = faucetGuard.normalizeLightningAddress(user.lightningAddress || user.lightning || user.lnAddress || '');
@@ -2167,6 +2188,12 @@ exports.claimSats = functionsV1.runWith({
                 totalPaid: admin.firestore.FieldValue.increment(amount),
                 claimCount: admin.firestore.FieldValue.increment(1),
             }, { merge: true });
+            t.set(sitewideCaps.dailyRef(db, capsEtDay), {
+                paid: capDay.paid,
+                reserved: reservePlan.reserved,
+                held: capDay.held,
+                day: capsEtDay,
+            }, { merge: true });
             t.set(invoiceRef, {
                 uid: uid,
                 amount: amount,
@@ -2174,6 +2201,7 @@ exports.claimSats = functionsV1.runWith({
                 net_sent: netSendAmount,
                 status: 'pending',
                 paymentHash: paymentHash,
+                etDay: capsEtDay,
                 ts: admin.firestore.Timestamp.now(),
                 // Server-only. Lets a definite failure put the cooldown back exactly as it was.
                 address: lnNorm,
@@ -2233,7 +2261,20 @@ exports.claimSats = functionsV1.runWith({
         if (at !== -1) {
             const extra = (e && e.faucetExtra) || txFlag;
             if (extra) await _flagFaucetAdmin(extra);
-            return { success: false, error: raw.slice(at + marker.length) };
+            var capMsg = raw.slice(at + marker.length);
+            if (capMsg === sitewideCaps.CAP_HIT_MESSAGE) {
+                return {
+                    success: false,
+                    error: capMsg,
+                    code: sitewideCaps.CAP_CARD.code,
+                    capCard: true,
+                    title: sitewideCaps.CAP_CARD.title,
+                    body: sitewideCaps.CAP_CARD.body,
+                    secondary: sitewideCaps.CAP_CARD.secondary,
+                    button: sitewideCaps.CAP_CARD.button,
+                };
+            }
+            return { success: false, error: capMsg };
         }
         console.error('[FAUCET] Transaction failed:', raw);
         return { success: false, error: 'Claim validation failed. Please try again.' };
@@ -2250,6 +2291,7 @@ exports.claimSats = functionsV1.runWith({
         displayName: displayName,
         feeQuote: lnFeeQuote,
         payResult: null,
+        etDay: faucetEtDay || sitewideCaps.etDayKey(Date.now()),
     };
 
     let nwc;
@@ -2409,62 +2451,134 @@ async function _flagFaucetAdmin(flag) {
 }
 
 async function _recordFaucetPaid(info) {
-    const batch = db.batch();
     const feeRec = info.feeQuote ? require('./src/lnFee').feeFields(info.feeQuote, info.payResult) : {};
-    batch.update(info.userRef, {
-        _pendingClaim: admin.firestore.FieldValue.delete(),
-        _pendingClaimAt: admin.firestore.FieldValue.delete(),
+    let faucetAlert = null;
+    await db.runTransaction(async function (t) {
+        const invoiceSnap = await t.get(info.invoiceRef);
+        const inv = invoiceSnap.exists ? (invoiceSnap.data() || {}) : {};
+        const status = String(inv.status || 'pending');
+        const etDay = String(inv.etDay || info.etDay || sitewideCaps.etDayKey(Date.now()));
+        const settingsSnap = await t.get(sitewideCaps.settingsRef(db));
+        const daySnap = await t.get(sitewideCaps.dailyRef(db, etDay));
+        const capSettings = sitewideCaps.settingsFromDoc(settingsSnap.exists ? settingsSnap.data() : null);
+        const capDay = sitewideCaps.dayFromSnap(daySnap);
+        let paid = capDay.paid;
+        let reserved = capDay.reserved;
+        let held = capDay.held;
+        let paidPlan = null;
+        // Held (unknown) invoices are not auto-paid here. A later admin
+        // release can settle them. Leave counters and the invoice alone.
+        if (status === 'unknown' || status === 'used') {
+            return;
+        }
+        if (sitewideCaps.isReserveSwept(inv)) {
+            paidPlan = sitewideCaps.planSweptPaid(paid, reserved, held, capSettings.faucetCap);
+            paid = paidPlan.paidAfter;
+            reserved = paidPlan.reservedAfter;
+            held = paidPlan.heldAfter;
+        } else if (sitewideCaps.isLegacyReservedReleased(inv)) {
+            paidPlan = sitewideCaps.planLegacyReleasedPaid(paid, reserved, held, capSettings.faucetCap);
+            paid = paidPlan.paidAfter;
+            reserved = paidPlan.reservedAfter;
+            held = paidPlan.heldAfter;
+        } else {
+            paidPlan = sitewideCaps.planFaucetPaid(paid, reserved, capSettings.faucetCap);
+            paid = paidPlan.paidAfter;
+            reserved = paidPlan.reservedAfter;
+        }
+        t.update(info.userRef, {
+            _pendingClaim: admin.firestore.FieldValue.delete(),
+            _pendingClaimAt: admin.firestore.FieldValue.delete(),
+        });
+        t.set(info.userRef.collection('sats_withdrawals').doc(), {
+            amount: info.amount,
+            pointsUsed: info.amount * FAUCET.POINTS_PER_SAT,
+            invoice: String(info.invoice || '').substring(0, 50) + '...',
+            preimage: info.preimage || '',
+            paymentHash: info.paymentHash || '',
+            lightningAddress: info.address,
+            status: 'paid',
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            uid: info.uid,
+            etDay: etDay,
+            fee_charged: feeRec.fee_charged === undefined ? null : feeRec.fee_charged,
+            net_sent: feeRec.net_sent === undefined ? null : feeRec.net_sent,
+            fee_paid: feeRec.fee_paid === undefined ? null : feeRec.fee_paid,
+        });
+        t.set(info.invoiceRef, {
+            uid: info.uid,
+            amount: info.amount,
+            fee_charged: feeRec.fee_charged === undefined ? null : feeRec.fee_charged,
+            net_sent: feeRec.net_sent === undefined ? null : feeRec.net_sent,
+            fee_paid: feeRec.fee_paid === undefined ? null : feeRec.fee_paid,
+            status: 'used',
+            paymentHash: info.paymentHash || '',
+            etDay: etDay,
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        t.set(sitewideCaps.dailyRef(db, etDay), {
+            paid: paid,
+            reserved: reserved,
+            held: held,
+            day: etDay,
+        }, { merge: true });
+        if (paidPlan) faucetAlert = sitewideCaps.faucetAlert(paidPlan, etDay);
     });
-    batch.set(info.userRef.collection('sats_withdrawals').doc(), {
-        amount: info.amount,
-        pointsUsed: info.amount * FAUCET.POINTS_PER_SAT,
-        invoice: String(info.invoice || '').substring(0, 50) + '...',
-        preimage: info.preimage || '',
-        paymentHash: info.paymentHash || '',
-        lightningAddress: info.address,
-        status: 'paid',
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        uid: info.uid,
-        fee_charged: feeRec.fee_charged === undefined ? null : feeRec.fee_charged,
-        net_sent: feeRec.net_sent === undefined ? null : feeRec.net_sent,
-        fee_paid: feeRec.fee_paid === undefined ? null : feeRec.fee_paid,
-    });
-    batch.set(info.invoiceRef, {
-        uid: info.uid,
-        amount: info.amount,
-        fee_charged: feeRec.fee_charged === undefined ? null : feeRec.fee_charged,
-        net_sent: feeRec.net_sent === undefined ? null : feeRec.net_sent,
-        fee_paid: feeRec.fee_paid === undefined ? null : feeRec.fee_paid,
-        status: 'used',
-        paymentHash: info.paymentHash || '',
-        ts: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
+    if (faucetAlert) {
+        try {
+            const payoutAlerts = require('./src/payoutAlerts');
+            await payoutAlerts.emit({ db: db, admin: admin, listAdminUids: _listAdminClaimUids }, faucetAlert);
+        } catch (e) { console.warn('[FAUCET] sitewide cap alert', e.message); }
+    }
 }
 
 async function _holdFaucetUnknown(info) {
-    const batch = db.batch();
-    batch.update(info.userRef, {
-        _pendingClaim: admin.firestore.FieldValue.delete(),
-        _pendingClaimAt: admin.firestore.FieldValue.delete(),
+    await db.runTransaction(async function (t) {
+        const invoiceSnap = await t.get(info.invoiceRef);
+        const inv = invoiceSnap.exists ? (invoiceSnap.data() || {}) : {};
+        if (!sitewideCaps.shouldHoldFaucetUnknown(inv)) {
+            return;
+        }
+        const etDay = String(inv.etDay || info.etDay || sitewideCaps.etDayKey(Date.now()));
+        const daySnap = await t.get(sitewideCaps.dailyRef(db, etDay));
+        const capDay = sitewideCaps.dayFromSnap(daySnap);
+        let heldPlan;
+        if (sitewideCaps.isReserveSwept(inv)) {
+            heldPlan = sitewideCaps.planSweptUnknown(capDay.paid, capDay.reserved, capDay.held);
+        } else if (sitewideCaps.isLegacyReservedReleased(inv)) {
+            heldPlan = sitewideCaps.planLegacyReleasedUnknown(capDay.paid, capDay.reserved, capDay.held);
+        } else {
+            heldPlan = sitewideCaps.planFaucetHold(capDay.paid, capDay.reserved, capDay.held);
+        }
+        t.update(info.userRef, {
+            _pendingClaim: admin.firestore.FieldValue.delete(),
+            _pendingClaimAt: admin.firestore.FieldValue.delete(),
+        });
+        t.set(info.invoiceRef, {
+            uid: info.uid,
+            amount: info.amount,
+            status: 'unknown',
+            paymentHash: info.paymentHash || '',
+            etDay: etDay,
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        t.set(info.userRef.collection('sats_withdrawals').doc(), {
+            amount: info.amount,
+            pointsUsed: info.amount * FAUCET.POINTS_PER_SAT,
+            status: 'unknown',
+            paymentHash: info.paymentHash || '',
+            lightningAddress: info.address,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            uid: info.uid,
+            etDay: etDay,
+        });
+        t.set(sitewideCaps.dailyRef(db, etDay), {
+            paid: heldPlan.paid,
+            reserved: heldPlan.reserved,
+            held: heldPlan.held,
+            day: etDay,
+        }, { merge: true });
     });
-    batch.set(info.invoiceRef, {
-        uid: info.uid,
-        amount: info.amount,
-        status: 'unknown',
-        paymentHash: info.paymentHash || '',
-        ts: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-    batch.set(info.userRef.collection('sats_withdrawals').doc(), {
-        amount: info.amount,
-        pointsUsed: info.amount * FAUCET.POINTS_PER_SAT,
-        status: 'unknown',
-        paymentHash: info.paymentHash || '',
-        lightningAddress: info.address,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        uid: info.uid,
-    });
-    await batch.commit();
     await _flagFaucetAdmin({
         type: 'unknown_payment',
         uid: info.uid,
@@ -3420,12 +3534,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     if (!resolved.ok) {
         return { success: false, error: resolved.error || 'Unknown action', awarded: 0, tickets: 0 };
     }
-    // dailySpin is the only spin reward. Do not write points, tickets, or a
-    // claim. success + awarded 0 matches a normal zero grant so a cached
-    // client that still calls this phrase does not throw.
-    if (resolved.id === 'daily_spin') {
-        return { success: true, awarded: 0, tickets: 0 };
-    }
+    // dailySpin is the only spin reward. resolveAction rejects the old
+    // 'Daily Spin' phrase above, so it never reaches the grant below.
     // Guest progress moves only through linkGuestAccount, which marks it
     // unclaimable. This legacy action grants nothing and writes nothing.
     if (resolved.id === 'anon_merge') {
@@ -3486,7 +3596,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     evidenceTrackIds = prechecked.trackIds || null;
 
     const absMax = badgeKnown ? 100000 : 2200;
-    if (pts < 0 || pts > absMax) {
+    if (!Number.isFinite(pts) || pts < 0 || pts > absMax) {
         return { success: false, error: 'Invalid points amount', awarded: 0, tickets: 0 };
     }
     if (pts === 0 && matchedAction !== 'anon_merge') {
@@ -5739,6 +5849,19 @@ exports.onPvpMatchFinished = onDocumentUpdated({
 exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
     const snap = event.data; const context = { params: event.params };
         const uid = context.params.uid;
+        const userDocRef = db.collection('users').doc(uid);
+        // Every create path lands here. If that first write omitted created,
+        // stamp Auth metadata.creationTime. The server clock is only used
+        // when Auth has no creation time, because this document is new.
+        // Keep this off the stats transaction so a userCount failure cannot
+        // skip the join date.
+        try {
+            const createdPatch = {};
+            await joinDate.applyMissingJoin(admin, uid, createdPatch, snap, { allowNow: true });
+            if (createdPatch.created) {
+                await userDocRef.set(createdPatch, { merge: true });
+            }
+        } catch (e) { console.error('[onUserDocCreated] join date failed:', e); }
         try {
             const statsRef = db.collection('stats').doc('global');
             // Use a transaction to atomically increment and read the new count
@@ -5749,14 +5872,7 @@ exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
                 t.set(statsRef, { userCount: admin.firestore.FieldValue.increment(1) }, { merge: true });
                 return newCount;
             });
-            // Write plebNumber back to the user doc if not already set.
-            // Every create path lands here. If that first write omitted created,
-            // stamp Auth metadata.creationTime. The server clock is only used
-            // when Auth has no creation time, because this document is new.
-            const userDocRef = db.collection('users').doc(uid);
-            const createdPatch = { plebNumber: plebNumber };
-            await joinDate.applyMissingJoin(admin, uid, createdPatch, snap, { allowNow: true });
-            await userDocRef.set(createdPatch, { merge: true });
+            await userDocRef.set({ plebNumber: plebNumber }, { merge: true });
         } catch (e) { console.error('[onUserDocCreated] failed:', e); }
         return null;
     });
@@ -9760,6 +9876,20 @@ const sayHiFns = bindSayHi(functionsV1, admin, db);
 exports.armSayHi = sayHiFns.armSayHi;
 exports.claimSayHi = sayHiFns.claimSayHi;
 
+// Two-button age confirmation. App Check is required. Writes over18 /
+// ageConfirmed18 or ageUnder18 on the user doc; clients cannot.
+const { bindConfirmAge18 } = require('./src/confirmAge18');
+const confirmAge18Fns = bindConfirmAge18(functionsV1, { admin: admin, db: db });
+exports.confirmAge18 = confirmAge18Fns.confirmAge18;
+exports.confirmAgeUnder18 = confirmAge18Fns.confirmAgeUnder18;
+exports.adminUnconfirmAge18 = confirmAge18Fns.adminUnconfirmAge18;
+exports.adminResetAge18 = confirmAge18Fns.adminResetAge18;
+// Privacy choices opt-out. Admin SDK write so firestore.rules stay unchanged.
+// Deploy is separate; the client already stores the choice in localStorage.
+const { bindPrivacyShareOptOut } = require('./src/privacyShareOptOut');
+const privacyShareFns = bindPrivacyShareOptOut(functionsV1, { admin: admin, db: db, HttpsError: functionsV1.https.HttpsError });
+exports.setPrivacyShareOptOut = privacyShareFns.setPrivacyShareOptOut;
+
 // Hidden reply bonus. App Check is required, same as claimSats. The handler
 // grants XP only inside a transaction after it reads the chat message.
 const { bindReplyBonus } = require('./src/replyBonus');
@@ -9784,6 +9914,10 @@ exports.confirmAccountLink = emailChangeFns.confirmAccountLink;
 // tctvAggregatePresence; this callable only credits watch time.
 const { tctvWatchHeartbeat } = require('./tctv-watch-callable');
 exports.tctvWatchHeartbeat = tctvWatchHeartbeat;
+
+// Spark Citizen teaser credit (1 completion per offset day, server clock).
+const { sparkCitizenTeaser } = require('./spark-citizen-callable');
+exports.sparkCitizenTeaser = sparkCitizenTeaser;
 
 // Clears the one-time backfill badge toast. The script writes the flag.
 const { ackBadgeBackfillToast } = require('./ack-badge-backfill');
@@ -9925,6 +10059,35 @@ exports.adminFactionRaceBreakdown = factionRace.adminFactionRaceBreakdown;
 // adminApproveFactionPayout (and the old Favor approve step) are NOT
 // exported, so a deploy can never ship them (Red Team #311). The handler
 // code stays in factionRaceJobs.js for reference; it is never deployed.
+
+// Sitewide daily caps (unlocks + faucet). Admin-only settings; logged like
+// the kill switch. Not gated: admins can still change the numbers offline.
+exports.adminGetSitewideCaps = sitewideCaps.makeAdminGetSitewideCaps({
+    functionsV1: functionsV1,
+    admin: admin,
+    db: db,
+    runWith: { enforceAppCheck: true, secrets: ['TOTP_ENCRYPTION_KEY'], serviceAccount: runtimeSa('adminGetSitewideCaps') },
+});
+exports.adminSetSitewideCaps = sitewideCaps.makeAdminSetSitewideCaps({
+    functionsV1: functionsV1,
+    admin: admin,
+    db: db,
+    runWith: { enforceAppCheck: true, secrets: ['TOTP_ENCRYPTION_KEY'], serviceAccount: runtimeSa('adminSetSitewideCaps') },
+});
+
+// ================================================================
+// IN-APP SURVEY (Citadel Spark survey). One 25 OrangeTix grant per uid,
+// server-side, idempotent and audited (survey_responses/{uid} is
+// create-only). App Check + rate limit. Gated by the kill switch below, and
+// closed for good once the switch has flipped after the survey opened.
+// ================================================================
+exports.submitSurvey = require('./src/survey').makeSubmitSurvey({
+    // deletionHmacSecret: the deleted_accounts tombstone lookup (re-created accounts get no grant).
+    runWith: { enforceAppCheck: true, secrets: [deletionHmacSecret] },
+    functionsV1: functionsV1,
+    admin: admin,
+    getDb: function () { return db; },
+});
 
 // ================================================================
 // KILL SWITCH — admin-only app-wide offline switch (config/killSwitch).

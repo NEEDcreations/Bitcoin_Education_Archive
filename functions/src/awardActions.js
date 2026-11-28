@@ -273,7 +273,7 @@ function resolvePhrase(action, ctx) {
         '🗺️ 75% Explored': ['explore_75', 200, '75'],
         '🗺️ 100% Explored': ['explore_100', 500, '100'],
     };
-    if (explore[action]) {
+    if (Object.prototype.hasOwnProperty.call(explore, action)) {
         const row = explore[action];
         return done({
             id: row[0],
@@ -294,7 +294,7 @@ function resolvePhrase(action, ctx) {
         '🔥 7-day chat streak!': ['chat_streak_7', { 25: 25 }, { 50: 25 }, '7'],
         '💎 30-day chat streak!': ['chat_streak_30', { 100: 100 }, { 200: 100 }, '30'],
     };
-    if (streaks[action]) {
+    if (Object.prototype.hasOwnProperty.call(streaks, action)) {
         const row = streaks[action];
         const choice = payChoice(clientPts, row[1], row[2]);
         if (!choice) return unknown();
@@ -389,7 +389,8 @@ function resolveAction(input) {
     if (actionKey === 'prediction_correct' || PREDICTION_RESULT.test(action)) {
         return { ok: false, error: 'Prediction results are scored on the server', awarded: 0, tickets: 0 };
     }
-    // 100 XP and 1 orange ticket, once per offset day, from tctvWatchHeartbeat.
+    // 100 XP and 1 orange ticket, once per America/New_York day, from tctvWatchHeartbeat.
+    // The XP amount still counts toward the 5 AM UTC offset-day cap ledger.
     if (action === 'tctv_watch_10m' || actionKey === 'tctv_watch_10m') {
         return { ok: false, error: 'Timechain TV watch rewards are granted by the server', awarded: 0, tickets: 0 };
     }
