@@ -54,7 +54,7 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
 
 test('service worker cache is v2745', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2747'"))
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2748'"))
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2719'"))
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2718'"))
     assert.ok(!sw.includes("const CACHE_NAME = 'btc-archive-v2717'"))
@@ -761,7 +761,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2747');
+    assert.ok(swVersion && swVersion[1] === 'v2748');
     assert.notStrictEqual(swVersion[1], 'v2746');
     assert.notStrictEqual(swVersion[1], 'v2719');
     assert.notStrictEqual(swVersion[1], 'v2718');
@@ -1017,7 +1017,7 @@ test('RLDA-40 ads.js is pinned at 20261126_v2714 and not protocol-relative', () 
     const html = read('index.html');
     const html404 = read('404.html');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('src="/ads.js?v=20261128_v2747"'));
+    assert.ok(html.includes('src="/ads.js?v=20261128_v2748"'));
     assert.ok(html.includes('id="bqAadsHome"'));
     assert.ok(!html.includes('src="ads.js'));
     const ads = read('ads.js');
@@ -1049,7 +1049,7 @@ test('sat-all-1128 pins (SW v2745; shipped feature files 20261128_v2744)', () =>
     assert.ok(!html.includes('age-confirm.js?v=20261126_v2714'));
     assert.ok(html.includes('popup-stack.js?v=20261128_v2744'));
     assert.ok(html.includes('onboarding.js?v=20261128_v2744'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2747'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2748'"));
     assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2746'"));
     assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2719'"));
     assert.ok(!read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2718'"));
@@ -1082,7 +1082,7 @@ test('sat-all-1128 pins (SW v2745; shipped feature files 20261128_v2744)', () =>
     assert.ok(!html.includes('ads.js?v=20261126_v2706'));
     assert.ok(!html.includes('ads.js?v=20261126_v2696'));
     assert.ok(!html.includes('twa-mode.js?v=20261126_v2700'));
-    assert.ok(html.includes('src="/ads.js?v=20261128_v2747"'));
+    assert.ok(html.includes('src="/ads.js?v=20261128_v2748"'));
     assert.ok(!html.includes('ranking.js?v=20261126_v2704'));
     assert.ok(read('waitlist.html').includes('src="/waitlist.js?v=20261128_v2744"'));
     assert.ok(!read('waitlist.html').includes('waitlist.js?v=20261126_v2696'));

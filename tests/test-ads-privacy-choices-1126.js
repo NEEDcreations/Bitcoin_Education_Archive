@@ -572,7 +572,7 @@ pending.push(test('index.html and 404.html have the footer link, the hash handof
     assert.ok(html.indexOf('href="#privacy-choices"') !== -1);
     assert.ok(html.indexOf("btc_open_privacy_choices") !== -1);
     assert.ok(html.indexOf('id="bqSitePrivacyFooter"') !== -1);
-    assert.ok(html.indexOf('src="/ads.js?v=20261128_v2747"') !== -1);
+    assert.ok(html.indexOf('src="/ads.js?v=20261128_v2748"') !== -1);
     assert.ok(html.indexOf('.bq-ad-slot-home.bq-ad-reserved:not([hidden]) { min-height: 120px;') !== -1);
     assert.ok(html.indexOf('src="/ranking.js?v=20261128_v2746"') !== -1);
     const settings = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
@@ -604,7 +604,7 @@ pending.push(test('the callable name is setPrivacyShareOptOut and the default EE
     const src = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     assert.ok(src.indexOf('exports.setPrivacyShareOptOut') !== -1);
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.indexOf("const CACHE_NAME = 'btc-archive-v2747'") !== -1);
+    assert.ok(sw.indexOf("const CACHE_NAME = 'btc-archive-v2748'") !== -1);
 }));
 
 pending.push(test('opt-out falls back to NPA AdSense on home, and still hides ads when the claim modal is open', async function () {
@@ -1112,6 +1112,34 @@ pending.push(test('an auth event does not hide home ads when a valid user doc is
     assert.strictEqual(after.hidden, false);
     assert.ok(after.innerHTML.indexOf('acceptable.a-ads.com') !== -1);
     assert.ok(after.classList.contains('bq-ad-reserved'));
+}));
+
+pending.push(test('the home slot is moved out of #homeHero so signed-in Home can show it', async function () {
+    const env = loadAdsDom({ navigator: { globalPrivacyControl: false } });
+    const ads = env.api;
+    const document = env.document;
+    ads.rememberCountry('US');
+    const user = await withEligibleDoc(env, 'heromove');
+    const hero = document.createElement('div');
+    hero.id = 'homeHero';
+    const sub = document.createElement('p');
+    sub.className = 'home-subtitle';
+    hero.appendChild(sub);
+    const home = document.createElement('div');
+    home.id = 'bqAadsHome';
+    home.className = 'bq-ad-slot bq-ad-slot-home';
+    hero.appendChild(home);
+    document.body.appendChild(hero);
+    ads.sync({ user: user, surface: 'home', country: 'US' });
+    const slot = document.getElementById('bqAadsHome');
+    assert.ok(slot, 'slot still exists');
+    var walk = slot && slot.parentNode; var inside = false;
+    while (walk) { if (walk === hero) { inside = true; break; } walk = walk.parentNode; }
+    assert.ok(!inside, 'slot must not stay inside #homeHero');
+    assert.strictEqual(slot.parentNode, hero.parentNode);
+    assert.strictEqual(slot.hidden, false);
+    assert.ok(slot.innerHTML.indexOf('acceptable.a-ads.com') !== -1);
+    assert.ok(slot.classList.contains('bq-ad-reserved'));
 }));
 
 pending.reduce(function (chain, run) {

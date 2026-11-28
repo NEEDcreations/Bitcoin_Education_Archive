@@ -960,20 +960,48 @@
         return decision.surface === 'home';
     }
 
+    function placeHomeSlot(slot) {
+        if (typeof document === 'undefined' || !slot) return slot;
+        var hero = document.getElementById('homeHero');
+        var parent = hero && hero.parentNode;
+        if (!parent) return slot;
+        // Signed-in Home hides #homeHero (html.home-signed-in { display:none }),
+        // so the slot must be a sibling after the hero, not a child of it.
+        var insideHero = false;
+        if (typeof hero.contains === 'function') {
+            try { insideHero = !!hero.contains(slot); } catch (eC) { insideHero = false; }
+        }
+        if (!insideHero) {
+            var walk = slot.parentNode;
+            while (walk) {
+                if (walk === hero) { insideHero = true; break; }
+                walk = walk.parentNode;
+            }
+        }
+        if (insideHero || slot.parentNode !== parent || slot.previousElementSibling !== hero) {
+            if (hero.nextSibling) parent.insertBefore(slot, hero.nextSibling);
+            else parent.appendChild(slot);
+        }
+        return slot;
+    }
+
     function ensureHomeSlot() {
         var slot = typeof document !== 'undefined' ? document.getElementById('bqAadsHome') : null;
-        if (slot) return slot;
+        if (slot) return placeHomeSlot(slot);
         if (typeof document === 'undefined') return null;
-        var after = document.querySelector('#homeHero .home-subtitle') || document.getElementById('homeHero');
+        var hero = document.getElementById('homeHero');
+        var after = hero || document.querySelector('#home .home-inner') || (document.body || null);
         if (!after) return null;
         slot = document.createElement('div');
         slot.id = 'bqAadsHome';
         slot.className = 'bq-ad-slot bq-ad-slot-home';
         slot.hidden = true;
         slot.setAttribute('aria-label', 'Advertisement');
-        if (after.parentNode) {
-            if (after.nextSibling) after.parentNode.insertBefore(slot, after.nextSibling);
-            else after.parentNode.appendChild(slot);
+        if (hero && hero.parentNode) {
+            if (hero.nextSibling) hero.parentNode.insertBefore(slot, hero.nextSibling);
+            else hero.parentNode.appendChild(slot);
+        } else if (after.appendChild) {
+            after.appendChild(slot);
         }
         return slot;
     }
