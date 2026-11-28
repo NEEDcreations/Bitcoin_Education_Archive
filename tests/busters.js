@@ -886,7 +886,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(notes.includes('The Supercharged Window'));
     assert.ok(notes.includes('Pick a Title'));
     assert.ok(notes.indexOf('November 2–5, 2026') < notes.indexOf('June 28 – July 5, 2026'));
-    assert.strictEqual((notes.match(/<h2 class="patch-title"/g) || []).length, 18);
+    assert.strictEqual((notes.match(/<h2 class="patch-title"/g) || []).length, 19);
     assert.ok(!notes.includes('Cloud Functions'));
     assert.ok(!notes.includes('Firestore'));
     assert.ok(!notes.includes('App Check'));
