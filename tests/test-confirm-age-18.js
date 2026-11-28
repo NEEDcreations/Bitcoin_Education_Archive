@@ -938,7 +938,7 @@ test('an under-18 profile without guardianOk is asked for the checkbox, not skip
     });
 });
 
-test('after a failed guardian save, an existing under-18 account can dismiss for this session only', function () {
+test('after a failed guardian save, the guardian step stays: no Not now, no close button', function () {
     let invokes = 0;
     const env = bootClient({
         _btcAppCheckForClaim: function () { return Promise.resolve(''); },
@@ -994,17 +994,19 @@ test('after a failed guardian save, an existing under-18 account can dismiss for
         assert.ok(err.textContent.indexOf('App Check token is not ready') === -1);
         const card = overlay.children[0];
         const closeBtn = card.children[0];
-        assert.strictEqual(closeBtn.style.display, '');
-        const notNow = env.document.getElementById('ageGuardianNotNow');
-        assert.ok(notNow);
-        notNow.click();
-        assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+        assert.strictEqual(closeBtn.style.display, 'none');
+        assert.strictEqual(env.document.getElementById('ageGuardianNotNow'), null);
+        assert.strictEqual(overlay.getAttribute('data-age-step'), 'guardian-required');
+        // Clicking the backdrop does not close it either.
+        const backdrop = (overlay._events && overlay._events.click) || [];
+        backdrop.forEach(function (fn) { fn({ target: overlay }); });
+        assert.ok(env.document.getElementById('ageConfirmOverlay'));
         assert.strictEqual(env._bqAgeConfirmed18, false);
-        assert.strictEqual(env.sessionStorage.getItem('bq_age_confirm_dismissed'), '1');
+        assert.strictEqual(env.sessionStorage.getItem('bq_age_confirm_dismissed'), null);
     });
 });
 
-test('a session-dismissed guardian prompt is not shown again until the next session', function () {
+test('a stale session dismiss does not skip the guardian step for a saved under-18 answer', function () {
     const store = { bq_age_confirm_dismissed: '1' };
     const env = bootClient({
         sessionStorage: {
@@ -1028,9 +1030,11 @@ test('a session-dismissed guardian prompt is not shown again until the next sess
         }
     });
     return Promise.resolve().then(function () {
-        assert.strictEqual(env.document.getElementById('ageConfirmOverlay'), null);
+        const overlay = env.document.getElementById('ageConfirmOverlay');
+        assert.ok(overlay, 'guardian step is shown even with a session dismiss flag');
+        assert.strictEqual(overlay.getAttribute('data-age-step'), 'guardian-required');
+        assert.ok(env.document.getElementById('ageGuardianOk'));
         assert.strictEqual(env._bqAgeConfirmed18, false);
-        assert.strictEqual(store.bq_age_confirm_dismissed, '1');
     });
 });
 

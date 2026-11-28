@@ -14153,6 +14153,8 @@ window.claimCipherSats = async function() {
     var bal = Math.max(0, Math.floor(Number(currentUser && currentUser.cipherSatsBalance) || 0));
     if (bal < window.CIPHER_SATS_RULES.min) return { success: false };
     if (window._cipherSatsClaiming) return { success: false };
+    // Sats need a confirmed 18+ answer. Re-shows the age prompt when it is not.
+    if (typeof window.bqSatsAge18Check === 'function' && !window.bqSatsAge18Check(currentUser)) return { success: false, code: 'age_18_required' };
     if (typeof firebase === 'undefined' || !firebase.functions) {
         if (typeof showToast === 'function') showToast('Sign in to claim cipher sats');
         return { success: false };
@@ -14165,7 +14167,8 @@ window.claimCipherSats = async function() {
         var res = await firebase.functions().httpsCallable('claimCipherSats')({});
         var d = (res && res.data) || {};
         if (!d.success) {
-            if (typeof showToast === 'function') showToast(d.error || 'Could not claim cipher sats');
+            var _ageAsked = typeof window.bqSatsAge18Handle === 'function' && window.bqSatsAge18Handle(d, currentUser);
+            if (!_ageAsked && typeof showToast === 'function') showToast(d.error || 'Could not claim cipher sats');
             return d;
         }
         if (typeof currentUser !== 'undefined' && currentUser && typeof d.balance === 'number') {
@@ -14178,7 +14181,8 @@ window.claimCipherSats = async function() {
         if (document.getElementById('nookTabContent') && typeof window._renderNookSubTabs === 'function') window._renderNookSubTabs();
         return d;
     } catch (e) {
-        if (typeof showToast === 'function') showToast((e && e.message) || 'Could not claim cipher sats');
+        var _ageAsked2 = typeof window.bqSatsAge18Handle === 'function' && window.bqSatsAge18Handle(e, currentUser);
+        if (!_ageAsked2 && typeof showToast === 'function') showToast((e && e.message) || 'Could not claim cipher sats');
         return { success: false };
     } finally {
         window._cipherSatsClaiming = false;
@@ -14223,6 +14227,8 @@ window.initSatsClaim = function() {
         showToast('Sign in to claim sats');
         return;
     }
+    // Sats need a confirmed 18+ answer. Re-shows the age prompt when it is not.
+    if (typeof window.bqSatsAge18Check === 'function' && !window.bqSatsAge18Check(currentUser)) return;
     // All three offset counters (claimed, donated, exchanged) reduce the redeemable pool
     var availPts = spendableXp(currentUser);
     var _claimMath = (typeof window.claimableSats === 'function') ? window.claimableSats(currentUser) : null;
@@ -14500,6 +14506,7 @@ window.submitSatsClaim = async function() {
             setTimeout(function() { showSettingsPage('sats'); }, 500);
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
+            if (typeof window.bqSatsAge18Handle === 'function') window.bqSatsAge18Handle(result.data, currentUser);
             if (typeof isSitewideCapError === 'function' && isSitewideCapError(null, result.data)) {
                 if (typeof showSitewideCapCard === 'function') showSitewideCapCard();
             }
@@ -14516,6 +14523,7 @@ window.submitSatsClaim = async function() {
     } catch(e) {
         console.error('Sats claim error:', e);
         var errMsg = e.message || 'Claim failed - try again';
+        if (typeof window.bqSatsAge18Handle === 'function') window.bqSatsAge18Handle(e, currentUser);
         if (typeof isSitewideCapError === 'function' && isSitewideCapError(e)) {
             if (typeof showSitewideCapCard === 'function') showSitewideCapCard();
         }

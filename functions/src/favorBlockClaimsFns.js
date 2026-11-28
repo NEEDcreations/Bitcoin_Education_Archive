@@ -117,6 +117,9 @@ function factory(functionsV1, deps) {
         if (u.deleted === true || u.deletedAt || u.accountDeleted === true) return { ok: false, code: 'deleted' };
         if (u.banned === true || u.isBanned === true) return { ok: false, code: 'banned' };
         if (Number(u.satsHold) > Date.now()) return { ok: false, code: 'hold' };
+        // Sats need a confirmed 18+ answer (fields set by confirmAge18).
+        const age18 = require('./age18Sats').assess(u);
+        if (!age18.ok) return { ok: false, code: 'age_18_required', reason: age18.reason, error: age18.error };
         const ledger = await db.collection('faucet_ledger').doc(uid).get();
         const ledgerBanned = ledger.exists && (ledger.data() || {}).banned === true;
         const accountTombstone = require('./accountTombstone');

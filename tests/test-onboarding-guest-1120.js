@@ -184,7 +184,7 @@ test('service worker updates wait if signup or onboarding is open', function () 
     assert.ok(html404.includes('_reloadWhenIdle'));
     assert.ok(/const CACHE_NAME = 'btc-archive-v\d+'/.test(read('sw.js')));
     assert.ok(html.includes('onboarding.js?v=20261128_v2744'));
-    assert.ok(html.includes('ranking.js?v=20261128_v2744'));
+    assert.ok(html.includes('ranking.js?v=20261128_v2746'));
 });
 
 test('intro overlay sits above the account sheet', function () {

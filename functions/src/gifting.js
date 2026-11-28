@@ -18,6 +18,7 @@ const { checkRouteFees } = require('./favorBlockClaims');
 const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
 const faucetGuard = require('./faucetGuard');
+const age18Sats = require('./age18Sats');
 const payFailGuard = require('./payFailGuard');
 const { rollCipherReward, satsDisposition, ALLOWED_SATS_AMOUNTS } = require('./cipherReward');
 const {
@@ -1211,12 +1212,22 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
     return bolt;
 }
 
+// Sats need a confirmed 18+ answer. Read first, ahead of the wallet and other
+// checks, so an unconfirmed player is sent to the age prompt. The claim
+// transaction checks again and is the authoritative gate.
+async function age18Precheck(uid) {
+    const snap = await db.collection('users').doc(uid).get();
+    return age18Sats.assess(snap.exists ? snap.data() : null);
+}
+
 const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, enforceAppCheck: true, secrets: [deletionHmacSecret, nwcUrlSecret], serviceAccount: runtimeSa('claimCipherWin') }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
+    const preAge18 = await age18Precheck(uid);
+    if (!preAge18.ok) throw age18Sats.errorFor(functionsV1.https.HttpsError, preAge18);
     if (!nwcUrl()) throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
@@ -1286,6 +1297,9 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, enforceAppChec
         }
         isFactionPrize = factionPrize;
         const userRow = userDoc.exists ? (userDoc.data() || {}) : {};
+        // Sats need a confirmed 18+ answer. Refused before the win flips to 'paying'.
+        const age18 = age18Sats.assess(userRow);
+        if (!age18.ok) throw age18Sats.errorFor(functionsV1.https.HttpsError, age18);
         if (Number(userRow.satsHold) > Date.now()) {
             throw httpsError('failed-precondition', 'Sats withdrawals are paused on this account. Try again later.');
         }
@@ -1798,6 +1812,8 @@ const claimCipherSats = functionsV1.runWith({
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
+    const preAge18 = await age18Precheck(uid);
+    if (!preAge18.ok) return age18Sats.responseFor(preAge18);
     if (!nwcUrl()) throw httpsError('failed-precondition', 'Prize wallet is not configured yet.');
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
@@ -1856,6 +1872,7 @@ const claimCipherSats = functionsV1.runWith({
 
     let reserved = null;
     let denial = '';
+    let age18Denial = null;
     await db.runTransaction(async (t) => {
         const userSnap = await t.get(userRef);
         const ledgerSnap = await t.get(ledgerRef);
@@ -1866,6 +1883,13 @@ const claimCipherSats = functionsV1.runWith({
         const configSnap = await t.get(configRef);
         if (!userSnap.exists) throw httpsError('not-found', 'User not found');
         const user = userSnap.data() || {};
+        // Sats need a confirmed 18+ answer. Checked before the attempt counter
+        // or any reservation is written, so a refused claim leaves no trace.
+        const age18 = age18Sats.assess(user);
+        if (!age18.ok) {
+            age18Denial = age18;
+            return;
+        }
         const saved = faucetGuard.normalizeLightningAddress(user.lightningAddress || user.lightning || user.lnAddress || '');
         let addrSnap = null;
         if (saved && saved.indexOf('/') === -1 && saved.length <= 300) {
@@ -1988,6 +2012,7 @@ const claimCipherSats = functionsV1.runWith({
         };
     });
 
+    if (age18Denial) return age18Sats.responseFor(age18Denial);
     if (!reserved) return { success: false, error: denial || UNAVAILABLE };
 
     let invoice = '';

@@ -2314,6 +2314,8 @@ window.showCipherClaim = function(win) {
         _toast(SATS_OFF_MSG);
         return;
     }
+    // Sats need a confirmed 18+ answer. Re-shows the age prompt when it is not.
+    if (typeof window.bqSatsAge18Check === 'function' && !window.bqSatsAge18Check((typeof currentUser !== 'undefined' ? currentUser : null))) return;
     _injectGiftingCSS();
     var old = document.getElementById('cipherClaimOverlay');
     if (old) _dismissGiftingChild(old);
@@ -2361,6 +2363,7 @@ window.showCipherClaim = function(win) {
             if (!d.success) {
                 go.disabled = false;
                 go.textContent = 'Pay me';
+                if (typeof window.bqSatsAge18Handle === 'function' && window.bqSatsAge18Handle(d, (typeof currentUser !== 'undefined' ? currentUser : null))) return;
                 _toast('❌ ' + (d.error || 'Payment failed'));
                 return;
             }
@@ -2371,6 +2374,7 @@ window.showCipherClaim = function(win) {
         } catch (e) {
             go.disabled = false;
             go.textContent = 'Pay me';
+            if (typeof window.bqSatsAge18Handle === 'function' && window.bqSatsAge18Handle(e, (typeof currentUser !== 'undefined' ? currentUser : null))) return;
             _toast('❌ ' + (e.message || 'Payment failed'));
         }
     };
